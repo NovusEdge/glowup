@@ -1,0 +1,13 @@
+{
+  "name": "glowup",
+  "version": "0.0.0",
+  "description": "A glow-up for Claude Code: a live animated view of what Claude is doing, styled by shareable theme files.",
+  "author": {
+    "name": "Aliasgar Khimani",
+    "url": "https://github.com/NovusEdge"
+  },
+  "homepage": "https://github.com/NovusEdge/glowup",
+  "repository": "https://github.com/NovusEdge/glowup",
+  "license": "MIT",
+  "keywords": ["theme", "skin", "visualizer", "animation", "eye-candy", "mod"]
+}

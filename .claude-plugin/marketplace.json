@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "glowup",
+  "description": "A glow-up for Claude Code.",
+  "owner": {
+    "name": "Aliasgar Khimani",
+    "url": "https://github.com/NovusEdge"
+  },
+  "plugins": [
+    {
+      "name": "glowup",
+      "description": "A live animated view of what Claude is doing, styled by shareable theme files.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}
