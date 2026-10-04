@@ -1,6 +1,6 @@
 import { test, expect, mock } from 'claude-code/testing'
 import { runGlowup, fakeHost, fakeFs } from './kit.ts'
-import { runCommand, type Ctl } from '../hooks/command.ts'
+import { runCommand, USAGE, type Ctl } from '../hooks/command.ts'
 import type { Mix } from '../hooks/packs.ts'
 import type { PetSetting } from '../hooks/pets.ts'
 
@@ -9,6 +9,14 @@ test('/glowup with no args prints usage', async ($, on) => {
   mock.store(on)
   const out = await runGlowup($)
   expect(out.text).toContain('/glowup theme <name>')
+})
+
+test('config opens the config view', async () => {
+  const { host } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'config', c)).toBe('glowup config open')
+  expect(calls).toEqual(['config'])
+  expect(USAGE).toContain('/glowup config')
 })
 
 const SETTINGS = '/home/u/.claude/settings.json'
@@ -29,6 +37,7 @@ const ctl = (answer = true, current = 'classic') => {
     pet: () => pet,
     setPet: p => { pet = p; calls.push('pet:' + p) },
     setBubbles: b => { calls.push('bubbles:' + b) },
+    openConfig: async () => { calls.push('config'); return 'glowup config open' },
   }
   return { calls, questions, ctl: c }
 }

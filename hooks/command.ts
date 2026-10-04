@@ -18,7 +18,8 @@ export const USAGE = [
   '  /glowup pack <name|url>    apply a pack (--force replaces an installed one)',
   '  /glowup pack list          list packs',
   '  /glowup pack save <name>   save the current look as a pack file',
-  '  /glowup import <file>      turn a Ghostty or base16 scheme into a pack',
+  '  /glowup config             change the look in a dialog',
+  '  /glowup import <file>      turn a terminal color scheme into a pack',
   '  /glowup pet clawd|off      choose the pet, or none',
   '  /glowup bubbles on|off     speech bubbles',
   '  /glowup pane               open or close the glowup pane',
@@ -39,6 +40,7 @@ export type Ctl = {
   pet(): PetSetting
   setPet(p: PetSetting): void
   setBubbles(b: BubbleSetting): void
+  openConfig(): Promise<string>
 }
 
 const MAX_SCHEME_BYTES = 65536
@@ -134,6 +136,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     return `Bubbles: ${a1}`
   }
   if (sub === 'pane') return ctl.togglePane()
+  if (sub === 'config') return ctl.openConfig()
   if (sub === 'motion' && (a1 === 'reduced' || a1 === 'full')) {
     await host.storeSet('reducedMotion', a1 === 'reduced')
     ctl.setMotion(a1 === 'reduced')
