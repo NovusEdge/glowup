@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-04
+
 ### Fixed
 
 - Restyled tool rows draw again. Claude Code refused them because of a box setting around its own row, so every tool row fell back to the stock look.

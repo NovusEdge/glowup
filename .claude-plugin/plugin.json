@@ -1,6 +1,6 @@
 {
   "name": "glowup",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "A glow-up for Claude Code: a cockpit pane for changes, subagents and context, an activity band, and shareable themes.",
   "author": {
     "name": "Aliasgar Khimani",
