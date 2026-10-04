@@ -58,6 +58,24 @@ test('orb states draw differently', async () => {
   expect(new Set(frames).size).toBe(5)
 })
 
+test('negative or NaN time draws the first frame', async () => {
+  for (const id of ids) for (const t of [-50, NaN]) {
+    expect(spinnerCells(id, t, O)).toEqual(spinnerCells(id, 0, O))
+    for (const c of spinnerCells(id, t, O).flat()) expect(c.ch).toBeDefined()
+  }
+})
+
+test('every orb state keeps the declared size and width-1 glyphs', async () => {
+  for (const st of ['think', 'search', 'work', 'run', 'agents'] as const) {
+    const rows = spinnerCells('orb-states', 1000, O, st)
+    expect(rows.length).toBe(SPINNERS['orb-states'].rows)
+    for (const r of rows) {
+      expect(r.length).toBe(SPINNERS['orb-states'].cols)
+      for (const c of r) { const cp = c.ch.codePointAt(0)!; expect(cp >= 0x20 && cp <= 0xffff && cellWidth(cp) === 1).toBe(true) }
+    }
+  }
+})
+
 test('a frame uses few colors', async () => {
   for (const id of ids) expect(new Set(spinnerCells(id, 1234, O).flat().map(c => c.fg + (c.bg ?? ''))).size).toBeLessThanOrEqual(64)
 })
