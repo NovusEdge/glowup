@@ -1,8 +1,25 @@
 import { test, expect } from 'claude-code/testing'
-import { tierFor, fit, visibleLength, hearts, bar, ctxColor, toneColor, renderSegs } from '../hooks/layout.tsx'
+import { tierFor, fit, visibleLength, hearts, bar, ctxColor, toneColor, renderSegs, hpBar, comboSegs } from '../hooks/layout.tsx'
 import { resolveTheme } from '../hooks/themes.ts'
+import { resolveLook } from '../hooks/packs.ts'
 
 const T = resolveTheme('classic', {}).theme
+
+test('hpBar fits its width and says what is left', async () => {
+  const segs = hpBar(62, T, 40)
+  expect(visibleLength(segs)).toBeLessThanOrEqual(40)
+  expect(segs.map(s => s.text).join('')).toContain('38% context left')
+  expect(hpBar(100, T, 40).map(s => s.text).join('')).toContain('0% context left')
+})
+
+test('comboSegs is empty under three or without the pack extra', async () => {
+  const arcade = resolveLook({ colors: 'arcade', motion: 'arcade' }, {}, {}).look
+  const classic = resolveLook({ colors: 'classic', motion: 'classic' }, {}, {}).look
+  expect(comboSegs(3, arcade).map(s => s.text).join('')).toBe(' COMBO x3 ')
+  expect(comboSegs(2, arcade)).toEqual([])
+  expect(comboSegs(9, classic)).toEqual([])
+  expect(comboSegs(9)).toEqual([])
+})
 
 test('an empty row renders a one-line spacer Box', async () => {
   const els = { Box: 'Box', Text: 'Text' }

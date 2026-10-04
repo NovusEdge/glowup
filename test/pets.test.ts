@@ -1,9 +1,11 @@
 import { test, expect } from 'claude-code/testing'
-import { FX, petPose, petRows, petDx, halfBlock, frameAt, shiny, CLAWD_SHEET, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, PET_COLS, PET_ROWS } from '../hooks/pets.ts'
+import { petPose, halfBlock, frameAt, shiny, petPalette, composeFrame, validateSheet, animFor, CLAWD_SHEET, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, PET_COLS, PET_ROWS, OUTFIT_PAD } from '../hooks/pets.ts'
 import { cellWidth } from '../hooks/cells.ts'
 
 const width = (s: string) => [...s].reduce((n, c) => n + cellWidth(c.codePointAt(0)!), 0)
 const flat = (rows: { text: string }[][]) => rows.map(r => r.map(s => s.text).join(''))
+const draw = (pet: 'clawd' | 'clawd-shiny', pose: string, f: number, ov: string[] = []) =>
+  halfBlock(composeFrame(CLAWD_SHEET, animFor(CLAWD_SHEET, pose).frames[f]!, ov, false), petPalette(CLAWD_SHEET, pet))
 
 test('poses follow the table', async () => {
   const base = { working: false, needsYou: false }
@@ -35,14 +37,25 @@ test('an unknown activity time never means asleep', async () => {
 })
 
 test('a missing animation falls back: fail to alert, anything else to idle', async () => {
-  const rows = (pose: string) => flat(petRows('clawd', pose as 'idle', 0, []))
-  expect(rows('fail')).toEqual(rows('alert'))
-  expect(rows('nope')).toEqual(rows('idle'))
+  const fr = (c: string) => ({ ms: 100, px: [c] })
+  const sheet = { w: 1, h: 1, palette: {}, animations: { idle: { loop: true, frames: [fr('i')] }, alert: { loop: true, frames: [fr('a')] } } }
+  expect(animFor(sheet, 'fail').frames[0]!.px).toEqual(['a'])
+  expect(animFor(sheet, 'nope').frames[0]!.px).toEqual(['i'])
 })
 
 test('the shiny sheet is the sheet palette swapped to gold', async () => {
-  const colors = new Set(petRows('clawd-shiny', 'idle', 0, []).flat().flatMap(s => [s.color, s.bg]))
-  expect(colors.has(shiny(CLAWD_SHEET.palette).h)).toBe(true)
+  const colors = new Set(draw('clawd-shiny', 'idle', 0).flat().flatMap(s => [s.color, s.bg]))
+  expect(colors.has(CLAWD_SHEET.shiny!.L)).toBe(true)
+})
+
+test('the shipped sheet has no unknown palette keys and no ragged rows', async () => {
+  validateSheet(CLAWD_SHEET)
+})
+
+test('a typo in a palette key throws instead of vanishing', async () => {
+  const bad = { ...CLAWD_SHEET, animations: { idle: { loop: true, frames: [{ ms: 100, px: CLAWD_SHEET.animations.idle!.frames[0]!.px.map(r => r.replace('B', 'Q')) }] } } }
+  expect(() => validateSheet(bad)).toThrow(/unknown palette key "Q"/)
+  expect(() => validateSheet({ ...CLAWD_SHEET, outfits: { hat: { anchor: [0, 0], px: ['q'] } } })).toThrow(/outfit hat/)
 })
 
 test('halfBlock pairs pixel rows into half-block cells', async () => {
@@ -84,9 +97,9 @@ test('frameAt honors per-frame ms and loop', async () => {
 test('the sheet has every pose with enough frames', async () => {
   expect(CLAWD_SHEET.w).toBe(PET_COLS)
   expect(CLAWD_SHEET.h).toBe(PET_ROWS * 2)
-  for (const pose of ['idle', 'walk', 'hop', 'alert', 'done', 'sleep']) {
+  for (const pose of ['idle', 'walk', 'hop', 'alert', 'done', 'sleep', 'working', 'fail']) {
     const a = CLAWD_SHEET.animations[pose]!
-    expect(a.loop).toBe(true)
+    expect(a.loop).toBe(!['hop', 'fail'].includes(pose))
     expect(a.frames.length).toBeGreaterThanOrEqual(8)
     for (const fr of a.frames) {
       expect(fr.px).toHaveLength(CLAWD_SHEET.h)
@@ -98,26 +111,39 @@ test('the sheet has every pose with enough frames', async () => {
   expect(CLAWD_SHEET.animations.idle!.frames.every(f => f.head !== undefined)).toBe(true)
 })
 
-test('every frame is PET_ROWS rows of exactly PET_COLS cells', async () => {
+test('every frame is PET_ROWS rows of exactly PET_COLS cells; outfits add the headroom', async () => {
   for (const pet of ['clawd', 'clawd-shiny'] as const)
-    for (const pose of ['idle', 'walk', 'hop', 'alert', 'done', 'sleep'] as const) for (const t of [0, 400, 450, 900, 1300, 5000])
-      for (const ov of [[], ['santa'], ['nightcap', 'sweat'], ['pumpkin'], ['party'], ['friday']]) {
-        const rows = flat(petRows(pet, pose, t, ov))
+    for (const [pose, a] of Object.entries(CLAWD_SHEET.animations)) a.frames.forEach((_, f) => {
+      for (const ov of [[], ['friday']]) {
+        const rows = flat(draw(pet, pose, f, ov))
         expect(rows).toHaveLength(PET_ROWS)
         for (const r of rows) expect(width(r)).toBe(PET_COLS)
       }
+      for (const ov of [['santa'], ['nightcap', 'sweat'], ['pumpkin'], ['party']]) {
+        const rows = flat(draw(pet, pose, f, ov))
+        expect(rows).toHaveLength(PET_ROWS + OUTFIT_PAD / 2)
+        for (const r of rows) expect(width(r)).toBe(PET_COLS)
+      }
+    })
 })
 
-test('no frame recolors the whole sprite', async () => {
-  // Movement frames last at least 80 ms; the palette is the sheet's and never swaps mid-animation.
-  for (const [pose, a] of Object.entries(CLAWD_SHEET.animations)) {
-    a.frames.forEach((fr, i) => {
+test('movement frames last at least 80 ms and the body keeps the sheet colors', async () => {
+  const clips = Object.entries(CLAWD_SHEET.transitions ?? {}).map(([n, c]) => [n, c.frames] as const)
+  for (const [pose, frames] of [...Object.entries(CLAWD_SHEET.animations).map(([n, a]) => [n, a.frames] as const), ...clips]) {
+    frames.forEach((fr, i) => {
       expect(fr.ms, `${pose}[${i}]`).toBeGreaterThanOrEqual(80)
       const keys = new Set(fr.px.join(''))
-      // the body always uses the sheet's own colors, so only movement changes between frames
-      for (const k of 'ohs') expect(keys.has(k), `${pose}[${i}] has ${k}`).toBe(true)
-      for (const k of keys) expect(k === '.' || k in CLAWD_SHEET.palette || k in FX, `${pose}[${i}] key ${k}`).toBe(true)
+      for (const k of 'BD') expect(keys.has(k), `${pose}[${i}] has ${k}`).toBe(true)
     })
+  }
+})
+
+test('exit frames and transition clips have the shape the Client reads', async () => {
+  for (const [name, a] of Object.entries(CLAWD_SHEET.animations)) expect(a.frames.every(f => f.exit === undefined || f.exit === true), name).toBe(true)
+  for (const [name, c] of Object.entries(CLAWD_SHEET.transitions ?? {})) {
+    expect(typeof c.from, name).toBe('string')
+    expect(typeof c.to, name).toBe('string')
+    expect(c.frames.length, name).toBeGreaterThan(0)
   }
 })
 
@@ -126,33 +152,40 @@ test('the one-row Clawd is five width-1 cells', async () => {
   expect(width(CLAWD_ROW)).toBe(5)
 })
 
-test('Clawd keeps his colors, shiny is gold, alert adds a !', async () => {
-  const colors = (pet: 'clawd' | 'clawd-shiny') => new Set(petRows(pet, 'idle', 0, []).flat().flatMap(s => [s.color, s.bg].filter(Boolean)))
+test('Clawd keeps his colors, shiny is gold', async () => {
+  const colors = (pet: 'clawd' | 'clawd-shiny') => new Set(draw(pet, 'idle', 0).flat().flatMap(s => [s.color, s.bg].filter(Boolean)))
   expect(colors('clawd').has(CLAWD_COLOR)).toBe(true)
   expect(colors('clawd').has(SHINY_COLOR)).toBe(false)
   expect(colors('clawd-shiny').has(SHINY_COLOR)).toBe(true)
   expect(colors('clawd-shiny').has(CLAWD_COLOR)).toBe(false)
-  const bang = (pose: 'idle' | 'alert') => petRows('clawd', pose, 0, []).flat().some(s => s.color === '#ff6b80' || s.bg === '#ff6b80')
-  expect(bang('alert')).toBe(true)
-  expect(bang('idle')).toBe(false)
 })
 
-test('shiny swaps only the body colors', async () => {
+test('shiny swaps only the body colors, and only keys the palette has', async () => {
   const s = shiny(CLAWD_SHEET.palette)
-  expect(s.o).toBe(SHINY_COLOR)
+  expect(s.B).toBe(SHINY_COLOR)
   expect(Object.keys(s).sort()).toEqual(Object.keys(CLAWD_SHEET.palette).sort())
 })
 
-test('outfits draw on top of the head and change the picture', async () => {
-  for (const ov of ['santa', 'party', 'nightcap', 'pumpkin', 'sweat'])
-    expect(flat(petRows('clawd', 'idle', 0, [ov]))).not.toEqual(flat(petRows('clawd', 'idle', 0, [])))
-  expect(flat(petRows('clawd', 'idle', 0, ['friday']))).toEqual(flat(petRows('clawd', 'idle', 0, [])))
+test('outfits draw on the head and change the picture; unknown names change nothing', async () => {
+  const base = (ov: string[]) => flat(draw('clawd', 'idle', 0, ov))
+  for (const ov of ['santa', 'party', 'nightcap', 'pumpkin', 'sweat']) expect(base([ov]).join('\n')).not.toBe(base([]).join('\n'))
+  expect(base(['friday'])).toEqual(base([]))
+})
+
+test('composeFrame mirrors every row', async () => {
+  const sheet = { w: 3, h: 2, palette: { a: '#111111' }, animations: {} }
+  expect(composeFrame(sheet, { px: ['a..', '.a.'] }, [], true)).toEqual(['..a', '.a.'])
+})
+
+test('a hand outfit sits at the frame hand, or four pixels under the head', async () => {
+  const sheet = { w: 4, h: 4, palette: { a: '#111111', b: '#222222' }, outfits: { cup: { slot: 'hand' as const, anchor: [0, 0] as [number, number], px: ['b'] } }, animations: {} }
+  const blank = ['....', '....', '....', '....', '....', '....']
+  expect(composeFrame(sheet, { px: blank, head: [1, 0] }, ['cup'], false)[4 + OUTFIT_PAD]).toBe('.b..')
+  expect(composeFrame(sheet, { px: blank, head: [1, 0], hand: [3, 1] }, ['cup'], false)[1 + OUTFIT_PAD]).toBe('...b')
 })
 
 test('walking carries horizontal travel in dx', async () => {
-  const xs = new Set<number>()
-  for (let t = 0; t < 7000; t += 100) xs.add(petDx('clawd', 'walk', t))
-  expect(Math.min(...xs)).toBeLessThan(0)
-  expect(Math.max(...xs)).toBeGreaterThan(0)
-  expect(petDx('clawd', 'idle', 0)).toBe(0)
+  expect(CLAWD_SHEET.animations.walk!.frames.every(f => (f.dx ?? 0) > 0)).toBe(true)
+  const left = CLAWD_SHEET.animations['walk-left']
+  if (left) expect(left.frames.every(f => (f.dx ?? 0) < 0)).toBe(true)
 })

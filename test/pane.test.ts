@@ -1,5 +1,6 @@
 import { test, expect } from 'claude-code/testing'
-import { tabRows, statusRows, renderPane, type TabId } from '../hooks/pane.tsx'
+import { tabRows, statusRows, renderPane, COMPACT_ROWS, type TabId } from '../hooks/pane.tsx'
+import { resolveLook } from '../hooks/packs.ts'
 import { visibleLength } from '../hooks/layout.tsx'
 import { initialModel, type Model } from '../hooks/model.ts'
 import { resolveTheme } from '../hooks/themes.ts'
@@ -127,12 +128,75 @@ test('status rows say the action and context in words', async () => {
 // Fake element table: lets renderPane run without the engine.
 const els = { Box: 'Box', Text: 'Text', Button: 'Button' }
 const walk = (n: any, out: any[] = []): any[] => {
-  if (n && typeof n === 'object') {
+  if (typeof n === 'string') out.push(n)
+  else if (n && typeof n === 'object') {
     out.push(n)
     for (const c of n.children ?? []) walk(c, out)
   }
   return out
 }
+// the text of every row Box (a Box whose children are Text)
+const textRows = (tree: any): string[] =>
+  walk(tree).filter(n => n?.type === 'Box' && (n.children ?? []).some((c: any) => c?.type === 'Text')).map(n => walk(n).filter(x => typeof x === 'string').join(''))
+
+const PETNODE = { type: 'Client', props: { key: 'pet', module: './client/pet.tsx' } }
+const arcade = resolveLook({ colors: 'arcade', motion: 'arcade' }, {}, {}).look
+
+test('docked pane: the pet strip sits at the bottom, inside the pack border', async () => {
+  const tree = renderPane(els, M, T, { tab: 'changes' }, 54, false, 0, () => {}, { look: arcade, pet: { id: 'clawd', node: PETNODE } })
+  const box = walk(tree).find(n => n.props?.borderStyle)
+  expect([box.props.borderStyle, box.props.borderColor]).toEqual(['bold', '#ff3ec8'])
+  const nodes = walk(tree)
+  expect(nodes).toContain(PETNODE)
+  expect(nodes.indexOf(PETNODE)).toBeGreaterThan(nodes.findIndex(n => n.props?.borderStyle))
+  expect(walk(box)).toContain(PETNODE)
+})
+
+test('compact drawer: one row of pet, everything within COMPACT_ROWS and the width', async () => {
+  for (const tab of ['changes', 'agents', 'plan'] as const) {
+    const tree = renderPane(els, many(20), T, { tab }, 50, true, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, bubble: { text: 'a very long thing to say, far wider than the drawer can hold', mood: 'fail' } })
+    const rows = textRows(tree)
+    // the tab strip takes one more row
+    expect(rows.length + 1).toBeLessThanOrEqual(COMPACT_ROWS)
+    for (const r of rows) expect(visibleLength([{ text: r, color: '' }])).toBeLessThanOrEqual(50)
+    expect(walk(tree)).toContain(PETNODE)
+  }
+})
+
+test('a bubble draws a round bordered Box in the mood color beside the pet', async () => {
+  for (const [mood, key] of [['fail', 'fail'], ['done', 'pass'], ['needs-you', 'accent']] as const) {
+    const tree = renderPane(els, M, T, { tab: 'changes' }, 80, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, bubble: { text: 'ouch, 3 failed', mood } })
+    const bubble = walk(tree).find(n => n.props?.borderStyle === 'round' && n.props.borderColor === T.colors[key] && walk(n).includes('ouch, 3 failed'))
+    expect(bubble, mood).toBeDefined()
+  }
+})
+
+test('on a narrow pane the bubble sits above the pet and stays inside the width', async () => {
+  const tree = renderPane(els, M, T, { tab: 'changes' }, 54, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, bubble: { text: 'ouch, 3 failed and then some more words', mood: 'fail' } })
+  const nodes = walk(tree)
+  const at = nodes.findIndex(n => n.props?.borderColor === T.colors.fail)
+  expect(at).toBeGreaterThan(-1)
+  expect(at).toBeLessThan(nodes.indexOf(PETNODE))
+  for (const r of textRows(tree)) expect(visibleLength([{ text: r, color: '' }])).toBeLessThanOrEqual(54)
+})
+
+test("the friday sign sits next to the pet, not in the band", async () => {
+  const tree = renderPane(els, M, T, { tab: 'changes' }, 80, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, friday: true })
+  expect(walk(tree).some(n => typeof n === 'string' && n.includes("it's friday"))).toBe(true)
+})
+
+test('an outfit makes the strip two rows taller', async () => {
+  const strip = (rows?: number) => walk(renderPane(els, M, T, { tab: 'changes' }, 54, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE, rows } })).find(n => n.props?.height && walk(n).includes(PETNODE) && n.props.width === undefined)
+  expect(strip()!.props.height).toBe(6)
+  expect(strip(8)!.props.height).toBe(8)
+})
+
+test('HP and COMBO show in the status box under an arcade look', async () => {
+  const rows = text(statusRows({ ...M, combo: 4 }, T, 54, arcade))
+  expect(rows[0]).toContain('COMBO x4')
+  expect(rows[1]).toContain('HP ')
+  expect(rows[1]).toContain('36% context left')
+})
 
 test('renderPane draws three tab buttons with hotkeys 1-3 and presses switch tab', async () => {
   const picked: TabId[] = []
