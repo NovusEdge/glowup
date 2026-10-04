@@ -99,12 +99,8 @@ export async function restore(host: Host): Promise<string> {
   return ours ? 'Your status line is back.' : 'Your status line was changed since; left it as is.'
 }
 
-// No line: the file goes, so the script falls back to the person's own command
-// instead of printing an empty line.
-export async function writeStatusFile(host: Host, sessionId: string, line: string | undefined) {
+export async function writeStatusFile(host: Host, sessionId: string, line: string) {
   const id = safeId(sessionId)
   if (!id) return
-  const path = `${STATUS_DIR(host.configDir)}/${id}`
-  if (line === undefined) await host.run(['rm', '-f', path])
-  else await host.writeFile(path, line)
+  await host.writeFile(`${STATUS_DIR(host.configDir)}/${id}`, line)
 }

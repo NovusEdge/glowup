@@ -210,6 +210,46 @@ test('session.measure puts usage limits in the status file', async ($, on) => {
   expect(files['/fake/.claude/glowup/status/s1']).toContain('42%')
 })
 
+test('usage limits survive /clear; the status file keeps showing them', async ($, on) => {
+  const { files } = fakeFs(on)
+  const clock = mock.clock(on)
+  mock.store(on, { 'statusline-backup': '__none__', statusline: ['5h'] })
+  let id = 's1'
+  on('ui.status', async () => ({ value: undefined }) as never)
+  on('ui.panes', async () => ({ value: [] }))
+  on('session.id', async () => ({ value: id }))
+  on('turn.start', async (_$, e) => ({ turnId: e.turnId }))
+  on('session.start', async (_$, e) => ({ cwd: e.cwd }) as never)
+  on('session.end', async (_$, e) => ({ sessionId: e.sessionId }))
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.measure', async (_$, e) => ({ changed: e.changed }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await $.session.measure({ context: { window: 1000, percent: 10 }, rateLimits: [{ kind: 'five_hour', percentUsed: 42 }], changed: ['rateLimits'] } as never)
+  id = 's2'
+  await $.session.end({ reason: 'clear', sessionId: 's1' } as never)
+  await $.turn.start({ text: 'again', turnId: 't2' })
+  await clock.advance(10)
+  expect(files['/fake/.claude/glowup/status/s2']).toContain('42%')
+})
+
+test('an entry whose fields render nothing is not pinned as an empty notice', async ($, on) => {
+  fakeFs(on, {}, argv => { if (argv.includes('symbolic-ref')) return { exitCode: 128, stdout: '' } })
+  mock.clock(on)
+  mock.store(on, { statusline: ['branch'] })
+  const statuses: (string | undefined)[] = []
+  on('ui.status', async (_$, e) => { statuses.push(e.text); return { value: undefined } as never })
+  on('ui.panes', async () => ({ value: [] }))
+  on('session.id', async () => ({ value: 's1' }))
+  on('turn.start', async (_$, e) => ({ turnId: e.turnId }))
+  on('session.start', async (_$, e) => ({ cwd: e.cwd }) as never)
+  on('command.register', async () => ({ value: undefined }) as never)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  expect(statuses.length).toBeGreaterThan(0)
+  expect(statuses).not.toContain('')
+})
+
 function branchRun(on: Parameters<typeof fakeFs>[0], picked: string[]) {
   const ran: string[] = []
   fakeFs(on, {}, argv => { ran.push(argv.join(' ')); if (argv.includes('symbolic-ref')) return { exitCode: 0, stdout: 'main\n' } })

@@ -125,8 +125,8 @@ function hostOf($: Engine): Host {
 // 10 minutes old, so a quiet session still rewrites it every minute.
 function writeStatus($: Engine, force: boolean) {
   const line = statusText(model, theme, { fields, now: Date.now(), tzOffset, color: colorMode })
-  if (!takenOver || !sessionId || (!force && (line ?? '') === lastStatusLine)) return
-  lastStatusLine = line ?? ''
+  if (!takenOver || !sessionId || (!force && line === lastStatusLine)) return
+  lastStatusLine = line
   void writeStatusFile(hostOf($), sessionId, line).catch(() => {})
 }
 function startBeat($: Engine) {
@@ -148,7 +148,7 @@ async function syncTakeover($: Engine) {
 
 // The engine pins this entry as a "⚠ glowup:" notice, which reads as an error
 // when it never goes away; the takeover's status line already says the same.
-const statusEntry = () => !takenOver && isBusy(model) ? statusText(model, theme, { fields, tzOffset }) : undefined
+const statusEntry = () => !takenOver && isBusy(model) ? (statusText(model, theme, { fields, tzOffset }) || undefined) : undefined
 
 // The model's combo moves on after a reply is drawn, and the engine redraws old rows on every
 // invalidate, so each reply keeps the count it first drew with.
@@ -408,7 +408,8 @@ function schedulePlan($: Engine) {
 // A new session id means a new conversation: nothing from the old one carries over.
 async function adoptSession($: Engine, endedId: string) {
   const id = await $.session.id()
-  model = initialModel()
+  const { limits } = model
+  model = { ...initialModel(), limits }
   view = { tab: 'changes' }
   bubble = undefined
   xpByMessage.clear()
@@ -560,7 +561,7 @@ export const register: Register = (on, options) => {
       }
     }
     startBeat($)
-    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline ...' })
+    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|restore' })
     mix = await initialMix(host, options)
     const storedPet = await host.storeGet('pet')
     const wantPet = PETS.includes(storedPet as PetSetting) ? storedPet as PetSetting : PETS.includes(options.pet as PetSetting) ? options.pet as PetSetting : 'clawd'

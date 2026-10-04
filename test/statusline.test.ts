@@ -145,12 +145,10 @@ test('status text takes a field list and a color mode', async () => {
   expect(statusText(m, T, { color: 'truecolor' })).toContain('\x1b[38;2;')
 })
 
-test('no status line deletes the session file so the script falls back', async () => {
-  const { host, files, ran } = fakeHost()
+test('the status line is written to the session file', async () => {
+  const { host, files } = fakeHost()
   await writeStatusFile(host, 's1', '◆ idle · ctx 5%')
   expect(files['/home/u/.claude/glowup/status/s1']).toBe('◆ idle · ctx 5%')
-  await writeStatusFile(host, 's1', undefined)
-  expect(ran).toContain('rm -f /home/u/.claude/glowup/status/s1')
 })
 
 const OURS = `{"statusLine":{"type":"command","command":"sh '${SCRIPT}'"}}`
