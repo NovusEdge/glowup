@@ -1,10 +1,15 @@
 import { test, expect } from 'claude-code/testing'
-import { petPose, halfBlock, frameAt, shiny, petPalette, composeFrame, validateSheet, animFor, CLAWD_SHEET, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, PET_COLS, PET_ROWS, OUTFIT_PAD } from '../hooks/pets.ts'
+import { petPose, halfBlock, frameAt, shiny, petPalette, composeFrame, validateSheet, animFor, newPlayer, stepPlayer, type PetSheet, CLAWD_SHEET, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, PET_COLS, PET_ROWS, OUTFIT_PAD } from '../hooks/pets.ts'
 import { cellWidth } from '../hooks/cells.ts'
 
 const width = (s: string) => [...s].reduce((n, c) => n + cellWidth(c.codePointAt(0)!), 0)
 const flat = (rows: { text: string }[][]) => rows.map(r => r.map(s => s.text).join(''))
-const draw = (pet: 'clawd' | 'clawd-shiny', pose: string, f: number, ov: string[] = []) =>
+const f = (c: string, exit?: boolean) => ({ px: [c], ms: 100, ...(exit ? { exit } : {}) })
+const sheet = (): PetSheet => ({
+  w: 1, h: 1, palette: {},
+  animations: Object.fromEntries(['idle', 'walk', 'working', 'fail'].map(n => [n, { loop: true, frames: [f(n, true), f(n), f(n), f(n, true)] }])),
+})
+const draw =(pet: 'clawd' | 'clawd-shiny', pose: string, f: number, ov: string[] = []) =>
   halfBlock(composeFrame(CLAWD_SHEET, animFor(CLAWD_SHEET, pose).frames[f]!, ov, false), petPalette(CLAWD_SHEET, pet))
 
 test('poses follow the table', async () => {
@@ -13,13 +18,36 @@ test('poses follow the table', async () => {
   expect(petPose({ ...base, working: true }, 0)).toBe('walk')
   expect(petPose({ ...base, working: true, needsYou: true }, 0)).toBe('alert')
   const fail = { ...base, working: true, lastTest: { passed: false, at: 1000 } }
-  expect(petPose(fail, 2000)).toBe('alert')
+  expect(petPose(fail, 2000)).toBe('fail')
   expect(petPose(fail, 2600)).toBe('walk')
+  expect(petPose({ ...fail, needsYou: true }, 2000)).toBe('alert')
   const pass = { ...base, working: true, lastTest: { passed: true, at: 1000 } }
   expect(petPose(pass, 2100)).toBe('hop')
   expect(petPose(pass, 2300)).toBe('walk')
   expect(petPose({ ...base, doneAt: 1000, doneOk: true }, 2400)).toBe('done')
   expect(petPose({ ...base, doneAt: 1000, doneOk: false }, 1100)).toBe('idle')
+})
+
+test('editing and shell commands type; everything else while working walks', async () => {
+  const w = { working: true, needsYou: false }
+  for (const kind of ['edit', 'shell'] as const) expect(petPose({ ...w, kind }, 0)).toBe('working')
+  for (const kind of ['read', 'search', 'agent', 'plan', 'think'] as const) expect(petPose({ ...w, kind }, 0)).toBe('walk')
+  expect(petPose({ ...w, kind: 'edit', lastTest: { passed: false, at: 0 } }, 100)).toBe('fail')
+  expect(petPose({ ...w, kind: 'edit', lastTest: { passed: true, at: 0 } }, 100)).toBe('hop')
+  expect(petPose({ working: false, needsYou: false, kind: 'edit' }, 0)).toBe('idle')
+})
+
+test('working and fail play their own animations and switch at exit frames', async () => {
+  for (const pose of ['working', 'fail'] as const) expect(animFor(CLAWD_SHEET, pose)).toBe(CLAWD_SHEET.animations[pose])
+  const sh = sheet(), p = newPlayer()
+  stepPlayer(p, sh, 'walk', 0, 50)
+  stepPlayer(p, sh, 'working', 150, 50)
+  expect(p.seg!.pose).toBe('walk')
+  stepPlayer(p, sh, 'working', 300, 50)
+  expect(p.seg!.pose).toBe('working')
+  stepPlayer(p, sh, 'fail', 305, 50)
+  stepPlayer(p, sh, 'fail', 600, 50)
+  expect(p.seg!.pose).toBe('fail')
 })
 
 test('a long idle falls asleep, work wakes him', async () => {

@@ -7,9 +7,10 @@ export const SHINY_COLOR = '#f2c94c'
 export type PetSetting = 'clawd' | 'clawd-shiny' | 'off'
 export type PetId = Exclude<PetSetting, 'off'>
 // 'fail' is optional in a sheet; without one it plays 'alert'.
-export type Pose = 'idle' | 'walk' | 'hop' | 'alert' | 'done' | 'sleep' | 'fail'
+export type Pose = 'idle' | 'walk' | 'working' | 'hop' | 'alert' | 'done' | 'sleep' | 'fail'
 export type PetSpan = { text: string; color: string; bg?: string }
-export type PetInput = { working: boolean; needsYou: boolean; lastTest?: { passed: boolean; at: number }; doneAt?: number; doneOk?: boolean; actAt?: number }
+export type PetKind = 'read' | 'search' | 'edit' | 'shell' | 'agent' | 'plan' | 'think'
+export type PetInput = { working: boolean; kind?: PetKind; needsYou: boolean; lastTest?: { passed: boolean; at: number }; doneAt?: number; doneOk?: boolean; actAt?: number }
 
 // Pixel rows of single-char palette keys, '.' = transparent. Two pixel rows make one terminal row.
 // head is [x, y] of the top-centre of the head, where outfits anchor; dx is horizontal travel in pixels.
@@ -46,10 +47,11 @@ export const EXIT_WAIT_MS = 300
 export function petPose(p: PetInput, now: number): Pose {
   if (p.needsYou) return 'alert'
   const t = p.lastTest
-  if (t && !t.passed && now - t.at <= ALERT_MS) return 'alert'
+  if (t && !t.passed && now - t.at <= ALERT_MS) return 'fail'
   if (t && t.passed && now - t.at <= HOP_MS) return 'hop'
   if (!p.working && p.doneOk && p.doneAt !== undefined && now - p.doneAt <= DONE_MS) return 'done'
-  if (p.working) return 'walk'
+  // typing while he writes code or runs commands; walking while he reads, searches, plans or waits
+  if (p.working) return p.kind === 'edit' || p.kind === 'shell' ? 'working' : 'walk'
   // 0 is initialModel's "nothing yet", not a real time
   return p.actAt !== undefined && p.actAt > 0 && now - p.actAt >= SLEEP_MS ? 'sleep' : 'idle'
 }
