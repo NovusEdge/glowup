@@ -10,7 +10,7 @@ const BAND = { hasSurvey: false, isWorking: true, maxRows: 6, bodyColumns: 100, 
 const walk = (n: any, out: any[] = []): any[] => { if (typeof n === 'string') out.push(n); else if (n && typeof n === 'object') { out.push(n); for (const c of n.children ?? []) walk(c, out) } return out }
 const petClient = (tree: any) => walk(tree).find(n => n?.type === 'Client' && String(n.props?.module).endsWith('client/pet.tsx'))
 const text = (tree: any) => walk(tree).filter(n => typeof n === 'string').join(' ')
-function base(on: any, render: (e: any) => void = () => {}, opts: { shown?: boolean; run?: (argv: string[]) => { exitCode: number; stdout: string } | void } = {}) {
+function base(on: any, render: (e: any) => void = () => {}, opts: { shown?: boolean; toolText?: string; run?: (argv: string[]) => { exitCode: number; stdout: string } | void } = {}) {
   fakeFs(on, {}, opts.run); mock.store(on)
   on('ui.render', async (_$: unknown, e: any) => { render(e); return ENGINE_ROW })
   on('ui.panes', async () => ({ value: [{ id: 'glowup', isShown: opts.shown ?? true, isPlaced: true }] }))
@@ -19,7 +19,7 @@ function base(on: any, render: (e: any) => void = () => {}, opts: { shown?: bool
   on('session.id', async () => ({ value: 's1' }))
   on('session.usage', async () => ({ value: { context: { window: 1000, percent: 10 } } as never }))
   on('turn.start', async (_$: unknown, e: any) => ({ turnId: e.turnId }))
-  on('tool.call', async () => ({ result: {}, text: 'Tests: 3 failed, 9 passed' }) as never)
+  on('tool.call', async () => ({ result: {}, text: opts.toolText ?? 'Tests: 3 failed, 9 passed' }) as never)
 }
 const mountPane = ($: any) => $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'Pane', requestId: 'glowup', props: PANE })
 
@@ -109,6 +109,32 @@ test('a friday deploy puts the sign in the pane', async ($, on) => {
   const pane = await mountPane($)
   expect(text(await pane.drawn())).toContain("it's friday")
   await pane.unmount()
+})
+
+const overlaysNow = async ($: any) => {
+  const pane = await mountPane($)
+  const c = petClient(await pane.drawn())
+  await pane.unmount()
+  return c.props.props.overlays as string[]
+}
+
+test('a failed test run gives Clawd the sweat until the next prompt, with no friday sign', async ($, on) => {
+  base(on); mock.clock(on, { now: Date.UTC(2026, 6, 1, 12) + new Date().getTimezoneOffset() * 60_000 })
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  expect(await overlaysNow($)).not.toContain('sweat')
+  await $.tool.call({ tool: 'Bash', tool_use_id: 'b1', command: 'npm test' } as never)
+  const ov = await overlaysNow($)
+  expect(ov.filter(o => o === 'sweat')).toHaveLength(1)
+  expect(ov).not.toContain('friday')
+  await $.turn.start({ text: 'again', turnId: 't2' })
+  expect(await overlaysNow($)).not.toContain('sweat')
+})
+
+test('a passing test run does not give the sweat', async ($, on) => {
+  base(on, undefined, { toolText: 'Tests: 12 passed' }); mock.clock(on, { now: Date.UTC(2026, 6, 1, 12) + new Date().getTimezoneOffset() * 60_000 })
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await $.tool.call({ tool: 'Bash', tool_use_id: 'b1', command: 'npm test' } as never)
+  expect(await overlaysNow($)).not.toContain('sweat')
 })
 
 test('date +%z runs only where the process offset is 0', async ($, on) => {

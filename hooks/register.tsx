@@ -65,6 +65,7 @@ type PetSnap = { input: PetInput; overlays: string[]; bubble?: Bubble; friday: b
 let bubble: Bubble | undefined
 let lastTemplate: string | undefined
 let friday = false
+let failed = false
 let tzOffset = 0
 let installed: number | undefined
 let lastPet = ''
@@ -136,7 +137,7 @@ function petSnap(): PetSnap {
   const now = Date.now()
   return JSON.parse(JSON.stringify({
     input: petInput(),
-    overlays: overlays(localTime(now, tzOffset), installed === undefined ? undefined : localTime(installed, tzOffset), friday),
+    overlays: overlays(localTime(now, tzOffset), installed === undefined ? undefined : localTime(installed, tzOffset), friday, failed),
     bubble,
     friday,
   }))
@@ -271,6 +272,7 @@ async function adoptSession($: Engine, endedId: string) {
   view = { tab: 'changes' }
   bubble = undefined
   friday = false
+  failed = false
   lastStatusLine = undefined
   refreshSeq++
   // at session.end the id may still be the ending one; turn.start re-checks
@@ -380,6 +382,7 @@ export const register: Register = (on, options) => {
     if (id !== sessionId) await adoptSession($, sessionId)
     newTurnWord()
     friday = false
+    failed = false
     feed($, { type: 'turn-start', at: Date.now() })
     return next(e)
   })
@@ -402,6 +405,10 @@ export const register: Register = (on, options) => {
       agentTokens: e.tool === 'Agent' && typeof result?.totalTokens === 'number' ? result.totalTokens : undefined,
       writeType: e.tool === 'Write' && (result?.type === 'create' || result?.type === 'update') ? result.type : undefined,
     })
+    if (!e.agentId && model.lastTest?.at === endAt && !model.lastTest.passed) {
+      failed = true
+      publishPet($)
+    }
     if (!e.agentId && model.lastTest?.at === endAt && model.lastTest.passed) {
       try {
         const r = recordPass(await hostOf($).storeGet('eggs') as EggStore | undefined, Date.now())

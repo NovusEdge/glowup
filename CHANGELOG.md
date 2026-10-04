@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Clawd's nightcap now shows from 23:00 to 04:59, and a failed test run gives him the sweat drop until your next prompt.
 - The `cards` row style now puts your prompts and Claude's replies on a side bar instead of a box, and draws tool calls in a dim box.
 - Clawd's done dance now lasts 4 seconds instead of 1.5.
 - Chat rows in every row style except `classic` now keep a one-column margin on the left.
@@ -26,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- glowup's status line script could call itself when two copies of glowup were loaded, starting shells until the machine ran out of memory. It now never falls back to itself, and the first-run question no longer takes over a status line glowup already draws.
 - Tool results no longer clip at the right edge, and the `[ OK ]` mark no longer wraps, because rows now take less width around Claude Code's own output.
 
 ## [0.2.2] - 2026-10-04
