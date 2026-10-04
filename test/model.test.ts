@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { initialModel, applyEvent, bandVisible, isBusy, mergeCounts, type Ev } from '../hooks/model.ts'
+import { initialModel, applyEvent, bandVisible, isBusy, mergeCounts, type Ev, type Model } from '../hooks/model.ts'
 
 const run = (evs: Ev[]) => evs.reduce(applyEvent, initialModel())
 
@@ -202,4 +202,44 @@ test('a failed Agent call ends that agent', async () => {
     { type: 'tool-end', at: 5, tool: 'Agent', toolUseId: 'a1', input: {}, isError: true, text: 'denied' },
   ])
   expect(m.agents.map(a => [a.name, a.state, a.endedAt])).toEqual([['one', 'done', 5], ['two', 'running', undefined]])
+})
+
+test('turn-start stamps turnAt and actAt and clears combo and lastTest', async () => {
+  let m: Model = { ...initialModel(), combo: 4, lastTest: { passed: true, at: 1 } }
+  m = applyEvent(m, { type: 'turn-start', at: 500 })
+  expect([m.turnAt, m.actAt, m.combo, m.lastTest]).toEqual([500, 500, 0, undefined])
+})
+
+const call = (id: string, tool: string, input: Record<string, unknown>, at: number) => ({ type: 'tool-start' as const, at, tool, toolUseId: id, input })
+const end = (id: string, tool: string, input: Record<string, unknown>, at: number, isError = false, text = '') => ({ type: 'tool-end' as const, at, tool, toolUseId: id, input, isError, text })
+
+test('combo counts successful main-agent calls and resets on an error or a failed test', async () => {
+  let m = applyEvent(initialModel(), { type: 'turn-start', at: 0 })
+  for (let i = 0; i < 3; i++) m = applyEvent(applyEvent(m, call('r' + i, 'Read', { file_path: '/a' }, i)), end('r' + i, 'Read', { file_path: '/a' }, i))
+  expect(m.combo).toBe(3)
+  m = applyEvent(m, { ...end('s', 'Read', {}, 9), agentId: 'ag' })
+  expect(m.combo).toBe(3)
+  m = applyEvent(m, end('e', 'Edit', { file_path: '/a' }, 10, true))
+  expect(m.combo).toBe(0)
+  m = applyEvent(m, end('t', 'Bash', { command: 'npm test' }, 11, false, 'Tests: 1 failed, 2 passed'))
+  expect(m.combo).toBe(0)
+})
+
+test('a test run records lastTest and actAt', async () => {
+  let m = applyEvent(initialModel(), { type: 'turn-start', at: 0 })
+  m = applyEvent(m, end('t', 'Bash', { command: 'pnpm test' }, 42, false, 'Tests: 12 passed'))
+  expect(m.lastTest).toEqual({ passed: true, at: 42 })
+  expect(m.actAt).toBe(42)
+})
+
+test('a new action, a done turn and a question stamp actAt', async () => {
+  let m = applyEvent(initialModel(), { type: 'turn-start', at: 0 })
+  m = applyEvent(m, call('a', 'Read', { file_path: '/a' }, 5))
+  expect(m.actAt).toBe(5)
+  m = applyEvent(m, { type: 'needs-you', at: 7, toolUseId: 'q', what: 'Bash' })
+  expect(m.actAt).toBe(7)
+  m = applyEvent(m, call('b', 'Read', { file_path: '/b' }, 8))
+  expect(m.actAt).toBe(7)
+  m = applyEvent(m, { type: 'turn-done', at: 9, reason: 'answer' })
+  expect(m.actAt).toBe(9)
 })
