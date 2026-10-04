@@ -6,11 +6,32 @@ import { fakeHost } from './kit.ts'
 
 const SETTINGS = '/home/u/.claude/settings.json'
 const SCRIPT = '/home/u/.claude/glowup/statusline.sh'
+const yes = async () => true
+
+test('the success message repeats the project override warning', async () => {
+  const withProject = fakeHost({ files: { [SETTINGS]: '{}' }, projectStatusLine: true })
+  expect(await takeOver(withProject.host, yes)).toContain('project')
+  const plain = fakeHost({ files: { [SETTINGS]: '{}' } })
+  expect(await takeOver(plain.host, yes)).not.toContain('project')
+})
+
+test('a non-string saved command does not leak into the script', async () => {
+  const { host, files } = fakeHost({ files: { [SETTINGS]: '{"statusLine":{"type":"command","command":{"a":1}}}' } })
+  await takeOver(host, yes)
+  expect(files[SCRIPT]).not.toContain('object Object')
+  expect(files[SCRIPT]).toContain('exit 0')
+})
+
+test('a single quote in the original command is escaped in the script', async () => {
+  const { host, files } = fakeHost({ files: { [SETTINGS]: `{"statusLine":{"type":"command","command":"echo 'hi'"}}` } })
+  await takeOver(host, yes)
+  expect(files[SCRIPT]).toContain(`sh -c 'echo '\\''hi'\\'''`)
+})
 
 test('takeover changes only statusLine and restore puts it back', async () => {
   const original = { model: 'opus', statusLine: { type: 'command', command: 'ccstatusline' }, hooks: { Stop: [] } }
   const { host, files, ran } = fakeHost({ files: { [SETTINGS]: JSON.stringify(original, null, 2) } })
-  const msg = await takeOver(host)
+  const msg = await takeOver(host, yes)
   expect(msg).toContain('restore')
   const after = JSON.parse(files[SETTINGS]!)
   expect(after.statusLine).toEqual({ type: 'command', command: `sh ${SCRIPT}` })
@@ -23,7 +44,7 @@ test('takeover changes only statusLine and restore puts it back', async () => {
 
 test('restore removes the key when there was none before, and forgets the backup', async () => {
   const { host, files, store } = fakeHost({ files: { [SETTINGS]: '{"model":"opus"}' } })
-  await takeOver(host)
+  await takeOver(host, yes)
   await restore(host)
   expect(JSON.parse(files[SETTINGS]!)).toEqual({ model: 'opus' })
   expect('statusline-backup' in store).toBe(false)
@@ -32,15 +53,15 @@ test('restore removes the key when there was none before, and forgets the backup
 
 test('takeover twice keeps the first backup', async () => {
   const { host, files } = fakeHost({ files: { [SETTINGS]: '{"statusLine":{"type":"command","command":"mine"}}' } })
-  await takeOver(host)
-  await takeOver(host)
+  await takeOver(host, yes)
+  await takeOver(host, yes)
   await restore(host)
   expect(JSON.parse(files[SETTINGS]!).statusLine.command).toBe('mine')
 })
 
 test('unreadable settings refuse the takeover and touch nothing', async () => {
   const { host, files } = fakeHost({ files: { [SETTINGS]: '{ not json' } })
-  expect(await takeOver(host)).toContain('could not read')
+  expect(await takeOver(host, yes)).toContain('could not read')
   expect(files[SETTINGS]).toBe('{ not json')
 })
 

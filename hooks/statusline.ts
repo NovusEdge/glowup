@@ -35,22 +35,21 @@ async function readSettings(host: Host): Promise<Record<string, unknown> | undef
   try { const v = JSON.parse(await host.readFile(SETTINGS(host.configDir))); return typeof v === 'object' && v && !Array.isArray(v) ? v : undefined } catch { return undefined }
 }
 
-// `ask` is runCommand's confirm; without it the takeover goes ahead unasked.
-export async function takeOver(host: Host, ask?: (question: string) => Promise<boolean>): Promise<string> {
+const OVERRIDE = ' A project or local settings file sets its own statusLine, which wins over this one, so glowup will not show there.'
+
+export async function takeOver(host: Host, ask: (question: string) => Promise<boolean>): Promise<string> {
   const settings = await readSettings(host)
   if (!settings) return `glowup could not read ${SETTINGS(host.configDir)}, so your status line is unchanged.`
-  if (ask) {
-    const override = (await host.projectStatusLine()) ? ' A project or local settings file sets its own statusLine, which wins over this one, so glowup will not show there.' : ''
-    if (!(await ask(`Let glowup draw your status line? It edits ${SETTINGS(host.configDir)} and keeps your current one to restore.${override}`))) return 'Your status line is unchanged.'
-  }
+  const override = (await host.projectStatusLine()) ? OVERRIDE : ''
+  if (!(await ask(`Let glowup draw your status line? It edits ${SETTINGS(host.configDir)} and keeps your current one to restore.${override}`))) return 'Your status line is unchanged.'
   if ((await host.storeGet(BACKUP_KEY)) === undefined) await host.storeSet(BACKUP_KEY, settings.statusLine === undefined ? NONE : settings.statusLine)
   const backup = await host.storeGet(BACKUP_KEY)
-  const original = backup !== NONE && typeof backup === 'object' && backup ? String((backup as { command?: unknown }).command ?? '') : ''
+  const original = backup !== NONE && typeof backup === 'object' && backup ? ((c: unknown) => (typeof c === 'string' ? c : ''))((backup as { command?: unknown }).command) : ''
   await host.writeFile(SCRIPT_PATH(host.configDir), script(host.configDir, original))
   // re-read just before writing: Claude Code writes this file too
   const fresh = (await readSettings(host)) ?? settings
   await host.writeFile(SETTINGS(host.configDir), JSON.stringify({ ...fresh, statusLine: { type: 'command', command: `sh ${SCRIPT_PATH(host.configDir)}` } }, null, 2) + '\n')
-  return 'glowup now draws your status line. `/glowup statusline restore` brings yours back.'
+  return 'glowup now draws your status line. `/glowup statusline restore` brings yours back.' + override
 }
 
 export async function restore(host: Host): Promise<string> {
