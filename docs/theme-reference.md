@@ -93,11 +93,28 @@ Every file in the chain is validated. Errors:
 | `theme "<name>": "extends" must be a theme name` | `extends` is not a string. |
 | `theme "<name>": a theme must be a JSON object` | The file is not an object. |
 
-When any of these happen, `/glowup theme <name>` prints the message and keeps your current theme. At session start, glowup shows the message and uses `classic`.
+When any of these happen, `/glowup theme <name>` prints the message and keeps your current theme. At session start, glowup shows the message and uses `glowup`.
 
 ## Built-in themes
 
-`cyberpunk`, `vaporwave` and `high-contrast` extend `classic`. They set all 14 colors. Only `cyberpunk` and `vaporwave` set spinner words.
+`glowup` is the default theme. `glowup`, `aurora`, `dusk`, `cyberpunk`, `vaporwave` and `high-contrast` extend `classic`. They set all 14 colors. All of them except `high-contrast` set spinner words.
+
+| Key | glowup | aurora | dusk |
+| --- | --- | --- | --- |
+| `accent` | `#ffc857` | `#5ef1c6` | `#b69cff` |
+| `text` | `#ece6f2` | `#e2eef2` | `#e6e6f6` |
+| `dim` | `#8e86a0` | `#7f97a3` | `#8a8cad` |
+| `faint` | `#2f2a3a` | `#22313b` | `#272a44` |
+| `read` | `#8ecbff` | `#7cc7ff` | `#7fd6ff` |
+| `edit` | `#ffa94d` | `#ffd479` | `#ffcf7a` |
+| `shell` | `#7ee0a1` | `#5ef1c6` | `#8ef0b0` |
+| `agent` | `#c9a7ff` | `#b49cff` | `#ff9ad5` |
+| `pass` | `#7ee0a1` | `#5ef1c6` | `#8ef0b0` |
+| `fail` | `#ff6f7d` | `#ff7a8a` | `#ff7088` |
+| `panel` | `#1d1924` | `#131c23` | `#171a2b` |
+| `addBg` | `#1d3326` | `#123329` | `#18322a` |
+| `delBg` | `#3f1f27` | `#3a1d26` | `#3b1f2f` |
+| `sel` | `#2a2433` | `#1c2933` | `#222640` |
 
 | Key | classic | cyberpunk | vaporwave | high-contrast |
 | --- | --- | --- | --- | --- |
@@ -118,8 +135,14 @@ When any of these happen, `/glowup theme <name>` prints the message and keeps yo
 
 Other values:
 
-| Field | classic | cyberpunk | vaporwave | high-contrast |
+| Field | classic | glowup | aurora | dusk |
 | --- | --- | --- | --- | --- |
-| `spinner.words` | `Thinking` | `Jacking in`, `Compiling`, `Glowing` | `Vibing`, `Drifting`, `Glowing` | from `classic` |
+| `spinner.words` | `Thinking` | `Glowing`, `Kindling`, `Polishing` | `Drifting`, `Shimmering`, `Charting` | `Dreaming`, `Musing`, `Wandering` |
 | `glyphs` | `read ▸`, `search ⌕`, `edit ✎`, `shell $`, `agent ◆`, `plan ◇` | from `classic` | from `classic` | from `classic` |
 | `band.hearts` | `♥` `♡` | from `classic` | from `classic` | from `classic` |
+
+| Field | cyberpunk | vaporwave | high-contrast |
+| --- | --- | --- | --- |
+| `spinner.words` | `Jacking in`, `Compiling`, `Glowing` | `Vibing`, `Drifting`, `Glowing` | from `classic` |
+| `glyphs` | from `classic` | from `classic` | from `classic` |
+| `band.hearts` | from `classic` | from `classic` | from `classic` |

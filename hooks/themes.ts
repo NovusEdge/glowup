@@ -1,4 +1,4 @@
-import { PRESETS } from './presets.ts'
+import { PRESETS, DEFAULT_THEME } from './presets.ts'
 import { cellWidth } from './cells.ts'
 export { PRESETS }
 
@@ -90,5 +90,5 @@ function merge(files: ThemeFile[], name: string): Theme {
 
 export function resolveTheme(name: string, user: Record<string, unknown>): { theme: Theme; error?: string } {
   try { return { theme: merge(chain(name, user), name) } }
-  catch (err) { return { theme: merge([PRESETS.classic!], 'classic'), error: `theme "${shown(name)}": ${(err as Error).message}` } }
+  catch (err) { return { theme: merge([PRESETS.classic!, PRESETS[DEFAULT_THEME]!], DEFAULT_THEME), error: `theme "${shown(name)}": ${(err as Error).message}` } }
 }

@@ -1,5 +1,6 @@
 import { test, expect } from 'claude-code/testing'
 import { parseJsonc, resolveTheme, PRESETS, MAX_THEME_BYTES } from '../hooks/themes.ts'
+import { DEFAULT_THEME } from '../hooks/presets.ts'
 
 test('parseJsonc strips line and block comments but not // inside strings', async () => {
   const v = parseJsonc('{\n // c\n "url": "https://x.dev", /* b */ "n": 1 }') as { url: string; n: number }
@@ -28,7 +29,7 @@ test('a user theme extends a preset and overrides one color', async () => {
   expect(theme.colors.read).toBe(resolveTheme('cyberpunk', {}).theme.colors.read)
 })
 
-test('bad theme falls back to classic with a reason', async () => {
+test('bad theme falls back to glowup with a reason', async () => {
   const cases: [string, unknown, string][] = [
     ['bad-color', { name: 'x', colors: { accent: 'red' } }, '#rrggbb'],
     ['bad-extends', { name: 'x', extends: 'nope' }, 'no theme named "nope"'],
@@ -49,7 +50,8 @@ test('bad theme falls back to classic with a reason', async () => {
   ]
   for (const [name, file, text] of cases) {
     const { theme, error } = resolveTheme(name, { [name]: file })
-    expect(theme.name).toBe('classic')
+    expect(theme.name).toBe('glowup')
+    expect(theme.colors.accent).toBe('#ffc857')
     expect(error).toContain(text)
   }
 })
@@ -114,11 +116,31 @@ test('valid hearts and narrow glyphs are accepted', async () => {
   expect(theme.hearts).toEqual(['*', '+'])
 })
 
-test('unknown theme name falls back to classic', async () => {
-  expect(resolveTheme('ghost', {}).error).toContain('ghost')
+test('unknown theme name falls back to the default', async () => {
+  const { theme, error } = resolveTheme('ghost', {})
+  expect(error).toContain('ghost')
+  expect(theme.name).toBe(DEFAULT_THEME)
 })
 
-test('presets include the four built-ins', async () => {
-  expect(Object.keys(PRESETS).sort()).toEqual(['classic', 'cyberpunk', 'high-contrast', 'vaporwave'])
+test('the default theme is glowup and resolves', async () => {
+  expect(DEFAULT_THEME).toBe('glowup')
+  const { theme, error } = resolveTheme(DEFAULT_THEME, {})
+  expect(error).toBeUndefined()
+  expect(theme.name).toBe('glowup')
+})
+
+test('new presets resolve with all 14 colors set', async () => {
+  const accents = { glowup: '#ffc857', aurora: '#5ef1c6', dusk: '#b69cff' }
+  for (const [name, accent] of Object.entries(accents)) {
+    const { theme, error } = resolveTheme(name, {})
+    expect(error).toBeUndefined()
+    expect(theme.colors.accent).toBe(accent)
+    expect(Object.keys(PRESETS[name]!.colors!)).toHaveLength(14)
+    for (const v of Object.values(theme.colors)) expect(v).toMatch(/^#[0-9a-f]{6}$/i)
+  }
+})
+
+test('presets include the built-ins', async () => {
+  expect(Object.keys(PRESETS).sort()).toEqual(['aurora', 'classic', 'cyberpunk', 'dusk', 'glowup', 'high-contrast', 'vaporwave'])
   expect(MAX_THEME_BYTES).toBe(65536)
 })

@@ -50,7 +50,7 @@ test('unknown theme is refused and nothing changes', async () => {
 test('theme list shows built-ins and user themes and marks the active one', async () => {
   const { host } = fakeHost({ files: { '/home/u/.claude/glowup/themes/mine.json': '{"name":"mine"}' } })
   const out = await runCommand(host, 'theme list', ctl().ctl)
-  for (const n of ['classic', 'cyberpunk', 'vaporwave', 'high-contrast', 'mine']) expect(out).toContain(n)
+  for (const n of ['glowup', 'aurora', 'dusk', 'classic', 'cyberpunk', 'vaporwave', 'high-contrast', 'mine']) expect(out).toContain(n)
   expect(out).toContain('● classic')
   // the active theme may come from the plugin's userConfig, with nothing in the store
   const again = await runCommand(host, 'theme list', ctl(true, 'mine').ctl)

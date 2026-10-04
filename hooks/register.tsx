@@ -3,6 +3,7 @@ import type { Host } from './host.ts'
 import { initialModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
 import { approvalLabel } from './events.ts'
 import { resolveTheme, type Theme } from './themes.ts'
+import { DEFAULT_THEME } from './presets.ts'
 import { gitBase, refreshCounts, serial } from './changes.ts'
 import { tierFor } from './layout.tsx'
 import { renderBand } from './band.tsx'
@@ -17,7 +18,7 @@ type Engine = EngineInterface
 // Module state: one session per process. A hot reload starts it over, which only
 // loses the in-flight session's view (settings and takeover state live in $.store).
 let model: Model = initialModel()
-let theme: Theme = resolveTheme('classic', {}).theme
+let theme: Theme = resolveTheme(DEFAULT_THEME, {}).theme
 let view: PaneView = { tab: 'changes' }
 let git: { root: string; base: string } | undefined
 let cwd = ''
@@ -163,7 +164,7 @@ export const register: Register = (on, options) => {
     configDir = (await $.env.get('CLAUDE_CONFIG_DIR')) || `${(await $.env.get('HOME')) ?? ''}/.claude`
     const host = hostOf($)
     await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'theme|pane|motion|statusline ...' })
-    const chosen = String((await host.storeGet('theme')) ?? options.theme ?? 'classic')
+    const chosen = String((await host.storeGet('theme')) ?? options.theme ?? DEFAULT_THEME)
     const r = resolveTheme(chosen, await loadUserThemes(host))
     theme = r.theme
     if (r.error) $.ui.toast(r.error)
