@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-04
+
 ### Added
 
 - `/glowup spinner <name|list|default>` sets just the spinner on top of the current pack, lists the spinners, or goes back to the pack's own.
