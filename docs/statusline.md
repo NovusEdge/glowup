@@ -74,7 +74,7 @@ Set them with a command:
 - `fields <id> <id> …` sets the list in the order you type it. An unknown id refuses the whole command and lists the valid ids. A repeated id keeps its first place.
 - `fields default` goes back to the list the installer set, which is `activity ctx 5h week` unless you gave the installer another.
 
-`/glowup config` asks "Status line fields?" after its other questions, with Keep, Default and Pick. Pick asks three multi-select questions: Session (`activity`, `ctx`, `agents`, `plan`), Account (`5h`, `week`, `cost`, `model`) and Repo (`branch`, `changes`, `cwd`). The installer's `statusline` option takes the starting list as comma-separated ids.
+`/glowup config` asks "Status line fields?" after its other questions, with Keep, Default and Pick. Pick asks three multi-select questions: Session (`activity`, `ctx`, `agents`, `plan`), Account (`5h`, `week`, `cost`, `model`) and Repo (`branch`, `changes`, `cwd`). The `statusline` setting in Claude Code's `/plugin` menu takes the starting list as comma-separated ids.
 
 A field with no data is left out, not shown as zero. `5h` and `week` appear only on a subscription that reports those windows. The usage figures are this session's last reading from Claude Code, so another session on the same account moves the real numbers and this line catches up on your next response here. A window whose reset time has passed is hidden.
 

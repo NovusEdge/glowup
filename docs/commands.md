@@ -23,7 +23,7 @@ more: /glowup help all   docs: https://glowup.khimani.dev/
 
 On the terminal and desktop app the card is drawn in the colors of your current pack, with a header box, swatches and the spinner word. Elsewhere, and for the model, you get the plain text above.
 
-`/glowup config` asks four questions, plus two for color tweaks. See [config](#config).
+`/glowup config` asks five questions, plus two for color tweaks and three if you pick status line fields. See [config](#config).
 
 An unknown subcommand prints `Unknown: <what you typed>` followed by the short card.
 
@@ -121,21 +121,22 @@ See [Pets](pets.md).
 
 ## config
 
-`/glowup config` asks four questions, and two more if you pick "Tweak colors", in Claude Code's own question dialog. Each answer applies as soon as you give it:
+`/glowup config` asks five questions, two more if you pick "Tweak colors" and three more if you pick status line fields, in Claude Code's own question dialog. Each answer applies as soon as you give it:
 
 1. **Pack**: `arcade`, `classic`, `cozy` or `crt`, with the one in use marked `(current)`. Choose Other and type the name of a pack you installed to use that one. An unknown name prints an error and stops the questions.
 2. **Spinner**: `Pack default` (clears a spinner you set), then three spinners, leaving out the one your pack already uses. A spinner you set is marked `(current)`. Choose Other and type any spinner name from `/glowup spinner list`; an unknown name prints an error and stops the questions.
 3. **Pet**: Clawd, the shiny Clawd once you have unlocked him, or no pet.
 4. **Extras**: pick any of "Turn bubbles on/off", "Write bubbles with Haiku" (or "Use template bubbles" when Haiku is on) and "Turn reduced motion on/off". The labels flip the current setting. Picking none changes nothing.
    - **Tweak colors** asks **Color**: `accent`, `text`, `dim` or `panel`, or Other to type any role from `/glowup color list`. Then it asks **Hex**: a few colors from the current palette, or Other to type `#rgb` or `#rrggbb`. It sets the same override as `/glowup color <role> <#hex>`. An unknown role or a bad hex prints the reason and stops.
+5. **Status line fields**: `Keep`, `Default` or `Pick`. Default does what `/glowup statusline fields default` does. Pick asks three more questions, each a multi-select: Session (`activity`, `ctx`, `agents`, `plan`), Account (`5h`, `week`, `cost`, `model`) and Repo (`branch`, `changes`, `cwd`). The fields apply in that order. Picking none, or exactly the current list, changes nothing, and Esc on any of the three applies no field change. If glowup is not drawing your status line, the question says the fields show in the entry under the prompt, and that `/glowup statusline on` draws the whole line.
 
 Esc on any question stops there. Answers you already gave stay applied. The command ends with a one-line summary, for example `glowup · arcade · spinner comet · Clawd · bubbles on · full motion` (the spinner part appears only when you set one), drawn with the pack's colors.
 
-Each answer does what the matching typed command does (`pack`, `spinner`, `pet`, `bubbles`, `motion`, `color`), so the questions add nothing the commands lack. The colors and motion layers on their own, and saving a look are not in the questions: use `/glowup pack save <name>` to save the current look. In a `-p` run there is no one to ask, so `/glowup config` prints the command list instead.
+Each answer does what the matching typed command does (`pack`, `spinner`, `pet`, `bubbles`, `motion`, `color`, `statusline fields`), so the questions add nothing the commands lack. The colors and motion layers on their own, and saving a look are not in the questions: use `/glowup pack save <name>` to save the current look. In a `-p` run there is no one to ask, so `/glowup config` prints the command list instead.
 
 ## Settings and the store
 
-The mod's settings in Claude Code's `/plugin` menu (`theme`, `pack`, `pet`, `bubbles` and `reducedMotion`) are defaults. glowup's own saved choice wins over a setting only after a `/glowup` command or the config questions have written that choice. After that, changing the value in `/plugin` has no effect until you use the matching `/glowup` command again. There is no command that clears a saved choice.
+The mod's settings in Claude Code's `/plugin` menu (`theme`, `pack`, `pet`, `bubbles`, `statusline` and `reducedMotion`) are defaults. glowup's own saved choice wins over a setting only after a `/glowup` command or the config questions have written that choice. After that, changing the value in `/plugin` has no effect until you use the matching `/glowup` command again. There is no command that clears a saved choice.
 
 ## pane
 
@@ -158,5 +159,10 @@ The choice is saved. See [Accessibility](accessibility.md) for what changes.
 | --- | --- |
 | `/glowup statusline on` | Ask for confirmation, then let glowup draw your status line. |
 | `/glowup statusline restore` | Put your own status line back. |
+| `/glowup statusline fields` | Show the status line fields. |
+| `/glowup statusline fields <id> <id> …` | Set the fields in the order typed. An unknown id refuses the whole command and lists the valid ids. |
+| `/glowup statusline fields default` | Go back to the installer's list, `activity ctx 5h week` unless another was set. |
+
+The fields are `activity`, `ctx`, `5h`, `week`, `cost`, `model`, `agents`, `plan`, `branch`, `changes` and `cwd`. See [Choosing the fields](statusline.md#choosing-the-fields).
 
 This is opt-in. Without it, glowup only adds its own entry under the prompt while Claude works. Restore puts your line back only if it is still glowup's. See [Status line](statusline.md).
