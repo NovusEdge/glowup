@@ -4,6 +4,7 @@ import { runCommand, USAGE, type Ctl } from '../hooks/command.ts'
 import type { Mix } from '../hooks/packs.ts'
 import type { PetSetting } from '../hooks/pets.ts'
 import type { BubbleSetting } from '../hooks/bubbles.ts'
+import { DEFAULT_FIELDS } from '../hooks/fields.ts'
 
 type Q = { question: string; header: string; options: string[]; multiSelect?: true }
 const ESC = Symbol('esc')
@@ -29,6 +30,8 @@ const rig = (answers: (string | typeof ESC)[], start: { mix?: Mix; pet?: PetSett
     bubbles: () => bubbles,
     setBubbles: b => { bubbles = b; calls.push('bubbles:' + b) },
     reduced: () => reduced,
+    fields: () => DEFAULT_FIELDS,
+    setFields: () => {},
     ask: async (question, o) => {
       asked.push({ question, header: o.header, options: [...o.options], multiSelect: o.multiSelect })
       const a = answers.shift()

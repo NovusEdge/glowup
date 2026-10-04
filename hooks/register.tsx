@@ -362,15 +362,18 @@ function refresh($: Engine) {
 
 async function readBranch($: Engine) {
   if (!fields.includes('branch') || !cwd) return
-  feed($, { type: 'branch', branch: await branchOf(hostOf($), cwd) })
+  const seq = refreshSeq
+  const branch = await branchOf(hostOf($), cwd)
+  if (seq === refreshSeq) feed($, { type: 'branch', branch })
 }
 
 async function readSessionInfo($: Engine) {
+  const seq = refreshSeq
   const [modelName, root] = await Promise.all([
     $.session.model().catch(() => undefined),
     $.session.root().catch(() => undefined),
   ])
-  feed($, { type: 'session-info', modelName: modelName || undefined, root: root || undefined })
+  if (seq === refreshSeq) feed($, { type: 'session-info', modelName: modelName || undefined, root: root || undefined })
 }
 
 // usage() has no percent before the first response of a session, hence the guard.
@@ -474,6 +477,13 @@ function ctlOf($: Engine): Ctl {
     bubbles: () => bubbles,
     setBubbles: b => { bubbles = b; if (b !== 'haiku') cancelHaiku(); relook($) },
     reduced: () => reducedMotion,
+    fields: () => fields,
+    setFields: f => {
+      fields = f ?? configFields
+      void readBranch($)
+      writeStatus($, true)
+      $.ui.status(statusEntry())
+    },
     ask: (question, o) => $.ui.ask(question, o),
     // surfaces() is empty only in a plain -p run
     headless: async () => (await $.session.surfaces().catch(() => ['terminal'])).length === 0,

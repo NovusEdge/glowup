@@ -11,6 +11,7 @@ import type { PetSetting } from './pets.ts'
 import type { BubbleSetting } from './bubbles.ts'
 import type { EggStore } from './eggs.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
+import { FIELD_IDS, isFieldId, type FieldId } from './fields.ts'
 
 // What a command that needs more input falls back to, and what a headless config run prints.
 export const USAGE = FULL_TEXT
@@ -34,6 +35,9 @@ export type Ctl = {
   ask(question: string, o: { options: string[]; header: string; multiSelect?: true }): Promise<string>
   // a -p run, where ask always rejects: nobody is attached to any surface
   headless(): Promise<boolean>
+  fields(): readonly FieldId[]
+  // undefined goes back to the installer's (userConfig) list
+  setFields(f: readonly FieldId[] | undefined): void
 }
 
 const MAX_SCHEME_BYTES = 65536
@@ -218,7 +222,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   if (sub === 'pet' && !a1) return runCommand(host, 'pet list', ctl)
   if (sub === 'bubbles' && !a1) return `Bubbles: ${ctl.bubbles()}. Change it with /glowup bubbles on|off|haiku.`
   if (sub === 'motion' && !a1) return `Motion: ${ctl.reduced() ? 'reduced' : 'full'}. Change it with /glowup motion reduced|full.`
-  if (sub === 'statusline' && !a1) return 'Use /glowup statusline on to let glowup draw it, or /glowup statusline restore to put yours back.'
+  if (sub === 'statusline' && !a1) return 'Use /glowup statusline on to let glowup draw it, /glowup statusline fields <ids> to pick what it shows, or /glowup statusline restore to put yours back.'
   if (sub === 'color' && (!a1 || a1 === 'list')) return colorList(host, ctl)
   if (sub === 'color' && a1 === 'reset') return resetColor(host, ctl, a2)
   if (sub === 'color') return a2 ? setColor(host, ctl, a1!, a2) : 'Use /glowup color <role> <#hex>, /glowup color list, or /glowup color reset [role].'
@@ -298,6 +302,23 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     await host.storeSet('reducedMotion', a1 === 'reduced')
     ctl.setMotion(a1 === 'reduced')
     return `Motion: ${a1}.`
+  }
+  if (sub === 'statusline' && a1 === 'fields') {
+    // the only subcommand with a list: the [sub, a1, a2] split stops at two
+    const rest = args.trim().split(/\s+/).slice(2)
+    const show = () => `Status line fields: ${ctl.fields().join(' ')}`
+    if (!rest.length) return show()
+    if (rest.length === 1 && rest[0] === 'default') {
+      await host.storeDelete('statusline')
+      ctl.setFields(undefined)
+      return show()
+    }
+    const bad = rest.filter(s => !isFieldId(s))
+    if (bad.length) return `Unknown field${bad.length > 1 ? 's' : ''}: ${bad.join(', ')}. Choose from: ${FIELD_IDS.join(', ')}.`
+    const ids = [...new Set(rest)] as FieldId[]
+    await host.storeSet('statusline', ids)
+    ctl.setFields(ids)
+    return show()
   }
   if (sub === 'statusline' && a1 === 'on') return takeOver(host, q => ctl.confirm(q))
   if (sub === 'statusline' && a1 === 'restore') return restore(host)

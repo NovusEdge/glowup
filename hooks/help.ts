@@ -44,6 +44,7 @@ export const SECTIONS: readonly (readonly [title: string, rows: HelpRow[]])[] = 
   ]],
   ['Status line', [
     ['/glowup statusline on', 'let glowup draw it'],
+    ['/glowup statusline fields <ids>', 'pick what it shows'],
     ['/glowup statusline restore', 'put yours back'],
   ]],
 ]
