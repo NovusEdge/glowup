@@ -1,4 +1,4 @@
-import type { EngineInterface, Register, Timer } from 'claude-code'
+import type { EngineInterface, Register, RenderElement, Timer } from 'claude-code'
 import type { Host } from './host.ts'
 import { initialModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
 import { approvalLabel } from './events.ts'
@@ -12,13 +12,17 @@ import { gitBase, refreshCounts, serial } from './changes.ts'
 import { tierFor } from './layout.tsx'
 import { renderBand } from './band.tsx'
 import { renderPane, type PaneView, type TabId } from './pane.tsx'
-import { spinnerWord, newTurnWord, toolGlyph } from './restyle.ts'
+import { spinnerWord, newTurnWord } from './restyle.ts'
+import { styleRow } from './rows.tsx'
+import { orbStateOf, usesOwnSpinner, spinnerProps, spinnerLine } from './spinner.ts'
+import type { OrbState } from './motion.ts'
 import { statusText, writeStatusFile, BACKUP_KEY } from './statusline.ts'
 import { runCommand, type Ctl } from './command.ts'
 import { loadUserThemes } from './userthemes.ts'
 import { firstRun } from './firstrun.ts'
 
 type Engine = EngineInterface
+type SpinKey = { turnAt: number; detail: string; state: OrbState }
 
 const BAND = { plugin: 'glowup', key: 'band' } as const
 const PANE = { plugin: 'glowup', key: 'pane' } as const
@@ -50,6 +54,7 @@ let sessionId = ''
 let takenOver = false
 let statusTimer: Timer | undefined
 let lastStatusLine: string | undefined
+let spinKey: SpinKey = { turnAt: 0, detail: '', state: 'think' }
 
 function hostOf($: Engine): Host {
   return {
@@ -140,7 +145,17 @@ async function settleTeammates($: Engine) {
     }
   } catch {}
 }
-function feed($: Engine, ev: Ev) { model = applyEvent(model, ev); syncTicker($); redraw($) }
+function feed($: Engine, ev: Ev) {
+  model = applyEvent(model, ev)
+  syncTicker($)
+  redraw($)
+  // Only the spinner's readers redraw, and only when what it shows changes.
+  const next: SpinKey = { turnAt: model.turnAt ?? 0, detail: model.act.label, state: orbStateOf(model) }
+  if (next.turnAt !== spinKey.turnAt || next.detail !== spinKey.detail || next.state !== spinKey.state) {
+    spinKey = next
+    void $.state.set(SPIN, { ...next, at: Date.now() })
+  }
+}
 
 async function togglePane($: Engine): Promise<string> {
   const open = (await $.ui.panes()).find(p => p.id === 'glowup')
@@ -391,14 +406,46 @@ export const register: Register = (on, options) => {
     })
   })
 
-  on('ui.render', { component: 'Spinner' }, async ($, e, next) => next({ ...e, props: { ...e.props, word: spinnerWord(theme, e.props.word, reducedMotion) } }))
+  on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
+    const word = spinnerWord(theme, e.props.word, reducedMotion)
+    if (!usesOwnSpinner(look, reducedMotion, e.props.message) || (e.surface !== 'terminal' && e.surface !== 'desktop')) {
+      return next({ ...e, props: { ...e.props, word } })
+    }
+    // A throw inside a Client unmounts it to a blank region, so everything it will
+    // run is exercised here first and any failure keeps the engine line.
+    try {
+      const live = (await $.state.get(SPIN)).value
+      const input = { word, turnAt: live?.turnAt || Date.now(), detail: live?.detail ?? model.act.label, state: (live?.state ?? orbStateOf(model)) as OrbState }
+      const props = spinnerProps(look, input, reducedMotion)
+      spinnerLine(props.look, props.input, Date.now())
+      const { Client } = $.ui.resolve(e)
+      return <Client key="glowup-spinner" module="./client/spinner.tsx" props={props} />
+    } catch {
+      return next(e)
+    }
+  })
 
+  on('ui.render', { component: 'UserMessage' }, async ($, e, next) => {
+    const row = await next(e)
+    if (e.surface !== 'terminal') return row
+    const p = e.props
+    return styleRow($.ui.resolve(e), look, { site: 'UserMessage', text: p.text, isExpanded: p.isExpanded, own: p.origin.kind === 'composer' && !p.from && !p.task }, row) as RenderElement
+  })
+  on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
+    const row = await next(e)
+    if (e.surface !== 'terminal') return row
+    return styleRow($.ui.resolve(e), look, { site: 'AssistantMessage', isFirstOfReply: e.props.isFirstOfReply }, row) as RenderElement
+  })
   on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
     const row = await next(e)
-    const g = !e.props.isRunning && toolGlyph(theme, e.props.tool)
-    if (!g) return row
-    const { Box, Text } = $.ui.resolve(e)
-    return <Box flexDirection="row">{row}<Box marginTop={1}><Text color={g.color}>{'  ' + g.glyph}</Text></Box></Box>
+    if (e.surface !== 'terminal') return row
+    const p = e.props
+    return styleRow($.ui.resolve(e), look, { site: 'ToolUse', tool: p.tool, input: p.input, isRunning: p.isRunning, isErrored: p.isErrored, isInterrupted: p.isInterrupted }, row) as RenderElement
+  })
+  on('ui.render', { component: 'ToolResult' }, async ($, e, next) => {
+    const row = await next(e)
+    if (e.surface !== 'terminal') return row
+    return styleRow($.ui.resolve(e), look, { site: 'ToolResult' }, row) as RenderElement
   })
 
   on('command.run', { command: 'glowup' }, async ($, e) => {
