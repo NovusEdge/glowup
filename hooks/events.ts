@@ -1,0 +1,60 @@
+export type Kind = 'read' | 'search' | 'edit' | 'shell' | 'agent' | 'plan' | 'other'
+export type ToolStart = { kind: Kind; label: string; file?: string; command?: string; isTest: boolean }
+export type PlanItem = { id: string; title: string; status: 'pending' | 'in_progress' | 'completed' }
+
+export const shortPath = (p: string) => p.split('/').filter(Boolean).slice(-2).join('/')
+const str = (v: unknown) => (typeof v === 'string' ? v : '')
+const lines = (s: string) => (s === '' ? 0 : s.replace(/\n$/, '').split('\n').length)
+
+// Runner words that mean "this command runs tests". A command matches when one of
+// its && / ; / | separated parts starts with a runner (after env assignments).
+const RUNNERS = [
+  /^(npm|pnpm|yarn|bun)\s+(run\s+)?tests?\b/, /^(npx\s+|pnpm\s+exec\s+|bunx\s+)?(vitest|jest|mocha|ava)\b/,
+  /^(python3?\s+-m\s+)?pytest\b/, /^go\s+test\b/, /^cargo\s+(test|nextest)\b/, /^mix\s+test\b/,
+  /^(bundle\s+exec\s+)?rspec\b/, /^make\s+test\b/, /^(\.\/gradlew|gradle)\s+test\b/, /^mvn\s+test\b/,
+]
+export function isTestCommand(command: string): boolean {
+  return command.split(/&&|;|\|\|?/).map(p => p.trim().replace(/^(\w+=\S+\s+)+/, '')).some(p => RUNNERS.some(r => r.test(p)))
+}
+
+export function testOutcome(text: string, isError: boolean): { passed: boolean; summary: string } {
+  const failed = Number(/(\d+)\s+failed/.exec(text)?.[1] ?? NaN)
+  const passedN = Number(/(\d+)\s+passed/.exec(text)?.[1] ?? NaN)
+  if (isError || failed > 0) return { passed: false, summary: failed > 0 ? `${failed} test${failed === 1 ? '' : 's'} failed` : 'tests failed' }
+  return { passed: true, summary: passedN > 0 ? `${passedN}/${passedN} tests passing` : 'tests passing' }
+}
+
+export function describeTool(tool: string, input: Record<string, unknown>): ToolStart {
+  const file = str(input.file_path) || str(input.notebook_path)
+  switch (tool) {
+    case 'Read': return { kind: 'read', label: `Reading ${shortPath(file)}`, file, isTest: false }
+    case 'Grep': return { kind: 'search', label: `Searching "${str(input.pattern)}"`, isTest: false }
+    case 'Glob': return { kind: 'search', label: `Finding ${str(input.pattern)}`, isTest: false }
+    case 'Edit': case 'NotebookEdit': return { kind: 'edit', label: `Editing ${shortPath(file)}`, file, isTest: false }
+    case 'Write': return { kind: 'edit', label: `Writing ${shortPath(file)}`, file, isTest: false }
+    case 'Bash': { const command = str(input.command); return { kind: 'shell', label: `Running ${command.split('\n')[0]!.slice(0, 48)}`, command, isTest: isTestCommand(command) } }
+    case 'Agent': return { kind: 'agent', label: `Started subagent: ${str(input.description) || str(input.name) || 'agent'}`, isTest: false }
+    case 'TodoWrite': case 'TaskCreate': case 'TaskUpdate': return { kind: 'plan', label: 'Updating the plan', isTest: false }
+    default: return { kind: 'other', label: tool.startsWith('mcp__') ? tool.split('__').slice(1).join(' ') : tool, isTest: false }
+  }
+}
+
+export function planFrom(tool: string, input: Record<string, unknown>, prev: PlanItem[], resultId?: string): PlanItem[] | undefined {
+  if (tool === 'TodoWrite') {
+    const todos = Array.isArray(input.todos) ? input.todos as { content?: unknown; status?: unknown }[] : []
+    return todos.map((t, i) => ({ id: String(i), title: str(t.content), status: (['pending', 'in_progress', 'completed'].includes(str(t.status)) ? t.status : 'pending') as PlanItem['status'] }))
+  }
+  if (tool === 'TaskCreate') return [...prev, { id: resultId ?? String(prev.reduce((m, p) => Math.max(m, Number(p.id) || 0), 0) + 1), title: str(input.subject), status: 'pending' }]
+  if (tool === 'TaskUpdate') {
+    const id = str(input.taskId), status = str(input.status)
+    if (status === 'deleted') return prev.filter(p => p.id !== id)
+    return prev.map(p => p.id !== id ? p : { ...p, title: str(input.subject) || p.title, status: (['pending', 'in_progress', 'completed'].includes(status) ? status : p.status) as PlanItem['status'] })
+  }
+  return undefined
+}
+
+export function editCounts(tool: string, input: Record<string, unknown>): { add: number; del: number } | undefined {
+  if (tool === 'Edit') return { add: lines(str(input.new_string)), del: lines(str(input.old_string)) }
+  if (tool === 'Write') return { add: lines(str(input.content)), del: 0 }
+  return undefined
+}
