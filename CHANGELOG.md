@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-04
+
 ### Added
 
 - Cockpit pane with three tabs: Changes (files Claude touched, with line counts from git), Agents (subagents and what each is doing) and Plan & context (the task list and what fills the context window).
