@@ -7,8 +7,8 @@ const walk = (n: any, out: any[] = []): any[] => { if (typeof n === 'string') ou
 const texts = (n: any) => walk(n).filter(x => typeof x === 'string').join('')
 
 // each AskUserQuestion tool call takes the next answer; undefined rejects like Esc
-const setup = (on: any, answers: (string | undefined)[], surfaces: string[] = ['terminal']) => {
-  fakeFs(on)
+const setup = (on: any, answers: (string | undefined)[], surfaces: string[] = ['terminal'], files: Record<string, string> = {}) => {
+  fakeFs(on, files)
   mock.store(on)
   const asked: any[] = []
   const opens: unknown[] = []
@@ -102,6 +102,24 @@ test('a summary with a spinner segment still draws as the card, in the pack\'s c
     expect(swatches[0].props.color).toBe('#ff3ec8')
     await ui.unmount()
   }
+})
+
+test('a live user pack with a spinner override still draws as the card', async ($, on) => {
+  const pack = { format: 1, name: 'mine', colors: { theme: 'classic', palette: { accent: '#123456' } } }
+  setup(on, [], ['terminal'], { '/fake/.claude/glowup/packs/mine.json': JSON.stringify(pack) })
+  mock.clock(on)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.start', async (_$: unknown, e: { cwd: string }) => ({ cwd: e.cwd }) as never)
+  // the config dir is read at session.start
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  expect((await runGlowup($, 'pack mine')).text).toBe('Pack: mine')
+  await runGlowup($, 'spinner comet')
+  const text = 'glowup · mine · spinner comet · Clawd · bubbles on · full motion'
+  const ui = await mountRow($, ROW(text))
+  const swatches = walk(await ui.drawn()).filter(n => n?.children?.[0] === '██')
+  expect(swatches).toHaveLength(5)
+  expect(swatches[0].props.color).toBe('#123456')
+  await ui.unmount()
 })
 
 test('a summary naming a pack that cannot be resolved passes through', async ($, on) => {

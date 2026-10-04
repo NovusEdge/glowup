@@ -41,14 +41,14 @@ test('cards: messages have no box, a side bar in accent (you) or faint (claude),
 
 test('cards: tool rows keep the pack border style, framed in faint', async () => {
   const l = look('arcade')
-  const card = styleRow(els, l, tool(), ENGINE) as any
+  const card = inner(styleRow(els, l, tool(), ENGINE)) as any
   expect([card.type, card.props.borderStyle, card.props.borderColor]).toEqual(['Box', 'bold', l.theme.colors.faint])
   expect(card.props.borderColor).not.toBe(l.borderColor)
   expect(hasEngine(card)).toBe(true)
 })
 
 test('cards: tool results stay indented 2', async () => {
-  const r = styleRow(els, look('cozy'), { site: 'ToolResult' }, ENGINE) as any
+  const r = inner(styleRow(els, look('cozy'), { site: 'ToolResult' }, ENGINE)) as any
   expect(r.props.paddingLeft).toBe(2)
   expect(bordered(r)).toBe(false)
 })
@@ -124,11 +124,20 @@ test('non-classic styles indent every row one column, classic does not', async (
     const l: Look = { ...look('arcade'), rows: style }
     for (const r of rows) {
       const s = styleRow(els, l, r, ENGINE) as any
-      expect([style, r.site, s.type, s.props.marginLeft]).toEqual([style, r.site, 'Box', 1])
+      expect([style, r.site, s.type, s.props.marginLeft, s.props.flexDirection]).toEqual([style, r.site, 'Box', 1, 'column'])
+      expect(s.children).toHaveLength(1)
     }
   }
   const cl: Look = { ...look('arcade'), rows: 'classic' }
   for (const r of rows) expect((styleRow(els, cl, r, ENGINE) as any).props?.marginLeft).toBeUndefined()
+})
+
+test('the margin wrapper leaves the inner row untouched', async () => {
+  const l: Look = { ...look('arcade'), rows: 'cards' }
+  const s = styleRow(els, l, tool(), ENGINE) as any
+  expect(s.children).toHaveLength(1)
+  expect(s.children[0].props.marginLeft).toBeUndefined()
+  expect(s.children[0].props.borderStyle).toBeTruthy()
 })
 
 test('other styles never draw the side bar or a border on messages', async () => {

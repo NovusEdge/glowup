@@ -207,10 +207,12 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   if (sub === 'export') {
     if (a1 !== 'konsole') return 'Export targets: konsole'
     const { look } = resolveLook(ctl.mix(), await loadUserPacks(host), await loadUserThemes(host))
-    const pack = look.colorsFrom.replace(/[^a-z0-9-]/g, '-')
-    const path = `${host.dataHome}/konsole/glowup-${pack}.colorscheme`
-    await host.writeFile(path, konsoleScheme(pack, look.theme.colors, look.bg))
-    return `${path}\nIn Konsole: Settings → Edit Current Profile → Appearance → pick "glowup ${pack}".`
+    // An override that failed to resolve falls back to the pack's colors, so name it only when it took effect.
+    const over = ctl.mix().theme
+    const name = (over !== undefined && look.theme.name === over ? over : look.colorsFrom).replace(/[^a-z0-9-]/g, '-')
+    const path = `${host.dataHome}/konsole/glowup-${name}.colorscheme`
+    await host.writeFile(path, konsoleScheme(name, look.theme.colors, look.bg))
+    return `${path}\nIn Konsole: Settings → Edit Current Profile → Appearance → pick "glowup ${name}".`
   }
   if (sub === 'import' && a1) return importScheme(host, ctl, a1, a2 === '--force')
   if (sub === 'pet' && a1 === 'list') {

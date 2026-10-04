@@ -176,7 +176,7 @@ A pack sets a whole look with one name: colors and row styles in one layer, moti
 
 ## Pets
 
-Clawd is a small pixel pet at the bottom of the glowup pane. He types at his keyboard while Claude edits files or runs commands, walks while it reads, searches and plans, hops when a test passes, sags and sweats when one fails, startles only when Claude needs you, does a little dance when a turn finishes, sleeps after 10 idle minutes, sweats in a special outfit on a Friday deploy, and says a short line in a speech bubble. Keep your tests green and see what happens.
+Clawd is a small pixel pet at the bottom of the glowup pane. He types at his keyboard while Claude edits files or runs commands, walks while it reads, searches and plans, hops when a test passes, sags and sweats when one fails, startles only when Claude needs you, does a little dance when a turn finishes, sleeps after one idle minute, sweats in a special outfit on a Friday deploy, and says a short line in a speech bubble. Keep your tests green and see what happens.
 
 ```text
 /glowup pet off
