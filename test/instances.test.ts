@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { registerCopy, decide, unregisterCopy, safeId, pruneStatus, INSTANCES_DIR } from '../hooks/instances.ts'
+import { registerCopy, touchCopy, decide, unregisterCopy, safeId, pruneStatus, INSTANCES_DIR } from '../hooks/instances.ts'
 import { writeStatusFile } from '../hooks/statusline.ts'
 import { fakeHost } from './kit.ts'
 
@@ -71,6 +71,44 @@ test('an entry over a day old never wins a session', async () => {
   files[`${DIR}/s1.9.json`] = JSON.stringify({ root: DEV, at: NOW - 2 * 86_400_000 })
   await registerCopy(host, 's1', CACHE, NOW)
   expect((await decide(host, 's1', CACHE, NOW)).active).toBe(true)
+})
+
+test('a dev entry that stopped refreshing for over 3 minutes does not beat a live installed copy', async () => {
+  const { host, files } = fakeHost()
+  files[`${DIR}/s1.9.json`] = JSON.stringify({ root: DEV, at: NOW - 10 * 60_000, seen: NOW - 5 * 60_000 })
+  await registerCopy(host, 's1', CACHE, NOW)
+  expect(await decide(host, 's1', CACHE, NOW)).toEqual({ active: true, winner: CACHE })
+})
+
+test('a fresh dev entry still wins, and an entry without a refresh stamp ages by its registration time', async () => {
+  const { host, files } = fakeHost()
+  files[`${DIR}/s1.9.json`] = JSON.stringify({ root: DEV, at: NOW - 10 * 60_000, seen: NOW - 60_000 })
+  await registerCopy(host, 's1', CACHE, NOW)
+  expect((await decide(host, 's1', CACHE, NOW)).active).toBe(false)
+  files[`${DIR}/s1.9.json`] = JSON.stringify({ root: DEV, at: NOW - 10 * 60_000 })
+  expect((await decide(host, 's1', CACHE, NOW)).active).toBe(true)
+})
+
+test('touchCopy refreshes the stamp and keeps the registration time that orders copies', async () => {
+  const other = '/home/u/.claude/plugins/cache/glowup2/glowup/0.2.2'
+  const { host } = fakeHost()
+  await registerCopy(host, 's1', CACHE, NOW)
+  await registerCopy(host, 's1', other, NOW + 5)
+  await touchCopy(host, 's1', other, NOW + 4 * 60_000)
+  await touchCopy(host, 's1', CACHE, NOW + 4 * 60_000)
+  expect((await decide(host, 's1', CACHE, NOW + 4 * 60_000)).active).toBe(true)
+  expect((await decide(host, 's1', other, NOW + 4 * 60_000)).active).toBe(false)
+})
+
+test('a config dir with a trailing or doubled slash still tells installed from dev', async () => {
+  for (const dir of ['/home/u/.claude/', '/home/u//.claude']) {
+    const { host } = fakeHost()
+    const h = { ...host, configDir: dir }
+    await registerCopy(h, 's1', CACHE, NOW)
+    await registerCopy(h, 's1', DEV, NOW + 5)
+    expect((await decide(h, 's1', DEV, NOW + 5)).active).toBe(true)
+    expect((await decide(h, 's1', `${CACHE}/`, NOW + 5)).active).toBe(false)
+  }
 })
 
 test('session ids keep only letters, digits and dashes', () => {

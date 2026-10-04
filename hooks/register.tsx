@@ -17,13 +17,13 @@ import { styleRow } from './rows.tsx'
 import { orbStateOf, usesOwnSpinner, checkedSpinnerProps } from './spinner.ts'
 import type { PetClientProps } from './client/pet.tsx'
 import type { OrbState } from './motion.ts'
-import { statusText, writeStatusFile, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
+import { statusText, writeStatusFile, drawsStatusLine, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
 import { runCommand, SUMMARY_LEAD, type Ctl } from './command.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 import { renderHelp } from './helpcard.tsx'
 import { loadUserThemes } from './userthemes.ts'
 import { firstRun } from './firstrun.ts'
-import { registerCopy, decide, unregisterCopy, pruneStatus, safeId } from './instances.ts'
+import { registerCopy, touchCopy, decide, unregisterCopy, pruneStatus, safeId, HEARTBEAT_MS } from './instances.ts'
 
 type Engine = EngineInterface
 type SpinKey = { turnAt: number; detail: string; state: OrbState }
@@ -60,7 +60,8 @@ let sessionId = ''
 let off = false
 let guardSid = '', guardRoot = ''
 let takenOver = false
-let statusTimer: Timer | undefined
+// The one 60 s clock: refreshes this copy's guard entry and rewrites the status file.
+let beatTimer: Timer | undefined
 let lastStatusLine: string | undefined
 let spinKey: SpinKey = { turnAt: 0, detail: '', state: 'think' }
 // Pet state, published to PET for the pane only; the band never reads it.
@@ -110,10 +111,17 @@ function writeStatus($: Engine, force: boolean) {
   lastStatusLine = line ?? ''
   void writeStatusFile(hostOf($), sessionId, line).catch(() => {})
 }
+function startBeat($: Engine) {
+  beatTimer?.cancel()
+  beatTimer = $.clock.every(HEARTBEAT_MS, () => {
+    if (guardSid) void touchCopy(hostOf($), guardSid, guardRoot, Date.now()).catch(() => {})
+    writeStatus($, true)
+  })
+}
+// A winning copy whose store has no backup (the takeover was made by another copy
+// or an earlier install) still owns the file settings.json points at.
 async function syncTakeover($: Engine) {
-  takenOver = (await hostOf($).storeGet(BACKUP_KEY)) !== undefined
-  statusTimer?.cancel()
-  statusTimer = takenOver ? $.clock.every(60_000, () => writeStatus($, true)) : undefined
+  takenOver = (await hostOf($).storeGet(BACKUP_KEY)) !== undefined || await drawsStatusLine(hostOf($))
   writeStatus($, true)
   $.ui.status(statusEntry())
 }
@@ -345,6 +353,34 @@ declare function setTimeout(fn: () => void, ms: number): unknown
 // Long enough for a copy that started at the same moment to write its entry.
 const SETTLE_MS = 150
 
+function goOff($: Engine, winner: string) {
+  off = true
+  ticker?.cancel(); ticker = undefined
+  beatTimer?.cancel(); beatTimer = undefined
+  takenOver = false
+  $.ui.status(undefined)
+  $.ui.toast(`glowup is loaded twice (${guardRoot} and ${winner}); this copy is off. Disable one: claude plugin disable glowup@glowup`)
+}
+
+// A copy that registered after our session.start check, or a /clear that gave the session a
+// new id, can change the answer. Only active -> off: a copy that lost at session.start never
+// ran its init, so it cannot be switched back on. Returns true when this copy went off.
+async function recheckGuard($: Engine, id: string): Promise<boolean> {
+  const sid = safeId(id)
+  if (!sid || !guardRoot) return false
+  try {
+    const host = hostOf($)
+    if (sid !== guardSid) {
+      guardSid = sid
+      await registerCopy(host, sid, guardRoot, Date.now())
+    }
+    const d = await decide(host, sid, guardRoot, Date.now())
+    if (d.active) return false
+    goOff($, d.winner)
+    return true
+  } catch { return false }
+}
+
 // The loader reads `on("<event>", hook)` literally, so no wrapper can gate the hooks:
 // each one opens with `if (off) return next(e)`. session.start and session.end run
 // the guard and its cleanup themselves.
@@ -368,8 +404,7 @@ export const register: Register = (on, options) => {
         await new Promise<void>(r => setTimeout(r, SETTLE_MS))
         const d = await decide(host, guardSid, guardRoot, Date.now())
         if (!d.active) {
-          off = true
-          $.ui.toast(`glowup is loaded twice (${guardRoot} and ${d.winner}); this copy is off. Disable one: claude plugin disable glowup@glowup`)
+          goOff($, d.winner)
           return next(e)
         }
         void pruneStatus(host, STATUS_DIR(configDir))
@@ -378,6 +413,7 @@ export const register: Register = (on, options) => {
         $.ui.log(`two-copies guard failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
       }
     }
+    startBeat($)
     await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|import|export|pet|bubbles|pane|motion|statusline ...' })
     mix = await initialMix(host, options)
     const storedPet = await host.storeGet('pet')
@@ -410,6 +446,7 @@ export const register: Register = (on, options) => {
     if (off) return next(e)
     // belt and braces: session.end may have run before the new id was visible
     const id = await $.session.id()
+    if (await recheckGuard($, id)) return next(e)
     if (id !== sessionId) await adoptSession($, sessionId)
     newTurnWord()
     friday = false

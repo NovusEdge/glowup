@@ -5,14 +5,23 @@ import type { Host } from './host.ts'
 // alerts and the status line loop both came from that. Exactly one copy may act.
 export const INSTANCES_DIR = (configDir: string) => `${configDir}/glowup/instances`
 const DAY = 86_400_000
+// The active copy refreshes its entry every 60 s. A session killed without session.end
+// (crash, kill -9, OOM) leaves its entry behind, and `claude --continue` reuses the
+// session id, so a dead entry must stop counting after a few missed beats.
+export const HEARTBEAT_MS = 60_000
+const STALE = 3 * 60_000
 
 // The id is a file name and reaches `rm`: nothing but these characters gets through.
 export const safeId = (id: string) => id.replace(/[^A-Za-z0-9-]/g, '')
 
-type Entry = { root: string; at: number }
+// at orders the copies and never changes; seen is the last refresh.
+type Entry = { root: string; at: number; seen?: number }
+const lastSeen = (e: Entry) => e.seen ?? e.at
+
+const tidy = (p: string) => p.replace(/\/+/g, '/').replace(/\/$/, '')
 
 // Installed copies live under the plugin cache; anything else came from --plugin-dir.
-const isDev = (configDir: string, root: string) => !root.startsWith(`${configDir}/plugins/cache/`)
+const isDev = (configDir: string, root: string) => !`${tidy(root)}/`.startsWith(`${tidy(configDir)}/plugins/cache/`)
 
 // One file per copy, never one shared file: two copies starting together would
 // read-modify-write the same file and one entry would be lost, leaving both active.
@@ -31,7 +40,7 @@ async function readAll(host: Host): Promise<{ path: string; entry?: Entry }[]> {
     const path = `${dir}/${name}`
     try {
       const v = JSON.parse(await host.readFile(path))
-      out.push({ path, entry: typeof v?.root === 'string' && typeof v?.at === 'number' ? { root: v.root, at: v.at } : undefined })
+      out.push({ path, entry: typeof v?.root === 'string' && typeof v?.at === 'number' ? { root: v.root, at: v.at, seen: typeof v.seen === 'number' ? v.seen : undefined } : undefined })
     } catch { out.push({ path }) }
   }
   return out
@@ -39,17 +48,26 @@ async function readAll(host: Host): Promise<{ path: string; entry?: Entry }[]> {
 
 export async function registerCopy(host: Host, sid: string, root: string, now: number) {
   for (const f of await readAll(host)) {
-    if (!f.entry || f.entry.at < now - DAY) await host.run(['rm', '-f', f.path]).catch(() => {})
+    if (!f.entry || lastSeen(f.entry) < now - DAY) await host.run(['rm', '-f', f.path]).catch(() => {})
   }
-  await host.writeFile(fileOf(host.configDir, sid, root), JSON.stringify({ root, at: now }))
+  await host.writeFile(fileOf(host.configDir, sid, root), JSON.stringify({ root, at: now, seen: now }))
+}
+
+export async function touchCopy(host: Host, sid: string, root: string, now: number) {
+  const path = fileOf(host.configDir, sid, root)
+  const mine = (await readAll(host)).find(f => f.path === path)?.entry
+  // no entry: session.end removed it, and a beat must not bring a finished session back
+  if (!mine) return
+  await host.writeFile(path, JSON.stringify({ root, at: mine.at, seen: now }))
 }
 
 // Same answer in every copy that reads the same files: dev copy first, then the
-// earliest registration, then the path. This copy's own entry always counts, so a
-// missing or unreadable file can never leave zero active copies.
+// earliest registration, then the path. Entries not refreshed for STALE are dead
+// sessions and do not count. This copy's own entry always counts, so a missing or
+// unreadable file can never leave zero active copies.
 export async function decide(host: Host, sid: string, root: string, now: number): Promise<{ active: boolean; winner: string }> {
   const mine = `${INSTANCES_DIR(host.configDir)}/${sid}.`
-  const seen = (await readAll(host)).filter(f => f.entry && f.path.startsWith(mine) && f.entry.at >= now - DAY).map(f => f.entry!)
+  const seen = (await readAll(host)).filter(f => f.entry && f.path.startsWith(mine) && (f.entry.root === root || lastSeen(f.entry) >= now - STALE)).map(f => f.entry!)
   if (!seen.some(e => e.root === root)) seen.push({ root, at: now })
   const key = (e: Entry) => [isDev(host.configDir, e.root) ? 0 : 1, e.at] as const
   seen.sort((a, b) => key(a)[0] - key(b)[0] || key(a)[1] - key(b)[1] || (a.root < b.root ? -1 : a.root > b.root ? 1 : 0))

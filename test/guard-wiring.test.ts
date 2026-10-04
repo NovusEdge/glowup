@@ -19,11 +19,12 @@ function boot(on: Parameters<typeof fakeFs>[0], files: Record<string, string>, i
   on('ui.toast', async (_$, e) => { toasts.push(e.text); return { value: undefined } as never })
   on('ui.panes', async () => ({ value: [] }))
   on('ui.render', async () => ({ type: 'Text', props: {}, children: ['engine'] }) as RenderElement)
-  on('session.id', async () => ({ value: id }))
+  let current = id
+  on('session.id', async () => ({ value: current }))
   on('session.usage', async () => ({ value: { context: { window: 1000, percent: 10 } } as never }))
   on('turn.start', async (_$, e) => ({ turnId: e.turnId }))
   on('tool.call', async () => ({ result: {}, text: '' }) as never)
-  return { ...fs, toasts, registered }
+  return { ...fs, toasts, registered, setId: (v: string) => { current = v } }
 }
 
 const entry = (root: string, at: number) => JSON.stringify({ root, at })
@@ -67,6 +68,77 @@ test('a single copy is unaffected, and session end removes its entry', async ($,
   expect(registered).toEqual(['glowup'])
   expect(Object.keys(files).filter(f => f.startsWith(DIR))).toHaveLength(1)
   await $.session.end({ reason: 'exit', sessionId: 's1' } as never)
+})
+
+const mineWrites = (writes: string[]) => writes.filter(p => p.startsWith(DIR)).length
+
+test('the active copy refreshes its entry once a minute, with one timer however often it starts', async ($, on) => {
+  const { writes } = boot(on, {})
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  const before = mineWrites(writes)
+  await clock.advance(60_000)
+  expect(mineWrites(writes)).toBe(before + 1)
+  await clock.advance(120_000)
+  expect(mineWrites(writes)).toBe(before + 3)
+})
+
+test('a copy that registers late and sorts first turns this one off at the next turn, once', async ($, on) => {
+  const { files, toasts, writes } = boot(on, {})
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  expect(toasts).toEqual([])
+  files[`${DIR}/s1.bb.json`] = entry('/elsewhere/glowup', Date.now() - 10_000)
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await $.turn.start({ text: 'again', turnId: 't2' })
+  expect(toasts).toHaveLength(1)
+  expect(toasts[0]).toContain('glowup is loaded twice')
+  const ui = await $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+  expect(await ui.find({ text: /♥/ })).toBeUndefined()
+  await ui.unmount()
+  const seen = mineWrites(writes)
+  await clock.advance(180_000)
+  expect(mineWrites(writes)).toBe(seen)
+})
+
+test('after /clear the copy registers under the new id, and a copy that got there first still wins', async ($, on) => {
+  const { files, toasts, setId } = boot(on, {})
+  mock.clock(on)
+  on('session.end', async (_$, e) => ({ sessionId: e.sessionId }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  setId('s2')
+  await $.session.end({ reason: 'clear', sessionId: 's1' } as never)
+  files[`${DIR}/s2.bb.json`] = entry('/elsewhere/glowup', Date.now() - 10_000)
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  expect(Object.keys(files).filter(f => f.startsWith(`${DIR}/s2.`))).toHaveLength(2)
+  expect(toasts).toHaveLength(1)
+})
+
+test('after /clear with no other copy, this one registers under the new id and stays active', async ($, on) => {
+  const { files, toasts, setId } = boot(on, {})
+  mock.clock(on)
+  on('session.end', async (_$, e) => ({ sessionId: e.sessionId }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  setId('s2')
+  await $.session.end({ reason: 'clear', sessionId: 's1' } as never)
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  expect(Object.keys(files).filter(f => f.startsWith(`${DIR}/s2.`))).toHaveLength(1)
+  expect(toasts).toEqual([])
+  const ui = await $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+  expect(await ui.find({ text: /♥/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a winning copy whose store has no backup still writes status files when settings point at glowup', async ($, on) => {
+  const { files } = boot(on, {
+    '/fake/.claude/settings.json': JSON.stringify({ statusLine: { type: 'command', command: `sh '/fake/.claude/glowup/statusline.sh'` } }),
+  })
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await clock.settle()
+  expect(Object.keys(files).filter(f => f.startsWith('/fake/.claude/glowup/status/'))).toEqual(['/fake/.claude/glowup/status/s1'])
 })
 
 test('a session id with path characters is cut down before it reaches a file name', async ($, on) => {
