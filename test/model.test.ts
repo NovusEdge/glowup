@@ -73,8 +73,8 @@ test('an agent is done when its own turn completes; the Agent call only brings t
     { type: 'tool-end', at: 2, tool: 'Agent', toolUseId: 'a1', input: {}, isError: false, text: 'Async agent launched' },
   ])
   expect(bg.agents[0]).toMatchObject({ state: 'running' })
-  bg = applyEvent(bg, { type: 'agent-done', at: 9001, agentId: 'ag-1' })
-  expect(bg.agents[0]).toMatchObject({ state: 'done', endedAt: 9001 })
+  bg = applyEvent(bg, { type: 'agent-done', at: 9001, agentId: 'ag-1', tokens: 2500 })
+  expect(bg.agents[0]).toMatchObject({ state: 'done', endedAt: 9001, tokens: 2500 })
   // foreground: the agent's turn completes, then the Agent call ends with its tokens
   const fg = run([
     { type: 'tool-start', at: 1, tool: 'Agent', toolUseId: 'a1', input: { description: 'Find tests', prompt: '' } },

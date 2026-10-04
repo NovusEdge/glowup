@@ -195,7 +195,14 @@ export const register: Register = (on, options) => {
     // the ticker would redraw through the whole wait for next()
     if (!e.agentId) { ticker?.cancel(); ticker = undefined }
     const r = await next(e)
-    if (e.agentId) { feed($, { type: 'agent-done', at: Date.now(), agentId: e.agentId }); refresh($); return r }
+    if (e.agentId) {
+      // A background Agent call returns before the run, so its result carries no totalTokens.
+      const u = e.usage
+      const tokens = u ? u.input_tokens + u.output_tokens + u.cache_creation_input_tokens : undefined
+      feed($, { type: 'agent-done', at: Date.now(), agentId: e.agentId, tokens })
+      refresh($)
+      return r
+    }
     feed($, { type: 'turn-done', at: Date.now() })
     refresh($)
     await feedContext($)

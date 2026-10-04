@@ -12,7 +12,7 @@ export type Ev =
   | { type: 'tool-end'; at: number; tool: string; toolUseId: string; agentId?: string; input: Record<string, unknown>; isError: boolean; text: string; resultTaskId?: string; agentTokens?: number; writeType?: 'create' | 'update' }
   | { type: 'needs-you'; at: number; toolUseId: string; what: string }
   | { type: 'agent-bind'; toolUseId: string; agentId: string }
-  | { type: 'agent-done'; at: number; agentId: string }
+  | { type: 'agent-done'; at: number; agentId: string; tokens?: number }
   | { type: 'turn-done'; at: number }
   | { type: 'context'; percent: number }
 
@@ -61,7 +61,7 @@ export function applyEvent(m: Model, ev: Ev): Model {
     case 'context': return { ...m, ctxPercent: Math.max(0, Math.min(100, Math.round(ev.percent))) }
     case 'needs-you': return { ...m, needsYou: { toolUseId: ev.toolUseId, what: ev.what, before: m.needsYou?.before ?? m.act }, act: { glyph: '!', label: `Needs you: ${ev.what}`, tone: 'fail' } }
     case 'agent-bind': return { ...m, agents: m.agents.map(a => a.key === ev.toolUseId ? { ...a, agentId: ev.agentId } : a) }
-    case 'agent-done': return { ...m, agents: m.agents.map(a => a.agentId === ev.agentId && a.state === 'running' ? { ...a, state: 'done' as const, endedAt: ev.at, now: undefined } : a) }
+    case 'agent-done': return { ...m, agents: m.agents.map(a => a.agentId === ev.agentId && a.state === 'running' ? { ...a, state: 'done' as const, endedAt: ev.at, now: undefined, tokens: ev.tokens ?? a.tokens } : a) }
     case 'tool-start': {
       const d = describeTool(ev.tool, ev.input)
       if (ev.agentId) return { ...m, agents: m.agents.map(a => a.agentId === ev.agentId ? { ...a, now: `${GLYPH[d.kind]} ${d.label}` } : a) }
