@@ -4,7 +4,7 @@ import { capped, legendRows, sparkline, stackBar, tokensK } from './ctxchart.ts'
 import { planOrder } from './tasks.ts'
 import type { Theme } from './themes.ts'
 import { shortPath } from './events.ts'
-import type { Look } from './packs.ts'
+import type { Border, Look } from './packs.ts'
 import { wrapBubble, type Mood } from './bubbles.ts'
 import { CLAWD_ROW, PET_ROWS, type PetId } from './pets.ts'
 import { comboSegs, fit, hearts, hpBar, renderSegs, toneColor, visibleLength, type Seg } from './layout.tsx'
@@ -36,41 +36,68 @@ const cap = (rows: Seg[][], t: Theme, w: number, reserve = 0, limit = COMPACT_RO
   return [...rows.slice(0, room - 1), fit([{ text: `  … ${rows.length - room + 1} more`, color: t.colors.dim }], w)]
 }
 
-function changes(m: Model, t: Theme, w: number, compact: boolean, limit: number): Seg[][] {
-  const c = t.colors, edited = m.files.filter(f => f.how !== 'read')
-  const add = edited.reduce((n, f) => n + f.add, 0), del = edited.reduce((n, f) => n + f.del, 0)
-  const rows: Seg[][] = []
-  if (!compact) rows.push(header('CHANGES', `${edited.length} files  +${add} −${del}`, w, t), [])
-  const list = compact ? edited : m.files
-  const body: Seg[][] = []
-  if (!list.length) body.push([{ text: '  Nothing changed yet.', color: c.dim }])
-  for (const f of list) {
-    const name = shortPath(f.path) + (f.how === 'new' ? '  new' : '')
-    const left: Seg[] = [{ text: '  ', color: c.text }, { text: f.how === 'read' ? '▸ ' : '✎ ', color: f.how === 'read' ? c.read : c.edit }, { text: name, color: f.how === 'read' ? c.dim : c.text }]
-    const right: Seg[] = f.how === 'read' ? [{ text: 'read', color: c.dim }] : [{ text: `+${f.add}`, color: c.pass }, { text: ` −${f.del}`, color: c.fail }]
-    body.push(spread(left, right, w, t))
+// The glyphs Ink draws for each borderStyle, so section boxes match the status box.
+export const BOX: Record<Border, { tl: string; tr: string; bl: string; br: string; h: string; v: string }> = {
+  round: { tl: '╭', tr: '╮', bl: '╰', br: '╯', h: '─', v: '│' },
+  single: { tl: '┌', tr: '┐', bl: '└', br: '┘', h: '─', v: '│' },
+  double: { tl: '╔', tr: '╗', bl: '╚', br: '╝', h: '═', v: '║' },
+  bold: { tl: '┏', tr: '┓', bl: '┗', br: '┛', h: '━', v: '┃' },
+  classic: { tl: '+', tr: '+', bl: '+', br: '+', h: '-', v: '|' },
+}
+export const MIN_BOX = 16
+export const boxInner = (w: number) => (w >= MIN_BOX ? w - 4 : w)
+
+// Top edge: corner, rule, title, rule fill, right text, rule, corner. The right text goes first when room runs out.
+export function section(title: string, right: string, body: Seg[][], w: number, t: Theme, border: Border = 'round'): Seg[][] {
+  if (w < MIN_BOX) return [header(title, right, w, t), ...body.map(r => fit(r, w))]
+  const b = BOX[border], inner = w - 4
+  const edge = (s: string): Seg => ({ text: s, color: t.colors.faint })
+  const name: Seg = { text: ` ${title} `, color: t.colors.text, bold: true }
+  let tail: Seg[] = right ? [{ text: ` ${right} `, color: t.colors.dim }] : []
+  if (visibleLength([name, ...tail]) > w - 5) tail = []
+  const label = fit([name], w - 5)
+  const fill = w - 4 - visibleLength(label) - visibleLength(tail)
+  const top = [edge(b.tl + b.h), ...label, edge(b.h.repeat(fill)), ...tail, edge(b.h + b.tr)]
+  const row = (r: Seg[]): Seg[] => {
+    const c = fit(r, inner)
+    return [edge(b.v + ' '), ...c, { text: ' '.repeat(inner - visibleLength(c) + 1), color: t.colors.text }, edge(b.v)]
   }
-  return [...rows, ...(compact ? cap(body, t, w, 0, limit) : body)].map(r => fit(r, w))
+  return [top, ...body.map(row), [edge(b.bl + b.h.repeat(w - 2) + b.br)]]
 }
 
-function agents(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, now: number, limit: number): Seg[][] {
-  const c = t.colors, live = m.agents.filter(a => a.state === 'running').length
-  const rows: Seg[][] = []
-  if (!compact) rows.push(header('AGENTS', `${live} running · ${m.agents.length - live} done`, w, t), [])
+function changes(m: Model, t: Theme, w: number, compact: boolean, limit: number, border: Border): Seg[][] {
+  const c = t.colors, edited = m.files.filter(f => f.how !== 'read')
+  const add = edited.reduce((n, f) => n + f.add, 0), del = edited.reduce((n, f) => n + f.del, 0)
+  const list = compact ? edited : m.files, lead = compact ? '  ' : '', iw = compact ? w : boxInner(w)
   const body: Seg[][] = []
-  if (!m.agents.length) body.push([{ text: '  No subagents this session.', color: c.dim }])
+  if (!list.length) body.push([{ text: lead + 'Nothing changed yet.', color: c.dim }])
+  for (const f of list) {
+    const name = shortPath(f.path) + (f.how === 'new' ? '  new' : '')
+    const left: Seg[] = [{ text: lead, color: c.text }, { text: f.how === 'read' ? '▸ ' : '✎ ', color: f.how === 'read' ? c.read : c.edit }, { text: name, color: f.how === 'read' ? c.dim : c.text }]
+    const right: Seg[] = f.how === 'read' ? [{ text: 'read', color: c.dim }] : [{ text: `+${f.add}`, color: c.pass }, { text: ` −${f.del}`, color: c.fail }]
+    body.push(spread(left, right, iw, t))
+  }
+  if (compact) return cap(body, t, w, 0, limit).map(r => fit(r, w))
+  return section('CHANGES', `${edited.length} files  +${add} −${del}`, body, w, t, border)
+}
+
+function agents(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, now: number, limit: number, border: Border): Seg[][] {
+  const c = t.colors, live = m.agents.filter(a => a.state === 'running').length, iw = boxInner(w)
+  const body: Seg[][] = []
+  if (!m.agents.length) body.push([{ text: (compact ? '  ' : '') + 'No subagents this session.', color: c.dim }])
   for (const a of m.agents) {
     const running = a.state === 'running'
     const spin = v.reduced ? '◌' : SPIN[Math.floor(now / 90) % SPIN.length]!
     const mark: Seg = { text: running ? spin : '✓', color: running ? c.agent : c.pass }
     if (compact) { body.push(fit([{ text: ` ◆ ${a.name} `, color: c.agent, bold: true }, mark, { text: ' ' + (running ? a.now ?? a.task : a.task), color: running ? c.read : c.dim }], w)); continue }
+    if (body.length) body.push([])
     const when = `${secs((a.endedAt ?? now) - a.startedAt)} · ${k(a.tokens)} `
-    body.push(spread([{ text: '◆ ' + a.name, color: c.agent, bold: true }], [{ text: when, color: c.dim }, mark], w, t))
-    body.push(fit([{ text: '  ' + a.task, color: c.text }], w))
-    if (running && a.now) body.push(fit([{ text: '  └ ', color: c.faint }, { text: a.now, color: c.read }], w))
-    body.push([])
+    body.push(spread([{ text: '◆ ' + a.name, color: c.agent, bold: true }], [{ text: when, color: c.dim }, mark], iw, t))
+    body.push(fit([{ text: '  ' + a.task, color: c.text }], iw))
+    if (running && a.now) body.push(fit([{ text: '  └ ', color: c.faint }, { text: a.now, color: c.read }], iw))
   }
-  return [...rows, ...(compact ? cap(body, t, w, 0, limit) : body)]
+  if (compact) return cap(body, t, w, 0, limit)
+  return section('AGENTS', `${live} running · ${m.agents.length - live} done`, body, w, t, border)
 }
 
 const rule = (label: string, right: string, w: number, t: Theme): Seg[] => {
@@ -123,9 +150,9 @@ function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, limi
   return rows.map(r => fit(r, w))
 }
 
-export function tabRows(model: Model, t: Theme, v: PaneView, width: number, compact: boolean, now: number, limit = COMPACT_ROWS): Seg[][] {
+export function tabRows(model: Model, t: Theme, v: PaneView, width: number, compact: boolean, now: number, limit = COMPACT_ROWS, border: Border = 'round'): Seg[][] {
   const m = normalizeModel(model)
-  return v.tab === 'changes' ? changes(m, t, width, compact, limit) : v.tab === 'agents' ? agents(m, t, v, width, compact, now, limit) : plan(m, t, v, width, compact, limit)
+  return v.tab === 'changes' ? changes(m, t, width, compact, limit, border) : v.tab === 'agents' ? agents(m, t, v, width, compact, now, limit, border) : plan(m, t, v, width, compact, limit)
 }
 
 export function statusRows(model: Model, base: Theme, width: number, look?: Look): Seg[][] {
@@ -213,7 +240,7 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
         {TABS.map(([id, label], i) => <Button key={'tab-' + id} label={label} hotkey={String(i + 1)} variant={v.tab === id ? 'primary' : undefined} dimColor={v.tab !== id} onPress={() => onTab(id)} />)}
       </Box>
       <Box flexDirection="column" flexGrow={1} marginTop={compact ? 0 : 1}>
-        {tabRows(m, t, v, inner, compact, now, rowsLeft).map((r, i) => renderSegs(els, r, 'r' + i))}
+        {tabRows(m, t, v, inner, compact, now, rowsLeft, look?.border ?? 'round').map((r, i) => renderSegs(els, r, 'r' + i))}
       </Box>
       {compact && extra?.pet && petLine(els, t, extra, inner)}
       {!compact && (

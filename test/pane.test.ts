@@ -1,13 +1,16 @@
 import { test, expect } from 'claude-code/testing'
-import { tabRows, statusRows, renderPane, COMPACT_ROWS, petStripCols, bubbleBox, type TabId } from '../hooks/pane.tsx'
+import { tabRows, statusRows, renderPane, section, BOX, MIN_BOX, COMPACT_ROWS, petStripCols, bubbleBox, type TabId } from '../hooks/pane.tsx'
 import { CLAWD_SAY } from '../hooks/bubbles.ts'
-import { resolveLook } from '../hooks/packs.ts'
+import { resolveLook, BORDERS } from '../hooks/packs.ts'
 import { visibleLength } from '../hooks/layout.tsx'
 import { initialModel, type Model } from '../hooks/model.ts'
 import { resolveTheme } from '../hooks/themes.ts'
 
 const T = resolveTheme('classic', {}).theme
 const text = (rows: { text: string }[][]) => rows.map(r => r.map(s => s.text).join(''))
+// the content of a boxed body row, without the side borders and padding
+const inside = (r: string) => r.slice(2, -2).trimEnd()
+const cellsOf = (r: string) => visibleLength([{ text: r, color: '' }])
 const M: Model = {
   ...initialModel(), working: true, ctxPercent: 64,
   act: { glyph: '✎', label: 'Editing src/auth.ts', tone: 'edit' },
@@ -30,18 +33,22 @@ const many = (n: number): Model => ({
   plan: Array.from({ length: n }, (_, i) => ({ id: String(i), title: 'step ' + i, status: 'pending' as const })),
 })
 
-test('changes tab lists edited files with counts and reads dimmed', async () => {
+test('changes tab is one box with the counts in its top edge, reads dimmed', async () => {
   const rows = text(tabRows(M, T, { tab: 'changes' }, 54, false, 10000))
-  expect(rows[0]).toMatch(/^CHANGES\s+3 files  \+17 −7$/)
-  expect(rows.some(r => r.includes('src/safe-next.ts') && r.includes('new') && r.includes('+10 −1'))).toBe(true)
-  expect(rows.some(r => r.includes('test/auth.test.ts') && r.endsWith('read'))).toBe(true)
+  expect(rows[0]).toMatch(/^╭─ CHANGES ─+ 3 files  \+17 −7 ─╮$/)
+  expect(rows.at(-1)).toBe('╰' + '─'.repeat(52) + '╯')
+  expect(rows.some(r => r.includes('src/safe-next.ts') && r.includes('new') && inside(r).endsWith('+10 −1'))).toBe(true)
+  expect(rows.some(r => r.includes('test/auth.test.ts') && inside(r).endsWith('read'))).toBe(true)
+  expect(rows.slice(1, -1).every(r => r.startsWith('│ ') && r.endsWith(' │'))).toBe(true)
 })
 
-test('agents tab shows status, time, tokens and current tool', async () => {
+test('agents tab is one box: status, time, tokens and current tool, entries one blank row apart', async () => {
   const rows = text(tabRows(M, T, { tab: 'agents' }, 54, false, 12000))
-  expect(rows[0]).toMatch(/^AGENTS\s+1 running · 1 done$/)
-  expect(rows.some(r => r.includes('scout') && r.includes('9s · 4.1k') && r.endsWith('✓'))).toBe(true)
+  expect(rows[0]).toMatch(/^╭─ AGENTS ─+ 1 running · 1 done ─╮$/)
+  expect(rows.some(r => r.includes('scout') && r.includes('9s · 4.1k') && inside(r).endsWith('✓'))).toBe(true)
   expect(rows.some(r => r.includes('└ ▸ Reading src/nav.tsx'))).toBe(true)
+  expect(inside(rows.at(-2)!)).not.toBe('')
+  expect(rows.filter(r => inside(r) === '')).toHaveLength(1)
 })
 
 test('plan tab shows checklist, context bar and breakdown', async () => {
@@ -57,6 +64,47 @@ test('every row fits its width in cells, full and compact, CJK names included', 
   for (const tab of ['changes', 'agents', 'plan'] as const)
     for (const [w, compact] of [[54, false], [40, false], [58, true], [30, true], [20, true]] as const)
       for (const r of tabRows(M, T, { tab, categories: [{ name: 'メッセージ', tokens: 5, kind: 'used' }], maxTokens: 10 }, w, compact, 12000)) expect(visibleLength(r)).toBeLessThanOrEqual(w)
+})
+
+test('section: every border style draws its own corners, every row exactly w cells', async () => {
+  const body = [[{ text: 'hello', color: T.colors.text }], [], [{ text: 'x'.repeat(200), color: T.colors.text }]]
+  for (const border of BORDERS)
+    for (const w of [16, 40, 60, 90]) {
+      const b = BOX[border], rows = text(section('PLAN', '1/3', body, w, T, border))
+      for (const r of rows) expect(cellsOf(r), `${border} ${w}`).toBe(w)
+      expect(rows[0]!.startsWith(b.tl + b.h + ' PLAN ')).toBe(true)
+      expect(rows[0]!.endsWith(b.h + b.tr)).toBe(true)
+      expect(rows.at(-1)).toBe(b.bl + b.h.repeat(w - 2) + b.br)
+      for (const r of rows.slice(1, -1)) expect(r.startsWith(b.v + ' ') && r.endsWith(' ' + b.v)).toBe(true)
+    }
+})
+
+test('section: the right text drops before the title clips, and the edge never overflows', async () => {
+  const top = text(section('CONTEXT', '11% · 110k / 1M', [], 18, T))[0]!
+  expect(cellsOf(top)).toBe(18)
+  expect(top).not.toContain('1M')
+  expect(top).toContain('CONTEXT')
+  const tiny = text(section('A VERY LONG SECTION TITLE', '', [], MIN_BOX, T))[0]!
+  expect(cellsOf(tiny)).toBe(MIN_BOX)
+  expect(tiny.endsWith('─╮')).toBe(true)
+})
+
+test('below MIN_BOX the tabs are unboxed and still fit', async () => {
+  for (const tab of ['changes', 'agents', 'plan'] as const) {
+    const rows = text(tabRows(M, T, { tab }, MIN_BOX - 1, false, 12000))
+    expect(rows.join('\n')).not.toMatch(/[╭╮╰╯│]/)
+    for (const r of rows) expect(cellsOf(r)).toBeLessThanOrEqual(MIN_BOX - 1)
+  }
+})
+
+test('docked tabs are boxed in every border style, every row exactly the width, CJK names included', async () => {
+  for (const border of BORDERS)
+    for (const tab of ['changes', 'agents'] as const)
+      for (const w of [16, 40, 60, 90]) {
+        const rows = text(tabRows(M, T, { tab }, w, false, 12000, COMPACT_ROWS, border))
+        expect(rows[0]!.startsWith(BOX[border].tl), `${border} ${tab} ${w}`).toBe(true)
+        for (const r of rows) expect(cellsOf(r), `${border} ${tab} ${w}`).toBe(w)
+      }
 })
 
 const planView = (ctxPercent: number, categories?: { name: string; tokens: number; kind: 'used' | 'free' | 'buffer' | 'deferred' }[]) =>
