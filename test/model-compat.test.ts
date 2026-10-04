@@ -25,6 +25,8 @@ test('normalizeModel fills the fields a stored model lacks and keeps the rest', 
   expect([m.ctxHistory, m.ctxPeak, m.compactions]).toEqual([[], 0, 0])
   expect([m.working, m.ctxPercent, m.files]).toEqual([true, 40, V030.files])
   expect(normalizeModel(undefined)).toEqual(initialModel())
+  const withRead = { ...V030, files: [...V030.files, { path: '/r/b.ts', add: 0, del: 0, how: 'read', at: 0 }] }
+  expect(normalizeModel(withRead).files).toEqual(V030.files)
   expect(normalizeModel({ ...V030, ctxHistory: 'x', agents: null, plan: {} })).toMatchObject({ ctxHistory: [], agents: [], plan: [] })
   const full = { ...initialModel(), ctxHistory: [1, 2], ctxPeak: 2, compactions: 1 }
   expect(normalizeModel(full)).toEqual(full)

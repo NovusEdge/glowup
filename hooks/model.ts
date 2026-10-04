@@ -3,7 +3,7 @@ export type { PlanItem }
 
 export type Act = { glyph: string; label: string; kind?: string; tone: 'text' | 'dim' | 'read' | 'edit' | 'shell' | 'agent' | 'pass' | 'fail' | 'accent' }
 export type Agent = { key: string; agentId?: string; name: string; task: string; state: 'running' | 'done'; startedAt: number; endedAt?: number; tokens?: number; now?: string }
-export type FileTouch = { path: string; add: number; del: number; how: 'read' | 'edit' | 'new'; at: number }
+export type FileTouch = { path: string; add: number; del: number; how: 'edit' | 'new'; at: number }
 export type NeedsYou = { toolUseId: string; what: string; before: Act }
 export type RateLimit = { kind: string; percentUsed: number; resetsAt?: string }
 export type Model = {
@@ -64,6 +64,8 @@ export function normalizeModel(raw: unknown): Model {
   for (const k of ARRAYS) if (!Array.isArray(m[k])) (m as Record<string, unknown>)[k] = base[k]
   for (const k of NUMBERS) if (typeof m[k] !== 'number' || !Number.isFinite(m[k])) (m as Record<string, unknown>)[k] = base[k]
   if (!m.act || typeof m.act !== 'object') m.act = base.act
+  // before 0.3.5 reads were stored here too
+  m.files = m.files.filter(f => (f.how as string) !== 'read')
   return m
 }
 export const agentsRunning = (m: Model) => m.agents.some(a => a.state === 'running')
@@ -89,10 +91,7 @@ export function mergeCounts(m: Model, refreshed: FileTouch[]): Model {
   const have = new Set(m.files.map(f => f.path))
   const merged = m.files.map(f => {
     const r = byPath.get(f.path)
-    if (!r) return f
-    // a shell command can edit a file Claude only read; git's counts prove it
-    const how = f.how === 'read' && r.add + r.del > 0 ? 'edit' : f.how
-    return { ...f, how, add: r.add, del: r.del }
+    return r ? { ...f, add: r.add, del: r.del } : f
   })
   return { ...m, files: [...merged, ...refreshed.filter(f => !have.has(f.path))].sort((a, b) => b.at - a.at) }
 }
@@ -100,7 +99,7 @@ export function mergeCounts(m: Model, refreshed: FileTouch[]): Model {
 function touch(files: FileTouch[], path: string, at: number, how: FileTouch['how'], add = 0, del = 0): FileTouch[] {
   const old = files.find(f => f.path === path)
   const next: FileTouch = old
-    ? { ...old, at, add: old.add + add, del: old.del + del, how: old.how === 'new' ? 'new' : how === 'read' && old.how !== 'read' ? old.how : how }
+    ? { ...old, at, add: old.add + add, del: old.del + del, how: old.how === 'new' ? 'new' : how }
     : { path, at, how, add, del }
   return [next, ...files.filter(f => f.path !== path)].sort((a, b) => b.at - a.at)
 }
@@ -150,8 +149,8 @@ export function applyEvent(m: Model, ev: Ev): Model {
       if (!ev.isError && d.file) {
         // editCounts has no answer for NotebookEdit (no line diff); it is still an edit.
         const counts = editCounts(ev.tool, ev.input) ?? (ev.tool === 'NotebookEdit' ? { add: 0, del: 0 } : undefined)
-        const how: FileTouch['how'] = ev.tool === 'Write' && ev.writeType === 'create' ? 'new' : counts ? 'edit' : 'read'
-        next = { ...next, files: touch(next.files, d.file, ev.at, how, counts?.add, counts?.del) }
+        const how: FileTouch['how'] | undefined = ev.tool === 'Write' && ev.writeType === 'create' ? 'new' : counts ? 'edit' : undefined
+        if (how) next = { ...next, files: touch(next.files, d.file, ev.at, how, counts?.add, counts?.del) }
       }
       // a failed spawn never gets an agent-done
       if (ev.tool === 'Agent' && !ev.agentId && ev.isError) {

@@ -66,9 +66,8 @@ async function worktreeCommit(host: Host, root: string, index: string): Promise<
   }
 }
 
-// Read files are included on purpose: a shell command can edit a file Claude only
-// read, and mergeCounts promotes it to an edit when git reports changes. Files git
-// reports that Claude never touched (sed -i, the person's editor) join as edits.
+// Files git reports that Claude never edited (sed -i, a file it only read, the person's
+// editor) join as edits.
 // Untracked files are absent from `git diff`, so new files keep their own counts.
 export async function refreshCounts(host: Host, files: FileTouch[], repo: { root: string; base: string } | undefined, at: number): Promise<FileTouch[]> {
   if (!repo) return files

@@ -37,17 +37,16 @@ const cap = (rows: Seg[][], t: Theme, w: number, reserve = 0, limit = COMPACT_RO
 }
 
 function changes(m: Model, t: Theme, w: number, compact: boolean, limit: number): Seg[][] {
-  const c = t.colors, edited = m.files.filter(f => f.how !== 'read')
-  const add = edited.reduce((n, f) => n + f.add, 0), del = edited.reduce((n, f) => n + f.del, 0)
+  const c = t.colors, list = m.files
+  const add = list.reduce((n, f) => n + f.add, 0), del = list.reduce((n, f) => n + f.del, 0)
   const rows: Seg[][] = []
-  if (!compact) rows.push(header('CHANGES', `${edited.length} files  +${add} −${del}`, w, t), [])
-  const list = compact ? edited : m.files
+  if (!compact) rows.push(header('CHANGES', `${list.length} files  +${add} −${del}`, w, t), [])
   const body: Seg[][] = []
   if (!list.length) body.push([{ text: '  Nothing changed yet.', color: c.dim }])
   for (const f of list) {
     const name = shortPath(f.path) + (f.how === 'new' ? '  new' : '')
-    const left: Seg[] = [{ text: '  ', color: c.text }, { text: f.how === 'read' ? '▸ ' : '✎ ', color: f.how === 'read' ? c.read : c.edit }, { text: name, color: f.how === 'read' ? c.dim : c.text }]
-    const right: Seg[] = f.how === 'read' ? [{ text: 'read', color: c.dim }] : [{ text: `+${f.add}`, color: c.pass }, { text: ` −${f.del}`, color: c.fail }]
+    const left: Seg[] = [{ text: '  ', color: c.text }, { text: '✎ ', color: c.edit }, { text: name, color: c.text }]
+    const right: Seg[] = [{ text: `+${f.add}`, color: c.pass }, { text: ` −${f.del}`, color: c.fail }]
     body.push(spread(left, right, w, t))
   }
   return [...rows, ...(compact ? cap(body, t, w, 0, limit) : body)].map(r => fit(r, w))

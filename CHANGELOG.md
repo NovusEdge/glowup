@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `/glowup config` ends at Extras when you press Esc there, as on every other question.
 
+### Fixed
+
+- The Changes tab lists only files Claude edited or created. Files it only read no longer appear there, and the "done" speech bubble names an edited file.
+
 ## [0.3.4] - 2026-10-05
 
 ### Fixed
