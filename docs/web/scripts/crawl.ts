@@ -11,7 +11,7 @@ export function crawlFiles(list: Guide[], readGuide: (slug: string) => string): 
   out['robots.txt'] = `User-agent: *\nAllow: /\n\nSitemap: ${SITE}/sitemap.xml\n`
   out['llms.txt'] = `# glowup\n\n> ${SUMMARY}\n\n## Guides\n\n${list.map(g => `- [${g.title}](${SITE}/${g.slug}.md): ${g.description}`).join('\n')}\n`
   out['llms-full.txt'] = list.map(g => `# ${g.title}\nURL: ${SITE}/${g.slug}\n\n${body(readGuide(g.slug))}`).join('\n\n')
-  for (const g of list) out[`${g.slug}.md`] = body(readGuide(g.slug))
+  for (const g of list) out[`${g.slug}.md`] = `# ${g.title}\n\n${body(readGuide(g.slug))}`
   return out
 }
 

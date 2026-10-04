@@ -21,7 +21,7 @@
 .term .pcard .st.wk{color:var(--accent)}
 .term .pcard .st.bad{color:var(--fail)}
 .term .hearts{color:var(--fail)}.term .hearts i{color:var(--faint);font-style:normal}
-.term .pcard .ag{color:var(--agent)}
+.term .pcard .ag{color:var(--agent);min-height:1lh}
 
 .term .u{color:var(--dim);background:var(--sel);padding:3px 8px;border-radius:4px;margin-bottom:8px;align-self:flex-start;max-width:100%}
 .term .u::before{content:'> ';color:var(--accent)}
@@ -69,7 +69,7 @@
 .term .band .ag{color:var(--agent)}
 .term .band .combo{color:var(--edit);font-weight:700}
 .term .prompt{border-top:1px solid var(--faint);border-bottom:1px solid var(--faint);padding:8px 18px;display:flex;gap:8px}
-.term .prompt .c{color:var(--text)}
+.term .prompt .c{color:var(--text);min-width:0;white-space:nowrap;overflow:hidden}
 .term .cur{display:inline-block;width:8px;background:var(--text);animation:term-blink 1s steps(1) infinite}
 .term .status{padding:8px 18px 12px;font-size:12px;display:flex;flex-direction:column;gap:1px}
 .term .status .gl{color:var(--accent)}
