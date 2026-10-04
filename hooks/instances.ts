@@ -1,0 +1,66 @@
+import type { Host } from './host.ts'
+
+// An installed glowup and `claude --plugin-dir .` load two copies into one session. Each
+// copy has its own store, so they cannot see each other's state; the false "Needs you"
+// alerts and the status line loop both came from that. Exactly one copy may act.
+export const INSTANCES_DIR = (configDir: string) => `${configDir}/glowup/instances`
+const DAY = 86_400_000
+
+// The id is a file name and reaches `rm`: nothing but these characters gets through.
+export const safeId = (id: string) => id.replace(/[^A-Za-z0-9-]/g, '')
+
+type Entry = { root: string; at: number }
+
+// Installed copies live under the plugin cache; anything else came from --plugin-dir.
+const isDev = (configDir: string, root: string) => !root.startsWith(`${configDir}/plugins/cache/`)
+
+// One file per copy, never one shared file: two copies starting together would
+// read-modify-write the same file and one entry would be lost, leaving both active.
+function fileOf(configDir: string, sid: string, root: string) {
+  let h = 5381
+  for (const c of root) h = ((h * 33) ^ c.codePointAt(0)!) >>> 0
+  return `${INSTANCES_DIR(configDir)}/${sid}.${h.toString(16)}.json`
+}
+
+async function readAll(host: Host): Promise<{ path: string; entry?: Entry }[]> {
+  const dir = INSTANCES_DIR(host.configDir)
+  let names: string[]
+  try { names = (await host.exists(dir)) ? await host.listDir(dir) : [] } catch { return [] }
+  const out: { path: string; entry?: Entry }[] = []
+  for (const name of names) {
+    const path = `${dir}/${name}`
+    try {
+      const v = JSON.parse(await host.readFile(path))
+      out.push({ path, entry: typeof v?.root === 'string' && typeof v?.at === 'number' ? { root: v.root, at: v.at } : undefined })
+    } catch { out.push({ path }) }
+  }
+  return out
+}
+
+export async function registerCopy(host: Host, sid: string, root: string, now: number) {
+  for (const f of await readAll(host)) {
+    if (!f.entry || f.entry.at < now - DAY) await host.run(['rm', '-f', f.path]).catch(() => {})
+  }
+  await host.writeFile(fileOf(host.configDir, sid, root), JSON.stringify({ root, at: now }))
+}
+
+// Same answer in every copy that reads the same files: dev copy first, then the
+// earliest registration, then the path. This copy's own entry always counts, so a
+// missing or unreadable file can never leave zero active copies.
+export async function decide(host: Host, sid: string, root: string, now: number): Promise<{ active: boolean; winner: string }> {
+  const mine = `${INSTANCES_DIR(host.configDir)}/${sid}.`
+  const seen = (await readAll(host)).filter(f => f.entry && f.path.startsWith(mine) && f.entry.at >= now - DAY).map(f => f.entry!)
+  if (!seen.some(e => e.root === root)) seen.push({ root, at: now })
+  const key = (e: Entry) => [isDev(host.configDir, e.root) ? 0 : 1, e.at] as const
+  seen.sort((a, b) => key(a)[0] - key(b)[0] || key(a)[1] - key(b)[1] || (a.root < b.root ? -1 : a.root > b.root ? 1 : 0))
+  return { active: seen[0]!.root === root, winner: seen[0]!.root }
+}
+
+export async function unregisterCopy(host: Host, sid: string, root: string) {
+  await host.run(['rm', '-f', fileOf(host.configDir, sid, root)]).catch(() => {})
+}
+
+// Status files of ended sessions are never rewritten, so they only pile up.
+export async function pruneStatus(host: Host, statusDir: string) {
+  await host.run(['find', statusDir, '-type', 'f', '-mtime', '+7', '-delete']).catch(() => {})
+}

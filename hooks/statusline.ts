@@ -1,4 +1,5 @@
 import type { Host } from './host.ts'
+import { safeId } from './instances.ts'
 import { agentsRunning, isBusy, type Model } from './model.ts'
 import type { Theme } from './themes.ts'
 
@@ -36,7 +37,7 @@ export function script(configDir: string, original: string) {
   return `#!/bin/sh
 [ -n "$GLOWUP_STATUSLINE" ] && exit 0; GLOWUP_STATUSLINE=1; export GLOWUP_STATUSLINE
 input=$(cat)
-sid=$(printf '%s' "$input" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\\([^"]*\\)".*/\\1/p')
+sid=$(printf '%s' "$input" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\\([^"]*\\)".*/\\1/p' | tr -cd 'A-Za-z0-9-')
 f=${sq(STATUS_DIR(configDir))}/"$sid"
 if [ -n "$sid" ] && [ -f "$f" ] && [ -n "$(find "$f" -mmin -10 2>/dev/null)" ]; then cat "$f"; exit 0; fi
 ${original ? `printf '%s' "$input" | sh -c ${sq(original)}` : 'exit 0'}
@@ -102,7 +103,9 @@ export async function restore(host: Host): Promise<string> {
 // No line: the file goes, so the script falls back to the person's own command
 // instead of printing an empty line.
 export async function writeStatusFile(host: Host, sessionId: string, line: string | undefined) {
-  const path = `${STATUS_DIR(host.configDir)}/${sessionId}`
+  const id = safeId(sessionId)
+  if (!id) return
+  const path = `${STATUS_DIR(host.configDir)}/${id}`
   if (line === undefined) await host.run(['rm', '-f', path])
   else await host.writeFile(path, line)
 }
