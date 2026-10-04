@@ -38,9 +38,24 @@ export function checkSite(root: string, paths: string[]): string[] {
     return ids
   }
 
+  for (const name of ['sitemap.xml', 'robots.txt', 'llms.txt', 'llms-full.txt', 'og.png']) {
+    if (!existsSync(join(root, name))) problems.push(`build output is missing ${name}`)
+  }
+
   for (const file of htmlFiles(root)) {
     const here = '/' + file.slice(root.length).replace(/^[\\/]/, '').replace(/(^|\/)index\.html$/, '')
-    for (const [, raw] of readFileSync(file, 'utf8').matchAll(/<a\s[^>]*?href="([^"]*)"/g)) {
+    const html = readFileSync(file, 'utf8')
+    // TODO(task 7): drop this exemption once the real landing route sets its own meta.
+    const placeholder = here === '/' && !html.includes('<meta name="description"')
+    // The SPA fallback shell is not a crawlable page.
+    if (here !== '/404.html' && here !== '/__spa-fallback.html' && !placeholder) {
+      const h1s = (html.match(/<h1[\s>]/g) ?? []).length
+      if (h1s !== 1) problems.push(`${here}: expected exactly one <h1>, found ${h1s}`)
+      if (!html.includes('<title')) problems.push(`${here}: missing <title>`)
+      if (!html.includes('<meta name="description"')) problems.push(`${here}: missing <meta name="description"`)
+      if (!html.includes('<link rel="canonical"')) problems.push(`${here}: missing <link rel="canonical"`)
+    }
+    for (const [, raw] of html.matchAll(/<a\s[^>]*?href="([^"]*)"/g)) {
       const href = raw!.replaceAll('&amp;', '&')
       if (/^[a-z][a-z0-9+.-]*:|^\/\//i.test(href)) continue
       const [target, hash] = href.split('#') as [string, string | undefined]
