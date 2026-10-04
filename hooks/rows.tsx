@@ -63,7 +63,7 @@ function draw(els: Els, look: Look, row: RowInput, engine: unknown, opts: { pref
         if (row.site !== 'ToolUse' || row.isRunning) return engine
         const g = toolGlyph(look.theme, row.tool)
         if (!g) return engine
-        return <Box flexDirection="row">{engine}<Box marginTop={1}><Text color={g.color}>{'  ' + g.glyph}</Text></Box></Box>
+        return <Box flexDirection="row">{shrinker(Box, engine)}<Box marginTop={1} flexShrink={0}><Text color={g.color} wrap="truncate">{'  ' + g.glyph}</Text></Box></Box>
       }
 
       case 'cards': {

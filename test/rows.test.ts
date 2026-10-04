@@ -159,7 +159,7 @@ test('width budget: ToolResult and UserMessage rows add at most 4 columns beside
   for (const name of ['cozy', 'arcade', 'crt']) {
     for (const rows of ['cards', 'retro', 'minimal'] as const) {
       const l: Look = { ...look(name), rows }
-      for (const r of [user(), { site: 'ToolResult' } as RowInput]) {
+      for (const r of [user(), asst(), asst(false), { site: 'ToolResult' } as RowInput]) {
         const s = styleRow(els, l, r, ENGINE)
         if (hasEngine(s)) expect([name, rows, r.site, beside(s) <= 4]).toEqual([name, rows, r.site, true])
       }
@@ -187,6 +187,12 @@ test('tool header marks and tags never shrink or wrap; the engine box gives up w
       expect([name, prefixCards, eng.props.flexShrink, eng.props.minWidth, eng.props.overflow]).toEqual([name, prefixCards, 1, 0, 'hidden'])
     }
   }
+  const c = styleRow(els, look('classic'), tool(), ENGINE) as any
+  const g = walk(c).find(x => x.type === 'Text' && text(x).includes('▸'))
+  expect([walk(c).find(x => x.type === 'Box' && x.children?.includes(g)).props.flexShrink, g.props.wrap]).toEqual([0, 'truncate'])
+  const ce = walk(c).find(x => x.type === 'Box' && x.children?.includes(ENGINE))
+  expect([ce.props.flexShrink, ce.props.minWidth, ce.props.overflow]).toEqual([1, 0, 'hidden'])
+  expect(c.props.marginLeft).toBeUndefined()
   const tag = walk(styleRow(els, look('crt'), tool(), ENGINE)).find(x => x.type === 'Box' && x.props?.flexShrink === 0 && text(x).startsWith('[READ'))
   expect(tag).toBeDefined()
 })
