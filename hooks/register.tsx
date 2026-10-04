@@ -170,12 +170,20 @@ async function adoptSession($: Engine, endedId: string) {
   redraw($)
 }
 
+// A second session.start (or /clear) while the dialog is open must not stack another.
+let asking = false
 async function askFirstRun($: Engine) {
+  if (asking) return
+  asking = true
   try {
     const toast = await firstRun(hostOf($), q => $.ui.ask(q, ['Yes', 'No']).then(label => label, () => undefined), Date.now())
     if (toast) $.ui.toast(toast)
     await syncTakeover($)
-  } catch {}
+  } catch (err) {
+    $.ui.log(`first run failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
+  } finally {
+    asking = false
+  }
 }
 
 function ctlOf($: Engine): Ctl {
@@ -210,6 +218,8 @@ export const register: Register = (on, options) => {
     git = await gitBase(host, cwd)
     // a beat after launch, so the dialog does not open over the startup frame
     if (e.isInteractive) $.clock.after(1500, () => void askFirstRun($))
+    // a hot reload restarts this module; the live band and pane must not keep an old snapshot
+    publish($)
     return next(e)
   })
 

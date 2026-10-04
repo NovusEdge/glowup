@@ -1,8 +1,9 @@
 import { test, expect, mock } from 'claude-code/testing'
-import { runGlowup, fakeHost } from './kit.ts'
+import { runGlowup, fakeHost, fakeFs } from './kit.ts'
 import { runCommand, type Ctl } from '../hooks/command.ts'
 
 test('/glowup with no args prints usage', async ($, on) => {
+  fakeFs(on)
   mock.store(on)
   const out = await runGlowup($)
   expect(out.text).toContain('/glowup theme <name>')

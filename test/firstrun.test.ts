@@ -15,6 +15,7 @@ test('Yes takes over with a backup and is never asked again', async () => {
   expect(await firstRun(host, a.ask, 5)).toContain('glowup now draws your status line')
   expect(JSON.parse(files[SETTINGS]!).statusLine.command).toContain('statusline.sh')
   expect([store[FIRST_RUN_KEY], store[INSTALLED_KEY]]).toEqual(['yes', 5])
+  expect(store[BACKUP_KEY]).toBe('__none__')
   expect(await firstRun(host, a.ask, 6)).toBeUndefined()
   expect(a.asked).toHaveLength(1)
   expect(store[INSTALLED_KEY]).toBe(5)

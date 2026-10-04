@@ -44,6 +44,7 @@ export function fakeFs(on: On, files: Record<string, string> = {}) {
   on('fs.read', async (_$, e) => { if (!(e.path in files)) throw new Error('ENOENT ' + e.path); return { value: files[e.path]! } as never })
   on('fs.write', async (_$, e) => { writes.push(e.path); files[e.path] = e.text; return { value: undefined } as never })
   on('fs.list', async (_$, e) => ({ value: under(e.path).map(f => f.slice(e.path.length + 1)).filter(n => !n.includes('/')).map(name => ({ name })) }) as never)
+  on('settings.read', async () => ({ value: {} }) as never)
   on('process.run', async () => ({ value: { exitCode: 1, stdout: '', stderr: '' } }) as never)
   return { files, writes }
 }

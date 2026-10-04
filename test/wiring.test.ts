@@ -237,12 +237,13 @@ test('the first interactive launch asks once and writes only under the config di
     asked.push(q)
     return { result: { questions: [], answers: { [q]: 'Yes' } }, text: 'Yes' } as never
   })
-  on('settings.read', async () => ({ value: {} }) as never)
-  on('ui.toast', async () => ({ value: undefined }) as never)
+  let toasted!: () => void
+  const toast = new Promise<void>(r => { toasted = r })
+  on('ui.toast', async () => { toasted(); return { value: undefined } as never })
   on('session.id', async () => ({ value: 's1' }))
   await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
   await clock.advance(1600)
-  await new Promise(r => setTimeout(r, 100))
+  await toast
   expect(asked).toHaveLength(1)
   expect(JSON.parse(files['/fake/.claude/settings.json']!).statusLine.command).toContain('/fake/.claude/glowup/statusline.sh')
   expect(writes.length).toBeGreaterThan(0)
@@ -250,6 +251,29 @@ test('the first interactive launch asks once and writes only under the config di
   await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
   await clock.advance(1600)
   expect(asked).toHaveLength(1)
+})
+
+test('two launches inside the delay open one dialog', async ($, on) => {
+  fakeFs(on, { '/fake/.claude/settings.json': '{}' })
+  const clock = mock.clock(on)
+  mock.store(on)
+  bootable(on)
+  let asked = 0
+  let release!: () => void
+  const gate = new Promise<void>(r => { release = r })
+  on('tool.call', async (_$, e) => {
+    if (e.tool !== 'AskUserQuestion') return { result: {}, text: '' } as never
+    asked++
+    await gate
+    return { result: { questions: [], answers: {} }, text: 'No' } as never
+  })
+  on('ui.toast', async () => ({ value: undefined }) as never)
+  on('session.id', async () => ({ value: 's1' }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  await clock.advance(1600)
+  expect(asked).toBe(1)
+  release()
 })
 
 test('-p runs never ask', async ($, on) => {
@@ -281,6 +305,7 @@ test('a download that never answers times out after 10 s', async ($, on) => {
 
 test('a download over 64 KB is refused before parsing', async ($, on) => {
   fakeFs(on)
+  mock.clock(on)
   mock.store(on)
   bootable(on)
   on('http.fetch', async () => ({ value: { ok: true, status: 200, headers: {}, text: '{"name":"big","x":"' + 'a'.repeat(70_000) + '"}' } }) as never)
