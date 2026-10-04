@@ -124,9 +124,13 @@ const BUBBLE_ROOM = 16
 
 const bubbleColor = (t: Theme, mood: Mood) => (mood === 'fail' ? t.colors.fail : mood === 'done' ? t.colors.pass : t.colors.accent)
 
-function petStrip(els: { Box: any; Text: any }, t: Theme, extra: PaneExtra, width: number) {
+// Width of the Box the pet's Client sits in on a docked pane: inside the pane's border and padding (2 + 4).
+export const petStripCols = (paneWidth: number) => Math.max(0, Math.min(PET_STRIP_COLS, paneWidth - 6))
+
+function petStrip(els: { Box: any; Text: any }, t: Theme, extra: PaneExtra, paneWidth: number) {
   const { Box, Text } = els
-  const rows = extra.pet!.rows ?? PET_ROWS, cols = Math.min(PET_STRIP_COLS, width)
+  const width = paneWidth - 6
+  const rows = extra.pet!.rows ?? PET_ROWS, cols = petStripCols(paneWidth)
   const room = width - cols
   const beside = room >= BUBBLE_ROOM
   const say = extra.bubble
@@ -135,7 +139,7 @@ function petStrip(els: { Box: any; Text: any }, t: Theme, extra: PaneExtra, widt
       <Text color={t.colors.text} wrap="truncate">{fit([{ text: say.text, color: '' }], (beside ? room : width) - 4).map(s => s.text).join('')}</Text>
     </Box>
   )
-  const sign = !say && extra.friday && <Text key="friday" color={t.colors.accent} wrap="truncate">{"it's friday"}</Text>
+  const sign = !say && extra.friday && <Box key="friday"><Text color={t.colors.accent} wrap="truncate">{"it's friday"}</Text></Box>
   return (
     <Box flexDirection="column" key="pet">
       {!beside && bubble}
@@ -178,7 +182,7 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
       {!compact && (
         <Box flexDirection="column" borderStyle={look?.border ?? 'round'} borderColor={look?.borderColor ?? t.colors.faint} marginTop={1} paddingX={1}>
           {statusRows(m, t, inner - 4, look).map((r, i) => renderSegs(els, r, 's' + i))}
-          {extra?.pet && petStrip(els, t, extra, inner - 4)}
+          {extra?.pet && petStrip(els, t, extra, width)}
         </Box>
       )}
     </Box>

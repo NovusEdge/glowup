@@ -39,15 +39,17 @@ export function hearts(used: number, t: Theme): Seg[] {
 }
 
 // The arcade packs' life bar: full at an empty context, drained as it fills. The 22 cells besides the bar are
-// "HP ", the two spaces and "100% context left".
+// "HP ", the two spaces and "100% context left". At 27 cells the bar is 5 wide; below that it shrinks.
 export function hpBar(used: number, t: Theme, width: number): Seg[] {
   const c = t.colors, left = Math.max(0, Math.min(100, 100 - used))
-  const w = Math.max(5, width - 22), n = Math.round((left / 100) * w)
+  // under 27 cells the words go and the bare percent stays
+  const short = width < 27
+  const w = short ? Math.max(3, width - 9) : width - 22, n = Math.round((left / 100) * w)
   return [
     { text: 'HP ', color: c.accent, bold: true },
     ...gradient('█'.repeat(n), c.fail, c.pass),
     { text: '░'.repeat(w - n), color: c.faint },
-    { text: `  ${left}% context left`, color: c.dim },
+    { text: short ? `  ${left}%` : `  ${left}% context left`, color: c.dim },
   ].filter(s => s.text)
 }
 

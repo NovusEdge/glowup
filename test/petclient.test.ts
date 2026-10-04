@@ -1,15 +1,21 @@
 import { test, expect } from 'claude-code/testing'
-import PetClient from '../hooks/client/pet.tsx'
-import { PET_ROWS, PET_COLS, CLAWD_ROW, newPlayer, stepPlayer, playerFrame, mirrored, type PetSheet } from '../hooks/pets.ts'
+import PetClient, { clock } from '../hooks/client/pet.tsx'
+import { PET_ROWS, PET_COLS, CLAWD_ROW, CLAWD_SHEET, newPlayer, stepPlayer, playerFrame, mirrored, petPose, type PetSheet } from '../hooks/pets.ts'
 
-function fakeSurface() {
-  const timers: { ms: number; fn: () => void }[] = []
+function fakeSurface(columns = 0) {
+  const timers: { ms: number; fn: () => void; cancelled: boolean }[] = []
+  const calls = { setState: 0 }
   const s: any = {
-    state: undefined, elements: { Box: 'Box', Text: 'Text' },
-    setState(v: unknown) { s.state = typeof v === 'function' ? (v as (p: unknown) => unknown)(s.state) : v },
-    every(ms: number, fn: () => void) { timers.push({ ms, fn }); return { cancel() {} } },
+    state: undefined, columns, elements: { Box: 'Box', Text: 'Text' },
+    setState(v: unknown) { calls.setState++; s.state = typeof v === 'function' ? (v as (p: unknown) => unknown)(s.state) : v },
+    every(ms: number, fn: () => void) { const t = { ms, fn, cancelled: false }; timers.push(t); return () => { t.cancelled = true } },
   }
-  return { s, timers }
+  return { s, timers, calls }
+}
+const atTime = <T,>(t: number, run: () => T): T => {
+  const real = clock.now
+  clock.now = () => t
+  try { return run() } finally { clock.now = real }
 }
 const base = { pet: 'clawd' as const, input: { working: true, needsYou: false }, overlays: [], reduced: false, compact: false, width: 46 }
 
@@ -45,6 +51,60 @@ test('a hop ends on its own: the pose comes from input and the clock, not a repu
   const later = at(5000)
   expect(later).not.toBe(hopping)
   expect(timers).toHaveLength(1)
+})
+
+const idle = { ...base, input: { working: false, needsYou: false } }
+
+test('the tick redraws only when the picture changes', async () => {
+  const { s, timers, calls } = fakeSurface()
+  atTime(1_000_000, () => PetClient(idle, s))
+  expect(calls.setState).toBe(1)
+  const tick = timers[0]!.fn
+  // idle frame 0 lasts 500 ms: ticks inside it draw nothing new
+  for (const dt of [83, 166, 249, 332, 415]) atTime(1_000_000 + dt, tick)
+  expect(calls.setState).toBe(1)
+  atTime(1_000_000 + 510, tick)
+  expect(calls.setState).toBe(2)
+  atTime(1_000_000 + 520, tick)
+  expect(calls.setState).toBe(2)
+})
+
+test('a tick under reduced motion or compact sets no state and cancels the timer', async () => {
+  for (const patch of [{ reduced: true }, { compact: true }]) {
+    const { s, timers, calls } = fakeSurface()
+    atTime(1_000_000, () => PetClient(idle, s))
+    PetClient({ ...idle, ...patch }, s)
+    atTime(1_000_700, timers[0]!.fn)
+    expect(calls.setState).toBe(1)
+    expect(timers[0]!.cancelled).toBe(true)
+    // back to normal: the clock starts again
+    PetClient(idle, s)
+    expect(timers).toHaveLength(2)
+  }
+})
+
+test('the tick reads the latest props', async () => {
+  const { s, timers, calls } = fakeSurface()
+  atTime(1_000_000, () => PetClient(idle, s))
+  PetClient({ ...idle, input: { working: true, needsYou: true } }, s)
+  atTime(1_000_100, timers[0]!.fn)
+  expect(calls.setState).toBe(2)
+  expect(JSON.stringify(PetClient(idle, s))).toBeDefined()
+})
+
+test('surface.columns, when known, sets the room to walk in', async () => {
+  const { s } = fakeSurface(30)
+  const text = (n: any): string => (typeof n === 'string' ? n : (n?.children ?? []).map(text).join(''))
+  for (let ms = 0; ms < 20000; ms += 700) {
+    s.setState(ms)
+    for (const row of (PetClient({ ...base, width: 46 }, s) as any).children) expect([...text(row)].length).toBeLessThanOrEqual(30)
+  }
+})
+
+test('a pixel pair of two colors reaches backgroundColor', async () => {
+  const { s } = fakeSurface()
+  const walk = (n: any, out: any[] = []): any[] => { if (n && typeof n === 'object') { out.push(n); for (const c of n.children ?? []) walk(c, out) } return out }
+  expect(walk(PetClient(idle, s)).some(n => typeof n.props?.backgroundColor === 'string')).toBe(true)
 })
 
 test('a row never passes the strip width, walking at the far edge', async () => {
@@ -154,7 +214,7 @@ test('walking x is kept across poses', async () => {
   stepPlayer(p, sh, 'walk', 0, MAX)
   stepPlayer(p, sh, 'walk', 350, MAX)
   const x = p.x
-  expect(x).toBe(3)
+  expect(x).toBe(4)
   stepPlayer(p, sh, 'idle', 400, MAX)
   stepPlayer(p, sh, 'idle', 900, MAX)
   expect(p.seg!.pose).toBe('idle')
@@ -170,11 +230,11 @@ test('walking x is kept across poses', async () => {
 test('he turns around at the edge, mirrored unless the sheet draws the left walk', async () => {
   const sh = sheet(), p = newPlayer()
   stepPlayer(p, sh, 'walk', 0, 3)
-  stepPlayer(p, sh, 'walk', 350, 3)
+  stepPlayer(p, sh, 'walk', 250, 3)
   expect(p.x).toBe(3)
   expect(p.dir).toBe(-1)
   expect(mirrored(p)).toBe(true)
-  stepPlayer(p, sh, 'walk', 650, 3)
+  stepPlayer(p, sh, 'walk', 550, 3)
   expect(p.x).toBe(0)
   expect(p.dir).toBe(1)
   expect(mirrored(p)).toBe(false)
@@ -182,10 +242,10 @@ test('he turns around at the edge, mirrored unless the sheet draws the left walk
   const left = { ...sh.animations.walk!, frames: sh.animations.walk!.frames.map(f => ({ ...f, dx: -1, px: [f.px[0]!.replace(/w/g, 'l'), '..'] })) }
   const sl = sheet({ animations: { ...sh.animations, 'walk-left': left } }), q = newPlayer()
   stepPlayer(q, sl, 'walk', 0, 3)
-  stepPlayer(q, sl, 'walk', 350, 3)
+  stepPlayer(q, sl, 'walk', 250, 3)
   expect(q.seg!.name).toBe('walk-left')
   expect(mirrored(q)).toBe(false)
-  stepPlayer(q, sl, 'walk', 550, 3)
+  stepPlayer(q, sl, 'walk', 450, 3)
   expect(q.x).toBe(1)
 })
 
@@ -215,9 +275,62 @@ test('the last frame of a once-animation is an exit frame', async () => {
   stepPlayer(p, sh, 'hop', 0, MAX)
   stepPlayer(p, sh, 'idle', 50, MAX)
   expect(p.seg!.pose).toBe('hop')
-  stepPlayer(p, sh, 'idle', 200, MAX)
+  stepPlayer(p, sh, 'idle', 299, MAX)
+  expect(p.seg!.pose).toBe('hop')
+  stepPlayer(p, sh, 'idle', 300, MAX)
   expect(p.seg!.pose).toBe('idle')
-  expect(p.seg!.start).toBe(200)
+  expect(p.seg!.start).toBe(300)
+})
+
+// The real sheet, the real pose table, a tick far finer than 83 ms so no frame can hide between two draws.
+function run(input: (t: number) => Parameters<typeof petPose>[0], from: number, to: number) {
+  const p = newPlayer(), shown = new Set<object>(), poses = new Set<string>()
+  for (let t = from; t <= to; t += 10) {
+    const pose = petPose(input(t), t)
+    stepPlayer(p, CLAWD_SHEET, pose, t, 22)
+    shown.add(playerFrame(p, t))
+    poses.add(pose)
+  }
+  return shown
+}
+
+test('the real sheet: a hop and a fail play every frame, whatever the pose table says meanwhile', async () => {
+  const hop = run(t => ({ working: true, kind: 'read', needsYou: false, lastTest: t >= 1000 ? { passed: true, at: 1000 } : undefined }), 0, 6000)
+  for (const f of CLAWD_SHEET.animations.hop!.frames) expect(hop.has(f)).toBe(true)
+  const fail = run(t => ({ working: true, kind: 'edit', needsYou: false, lastTest: t >= 1000 ? { passed: false, at: 1000 } : undefined }), 0, 7000)
+  for (const f of CLAWD_SHEET.animations.fail!.frames) expect(fail.has(f)).toBe(true)
+})
+
+test('walk to hop skips the stop clip; walk to idle plays it', async () => {
+  const hop = run(t => ({ working: true, needsYou: false, lastTest: t >= 1000 ? { passed: true, at: 1000 } : undefined }), 0, 6000)
+  for (const f of CLAWD_SHEET.transitions!.stop!.frames) expect(hop.has(f)).toBe(false)
+  const idle = run(t => ({ working: t < 1000, needsYou: false }), 0, 3000)
+  for (const f of CLAWD_SHEET.transitions!.stop!.frames) expect(idle.has(f) || CLAWD_SHEET.transitions!['stop-left']!.frames.some(g => idle.has(g))).toBe(true)
+})
+
+test('a pose change while clips are queued plans again from the new target', async () => {
+  const sh = sheet({ transitions: { stop: { from: 'walk', to: 'idle', frames: [fr('s')] }, 'lie-down': { from: '*', to: 'sleep', frames: [fr('d')] } } }), p = newPlayer()
+  stepPlayer(p, sh, 'walk', 0, MAX)
+  stepPlayer(p, sh, 'sleep', 400, MAX)
+  expect(px(p, 400)).toBe('s')
+  stepPlayer(p, sh, 'walk', 450, MAX)
+  stepPlayer(p, sh, 'walk', 500, MAX)
+  expect(p.seg!.pose).toBe('walk')
+  expect(p.seg!.clip).toBe(false)
+})
+
+test('with no room to walk he holds still', async () => {
+  const sh = sheet(), p = newPlayer()
+  stepPlayer(p, sh, 'walk', 0, 0)
+  const dir = p.dir
+  stepPlayer(p, sh, 'walk', 1000, 0)
+  expect([p.x, p.dir]).toEqual([0, dir])
+})
+
+test('frame 0 of a walk counts on entry', async () => {
+  const sh = sheet(), p = newPlayer()
+  stepPlayer(p, sh, 'walk', 0, MAX)
+  expect(p.x).toBe(1)
 })
 
 test('x never passes the width the pane gives', async () => {

@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { tabRows, statusRows, renderPane, COMPACT_ROWS, type TabId } from '../hooks/pane.tsx'
+import { tabRows, statusRows, renderPane, COMPACT_ROWS, petStripCols, type TabId } from '../hooks/pane.tsx'
 import { resolveLook } from '../hooks/packs.ts'
 import { visibleLength } from '../hooks/layout.tsx'
 import { initialModel, type Model } from '../hooks/model.ts'
@@ -183,6 +183,21 @@ test('on a narrow pane the bubble sits above the pet and stays inside the width'
 test("the friday sign sits next to the pet, not in the band", async () => {
   const tree = renderPane(els, M, T, { tab: 'changes' }, 80, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, friday: true })
   expect(walk(tree).some(n => typeof n === 'string' && n.includes("it's friday"))).toBe(true)
+})
+
+test('no Text in the pane tree carries a key (Text takes none)', async () => {
+  for (const [width, compact] of [[54, false], [80, false], [50, true]] as const)
+    for (const extra of [{ friday: true }, { bubble: { text: 'hi', mood: 'done' as const } }, { friday: true, bubble: { text: 'ouch', mood: 'fail' as const } }, {}])
+      for (const n of walk(renderPane(els, M, T, { tab: 'changes' }, width, compact, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, ...extra })))
+        if (n?.type === 'Text') expect(n.props.key).toBeUndefined()
+})
+
+test('petStripCols is the width of the Box the Client sits in', async () => {
+  expect(petStripCols(80)).toBe(46)
+  expect(petStripCols(54)).toBe(46)
+  expect(petStripCols(40)).toBe(34)
+  const tree = renderPane(els, M, T, { tab: 'changes' }, 40, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE } })
+  expect(walk(tree).find(n => n.props?.width === 34 && walk(n).includes(PETNODE))).toBeDefined()
 })
 
 test('an outfit makes the strip two rows taller', async () => {

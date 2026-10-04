@@ -12,6 +12,16 @@ test('hpBar fits its width and says what is left', async () => {
   expect(hpBar(100, T, 40).map(s => s.text).join('')).toContain('0% context left')
 })
 
+test('hpBar drops the words under 27 cells and still fits', async () => {
+  for (const w of [26, 20, 12]) {
+    const segs = hpBar(62, T, w)
+    expect(visibleLength(segs)).toBeLessThanOrEqual(w)
+    expect(segs.map(s => s.text).join('')).toContain('38%')
+    expect(segs.map(s => s.text).join('')).not.toContain('context')
+  }
+  expect(hpBar(62, T, 27).map(s => s.text).join('')).toContain('context left')
+})
+
 test('comboSegs is empty under three or without the pack extra', async () => {
   const arcade = resolveLook({ colors: 'arcade', motion: 'arcade' }, {}, {}).look
   const classic = resolveLook({ colors: 'classic', motion: 'classic' }, {}, {}).look

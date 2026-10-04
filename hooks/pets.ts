@@ -15,7 +15,7 @@ export type PetInput = { working: boolean; kind?: PetKind; needsYou: boolean; la
 // Pixel rows of single-char palette keys, '.' = transparent. Two pixel rows make one terminal row.
 // head is [x, y] of the top-centre of the head, where outfits anchor; dx is horizontal travel in pixels.
 // exit marks a neutral frame: a pose change may cut away from the animation there.
-// hand is the artist's note on where a hand sits in wake-up frames; nothing draws from it.
+// hand is where held outfits sit; without it they sit four pixels under the head.
 export type PetFrame = { px: string[]; dx?: number; head?: [number, number]; exit?: boolean; hand?: [number, number] | null }
 export type PetAnim = { loop: boolean; frames: (PetFrame & { ms: number })[] }
 // A one-shot clip played between two animations; `from` and `to` are animation names or '*'.
@@ -152,8 +152,9 @@ type Named = { name: string; clip: PetClip }
 
 // The clips played on the way from animation `from` to pose `to`, in order:
 //  - a clip written for exactly that pair plays alone;
-//  - otherwise a clip that leaves `from` for the rest pose (walk -> idle "stop", sleep -> idle "wake-up"),
-//    unless the target is alert, which cuts in;
+//  - otherwise a clip that leaves `from` for the rest pose: the walk's stop only on the way to idle or sleep
+//    (a hop or a typing spell starts straight from the stride), sleep's wake-up for anything but alert,
+//    which cuts in;
 //  - then a clip any animation may enter `to` with ("*" -> sleep "lie-down", "*" -> alert "startle").
 function clipsFor(sheet: PetSheet, from: string, to: string): Named[] {
   const all = Object.entries(sheet.transitions ?? {}).map(([name, clip]) => ({ name, clip }))
@@ -161,15 +162,18 @@ function clipsFor(sheet: PetSheet, from: string, to: string): Named[] {
   if (pair) return [pair]
   const out: Named[] = []
   const leave = all.find(c => c.clip.from === from && c.clip.to === 'idle')
-  if (leave && to !== 'alert') out.push(leave)
+  if (leave && (from.startsWith('walk') ? to === 'idle' || to === 'sleep' : to !== 'alert')) out.push(leave)
   const enter = all.find(c => c.clip.from === '*' && c.clip.to === to)
   if (enter) out.push(enter)
   return out
 }
 
 // What is on screen now: an animation (looped or held) or a transition clip, from `start` on.
-type Seg = { pose: string; anim: PetAnim; start: number; fi: number; clip: boolean; name: string }
-export type Player = { seg?: Seg; queue: Named[]; pending?: { pose: string; at: number }; x: number; dir: 1 | -1 }
+// fi is the last frame entered; -1 until the first, so frame 0's dx counts on entry. `to` is the animation
+// a clip leaves him in.
+type Seg = { pose: string; anim: PetAnim; start: number; fi: number; clip: boolean; name: string; to: string }
+// dest is the pose the queued clips were planned for.
+export type Player = { seg?: Seg; queue: Named[]; dest?: string; pending?: { pose: string; at: number }; x: number; dir: 1 | -1 }
 export const newPlayer = (): Player => ({ queue: [], x: 0, dir: 1 })
 
 // Facing left uses the sheet's own "<pose>-left" animation when it has one (its dx is already negative);
@@ -177,9 +181,9 @@ export const newPlayer = (): Player => ({ queue: [], x: 0, dir: 1 })
 const sideName = (sheet: PetSheet, pose: string, dir: number) => (dir < 0 && sheet.animations[`${pose}-left`] ? `${pose}-left` : pose)
 const segOf = (sheet: PetSheet, pose: string, start: number, dir: number): Seg => {
   const name = sideName(sheet, pose, dir)
-  return { pose, anim: animFor(sheet, name), start, fi: 0, clip: false, name }
+  return { pose, anim: animFor(sheet, name), start, fi: -1, clip: false, name, to: pose }
 }
-const clipSeg = (pose: string, name: string, clip: PetClip, start: number): Seg => ({ pose, anim: { loop: false, frames: clip.frames }, start, fi: 0, clip: true, name })
+const clipSeg = (pose: string, name: string, clip: PetClip, start: number): Seg => ({ pose, anim: { loop: false, frames: clip.frames }, start, fi: -1, clip: true, name, to: clip.to === '*' ? pose : clip.to })
 
 // True when the frame must be flipped to face left: a left-facing walk with no hand-drawn left animation.
 export const mirrored = (p: Player): boolean => p.dir < 0 && !!p.seg && !p.seg.clip && p.seg.pose === 'walk' && !p.seg.name.endsWith('-left')
@@ -190,7 +194,8 @@ function travel(p: Player, s: Seg, t: number, maxX: number, sheet: PetSheet) {
   while (s.fi !== idx) {
     s.fi = (s.fi + 1) % n
     const dx = s.anim.frames[s.fi]!.dx ?? 0
-    if (!dx) continue
+    // with no room to walk there is nothing to bounce off
+    if (!dx || maxX <= 0) continue
     p.x += dx * (s.name.endsWith('-left') ? 1 : p.dir)
     const before = p.dir
     if (p.x >= maxX) { p.x = maxX; p.dir = -1 } else if (p.x <= 0) { p.x = 0; p.dir = 1 }
@@ -220,16 +225,21 @@ export function stepPlayer(p: Player, sheet: PetSheet, pose: string, now: number
     const s: Seg = p.seg
     if (s.clip) {
       const end: number = s.start + clipMs(s.anim)
-      if (pose === 'alert' && s.pose !== 'alert') { travel(p, s, now, maxX, sheet); play(p, sheet, s.name, 'alert', now); continue }
+      if (pose === 'alert' && s.pose !== 'alert') { travel(p, s, now, maxX, sheet); play(p, sheet, s.to, 'alert', now); continue }
       if (now < end) break
       travel(p, s, end, maxX, sheet)
+      // the pose moved on while clips were queued: plan again from where the clip left him
+      if (p.dest !== pose) { play(p, sheet, s.to, pose, end); continue }
       const next = p.queue.shift()
       p.seg = next ? clipSeg(pose, next.name, next.clip, end) : segOf(sheet, pose, end, p.dir)
       continue
     }
     if (s.pose === pose) { p.pending = undefined; break }
     if (pose === 'alert') { travel(p, s, now, maxX, sheet); play(p, sheet, s.name, pose, now); continue }
-    if (p.pending?.pose !== pose) p.pending = { pose, at: exitAt(s, now) }
+    // an animation that plays once (hop, fail) runs to its last frame; the pose window only decides what is next
+    const over = s.start + clipMs(s.anim)
+    if (!s.anim.loop && now < over) break
+    if (p.pending?.pose !== pose) p.pending = { pose, at: s.anim.loop ? exitAt(s, now) : over }
     const at = p.pending.at
     if (now < at) break
     travel(p, s, at, maxX, sheet)
@@ -241,6 +251,7 @@ export function stepPlayer(p: Player, sheet: PetSheet, pose: string, now: number
 // Starts the way from animation `from` to `pose` at time `at`: the first clip now, the rest queued.
 function play(p: Player, sheet: PetSheet, from: string, pose: string, at: number) {
   p.pending = undefined
+  p.dest = pose
   p.queue = clipsFor(sheet, from, pose)
   const first = p.queue.shift()
   p.seg = first ? clipSeg(pose, first.name, first.clip, at) : segOf(sheet, pose, at, p.dir)
