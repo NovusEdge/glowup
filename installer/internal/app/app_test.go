@@ -35,7 +35,7 @@ const (
 	marketList = "claude plugin marketplace list --json"
 	pluginList = "claude plugin list --json"
 	addMarket  = "claude plugin marketplace add NovusEdge/glowup"
-	installCrt = "claude plugin install glowup@glowup --config pack=crt --config pet=clawd --config bubbles=on --config reducedMotion=false --config theme=classic"
+	installCrt = "claude plugin install glowup@glowup --config pack=crt --config pet=clawd --config bubbles=on --config reducedMotion=false --config theme=classic --config spinner=pack"
 	configure  = "claude plugin configure glowup@glowup --values-stdin"
 )
 

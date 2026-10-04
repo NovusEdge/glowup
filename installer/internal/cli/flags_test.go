@@ -33,6 +33,16 @@ func TestParseEveryFlag(t *testing.T) {
 	}
 }
 
+func TestParseThemeAndSpinner(t *testing.T) {
+	o, err := Parse([]string{"--yes", "--spinner", "Eyes", "--theme=dusk"}, io.Discard)
+	if err != nil || o.Choice.Theme != "dusk" || o.Choice.Spinner != "eyes" || !reflect.DeepEqual(o.Given, []string{"theme", "spinner"}) {
+		t.Fatalf("got %+v, %v", o, err)
+	}
+	if o, err := Parse([]string{"--spinner", "pack", "--theme", "classic"}, io.Discard); err != nil || o.Choice.Spinner != "pack" || o.Choice.Theme != "classic" {
+		t.Fatalf("pack and classic are the 'own' values: %+v, %v", o, err)
+	}
+}
+
 func TestParseRejects(t *testing.T) {
 	for _, c := range []struct {
 		args []string
@@ -40,6 +50,8 @@ func TestParseRejects(t *testing.T) {
 	}{
 		{[]string{"--pack", "neon"}, "no pack called \"neon\". Pick one of: classic, crt, cozy, arcade"},
 		{[]string{"--pet", "cat"}, "--pet takes clawd or off"},
+		{[]string{"--theme", "neon"}, "no theme called \"neon\". Pick one of: classic, glowup"},
+		{[]string{"--spinner", "spin"}, "no spinner called \"spin\". Pick one of: stock, comet"},
 		{[]string{"--bubbles", "yes"}, "--bubbles takes on or off"},
 		{[]string{"install"}, "unexpected argument \"install\""},
 		{[]string{"--colour"}, "flag provided but not defined"},

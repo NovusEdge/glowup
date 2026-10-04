@@ -14,7 +14,7 @@ import (
 )
 
 // Options is the parsed command line. Choice starts at claude.Defaults() and
-// takes any --pack, --pet, --bubbles and --reduced-motion values; the picker
+// takes any --pack, --theme, --spinner, --pet, --bubbles and --reduced-motion values; the picker
 // starts from it, and --yes installs it as is.
 type Options struct {
 	Choice  claude.Choice
@@ -31,12 +31,14 @@ func Parse(args []string, out io.Writer) (Options, error) {
 	fs := flag.NewFlagSet("glowup-installer", flag.ContinueOnError)
 	fs.SetOutput(out)
 	fs.Usage = func() {
-		fmt.Fprintln(out, "usage: glowup-installer [--yes] [--pack NAME] [--pet clawd|off] [--bubbles on|off] [--reduced-motion] [--dry-run] [--version]")
+		fmt.Fprintln(out, "usage: glowup-installer [--yes] [--pack NAME] [--theme NAME] [--spinner NAME] [--pet clawd|off] [--bubbles on|off] [--reduced-motion] [--dry-run] [--version]")
 		fmt.Fprintln(out, "\nInstalls the glowup mod into Claude Code. With no flags it asks you to pick a look first.")
 		fs.PrintDefaults()
 	}
 	fs.BoolVar(&o.Yes, "yes", false, "install without asking: the defaults, or the values of the flags below")
 	fs.StringVar(&o.Choice.Pack, "pack", o.Choice.Pack, "pack: "+strings.Join(packs.Names(), ", "))
+	fs.StringVar(&o.Choice.Theme, "theme", "", "theme colors on top of the pack: "+strings.Join(packs.ThemeNames(), ", ")+" (classic keeps the pack's own)")
+	fs.StringVar(&o.Choice.Spinner, "spinner", "", "spinner: "+strings.Join(packs.SpinnerIDs(), ", ")+", or pack for the pack's own")
 	fs.StringVar(&o.Choice.Pet, "pet", o.Choice.Pet, "pet: clawd or off")
 	fs.StringVar(&o.Choice.Bubbles, "bubbles", o.Choice.Bubbles, "speech bubbles: on or off")
 	fs.BoolVar(&o.Choice.ReducedMotion, "reduced-motion", o.Choice.ReducedMotion, "turn off glowup's animation")
@@ -47,7 +49,7 @@ func Parse(args []string, out io.Writer) (Options, error) {
 	}
 	set := map[string]bool{}
 	fs.Visit(func(f *flag.Flag) { set[f.Name] = true })
-	for _, g := range [][2]string{{"pack", "pack"}, {"pet", "pet"}, {"bubbles", "bubbles"}, {"reduced-motion", "reducedMotion"}} {
+	for _, g := range [][2]string{{"pack", "pack"}, {"pet", "pet"}, {"bubbles", "bubbles"}, {"reduced-motion", "reducedMotion"}, {"theme", "theme"}, {"spinner", "spinner"}} {
 		if set[g[0]] {
 			o.Given = append(o.Given, g[1])
 		}
@@ -58,6 +60,8 @@ func Parse(args []string, out io.Writer) (Options, error) {
 	o.Choice.Pack = strings.ToLower(o.Choice.Pack)
 	o.Choice.Pet = strings.ToLower(o.Choice.Pet)
 	o.Choice.Bubbles = strings.ToLower(o.Choice.Bubbles)
+	o.Choice.Theme = strings.ToLower(o.Choice.Theme)
+	o.Choice.Spinner = strings.ToLower(o.Choice.Spinner)
 	if !slices.Contains(packs.Names(), o.Choice.Pack) {
 		return o, usageErr(out, "there is no pack called %q. Pick one of: %s", o.Choice.Pack, strings.Join(packs.Names(), ", "))
 	}
@@ -66,6 +70,12 @@ func Parse(args []string, out io.Writer) (Options, error) {
 	}
 	if o.Choice.Bubbles != "on" && o.Choice.Bubbles != "off" {
 		return o, usageErr(out, "--bubbles takes on or off, not %q", o.Choice.Bubbles)
+	}
+	if t := o.Choice.Theme; set["theme"] && !slices.Contains(packs.ThemeNames(), t) {
+		return o, usageErr(out, "there is no theme called %q. Pick one of: %s", t, strings.Join(packs.ThemeNames(), ", "))
+	}
+	if sp := o.Choice.Spinner; set["spinner"] && sp != "pack" && !slices.Contains(packs.SpinnerIDs(), sp) {
+		return o, usageErr(out, "there is no spinner called %q. Pick one of: %s, or pack for the pack's own", sp, strings.Join(packs.SpinnerIDs(), ", "))
 	}
 	return o, nil
 }
@@ -83,5 +93,5 @@ func CheckTerminal(o Options, interactive bool) error {
 	if o.Yes || o.DryRun || o.Version || interactive {
 		return nil
 	}
-	return errors.New("there is no terminal to show the picker in. Run again with --yes to install with the defaults, adding --pack, --pet, --bubbles or --reduced-motion to choose")
+	return errors.New("there is no terminal to show the picker in. Run again with --yes to install with the defaults, adding --pack, --theme, --spinner, --pet, --bubbles or --reduced-motion to choose")
 }

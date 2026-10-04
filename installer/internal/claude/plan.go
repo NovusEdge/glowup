@@ -1,6 +1,7 @@
 package claude
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -24,8 +25,8 @@ type Step struct {
 func Plan(c Choice, s State) []Step { return PlanKeys(c, s, nil) }
 
 // PlanKeys is Plan, except an installed glowup gets only the named userConfig keys
-// (all of pack, pet, bubbles and reducedMotion when keys is nil). A fresh install
-// always sends every value.
+// (all of pack, pet, bubbles and reducedMotion when keys is nil, plus theme and
+// spinner when the choice has them). A fresh install always sends every value.
 func PlanKeys(c Choice, s State, keys []string) []Step {
 	var steps []Step
 	if !s.MarketplaceAdded {
@@ -50,25 +51,32 @@ func PlanKeys(c Choice, s State, keys []string) []Step {
 
 // values is the userConfig pairs in the order the install argv lists them.
 // theme=classic is the mod's "no theme override" value (hooks/register.tsx ignores a
-// classic theme and uses the pack's palette), so the pack picked here is the look the
-// person gets. Leaving theme unset makes `claude plugin install` report an unset option.
+// classic theme and uses the pack's palette), and spinner=pack is its "no spinner
+// override" value, so the pack picked here is the look the person gets. Leaving
+// either unset makes `claude plugin install` report an unset option.
 func values(c Choice) [][2]string {
 	return [][2]string{
 		{"pack", c.Pack},
 		{"pet", c.Pet},
 		{"bubbles", c.Bubbles},
 		{"reducedMotion", strconv.FormatBool(c.ReducedMotion)},
-		{"theme", "classic"},
+		{"theme", cmp.Or(c.Theme, "classic")},
+		{"spinner", cmp.Or(c.Spinner, "pack")},
 	}
 }
 
 // valuesJSON is the stdin for `plugin configure --values-stdin`, which takes a JSON
 // object of single-line strings, so the boolean goes as "true" or "false". It keeps
-// keys left out of the object, so theme is never sent: the person's theme survives.
+// keys left out of the object, so theme and spinner go only when the person picked
+// them: otherwise the theme and spinner already set survive.
 func valuesJSON(c Choice, keys []string) string {
+	picked := map[string]bool{"theme": c.Theme != "", "spinner": c.Spinner != ""}
 	m := map[string]string{}
 	for _, kv := range values(c) {
-		if kv[0] != "theme" && (keys == nil || slices.Contains(keys, kv[0])) {
+		if has, optional := picked[kv[0]]; optional && !has {
+			continue
+		}
+		if keys == nil || slices.Contains(keys, kv[0]) {
 			m[kv[0]] = kv[1]
 		}
 	}

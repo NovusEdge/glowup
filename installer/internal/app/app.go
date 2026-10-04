@@ -86,7 +86,7 @@ func Run(ctx context.Context, o cli.Options, d Deps) int {
 	var keys []string
 	if state.Installed && d.Pick == nil {
 		if len(o.Given) == 0 {
-			fmt.Fprintln(d.Out, "glowup is already installed, and its settings were left as they are. To change them, run again with --yes and --pack, --pet, --bubbles or --reduced-motion.")
+			fmt.Fprintln(d.Out, "glowup is already installed, and its settings were left as they are. To change them, run again with --yes and --pack, --theme, --spinner, --pet, --bubbles or --reduced-motion.")
 			return 0
 		}
 		keys = o.Given

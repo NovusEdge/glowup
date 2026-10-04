@@ -19,7 +19,7 @@ func TestPlanFreshInstall(t *testing.T) {
 	got := argvs(Plan(Defaults(), State{}))
 	want := []string{
 		"claude plugin marketplace add NovusEdge/glowup",
-		"claude plugin install glowup@glowup --config pack=classic --config pet=clawd --config bubbles=on --config reducedMotion=false --config theme=classic",
+		"claude plugin install glowup@glowup --config pack=classic --config pet=clawd --config bubbles=on --config reducedMotion=false --config theme=classic --config spinner=pack",
 	}
 	if !slices.Equal(got, want) {
 		t.Fatalf("got %q\nwant %q", got, want)
@@ -40,7 +40,7 @@ func TestPlanEveryChoiceCombination(t *testing.T) {
 					want := []string{"claude", "plugin", "install", "glowup@glowup",
 						"--config", "pack=" + pack, "--config", "pet=" + pet,
 						"--config", "bubbles=" + bubbles, "--config", "reducedMotion=" + rmText,
-						"--config", "theme=classic"}
+						"--config", "theme=classic", "--config", "spinner=pack"}
 					if len(steps) != 1 || !slices.Equal(steps[0].Argv, want) || steps[0].Stdin != "" {
 						t.Fatalf("%+v: got %+v", c, steps)
 					}
@@ -75,10 +75,31 @@ func TestPlanKeysSendsOnlyTheNamedKeys(t *testing.T) {
 	}
 }
 
+func TestPlanThemeAndSpinner(t *testing.T) {
+	c := Choice{Pack: "crt", Pet: "clawd", Bubbles: "on", Theme: "dusk", Spinner: "eyes"}
+	got := argvs(Plan(c, State{MarketplaceAdded: true}))
+	if want := "claude plugin install glowup@glowup --config pack=crt --config pet=clawd --config bubbles=on --config reducedMotion=false --config theme=dusk --config spinner=eyes"; len(got) != 1 || got[0] != want {
+		t.Fatalf("got %q", got)
+	}
+	installed := State{MarketplaceAdded: true, Installed: true}
+	if got := Plan(c, installed)[0].Stdin; got != `{"bubbles":"on","pack":"crt","pet":"clawd","reducedMotion":"false","spinner":"eyes","theme":"dusk"}` {
+		t.Fatalf("picked theme and spinner are sent: %s", got)
+	}
+	if got := Plan(Choice{Pack: "crt", Pet: "off", Bubbles: "on", Theme: "dusk"}, installed)[0].Stdin; strings.Contains(got, "spinner") || !strings.Contains(got, `"theme":"dusk"`) {
+		t.Fatalf("only the picked one is sent: %s", got)
+	}
+	if got := PlanKeys(c, installed, []string{"spinner"})[0].Stdin; got != `{"spinner":"eyes"}` {
+		t.Fatalf("--yes sends only the flags given: %s", got)
+	}
+	if got := PlanKeys(Choice{Pack: "crt", Theme: "dusk"}, installed, []string{"pack"})[0].Stdin; got != `{"pack":"crt"}` {
+		t.Fatalf("a theme not given as a flag is not sent: %s", got)
+	}
+}
+
 func TestScript(t *testing.T) {
 	got := Script(Plan(Choice{Pack: "crt", Pet: "off", Bubbles: "on"}, State{}))
 	want := "claude plugin marketplace add NovusEdge/glowup\n" +
-		"claude plugin install glowup@glowup --config pack=crt --config pet=off --config bubbles=on --config reducedMotion=false --config theme=classic\n"
+		"claude plugin install glowup@glowup --config pack=crt --config pet=off --config bubbles=on --config reducedMotion=false --config theme=classic --config spinner=pack\n"
 	if got != want {
 		t.Fatalf("got\n%s\nwant\n%s", got, want)
 	}
