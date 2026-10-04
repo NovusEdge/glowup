@@ -20,6 +20,61 @@ jobs:
       - run: npm i -g @anthropic-ai/claude-code@2.1.289 && claude --version
       - run: pnpm check
       - run: pnpm test
+  installer:
+    name: Installer (Go)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.26'
+          cache-dependency-path: installer/go.sum
+      - uses: actions/setup-node@v7
+        with: { node-version: 24 }
+      - name: Pack colors match hooks/packpresets.ts
+        run: node installer/gen/packs.ts --check
+      - name: gofmt
+        working-directory: installer
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "these files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+      - name: vet
+        working-directory: installer
+        run: go vet ./...
+      - name: test
+        working-directory: installer
+        run: go test ./...
+  install-sh:
+    name: install.sh (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.26'
+          cache-dependency-path: installer/go.sum
+      - name: shellcheck
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q shellcheck
+          shellcheck -S warning -s sh docs/web/public/install.sh installer/scripts/*.sh
+      - name: Script checks against a stub installer
+        run: sh installer/scripts/test-install-sh.sh
+      - name: Real installer through a fake release, --dry-run
+        run: |
+          tag=v0.0.0-ci
+          (cd installer && go build -ldflags "-X main.version=$tag" -o "$RUNNER_TEMP/glowup-installer" .)
+          sh installer/scripts/fake-release.sh "$RUNNER_TEMP/glowup-installer" "$RUNNER_TEMP/release" "$tag"
+          GLOWUP_BASE_URL="file://$RUNNER_TEMP/release" GLOWUP_VERSION="$tag" \
+            sh docs/web/public/install.sh --dry-run --pack crt </dev/null | tee "$RUNNER_TEMP/out.txt"
+          grep -qF 'claude plugin install glowup@glowup --config pack=crt' "$RUNNER_TEMP/out.txt"
   versions:
     name: Manifest versions agree
     runs-on: ubuntu-latest
