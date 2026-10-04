@@ -6,6 +6,7 @@ import { resolveLook, exportMix, SPINNER_IDS, type Mix } from './packs.ts'
 import { PACKS } from './packpresets.ts'
 import { loadUserPacks, addPack, savePack, SAFE_NAME } from './userpacks.ts'
 import { parseScheme } from './schemes.ts'
+import { konsoleScheme } from './konsole.ts'
 import type { PetSetting } from './pets.ts'
 import type { BubbleSetting } from './bubbles.ts'
 import type { EggStore } from './eggs.ts'
@@ -91,6 +92,7 @@ const summary = (ctl: Ctl) => {
   const m = ctl.mix(), p = ctl.pet()
   return [
     'glowup', m.colors === m.motion ? m.colors : `${m.colors}/${m.motion}`,
+    ...(m.spinner ? [`spinner ${m.spinner}`] : []),
     p === 'off' ? 'no pet' : PET_LABELS.find(([id]) => id === p)![1],
     `bubbles ${ctl.bubbles()}`, `${ctl.reduced() ? 'reduced' : 'full'} motion`,
   ].join(' · ')
@@ -123,6 +125,20 @@ async function wizard(host: Host, ctl: Ctl): Promise<string> {
     // typed text must be a whole installed name: it is spliced into a command line
     if (!installed.has(pack)) return `No pack named "${typed}".`
     if (pack !== now) { const r = await apply(`pack ${pack}`); if (!r.startsWith('Pack: ')) return r }
+  }
+
+  // read after the Pack step: `pack <name>` clears an override
+  const after = ctl.mix()
+  const own = resolveLook({ colors: after.colors, motion: after.motion }, user, await loadUserThemes(host)).look.motion.spinner
+  const ids = SPINNER_IDS.filter(id => id !== own).slice(0, 3)
+  const sp = await ask('Which spinner?', 'Spinner', ['Pack default', ...ids.map(id => id === after.spinner ? id + CURRENT : id)])
+  if (sp === undefined) return summary(ctl)
+  const st = sp.trim()
+  if (st === 'Pack default') { if (after.spinner) await apply('spinner default') }
+  else {
+    const id = st.endsWith(CURRENT) ? st.slice(0, -CURRENT.length) : st
+    if (!(SPINNER_IDS as readonly string[]).includes(id)) return `No spinner named "${st}".`
+    if (id !== after.spinner) await apply(`spinner ${id}`)
   }
 
   const shiny = await shinyUnlocked(host)
@@ -188,6 +204,14 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     return `Spinner: ${a1}`
   }
   if (sub === 'spinner') return USAGE
+  if (sub === 'export') {
+    if (a1 !== 'konsole') return 'Export targets: konsole'
+    const { look } = resolveLook(ctl.mix(), await loadUserPacks(host), await loadUserThemes(host))
+    const pack = look.colorsFrom.replace(/[^a-z0-9-]/g, '-')
+    const path = `${host.dataHome}/konsole/glowup-${pack}.colorscheme`
+    await host.writeFile(path, konsoleScheme(pack, look.theme.colors, look.bg))
+    return `${path}\nIn Konsole: Settings → Edit Current Profile → Appearance → pick "glowup ${pack}".`
+  }
   if (sub === 'import' && a1) return importScheme(host, ctl, a1, a2 === '--force')
   if (sub === 'pet' && a1 === 'list') {
     const cur = ctl.pet()

@@ -112,6 +112,7 @@ More in [Install](docs/install.md).
 | `/glowup pack save <name>` | Save the current look as a pack file. |
 | `/glowup spinner <name\|list\|default>` | Set just the spinner, list them, or go back to the pack's own. |
 | `/glowup import <file>` | Turn a Ghostty or base16 color scheme into a pack. |
+| `/glowup export konsole` | Write your current colors as a Konsole color scheme. |
 | `/glowup pet clawd\|off` | Show Clawd or hide the pet. |
 | `/glowup bubbles on\|off` | Turn speech bubbles on or off. |
 | `/glowup config` | Pick a pack, pet and extras by answering questions. |
@@ -185,7 +186,7 @@ Reduced motion hides him. Full guide: [Pets](docs/pets.md).
 
 ## Config
 
-`/glowup config` asks up to three questions: the pack, the pet, and extras such as bubbles and reduced motion. Each answer applies at once, and Esc stops.
+`/glowup config` asks up to four questions: the pack, the spinner, the pet, and extras such as bubbles and reduced motion. Each answer applies at once, and Esc stops.
 
 ```text
 /glowup config

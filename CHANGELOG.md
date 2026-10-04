@@ -7,11 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `/glowup export konsole` saves your current colors as a Konsole color scheme you can pick in your profile.
+
 ### Changed
 
 - The `cards` row style now puts your prompts and Claude's replies on a side bar instead of a box, and draws tool calls in a dim box.
 - Clawd's done dance now lasts 4 seconds instead of 1.5.
 - Chat rows in every pack except `classic` now keep a one-column margin on the left.
+- `/glowup config` now asks which spinner you want, right after the pack, and the summary line names a spinner you set.
 
 ### Fixed
 

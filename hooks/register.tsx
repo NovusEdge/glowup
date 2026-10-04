@@ -45,6 +45,7 @@ let git: { root: string; base: string } | undefined
 let cwd = ''
 let configDir = ''
 let home = ''
+let dataHome = ''
 let reducedMotion = false
 let docked = false
 // Where the surface seated the pane, learned from its last render: panes() does not say.
@@ -91,6 +92,7 @@ function hostOf($: Engine): Host {
       (await $.settings.read({ source: 'project' })).statusLine !== undefined ||
       (await $.settings.read({ source: 'local' })).statusLine !== undefined,
     configDir,
+    dataHome,
     home,
   }
 }
@@ -339,8 +341,9 @@ export const register: Register = (on, options) => {
     // $.env.get takes literal names only; an empty CLAUDE_CONFIG_DIR counts as unset
     home = (await $.env.get('HOME')) ?? ''
     configDir = (await $.env.get('CLAUDE_CONFIG_DIR')) || `${home}/.claude`
+    dataHome = (await $.env.get('XDG_DATA_HOME')) || `${home}/.local/share`
     const host = hostOf($)
-    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|import|pet|bubbles|pane|motion|statusline ...' })
+    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|import|export|pet|bubbles|pane|motion|statusline ...' })
     mix = await initialMix(host, options)
     const storedPet = await host.storeGet('pet')
     const wantPet = PETS.includes(storedPet as PetSetting) ? storedPet as PetSetting : PETS.includes(options.pet as PetSetting) ? options.pet as PetSetting : 'clawd'
