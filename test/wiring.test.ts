@@ -339,6 +339,30 @@ test('userConfig seeds the look', { options: { pack: 'crt', theme: 'dusk', pet: 
   expect((await runGlowup($, 'pet list')).text).toContain('● off')
 })
 
+for (const [spinner, custom] of [['eyes', true], ['pack', false], ['nope', false]] as const) {
+  test(`userConfig spinner "${spinner}" ${custom ? 'seeds the mix' : 'leaves the pack\'s own'}`, { options: { pack: 'crt', spinner } }, async ($, on) => {
+    fakeFs(on)
+    mock.clock(on)
+    mock.store(on, {})
+    bootable(on)
+    on('session.id', async () => ({ value: 's1' }))
+    await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+    const text = (await runGlowup($, 'pack list')).text as string
+    if (custom) expect(text).toContain('custom mix: colors crt, motion crt, spinner eyes')
+    else expect(text).not.toContain('spinner')
+  })
+}
+
+test('a stored spinner wins over userConfig spinner', { options: { pack: 'crt', spinner: 'eyes' } }, async ($, on) => {
+  fakeFs(on)
+  mock.clock(on)
+  mock.store(on, { mix: { colors: 'crt', motion: 'crt', spinner: 'comet' } })
+  bootable(on)
+  on('session.id', async () => ({ value: 's1' }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  expect((await runGlowup($, 'pack list')).text).toContain('spinner comet')
+})
+
 test('a stored mix and pet win over userConfig', { options: { pack: 'crt', pet: 'off' } }, async ($, on) => {
   fakeFs(on)
   mock.clock(on)

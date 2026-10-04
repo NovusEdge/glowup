@@ -3,7 +3,7 @@ import type { Host } from './host.ts'
 import { initialModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
 import { approvalLabel, personAsked, shortPath } from './events.ts'
 import type { Theme } from './themes.ts'
-import { resolveLook, DEFAULT_MIX, type Mix, type Look } from './packs.ts'
+import { resolveLook, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { loadUserPacks } from './userpacks.ts'
 import { PET_ROWS, type PetSetting, type PetId, type PetInput, type PetKind } from './pets.ts'
 import { bubbleFor, type BubbleSetting, type BubbleVars, type Mood } from './bubbles.ts'
@@ -309,7 +309,9 @@ async function initialMix(host: Host, options: Readonly<Record<string, unknown>>
   const pack = typeof options.pack === 'string' && options.pack ? options.pack : DEFAULT_MIX.colors
   const storedTheme = await host.storeGet('theme')
   const theme = typeof storedTheme === 'string' ? storedTheme : typeof options.theme === 'string' && options.theme !== 'classic' ? options.theme : undefined
-  return { ...DEFAULT_MIX, colors: pack, motion: pack, theme }
+  // "pack" is the userConfig default and means the pack's own spinner; an id this build lacks is ignored like a bad pet.
+  const spinner = typeof options.spinner === 'string' && (SPINNER_IDS as readonly string[]).includes(options.spinner) ? options.spinner : undefined
+  return { ...DEFAULT_MIX, colors: pack, motion: pack, theme, spinner }
 }
 
 function ctlOf($: Engine): Ctl {
