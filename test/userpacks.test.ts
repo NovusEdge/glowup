@@ -37,6 +37,8 @@ test('loadUserPacks echoes fs errors without control characters', async () => {
   host.readFile = async () => { throw new Error('bad\u001b[2J path') }
   const user = await loadUserPacks(host)
   expect((user.a as Error).message).not.toContain('\u001b')
+  host.readFile = async () => { throw new Error('x'.repeat(100)) }
+  expect(((await loadUserPacks(host)).a as Error).message).toHaveLength(100)
 })
 
 test('addPack refuses a body over 64 KB before parsing', async () => {

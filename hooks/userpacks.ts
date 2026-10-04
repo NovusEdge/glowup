@@ -1,5 +1,5 @@
 import type { Host } from './host.ts'
-import { parseJsonc, shown } from './themes.ts'
+import { parseJsonc, isUnsafe } from './themes.ts'
 import { loadUserThemes } from './userthemes.ts'
 import { resolveLook, validatePack, isNewerSpinner, type PackFile } from './packs.ts'
 import { PACKS } from './packpresets.ts'
@@ -15,7 +15,7 @@ export async function loadUserPacks(host: Host): Promise<Record<string, unknown>
   for (const f of await host.listDir(dir)) {
     if (!f.endsWith('.json')) continue
     const name = f.slice(0, -5)
-    try { out[name] = parseJsonc(await host.readFile(`${dir}/${f}`)) } catch (err) { out[name] = new Error(shown(err instanceof Error ? err.message : String(err))) }
+    try { out[name] = parseJsonc(await host.readFile(`${dir}/${f}`)) } catch (err) { out[name] = new Error([...(err instanceof Error ? err.message : String(err))].filter(c => !isUnsafe(c.codePointAt(0)!)).join('')) }
   }
   return out
 }

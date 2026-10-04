@@ -54,6 +54,6 @@ test('names are slugged and capped', async () => {
 })
 
 test('control and bidi characters in a scheme name never survive', async () => {
-  const evil = BASE16.replace('Ocean', 'Oc\u001b[2Jean‮​X')
+  const evil = BASE16.replace('Ocean', `Oc\u001b[2Jean${String.fromCharCode(0x202e, 0x200b)}X`)
   expect(parseScheme(evil, 'x').name).toBe('oc-2jean-x')
 })
