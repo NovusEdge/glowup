@@ -55,3 +55,15 @@ export function spinnerProps(look: Look, input: SpinInput, reduced: boolean): Sp
     reduced,
   }
 }
+
+// A throw inside a Client unmounts it to a blank region, so the props are drawn once here
+// first; undefined means the caller keeps the engine's line.
+export function checkedSpinnerProps(look: Look, input: SpinInput, reduced: boolean, now: number): SpinnerProps | undefined {
+  try {
+    const props = spinnerProps(look, input, reduced)
+    spinnerLine(props.look, props.input, now)
+    return props
+  } catch {
+    return undefined
+  }
+}

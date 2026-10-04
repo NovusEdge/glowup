@@ -1,24 +1,29 @@
-import type { EngineInterface, Register, Timer } from 'claude-code'
+import type { EngineInterface, Register, RenderElement, Timer } from 'claude-code'
 import type { Host } from './host.ts'
 import { initialModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
-import { approvalLabel } from './events.ts'
+import { approvalLabel, shortPath } from './events.ts'
 import type { Theme } from './themes.ts'
 import { resolveLook, DEFAULT_MIX, type Mix, type Look } from './packs.ts'
 import { loadUserPacks } from './userpacks.ts'
-import type { PetSetting } from './pets.ts'
-import type { BubbleSetting } from './bubbles.ts'
-import { recordPass, type EggStore } from './eggs.ts'
+import { PET_ROWS, type PetSetting, type PetId, type PetInput, type PetKind } from './pets.ts'
+import { bubbleFor, type BubbleSetting, type BubbleVars, type Mood } from './bubbles.ts'
+import { recordPass, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { gitBase, refreshCounts, serial } from './changes.ts'
 import { tierFor } from './layout.tsx'
 import { renderBand } from './band.tsx'
-import { renderPane, type PaneView, type TabId } from './pane.tsx'
-import { spinnerWord, newTurnWord, toolGlyph } from './restyle.ts'
+import { renderPane, petStripCols, type PaneExtra, type PaneView, type TabId } from './pane.tsx'
+import { spinnerWord, newTurnWord } from './restyle.ts'
+import { styleRow } from './rows.tsx'
+import { orbStateOf, usesOwnSpinner, checkedSpinnerProps } from './spinner.ts'
+import type { PetClientProps } from './client/pet.tsx'
+import type { OrbState } from './motion.ts'
 import { statusText, writeStatusFile, BACKUP_KEY } from './statusline.ts'
 import { runCommand, type Ctl } from './command.ts'
 import { loadUserThemes } from './userthemes.ts'
 import { firstRun } from './firstrun.ts'
 
 type Engine = EngineInterface
+type SpinKey = { turnAt: number; detail: string; state: OrbState }
 
 const BAND = { plugin: 'glowup', key: 'band' } as const
 const PANE = { plugin: 'glowup', key: 'pane' } as const
@@ -50,6 +55,16 @@ let sessionId = ''
 let takenOver = false
 let statusTimer: Timer | undefined
 let lastStatusLine: string | undefined
+let spinKey: SpinKey = { turnAt: 0, detail: '', state: 'think' }
+// Pet state, published to PET for the pane only; the band never reads it.
+type Bubble = { text: string; mood: Mood; until: number }
+type PetSnap = { input: PetInput; overlays: string[]; bubble?: Bubble; friday: boolean }
+let bubble: Bubble | undefined
+let lastTemplate: string | undefined
+let friday = false
+let tzOffset = 0
+let installed: number | undefined
+let lastPet = ''
 
 function hostOf($: Engine): Host {
   return {
@@ -96,11 +111,67 @@ async function syncTakeover($: Engine) {
 // when it never goes away; the takeover's status line already says the same.
 const statusEntry = () => !takenOver && isBusy(model) ? statusText(model, theme) : undefined
 
+const petOn = () => pet !== 'off' && !reducedMotion
+
+const PET_KINDS: readonly string[] = ['read', 'search', 'edit', 'shell', 'agent', 'plan']
+// Hats sit above the canvas; held and side outfits fit inside it.
+const HEAD_OUTFITS = ['santa', 'party', 'nightcap']
+const petInput = (): PetInput => ({
+  working: model.working,
+  kind: model.working ? (PET_KINDS.includes(model.act.kind ?? '') ? model.act.kind as PetKind : 'think') : undefined,
+  needsYou: !!model.needsYou,
+  lastTest: model.lastTest,
+  doneAt: model.doneAt,
+  doneOk: model.act.tone === 'pass' && !model.working,
+  actAt: model.actAt,
+})
+// Through JSON because Client props refuse undefined fields.
+function petSnap(): PetSnap {
+  const now = Date.now()
+  return JSON.parse(JSON.stringify({
+    input: petInput(),
+    overlays: overlays(localTime(now, tzOffset), installed === undefined ? undefined : localTime(installed, tzOffset), friday),
+    bubble,
+    friday,
+  }))
+}
+// Writes only when the pet's picture would change, so a 1 s tick costs the pane nothing.
+function publishPet($: Engine) {
+  const snap = petSnap()
+  const key = JSON.stringify(snap)
+  if (key === lastPet) return
+  lastPet = key
+  void $.state.set(PET, { ...snap, at: Date.now() })
+}
+
 // Writes the live data the band and the pane draw from; only their readers redraw.
 function publish($: Engine) {
   const at = Date.now()
   void $.state.set(BAND, { model, at })
   void $.state.set(PANE, { model, view, at })
+  publishPet($)
+}
+
+async function say($: Engine, mood: Mood, vars: BubbleVars) {
+  if (bubbles !== 'on' || !petOn()) return
+  try {
+    // a closed pane shows nobody the bubble
+    if (!(await $.ui.panes()).some(p => p.id === 'glowup' && p.isShown)) return
+  } catch { return }
+  const line = bubbleFor(mood, vars, lastTemplate, Math.random)
+  lastTemplate = line.template
+  const mine: Bubble = { text: line.text, mood, until: Date.now() + 3000 }
+  bubble = mine
+  publishPet($)
+  $.clock.after(3100, () => { if (bubble === mine) { bubble = undefined; publishPet($) } })
+}
+function moodOf(old: Model, now: Model, ev: Ev): { mood: Mood; vars: BubbleVars } | undefined {
+  if (now.needsYou && !old.needsYou) return { mood: 'needs-you', vars: { command: now.needsYou.what.replace(/^approve /, '').split(/\s+/)[0] } }
+  if (now.lastTest && !now.lastTest.passed && now.lastTest.at !== old.lastTest?.at) {
+    const n = /(\d+) tests? failed/.exec(now.act.label)?.[1]
+    return { mood: 'fail', vars: { n: n === undefined ? undefined : Number(n) } }
+  }
+  if (ev.type === 'turn-done' && ev.reason === 'answer') return { mood: 'done', vars: { file: now.files[0] && shortPath(now.files[0].path) } }
 }
 function redraw($: Engine) {
   publish($)
@@ -140,7 +211,20 @@ async function settleTeammates($: Engine) {
     }
   } catch {}
 }
-function feed($: Engine, ev: Ev) { model = applyEvent(model, ev); syncTicker($); redraw($) }
+function feed($: Engine, ev: Ev) {
+  const old = model
+  model = applyEvent(model, ev)
+  syncTicker($)
+  redraw($)
+  const said = moodOf(old, model, ev)
+  if (said) void say($, said.mood, said.vars)
+  // Only the spinner's readers redraw, and only when what it shows changes.
+  const next: SpinKey = { turnAt: model.turnAt ?? 0, detail: model.act.label, state: orbStateOf(model) }
+  if (next.turnAt !== spinKey.turnAt || next.detail !== spinKey.detail || next.state !== spinKey.state) {
+    spinKey = next
+    void $.state.set(SPIN, { ...next, at: Date.now() })
+  }
+}
 
 async function togglePane($: Engine): Promise<string> {
   const open = (await $.ui.panes()).find(p => p.id === 'glowup')
@@ -179,6 +263,8 @@ async function adoptSession($: Engine, endedId: string) {
   const id = await $.session.id()
   model = initialModel()
   view = { tab: 'changes' }
+  bubble = undefined
+  friday = false
   lastStatusLine = undefined
   refreshSeq++
   // at session.end the id may still be the ending one; turn.start re-checks
@@ -257,6 +343,13 @@ export const register: Register = (on, options) => {
     const motion = await host.storeGet('reducedMotion')
     if (typeof motion === 'boolean') reducedMotion = motion
     sessionId = await $.session.id()
+    // the sandbox may run in UTC, where getTimezoneOffset() says 0 for everyone
+    const tzo = new Date().getTimezoneOffset()
+    let zone: string | undefined
+    if (tzo === 0) { try { zone = (await host.run(['date', '+%z'])).stdout } catch {} }
+    tzOffset = localOffset(tzo, zone)
+    const at = await host.storeGet('installed-at')
+    installed = typeof at === 'number' ? at : undefined
     await syncTakeover($)
     git = await gitBase(host, cwd)
     // a beat after launch, so the dialog does not open over the startup frame
@@ -271,6 +364,7 @@ export const register: Register = (on, options) => {
     const id = await $.session.id()
     if (id !== sessionId) await adoptSession($, sessionId)
     newTurnWord()
+    friday = false
     feed($, { type: 'turn-start', at: Date.now() })
     return next(e)
   })
@@ -280,6 +374,7 @@ export const register: Register = (on, options) => {
     if (!e.tool_use_id) return next(e)
     const input = e as unknown as Record<string, unknown>
     const toolUseId = e.tool_use_id
+    if (!e.agentId && e.tool === 'Bash' && typeof input.command === 'string' && fridayDeploy(input.command, localTime(await $.clock.now(), tzOffset))) friday = true
     feed($, { type: 'tool-start', at: Date.now(), tool: e.tool, toolUseId, agentId: e.agentId, input })
     const ran = await next(e)
     const denied = ran.deny !== undefined
@@ -296,7 +391,7 @@ export const register: Register = (on, options) => {
       try {
         const r = recordPass(await hostOf($).storeGet('eggs') as EggStore | undefined, Date.now())
         await hostOf($).storeSet('eggs', r.next)
-        if (r.unlocked) $.ui.toast('something was left on your track… /glowup pet clawd-shiny')
+        if (r.unlocked) $.ui.toast('Clawd went shiny. /glowup pet clawd-shiny (see him in /glowup pane)')
       } catch (err) {
         $.ui.log(`pass counter failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
       }
@@ -371,7 +466,7 @@ export const register: Register = (on, options) => {
     const below = await next(e)
     const els = $.ui.resolve(e)
     const live = (await $.state.get(BAND)).value as { model: Model } | undefined
-    const mine = renderBand(els, live?.model ?? model, theme, e.props.bodyColumns, tier, Date.now())
+    const mine = renderBand(els, live?.model ?? model, theme, e.props.bodyColumns, tier, Date.now(), { look })
     if (!mine) return below
     // other mods draw bands here too: stack ours on top instead of replacing theirs
     const { Box } = els
@@ -384,21 +479,62 @@ export const register: Register = (on, options) => {
     const live = (await $.state.get(PANE)).value as { model: Model; view: PaneView } | undefined
     const compact = e.props.placement === 'inline' && e.props.bodyColumns < 80
     const v: PaneView = { ...(live?.view ?? view), reduced: reducedMotion }
-    return renderPane($.ui.resolve(e), live?.model ?? model, theme, v, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
+    const els = $.ui.resolve(e)
+    // the look always applies; the pet and its words only while he is on
+    let extra: PaneExtra = { look }
+    if (petOn() && (e.surface === 'terminal' || e.surface === 'desktop')) {
+      const snap = ((await $.state.get(PET)).value as PetSnap | undefined) ?? petSnap()
+      const { Client } = $.ui.resolve(e)
+      const props: PetClientProps = { pet: pet as PetId, input: snap.input, overlays: snap.overlays, reduced: reducedMotion, compact, width: petStripCols(e.props.bodyColumns) }
+      const node = <Client key="glowup-pet" module="./client/pet.tsx" props={props} />
+      const bubbleNow = snap.bubble && snap.bubble.until > Date.now() ? snap.bubble : undefined
+      extra = { look, pet: { id: pet as PetId, node, rows: snap.overlays.some(o => HEAD_OUTFITS.includes(o)) ? PET_ROWS + 2 : undefined }, bubble: bubbleNow, friday: snap.friday }
+    }
+    return renderPane(els, live?.model ?? model, theme, v, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
       view = { ...view, tab: id }
       publish($)
       if (id === 'plan') void feedContext($)
-    })
+    }, extra)
   })
 
-  on('ui.render', { component: 'Spinner' }, async ($, e, next) => next({ ...e, props: { ...e.props, word: spinnerWord(theme, e.props.word, reducedMotion) } }))
+  on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
+    const word = spinnerWord(theme, e.props.word, reducedMotion)
+    if (!usesOwnSpinner(look, reducedMotion, e.props.message) || (e.surface !== 'terminal' && e.surface !== 'desktop')) {
+      return next({ ...e, props: { ...e.props, word } })
+    }
+    try {
+      const live = (await $.state.get(SPIN)).value
+      const input = { word, turnAt: live?.turnAt || Date.now(), detail: live?.detail ?? model.act.label, state: (live?.state ?? orbStateOf(model)) as OrbState }
+      const props = checkedSpinnerProps(look, input, reducedMotion, Date.now())
+      if (!props) return next(e)
+      const { Client } = $.ui.resolve(e)
+      return <Client key="glowup-spinner" module="./client/spinner.tsx" props={props} />
+    } catch {
+      return next(e)
+    }
+  })
 
+  on('ui.render', { component: 'UserMessage' }, async ($, e, next) => {
+    const row = await next(e)
+    if (e.surface !== 'terminal') return row
+    const p = e.props
+    return styleRow($.ui.resolve(e), look, { site: 'UserMessage', text: p.text, isExpanded: p.isExpanded, own: p.origin.kind === 'composer' && !p.from && !p.task }, row) as RenderElement
+  })
+  on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
+    const row = await next(e)
+    if (e.surface !== 'terminal') return row
+    return styleRow($.ui.resolve(e), look, { site: 'AssistantMessage', isFirstOfReply: e.props.isFirstOfReply }, row) as RenderElement
+  })
   on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
     const row = await next(e)
-    const g = !e.props.isRunning && toolGlyph(theme, e.props.tool)
-    if (!g) return row
-    const { Box, Text } = $.ui.resolve(e)
-    return <Box flexDirection="row">{row}<Box marginTop={1}><Text color={g.color}>{'  ' + g.glyph}</Text></Box></Box>
+    if (e.surface !== 'terminal') return row
+    const p = e.props
+    return styleRow($.ui.resolve(e), look, { site: 'ToolUse', tool: p.tool, input: p.input, isRunning: p.isRunning, isErrored: p.isErrored, isInterrupted: p.isInterrupted }, row) as RenderElement
+  })
+  on('ui.render', { component: 'ToolResult' }, async ($, e, next) => {
+    const row = await next(e)
+    if (e.surface !== 'terminal') return row
+    return styleRow($.ui.resolve(e), look, { site: 'ToolResult' }, row) as RenderElement
   })
 
   on('command.run', { command: 'glowup' }, async ($, e) => {

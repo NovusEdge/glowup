@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { orbStateOf, usesOwnSpinner, spinnerLine, spinnerProps, elapsed } from '../hooks/spinner.ts'
+import { orbStateOf, usesOwnSpinner, spinnerLine, spinnerProps, checkedSpinnerProps, elapsed } from '../hooks/spinner.ts'
 import SpinnerClient from '../hooks/client/spinner.tsx'
 import { SPINNERS } from '../hooks/motion.ts'
 import { SPINNER_IDS, resolveLook, stockMotion } from '../hooks/packs.ts'
@@ -10,6 +10,14 @@ const IN = { word: 'Thinking', turnAt: 0, detail: 'Editing src/auth.ts', state: 
 
 test('motion.ts and packs.ts name the same six spinners', async () => {
   expect(Object.keys(SPINNERS).sort()).toEqual([...SPINNER_IDS].sort())
+})
+
+test('a malformed look yields no props, so the caller keeps the engine line', async () => {
+  const good = look('arcade')
+  expect(checkedSpinnerProps(good, IN, false, 1000)).toBeDefined()
+  const bad = { ...good, motion: { ...good.motion, spinner: 'nope' } } as never
+  expect(checkedSpinnerProps(bad, IN, false, 1000)).toBeUndefined()
+  expect(checkedSpinnerProps({ ...good, theme: undefined } as never, IN, false, 1000)).toBeUndefined()
 })
 
 test('stock, reduced motion and engine messages keep the engine line', async () => {

@@ -3,6 +3,11 @@ import { initialModel, applyEvent, bandVisible, isBusy, mergeCounts, type Ev, ty
 
 const run = (evs: Ev[]) => evs.reduce(applyEvent, initialModel())
 
+test('the action keeps the tool kind', async () => {
+  const m = run([{ type: 'turn-start', at: 0 }, { type: 'tool-start', at: 1, tool: 'Edit', toolUseId: 'e1', input: { file_path: '/r/a.ts' } }])
+  expect(m.act.kind).toBe('edit')
+})
+
 test('main-loop tools set the action; results update it', async () => {
   const m = run([
     { type: 'turn-start', at: 0 },
