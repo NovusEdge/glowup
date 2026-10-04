@@ -299,10 +299,11 @@ export default makeScene2D('launch', function* (view) {
       {title: 'Run the tests', status: 'completed'},
     ],
     ctxPct: 46,
+    ctxHistory: [...c.model.ctxHistory, 46],
   });
   c.setTab('plan');
   addScore(40);
-  yield* focus(dock ? cells(PANE_X - 0.3, 2.8, PANE_X + 48.3, 12.6) : cells(0.4, 14.8, CHAT - 1, 19), 1.4);
+  yield* focus(dock ? cells(PANE_X - 0.3, 2.8, PANE_X + 48.3, 16.2) : cells(0.4, 14.8, CHAT - 1, 19), 1.4);
 
   const repack = function* (name: string, per: number): ThreadGenerator {
     yield* typeHuman(`/glowup pack ${name}`, per);

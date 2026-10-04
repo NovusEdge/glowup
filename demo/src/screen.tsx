@@ -33,6 +33,7 @@ export class Claude {
   readonly model: Model = initialModel();
   readonly rows: number;
   tab: TabId = 'changes';
+  private bubbling = false;
   private dyn: Node;
   private box!: Rect;
   private cursor!: Rect;
@@ -128,10 +129,14 @@ export class Claude {
     if (this.form === 'dock') {
       const x0 = CHAT + GAP + 2;
       tabs(x0, 1);
+      // The status box grows upward while Clawd's bubble is up, as the footer does in hooks/pane.tsx,
+      // and the tab keeps the rows above it. Only the Changes tab is on screen while he talks.
+      const top = this.bubbling ? 13 : 17;
+      this.statusBox?.y((top + 0.5) * LH).height((26 - top) * LH);
       tabRows(this.model, this.tab, look, PANE_W - 4, false)
-        .slice(0, 9)
+        .slice(0, top - 3)
         .forEach((r, i) => drawSegs(T, this.dyn, x0, 3 + i, r));
-      statusRows(this.model, look, look.hp, PANE_W - 8).forEach((r, i) => drawSegs(T, this.dyn, x0 + 2, 14 + i, r));
+      statusRows(this.model, look, look.hp, PANE_W - 8).forEach((r, i) => drawSegs(T, this.dyn, x0 + 2, top + 1 + i, r));
       return;
     }
     tabs(1, 14);
@@ -182,6 +187,10 @@ export class Claude {
     const text = line(mood, index, vars);
     const key = mood === 'fail' ? 'fail' : mood === 'done' ? 'pass' : 'accent';
     this.bubbleText.text(text);
+    if (this.bubble) {
+      this.bubbling = true;
+      this.refresh();
+    }
     let node: {opacity: (v: number, s?: number) => unknown} = this.bubbleText;
     if (this.bubble && this.bubbleRect) {
       this.bubbleRect.width((text.length + 4) * CW).stroke(this.look.sig[key]);
@@ -192,5 +201,9 @@ export class Claude {
     yield* node.opacity(1, 0.15) as ThreadGenerator;
     yield* waitFor(hold);
     yield* node.opacity(0, 0.2) as ThreadGenerator;
+    if (this.bubble) {
+      this.bubbling = false;
+      this.refresh();
+    }
   }
 }
