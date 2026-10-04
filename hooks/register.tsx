@@ -121,6 +121,8 @@ function startBeat($: Engine) {
 // A winning copy whose store has no backup (the takeover was made by another copy
 // or an earlier install) still owns the file settings.json points at.
 async function syncTakeover($: Engine) {
+  // the first-run timer can fire after recheckGuard turned this copy off
+  if (off) return
   takenOver = (await hostOf($).storeGet(BACKUP_KEY)) !== undefined || await drawsStatusLine(hostOf($))
   writeStatus($, true)
   $.ui.status(statusEntry())
