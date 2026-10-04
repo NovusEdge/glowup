@@ -93,9 +93,15 @@ docs-dev:
     pnpm -C docs/web install --ignore-workspace
     pnpm -C docs/web dev
 
-# build the docs site and check its links
+# build the docs site, check it and run its tests
 [group('docs')]
-docs-build:
+docs-check:
     pnpm -C docs/web install --ignore-workspace
     pnpm -C docs/web build
     pnpm -C docs/web check
+    pnpm -C docs/web test
+
+# serve the built docs site like GitHub Pages does
+[group('docs')]
+docs-preview:
+    node docs/web/scripts/preview.ts

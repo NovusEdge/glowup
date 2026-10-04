@@ -10,5 +10,5 @@
     "verbatimModuleSyntax": true,
     "rootDirs": [".", "./.react-router/types"]
   },
-  "include": ["app", "scripts", "*.ts", ".react-router/types/**/*"]
+  "include": ["app", "scripts", "test", "*.ts", ".source/**/*", ".react-router/types/**/*"]
 }

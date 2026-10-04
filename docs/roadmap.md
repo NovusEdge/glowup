@@ -1,8 +1,6 @@
 ---
 title: Roadmap
 description: What glowup 0.2.0 does, and what is planned for later releases.
-order: 10
-section: More
 ---
 
 ## What 0.2.0 has

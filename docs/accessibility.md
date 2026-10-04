@@ -1,8 +1,6 @@
 ---
 title: Accessibility
 description: Reduced motion, the high-contrast theme, narrow terminals and terminals without color.
-order: 9
-section: More
 ---
 
 ## Reduced motion
