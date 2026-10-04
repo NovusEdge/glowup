@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { tierFor, fit, visibleLength, hearts, bar, ctxColor, toneColor, renderSegs, hpBar, comboSegs } from '../hooks/layout.tsx'
+import { tierFor, fit, visibleLength, hearts, toneColor, renderSegs, hpBar, comboSegs } from '../hooks/layout.tsx'
 import { resolveTheme } from '../hooks/themes.ts'
 import { resolveLook } from '../hooks/packs.ts'
 
@@ -52,14 +52,10 @@ test('fit never exceeds the width', async () => {
   expect(fit(segs, 7).map(s => s.text).join('')).toBe('abcdef…')
 })
 
-test('hearts and bars', async () => {
+test('hearts', async () => {
   expect(hearts(0, T).map(s => s.text).join('')).toBe('♥♥♥♥♥')
   expect(hearts(52, T).map(s => s.text).join('')).toBe('♥♥♥♡♡')
   expect(hearts(100, T).map(s => s.text).join('')).toBe('♡♡♡♡♡')
-  expect(bar(0.5, 10, '#fff', T).map(s => s.text).join('')).toBe('█████░░░░░')
-  expect(ctxColor(59, T)).toBe(T.colors.read)
-  expect(ctxColor(60, T)).toBe(T.colors.edit)
-  expect(ctxColor(80, T)).toBe(T.colors.fail)
 })
 
 test('width is measured in terminal cells', async () => {

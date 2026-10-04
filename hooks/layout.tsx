@@ -60,13 +60,6 @@ export function comboSegs(n: number, look?: Look): Seg[] {
   return gradient(` COMBO x${n} `, a, b).map(s => ({ ...s, bold: true }))
 }
 
-export function bar(fraction: number, width: number, color: string, t: Theme): Seg[] {
-  const n = Math.max(0, Math.min(width, Math.round(fraction * width)))
-  return [{ text: '█'.repeat(n), color }, { text: '░'.repeat(width - n), color: t.colors.faint }].filter(s => s.text)
-}
-
-export const ctxColor = (p: number, t: Theme) => p >= 80 ? t.colors.fail : p >= 60 ? t.colors.edit : t.colors.read
-
 // Act tones are a subset of the theme's color keys, so this is the one place they meet.
 export const toneColor = (t: Theme, tone: Act['tone']): string => t.colors[tone]
 

@@ -1,5 +1,5 @@
-import { test, expect, mock } from 'claude-code/testing'
-import { runGlowup, fakeHost, fakeFs } from './kit.ts'
+import { expect, mock } from 'claude-code/testing'
+import { runGlowup, fakeHost, fakeFs, test } from './kit.ts'
 import { runCommand, USAGE, type Ctl } from '../hooks/command.ts'
 import { SHORT_TEXT, FULL_TEXT, SECTIONS, DOCS_URL } from '../hooks/help.ts'
 import type { Mix } from '../hooks/packs.ts'
@@ -123,6 +123,7 @@ test('a subcommand with no argument answers with its current value, never Unknow
   expect(await ask('theme')).toBe(await ask('theme list'))
   expect(await ask('pet')).toBe(await ask('pet list'))
   expect(await ask('bubbles')).toContain('Bubbles: on')
+  expect(await ask('bubbles')).toContain('/glowup bubbles on|off|haiku')
   expect(await ask('motion')).toContain('Motion: full')
   expect(await ask('statusline')).toContain('/glowup statusline on')
   expect(await ask('import')).toContain('/glowup import <file>')

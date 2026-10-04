@@ -167,7 +167,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   if (sub === 'theme' && !a1) return runCommand(host, 'theme list', ctl)
   if (sub === 'pack' && !a1) return packList(host, ctl)
   if (sub === 'pet' && !a1) return runCommand(host, 'pet list', ctl)
-  if (sub === 'bubbles' && !a1) return `Bubbles: ${ctl.bubbles()}. Change it with /glowup bubbles on|off.`
+  if (sub === 'bubbles' && !a1) return `Bubbles: ${ctl.bubbles()}. Change it with /glowup bubbles on|off|haiku.`
   if (sub === 'motion' && !a1) return `Motion: ${ctl.reduced() ? 'reduced' : 'full'}. Change it with /glowup motion reduced|full.`
   if (sub === 'statusline' && !a1) return 'Use /glowup statusline on to let glowup draw it, or /glowup statusline restore to put yours back.'
   if (sub === 'import' && !a1) return 'Use /glowup import <file> with a Ghostty or base16 scheme; it becomes a pack.'
