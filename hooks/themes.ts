@@ -1,5 +1,5 @@
 import { PRESETS } from './presets.ts'
-import { cellWidth } from './layout.tsx'
+import { cellWidth } from './cells.ts'
 export { PRESETS }
 
 export const MAX_THEME_BYTES = 65536

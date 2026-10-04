@@ -1,18 +1,12 @@
 import type { Theme } from './themes.ts'
 import type { Act } from './model.ts'
+import { cellWidth } from './cells.ts'
 
 export type Tier = 'wide' | 'medium' | 'compact'
 export type Seg = { text: string; color: string; bold?: boolean; bg?: string }
 
 export const tierFor = (columns: number, paneDocked: boolean): Tier => paneDocked ? 'wide' : columns >= 80 ? 'medium' : 'compact'
-// Terminal cells of one code point; no wcwidth package is available to hooks.
-export function cellWidth(cp: number): 0 | 1 | 2 {
-  if ((cp >= 0x300 && cp <= 0x36f) || cp === 0x200d || (cp >= 0xfe00 && cp <= 0xfe0f)) return 0
-  if ((cp >= 0x1100 && cp <= 0x115f) || (cp >= 0x2e80 && cp <= 0xa4cf) || (cp >= 0xac00 && cp <= 0xd7a3) ||
-      (cp >= 0xf900 && cp <= 0xfaff) || (cp >= 0xfe30 && cp <= 0xfe4f) || (cp >= 0xff00 && cp <= 0xff60) ||
-      (cp >= 0xffe0 && cp <= 0xffe6) || (cp >= 0x1f300 && cp <= 0x1faff) || (cp >= 0x20000 && cp <= 0x3fffd)) return 2
-  return 1
-}
+export { cellWidth }
 const cells = (text: string) => [...text].reduce((n, c) => n + cellWidth(c.codePointAt(0)!), 0)
 export const visibleLength = (segs: Seg[]) => segs.reduce((n, s) => n + cells(s.text), 0)
 
