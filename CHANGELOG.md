@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - "Needs you" and Clawd's alert pose no longer show in auto, bypass and don't-ask modes, where no dialog opens.
+- The docked pane now pushes the status box and Clawd to the bottom instead of leaving them right under the tab content.
 
 ## [0.2.0] - 2026-10-04
 

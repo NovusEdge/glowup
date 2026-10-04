@@ -152,6 +152,13 @@ test('docked pane: the pet strip sits at the bottom, inside the pack border', as
   expect(walk(box)).toContain(PETNODE)
 })
 
+test('docked pane: the column is at least the visible body tall, so the status box lands at the bottom', async () => {
+  const outer = (extra: object, compact = false) => renderPane(els, M, T, { tab: 'changes' }, 54, compact, 0, () => {}, extra) as any
+  expect(outer({ minRows: 30 }).props.minHeight).toBe(30)
+  expect(outer({}).props.minHeight).toBeUndefined()
+  expect(outer({ minRows: undefined }, true).props.minHeight).toBeUndefined()
+})
+
 test('compact drawer: one row of pet, everything within COMPACT_ROWS and the width', async () => {
   for (const tab of ['changes', 'agents', 'plan'] as const) {
     const tree = renderPane(els, many(20), T, { tab }, 50, true, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, bubble: { text: 'a very long thing to say, far wider than the drawer can hold', mood: 'fail' } })

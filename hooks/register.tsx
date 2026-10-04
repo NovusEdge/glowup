@@ -614,6 +614,7 @@ export const register: Register = (on, options) => {
         </Box>
       )
     }
+    if (e.props.placement === 'dock') extra = { ...extra, minRows: e.props.scroll.bodyRows }
     return renderPane(els, live?.model ?? model, theme, v, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
       view = { ...view, tab: id }
       publish($)

@@ -118,7 +118,7 @@ export function statusRows(m: Model, base: Theme, width: number, look?: Look): S
 
 // The pet node is the ready Client element register.tsx builds; the pane only places it.
 // rows is the strip height: PET_ROWS, or two more while an outfit needs headroom.
-export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Mood }; friday?: boolean }
+export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Mood }; friday?: boolean; minRows?: number }
 export const PET_STRIP_COLS = 46
 const BUBBLE_ROOM = 16
 
@@ -171,7 +171,8 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
   // the drawer shows a tab strip, the tab content and one pet row, all within COMPACT_ROWS
   const rowsLeft = compact && extra?.pet ? COMPACT_ROWS - 2 : COMPACT_ROWS
   return (
-    <Box flexDirection="column" width={width}>
+    // minHeight, not height: the grown tab content pushes the status box down, and a taller tree still scrolls
+    <Box flexDirection="column" width={width} minHeight={compact ? undefined : extra?.minRows}>
       <Box flexDirection="row" gap={1}>
         {TABS.map(([id, label], i) => <Button key={'tab-' + id} label={label} hotkey={String(i + 1)} variant={v.tab === id ? 'primary' : undefined} dimColor={v.tab !== id} onPress={() => onTab(id)} />)}
       </Box>
