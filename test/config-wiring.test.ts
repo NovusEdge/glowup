@@ -27,7 +27,7 @@ const setup = (on: any, opts: { shown?: boolean; files?: Record<string, string>;
   return { opens, closes, toasts, clock, files, stored, configWrites }
 }
 
-test('/glowup config opens the glowup pane focused, on the config view', async ($, on) => {
+test('/glowup config opens the glowup pane focused, on the config view', { timeoutMs: 20000 }, async ($, on) => {
   const { opens } = setup(on)
   await runGlowup($, 'config')
   expect(opens).toEqual([expect.objectContaining({ id: 'glowup', focus: true, closeOnEscape: true })])

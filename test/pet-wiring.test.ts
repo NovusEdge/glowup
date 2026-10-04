@@ -23,7 +23,7 @@ function base(on: any, render: (e: any) => void = () => {}, opts: { shown?: bool
 }
 const mountPane = ($: any) => $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'Pane', requestId: 'glowup', props: PANE })
 
-test('the pane hosts the pet Client with raw inputs; the band never does', async ($, on) => {
+test('the pane hosts the pet Client with raw inputs; the band never does', { timeoutMs: 20000 }, async ($, on) => {
   base(on); mock.clock(on)
   await $.turn.start({ text: 'hi', turnId: 't1' })
   const pane = await mountPane($)

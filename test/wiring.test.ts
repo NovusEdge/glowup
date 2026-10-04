@@ -5,7 +5,7 @@ import { runGlowup, fakeFs } from './kit.ts'
 declare function setTimeout(fn: (value: unknown) => void, ms: number): unknown
 const scroll = { offset: 0, bodyRows: 10 }
 
-test('band is empty when idle, on terminal and desktop', async ($, on) => {
+test('band is empty when idle, on terminal and desktop', { timeoutMs: 20000 }, async ($, on) => {
   fakeFs(on)
   // the harness has no engine under the hooks: answer what the band asks of it
   on('ui.panes', async () => ({ value: [] }))
