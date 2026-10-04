@@ -57,7 +57,7 @@ The band hides while the feedback survey shows, and while you view a subagent's 
 
 ## The tabs
 
-The pane has three tabs. Press the number key, or click the tab. In the wide pane, a bordered box under the tabs shows the current action, the context hearts and the running subagents.
+The pane has three tabs. Press the number key, or click the tab. In the wide pane, a bordered box under the tabs shows the current action, a row of hearts and the running subagents. These hearts track your usage, not context, which the Plan & context tab already charts: they show the 5-hour or weekly limit, whichever has less left, for example `♥♥♡♡♡  weekly limit 38% left`. A session on an API key has no limits, so the row shows what the session has spent, `$4.20 spent this session`. Before the first usage reading arrives, it falls back to context.
 
 In the docked pane, each tab is drawn as a box in the shape of the pack's `border`, with the section name and its counts in the top edge. The compact drawer has no boxes.
 
