@@ -1,7 +1,7 @@
 import { describeTool, testOutcome, planFrom, editCounts, type PlanItem } from './events.ts'
 export type { PlanItem }
 
-export type Act = { glyph: string; label: string; tone: 'text' | 'dim' | 'read' | 'edit' | 'shell' | 'agent' | 'pass' | 'fail' | 'accent' }
+export type Act = { glyph: string; label: string; kind?: string; tone: 'text' | 'dim' | 'read' | 'edit' | 'shell' | 'agent' | 'pass' | 'fail' | 'accent' }
 export type Agent = { key: string; agentId?: string; name: string; task: string; state: 'running' | 'done'; startedAt: number; endedAt?: number; tokens?: number; now?: string }
 export type FileTouch = { path: string; add: number; del: number; how: 'read' | 'edit' | 'new'; at: number }
 export type NeedsYou = { toolUseId: string; what: string; before: Act }
@@ -91,7 +91,7 @@ export function applyEvent(m: Model, ev: Ev): Model {
             startedAt: ev.at,
           }]
         : m.agents
-      const act: Act = { glyph: GLYPH[d.kind], label: d.label, tone: TONE[d.kind]! }
+      const act: Act = { glyph: GLYPH[d.kind], label: d.label, kind: d.kind, tone: TONE[d.kind]! }
       // a parallel call must not hide an open question; it becomes what shows after the answer
       if (m.needsYou) return { ...m, agents, needsYou: { ...m.needsYou, before: act } }
       const changed = act.glyph !== m.act.glyph || act.label !== m.act.label

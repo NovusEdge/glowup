@@ -1,6 +1,6 @@
 // The loader reads this file alone, so it cannot import: Model and PaneView are
 // mirrored here by JSON shape (hooks/model.ts, hooks/pane.tsx) and cast at the get.
-export type GlowupAct = { glyph: string; label: string; tone: 'text' | 'dim' | 'read' | 'edit' | 'shell' | 'agent' | 'pass' | 'fail' | 'accent' }
+export type GlowupAct = { glyph: string; label: string; kind?: string; tone: 'text' | 'dim' | 'read' | 'edit' | 'shell' | 'agent' | 'pass' | 'fail' | 'accent' }
 export type GlowupAgent = { key: string; agentId?: string; name: string; task: string; state: 'running' | 'done'; startedAt: number; endedAt?: number; tokens?: number; now?: string }
 export type GlowupFileTouch = { path: string; add: number; del: number; how: 'read' | 'edit' | 'new'; at: number }
 export type GlowupPlanItem = { id: string; title: string; status: 'pending' | 'in_progress' | 'completed' }

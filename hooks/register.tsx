@@ -14,7 +14,8 @@ import { renderBand } from './band.tsx'
 import { renderPane, petStripCols, type PaneExtra, type PaneView, type TabId } from './pane.tsx'
 import { spinnerWord, newTurnWord } from './restyle.ts'
 import { styleRow } from './rows.tsx'
-import { orbStateOf, usesOwnSpinner, spinnerProps, spinnerLine } from './spinner.ts'
+import { orbStateOf, usesOwnSpinner, checkedSpinnerProps } from './spinner.ts'
+import type { PetClientProps } from './client/pet.tsx'
 import type { OrbState } from './motion.ts'
 import { statusText, writeStatusFile, BACKUP_KEY } from './statusline.ts'
 import { runCommand, type Ctl } from './command.ts'
@@ -112,11 +113,12 @@ const statusEntry = () => !takenOver && isBusy(model) ? statusText(model, theme)
 
 const petOn = () => pet !== 'off' && !reducedMotion
 
-// The glyph is the only place the model keeps what Claude is doing.
-const KIND_OF: Record<string, PetKind> = { '▸': 'read', '⌕': 'search', '✎': 'edit', '$': 'shell', '◆': 'agent', '◇': 'plan' }
+const PET_KINDS: readonly string[] = ['read', 'search', 'edit', 'shell', 'agent', 'plan']
+// Hats sit above the canvas; held and side outfits fit inside it.
+const HEAD_OUTFITS = ['santa', 'party', 'nightcap']
 const petInput = (): PetInput => ({
   working: model.working,
-  kind: model.working ? KIND_OF[model.act.glyph] ?? 'think' : undefined,
+  kind: model.working ? (PET_KINDS.includes(model.act.kind ?? '') ? model.act.kind as PetKind : 'think') : undefined,
   needsYou: !!model.needsYou,
   lastTest: model.lastTest,
   doneAt: model.doneAt,
@@ -372,7 +374,7 @@ export const register: Register = (on, options) => {
     if (!e.tool_use_id) return next(e)
     const input = e as unknown as Record<string, unknown>
     const toolUseId = e.tool_use_id
-    if (!e.agentId && e.tool === 'Bash' && typeof input.command === 'string' && fridayDeploy(input.command, localTime(Date.now(), tzOffset))) friday = true
+    if (!e.agentId && e.tool === 'Bash' && typeof input.command === 'string' && fridayDeploy(input.command, localTime(await $.clock.now(), tzOffset))) friday = true
     feed($, { type: 'tool-start', at: Date.now(), tool: e.tool, toolUseId, agentId: e.agentId, input })
     const ran = await next(e)
     const denied = ran.deny !== undefined
@@ -464,7 +466,7 @@ export const register: Register = (on, options) => {
     const below = await next(e)
     const els = $.ui.resolve(e)
     const live = (await $.state.get(BAND)).value as { model: Model } | undefined
-    const mine = renderBand(els, live?.model ?? model, theme, e.props.bodyColumns, tier, Date.now())
+    const mine = renderBand(els, live?.model ?? model, theme, e.props.bodyColumns, tier, Date.now(), { look })
     if (!mine) return below
     // other mods draw bands here too: stack ours on top instead of replacing theirs
     const { Box } = els
@@ -478,14 +480,15 @@ export const register: Register = (on, options) => {
     const compact = e.props.placement === 'inline' && e.props.bodyColumns < 80
     const v: PaneView = { ...(live?.view ?? view), reduced: reducedMotion }
     const els = $.ui.resolve(e)
-    let extra: PaneExtra | undefined
+    // the look always applies; the pet and its words only while he is on
+    let extra: PaneExtra = { look }
     if (petOn() && (e.surface === 'terminal' || e.surface === 'desktop')) {
       const snap = ((await $.state.get(PET)).value as PetSnap | undefined) ?? petSnap()
       const { Client } = $.ui.resolve(e)
-      const props = { pet, input: snap.input, overlays: snap.overlays, reduced: reducedMotion, compact, width: petStripCols(e.props.bodyColumns) }
+      const props: PetClientProps = { pet: pet as PetId, input: snap.input, overlays: snap.overlays, reduced: reducedMotion, compact, width: petStripCols(e.props.bodyColumns) }
       const node = <Client key="glowup-pet" module="./client/pet.tsx" props={props} />
       const bubbleNow = snap.bubble && snap.bubble.until > Date.now() ? snap.bubble : undefined
-      extra = { pet: { id: pet as PetId, node, rows: snap.overlays.length ? PET_ROWS + 2 : undefined }, bubble: bubbleNow, friday: snap.friday }
+      extra = { look, pet: { id: pet as PetId, node, rows: snap.overlays.some(o => HEAD_OUTFITS.includes(o)) ? PET_ROWS + 2 : undefined }, bubble: bubbleNow, friday: snap.friday }
     }
     return renderPane(els, live?.model ?? model, theme, v, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
       view = { ...view, tab: id }
@@ -499,13 +502,11 @@ export const register: Register = (on, options) => {
     if (!usesOwnSpinner(look, reducedMotion, e.props.message) || (e.surface !== 'terminal' && e.surface !== 'desktop')) {
       return next({ ...e, props: { ...e.props, word } })
     }
-    // A throw inside a Client unmounts it to a blank region, so everything it will
-    // run is exercised here first and any failure keeps the engine line.
     try {
       const live = (await $.state.get(SPIN)).value
       const input = { word, turnAt: live?.turnAt || Date.now(), detail: live?.detail ?? model.act.label, state: (live?.state ?? orbStateOf(model)) as OrbState }
-      const props = spinnerProps(look, input, reducedMotion)
-      spinnerLine(props.look, props.input, Date.now())
+      const props = checkedSpinnerProps(look, input, reducedMotion, Date.now())
+      if (!props) return next(e)
       const { Client } = $.ui.resolve(e)
       return <Client key="glowup-spinner" module="./client/spinner.tsx" props={props} />
     } catch {
