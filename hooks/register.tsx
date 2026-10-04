@@ -6,7 +6,7 @@ import { gitBase, refreshCounts } from './changes.ts'
 import { tierFor } from './layout.tsx'
 import { renderBand } from './band.tsx'
 import { renderPane, type PaneView, type TabId } from './pane.tsx'
-import { spinnerWord, newTurnWord } from './restyle.ts'
+import { spinnerWord, newTurnWord, toolGlyph } from './restyle.ts'
 import { statusText, writeStatusFile, BACKUP_KEY } from './statusline.ts'
 import { runCommand, type Ctl } from './command.ts'
 import { loadUserThemes } from './userthemes.ts'
@@ -251,6 +251,14 @@ export const register: Register = (on, options) => {
   })
 
   on('ui.render', { component: 'Spinner' }, async ($, e, next) => next({ ...e, props: { ...e.props, word: spinnerWord(theme, e.props.word, reducedMotion) } }))
+
+  on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
+    const row = await next(e)
+    const g = !e.props.isRunning && toolGlyph(theme, e.props.tool)
+    if (!g) return row
+    const { Box, Text } = $.ui.resolve(e)
+    return <Box flexDirection="row">{row}<Text color={g.color}>{'  ' + g.glyph}</Text></Box>
+  })
 
   on('command.run', { command: 'glowup' }, async ($, e) => {
     const text = await runCommand(hostOf($), e.args, ctlOf($))
