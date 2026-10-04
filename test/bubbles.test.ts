@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { fill, pickLine, bubbleFor, sanitizeLine, haikuPrompt, haikuLimit, wrapBubble, HaikuGate, CLAWD_SAY } from '../hooks/bubbles.ts'
+import { fill, pickLine, bubbleFor, sanitizeLine, haikuPrompt, haikuLimit, wrapBubble, HaikuGate, kindWords, CLAWD_SAY } from '../hooks/bubbles.ts'
 
 test('fill replaces placeholders, strips unsafe characters and caps at 40', async () => {
   expect(fill('{n}/{n} green', { n: 12 })).toBe('12/12 green')
@@ -46,16 +46,26 @@ test('haikuPrompt carries only glowup state, capped', async () => {
 
 test('the gate allows one call in flight, one per turn, 90 s apart', async () => {
   const g = new HaikuGate()
-  expect(g.take(1, 1000)).toBe(true)
-  expect(g.take(1, 1000)).toBe(false)
+  let at = -Infinity
+  const take = (turn: number, now: number) => { const ok = g.take(turn, now, at); if (ok) at = now; return ok }
+  expect(take(1, 1000)).toBe(true)
+  expect(take(1, 1000)).toBe(false)
   g.done()
-  expect(g.take(1, 1000)).toBe(false)
-  expect(g.take(2, 1000 + 89_999)).toBe(false)
-  expect(g.take(2, 1000 + 90_000)).toBe(true)
+  expect(take(1, 1000)).toBe(false)
+  expect(take(2, 1000 + 89_999)).toBe(false)
+  expect(take(2, 1000 + 90_000)).toBe(true)
   g.reset()
-  expect(g.take(3, 1000 + 90_001)).toBe(false)
+  expect(take(3, 1000 + 90_001)).toBe(false)
   g.done()
-  expect(g.take(3, 1000 + 180_000)).toBe(true)
+  expect(take(3, 1000 + 180_000)).toBe(true)
+  expect(new HaikuGate().take(1, 5000, 5000 - 89_999)).toBe(false)
+})
+
+test('kind words name the kind of work and nothing the person typed', async () => {
+  expect(kindWords('edit')).toBe('editing a file')
+  expect(kindWords('shell')).toBe('running a command')
+  expect(kindWords('think')).toBeUndefined()
+  expect(kindWords(undefined)).toBeUndefined()
 })
 
 test('wrapBubble wraps at spaces and cuts at a word with an ellipsis', async () => {

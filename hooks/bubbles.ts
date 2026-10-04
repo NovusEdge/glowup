@@ -55,14 +55,20 @@ export function sanitizeLine(raw: string, limit = BUBBLE_MAX): string {
   return [...clean.replace(/\s+/g, ' ').trim().replace(/^['‘’]+|['‘’]+$/g, '')].slice(0, Math.min(limit, BUBBLE_MAX)).join('').trim()
 }
 
-// One call in flight, one per turn, a cooldown between calls.
+// Kind words only: the act's label carries commands, paths and patterns the model must not see.
+const KIND_WORDS: Record<string, string> = {
+  read: 'reading files', search: 'searching', edit: 'editing a file', shell: 'running a command', agent: 'running a subagent', plan: 'planning',
+}
+export const kindWords = (kind: string | undefined) => kind === undefined ? undefined : KIND_WORDS[kind]
+
+// One call in flight, one per turn, a cooldown between calls. The caller keeps the time of
+// the last call (it survives a hot reload; this object does not) and passes it in.
 export class HaikuGate {
   private inFlight = false
-  private lastAt = -Infinity
   private lastTurn = -1
-  take(turn: number, now: number): boolean {
-    if (this.inFlight || turn === this.lastTurn || now - this.lastAt < HAIKU_COOLDOWN_MS) return false
-    this.inFlight = true; this.lastAt = now; this.lastTurn = turn
+  take(turn: number, now: number, lastAt: number): boolean {
+    if (this.inFlight || turn === this.lastTurn || now - lastAt < HAIKU_COOLDOWN_MS) return false
+    this.inFlight = true; this.lastTurn = turn
     return true
   }
   done() { this.inFlight = false }

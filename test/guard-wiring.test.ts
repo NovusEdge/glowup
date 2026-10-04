@@ -1,6 +1,6 @@
-import { test, expect, mock } from 'claude-code/testing'
+import { expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
-import { fakeFs } from './kit.ts'
+import { fakeFs, test } from './kit.ts'
 
 declare function setTimeout(fn: (value: unknown) => void, ms: number): unknown
 const scroll = { offset: 0, bodyRows: 10 }
@@ -100,6 +100,22 @@ test('a copy that registers late and sorts first turns this one off at the next 
   const seen = mineWrites(writes)
   await clock.advance(180_000)
   expect(mineWrites(writes)).toBe(seen)
+})
+
+test('going off cancels a pending plan reload', async ($, on) => {
+  const { files } = boot(on, {})
+  const clock = mock.clock(on)
+  let reads = 0
+  Object.defineProperty(files, '/fake/.claude/tasks/r/1.json', { enumerable: true, configurable: true, get: () => { reads++; return '{"id":"1","subject":"a","status":"pending"}' } })
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  await clock.advance(10)
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  reads = 0
+  await $.tool.call({ tool: 'TaskUpdate', tool_use_id: 'u1', taskId: '1', status: 'pending' } as never)
+  files[`${DIR}/s1.bb.json`] = entry('/elsewhere/glowup', Date.now() - 10_000)
+  await $.turn.start({ text: 'again', turnId: 't2' })
+  await clock.advance(400)
+  expect(reads).toBe(0)
 })
 
 test('after /clear the copy registers under the new id, and a copy that got there first still wins', async ($, on) => {

@@ -1,6 +1,6 @@
-import { test, expect, mock } from 'claude-code/testing'
+import { expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
-import { runGlowup, fakeFs } from './kit.ts'
+import { runGlowup, fakeFs, test } from './kit.ts'
 import { CLAWD_SAY } from '../hooks/bubbles.ts'
 
 const ENGINE_ROW = { type: 'Text', props: {}, children: ['engine row'] } as RenderElement
@@ -15,21 +15,23 @@ const answer = (t: string) => ({ isAnswered: true, text: t, usage: {} })
 
 function rig(on: any, model: Model, opts: { interactive?: boolean } = {}) {
   const prompts: any[] = []
+  // a test sets hold.panes to freeze say() at its panes check, and hold.tool to freeze a HANG tool call
+  const hold: { panes?: Promise<void>; tool?: Promise<void> } = {}
   fakeFs(on, {})
   mock.store(on)
   on('ui.render', async () => ENGINE_ROW)
-  on('ui.panes', async () => ({ value: [{ id: 'glowup', isShown: true, isPlaced: true }] }))
+  on('ui.panes', async () => { await hold.panes; return { value: [{ id: 'glowup', isShown: true, isPlaced: true }] } })
   on('ui.status', async () => ({ value: undefined }) as never)
   on('ui.toast', async () => ({ value: undefined }) as never)
   on('session.id', async () => ({ value: 's1' }))
   on('session.usage', async () => ({ value: { context: { window: 1000, percent: 10 } } as never }))
   on('turn.start', async (_$: unknown, e: any) => ({ turnId: e.turnId }))
-  on('tool.call', async () => ({ result: {}, text: 'Tests: 3 failed, 9 passed' }) as never)
+  on('tool.call', async (_$: unknown, e: any) => { if (String(e.command).includes('HANG')) await hold.tool; return { result: {}, text: 'Tests: 3 failed, 9 passed' } as never })
   on('ui.log', async () => ({ value: undefined }) as never)
   on('command.register', async () => ({ value: undefined }) as never)
   on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
   on('model.complete', async (_$: unknown, e: any) => { prompts.push(e); return { value: await model(e) } as never })
-  return { prompts, start: ($: any) => $.session.start({ cwd: '/secret/project', surface: 'terminal', isInteractive: opts.interactive ?? true }) }
+  return { prompts, hold, start: ($: any) => $.session.start({ cwd: '/secret/project', surface: 'terminal', isInteractive: opts.interactive ?? true }) }
 }
 const failTurn = async ($: any, id: string, prompt = 'hi') => {
   await $.turn.start({ text: prompt, turnId: id })
@@ -131,6 +133,83 @@ test('-p, pet off and reduced motion use templates only', async ($, on) => {
     await runGlowup($, cmd === 'pet off' ? 'pet clawd' : 'motion full')
   }
   expect(p.prompts).toHaveLength(0)
+})
+
+test('a line that lands before the bubble clears shows for the full 3 s from then', async ($, on) => {
+  let release!: () => void
+  const gate = new Promise<void>(r => { release = r })
+  const r = rig(on, async () => { await gate; return answer('late but paid for') }); const clock = mock.clock(on)
+  await r.start($); await runGlowup($, 'bubbles haiku')
+  await failTurn($, 't1'); await flush(clock)
+  await clock.advance(2500)
+  release(); await flush(clock)
+  expect(await body($)).toContain('late but paid for')
+  await clock.advance(2500)
+  expect(await body($)).toContain('late but paid for')
+  await clock.advance(700)
+  expect(await body($)).not.toContain('late but paid for')
+})
+
+test('a bubble that is already cleared stays cleared when its line lands', async ($, on) => {
+  let release!: () => void
+  const gate = new Promise<void>(r => { release = r })
+  const r = rig(on, async () => { await gate; return answer('too late') }); const clock = mock.clock(on)
+  await r.start($); await runGlowup($, 'bubbles haiku')
+  await failTurn($, 't1'); await flush(clock)
+  await clock.advance(3500)
+  release(); await flush(clock); await clock.advance(1000)
+  expect(await body($)).not.toContain('too late')
+})
+
+test('a tool start racing the call cannot change the prompt, and no prompt holds a command or pattern', async ($, on) => {
+  const r = rig(on, async () => answer('ok')); const clock = mock.clock(on)
+  let freeze!: () => void, thaw!: () => void
+  r.hold.panes = new Promise<void>(res => { freeze = res })
+  r.hold.tool = new Promise<void>(res => { thaw = res })
+  await r.start($); await runGlowup($, 'bubbles haiku')
+  await failTurn($, 't1')
+  const racing = $.tool.call({ tool: 'Bash', tool_use_id: 'z', command: 'grep SECRETPATTERN src HANG' } as never)
+  await flush(clock)
+  freeze(); await flush(clock)
+  expect(r.prompts).toHaveLength(1)
+  const sent = `${r.prompts[0].system}\n${r.prompts[0].prompt}`
+  for (const bad of ['SECRETPATTERN', 'HANG', 'grep', 'npm', 'src']) expect(sent).not.toContain(bad)
+  // the snapshot is the moment of the failure, not the grep that began after it
+  expect(r.prompts[0].prompt).toMatch(/^mood: fail\npose: think\ntests: failed 3\n/)
+  thaw(); await racing
+})
+
+test('a needs-you prompt names no command', async ($, on) => {
+  const r = rig(on, async () => answer('ok')); const clock = mock.clock(on)
+  on('classic.PermissionRequest', async () => ({}) as never)
+  await r.start($); await runGlowup($, 'bubbles haiku')
+  await $.turn.start({ text: 'hi', turnId: 'n1' })
+  let thaw!: () => void
+  r.hold.tool = new Promise<void>(res => { thaw = res })
+  const call = $.tool.call({ tool: 'Bash', tool_use_id: 'w', command: 'rm -rf SECRETDIR HANG' } as never)
+  await flush(clock)
+  await $.classic.PermissionRequest({ tool_name: 'Bash', tool_input: { command: 'rm -rf SECRETDIR HANG' }, permission_mode: 'default' } as never)
+  await flush(clock)
+  expect(r.prompts).toHaveLength(1)
+  expect(r.prompts[0].prompt).toContain('mood: needs-you')
+  expect(`${r.prompts[0].prompt}`).not.toContain('SECRETDIR')
+  expect(`${r.prompts[0].prompt}`).not.toContain('rm')
+  thaw(); await call
+})
+
+test('the cooldown survives a hot reload: the last call time lives in $.state', async ($, on) => {
+  const r = rig(on, async () => answer('hmm')); const clock = mock.clock(on)
+  // a call "just made" by the copy this one replaced, whatever the mock clock reads
+  const mem = new Map<string, unknown>([['glowup/haiku', { lastAt: Number.MAX_SAFE_INTEGER }]])
+  on('state.get', async (_$: unknown, e: any) => ({ value: { value: mem.get(`${e.plugin}/${e.key}`), version: 1 } }) as never)
+  on('state.set', async (_$: unknown, e: any) => { mem.set(`${e.plugin}/${e.key}`, e.value); return { value: { isSet: true, version: 1 } } as never })
+  await r.start($); await runGlowup($, 'bubbles haiku')
+  await failTurn($, 't1'); await flush(clock)
+  expect(r.prompts).toHaveLength(0)
+  mem.set('glowup/haiku', { lastAt: -1e12 })
+  await failTurn($, 't2'); await flush(clock)
+  expect(r.prompts).toHaveLength(1)
+  expect((mem.get('glowup/haiku') as { lastAt: number }).lastAt).toBeGreaterThan(-1e12)
 })
 
 test('the prompt holds glowup state only: no prompt text, cwd or file contents', async ($, on) => {

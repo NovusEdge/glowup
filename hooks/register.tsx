@@ -6,7 +6,7 @@ import type { Theme } from './themes.ts'
 import { resolveLook, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { loadUserPacks } from './userpacks.ts'
 import { PET_ROWS, type PetSetting, type PetId, type PetInput, type PetKind } from './pets.ts'
-import { bubbleFor, BUBBLE_SETTINGS, daypart, haikuLimit, haikuPrompt, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, type BubbleSetting, type BubbleVars, type Mood } from './bubbles.ts'
+import { bubbleFor, BUBBLE_SETTINGS, daypart, haikuLimit, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
 import { recordPass, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { gitBase, refreshCounts, serial } from './changes.ts'
 import { loadTasks, taskListId } from './tasks.ts'
@@ -33,6 +33,7 @@ const BAND = { plugin: 'glowup', key: 'band' } as const
 const PANE = { plugin: 'glowup', key: 'pane' } as const
 const SPIN = { plugin: 'glowup', key: 'spinner' } as const
 const PET = { plugin: 'glowup', key: 'pet' } as const
+const HAIKU = { plugin: 'glowup', key: 'haiku' } as const
 
 // Module state: one session per process. A hot reload starts it over, which only
 // loses the in-flight session's view (settings and takeover state live in $.store).
@@ -73,6 +74,8 @@ let bubble: Bubble | undefined
 let lastTemplate: string | undefined
 const haikuGate = new HaikuGate()
 let haikuAbort: AbortController | undefined
+let bubbleTimer: Timer | undefined
+const BUBBLE_MS = 3000
 let turnNo = 0
 // Characters the last drawn pane can show in a bubble; 40 until a pane has drawn.
 let bubbleCap = 40
@@ -93,6 +96,7 @@ function hostOf($: Engine): Host {
     writeFile: (path, text) => $.fs.write(path, text),
     exists: path => $.fs.exists(path),
     listDir: async path => (await $.fs.list(path)).map(e => e.name),
+    listFiles: async path => (await $.fs.list(path)).map(e => ({ name: e.name, size: e.size })),
     fetchText: url => new Promise((resolve, reject) => {
       // a stalled server must not hold a /glowup command open
       const timer = $.clock.after(10_000, () => reject(new Error('timed out after 10 s')))
@@ -192,22 +196,24 @@ function cancelHaiku() {
   haikuGate.reset()
 }
 // The template is already up; Haiku's line replaces it only if it lands while that bubble is still showing.
-async function askHaiku($: Engine, mine: Bubble, mood: Mood, vars: BubbleVars) {
-  if (bubbles !== 'haiku' || !interactive || !petOn() || !haikuGate.take(turnNo, await $.clock.now())) return
+// `ctx` was read from the model in say() before its first await: a tool that starts meanwhile must not change what Haiku is told.
+async function askHaiku($: Engine, mine: Bubble, ctx: HaikuContext) {
+  if (bubbles !== 'haiku' || !interactive || !petOn()) return
+  let now: number, lastAt: number
+  try {
+    now = await $.clock.now()
+    // in $.state, not a module variable: a hot reload would otherwise allow one more call in the same window
+    lastAt = ((await $.state.get(HAIKU)).value as { lastAt: number } | undefined)?.lastAt ?? -Infinity
+  } catch { return }
+  if (!haikuGate.take(turnNo, now, lastAt)) return
+  void $.state.set(HAIKU, { lastAt: now })
   const stop = new AbortController()
   haikuAbort = stop
   // the abort race below is what ends a call the engine never settles; timeoutMs only bounds the request itself
   const timer = $.clock.after(HAIKU_TIMEOUT_MS, () => stop.abort())
-  const limit = bubbleCap
+  const limit = ctx.limit ?? bubbleCap
   try {
-    const { system, prompt } = haikuPrompt({
-      mood,
-      pose: model.working ? (PET_KINDS.includes(model.act.kind ?? '') ? model.act.kind! : 'think') : 'idle',
-      label: mood === 'needs-you' ? (vars.command ? `needs approval: ${vars.command}` : undefined) : model.working && model.act.kind ? model.act.label : undefined,
-      tests: mood === 'fail' ? (vars.n === undefined ? 'failed' : `failed ${vars.n}`) : model.lastTest ? (model.lastTest.passed ? 'passed' : 'failed') : undefined,
-      daypart: daypart(localTime(Date.now(), tzOffset).hour),
-      limit,
-    })
+    const { system, prompt } = haikuPrompt(ctx)
     const aborted = new Promise<undefined>(r => stop.signal.addEventListener('abort', () => r(undefined)))
     const r = await Promise.race([$.model.complete({ model: HAIKU_MODEL, system, prompt, maxTokens: 40, effort: 'low', timeoutMs: HAIKU_TIMEOUT_MS }, { signal: stop.signal }), aborted])
     if (!r) { $.ui.log('haiku bubble: timed out or cancelled', { to: 'debug' }); return }
@@ -215,6 +221,7 @@ async function askHaiku($: Engine, mine: Bubble, mood: Mood, vars: BubbleVars) {
     const text = sanitizeLine(r.text, limit)
     if (!text || off || bubbles !== 'haiku' || !petOn() || bubble !== mine) return
     mine.text = text
+    armBubble($, mine)
     publishPet($)
   } catch (err) {
     $.ui.log(`haiku bubble failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
@@ -224,19 +231,39 @@ async function askHaiku($: Engine, mine: Bubble, mood: Mood, vars: BubbleVars) {
   }
 }
 
+// One clear timer for the one bubble: arming again (a new bubble, or Haiku's line landing)
+// replaces it, and the bubble then shows for the full BUBBLE_MS from that moment.
+function armBubble($: Engine, mine: Bubble) {
+  mine.until = Date.now() + BUBBLE_MS
+  bubbleTimer?.cancel()
+  bubbleTimer = $.clock.after(BUBBLE_MS + 100, () => {
+    bubbleTimer = undefined
+    if (bubble === mine) { bubble = undefined; publishPet($) }
+  })
+}
+
 async function say($: Engine, mood: Mood, vars: BubbleVars) {
   if (bubbles === 'off' || !petOn()) return
+  // Kind words only, never the act's label: it holds commands, paths and patterns.
+  const ctx: HaikuContext = {
+    mood,
+    pose: model.working ? (PET_KINDS.includes(model.act.kind ?? '') ? model.act.kind! : 'think') : 'idle',
+    label: mood === 'needs-you' ? 'waiting for approval' : model.working ? kindWords(model.act.kind) : undefined,
+    tests: mood === 'fail' ? (vars.n === undefined ? 'failed' : `failed ${vars.n}`) : model.lastTest ? (model.lastTest.passed ? 'passed' : 'failed') : undefined,
+    daypart: daypart(localTime(Date.now(), tzOffset).hour),
+    limit: bubbleCap,
+  }
   try {
     // a closed pane shows nobody the bubble
     if (!(await $.ui.panes()).some(p => p.id === 'glowup' && p.isShown)) return
   } catch { return }
   const line = bubbleFor(mood, vars, lastTemplate, Math.random)
   lastTemplate = line.template
-  const mine: Bubble = { text: line.text, mood, until: Date.now() + 3000 }
+  const mine: Bubble = { text: line.text, mood, until: 0 }
   bubble = mine
+  armBubble($, mine)
   publishPet($)
-  $.clock.after(3100, () => { if (bubble === mine) { bubble = undefined; publishPet($) } })
-  void askHaiku($, mine, mood, vars)
+  void askHaiku($, mine, ctx)
 }
 function moodOf(old: Model, now: Model, ev: Ev): { mood: Mood; vars: BubbleVars } | undefined {
   if (now.needsYou && !old.needsYou) return { mood: 'needs-you', vars: { command: now.needsYou.what.replace(/^approve /, '').split(/\s+/)[0] } }
@@ -429,6 +456,8 @@ function goOff($: Engine, winner: string) {
   cancelHaiku()
   ticker?.cancel(); ticker = undefined
   beatTimer?.cancel(); beatTimer = undefined
+  planTimer?.cancel(); planTimer = undefined
+  bubbleTimer?.cancel(); bubbleTimer = undefined
   takenOver = false
   $.ui.status(undefined)
   $.ui.toast(`glowup is loaded twice (${guardRoot} and ${winner}); this copy is off. Disable one: claude plugin disable glowup@glowup`)
@@ -575,11 +604,14 @@ export const register: Register = (on, options) => {
   // The one signal that a dialog is on screen. tool.check's `ask` is not it: that hands the call
   // to the mode's decider, and in auto mode the classifier answers with no one asked.
   on('classic.PermissionRequest', async ($, e, next) => {
-    if (!off && modeAsksPerson(e.permission_mode)) {
+    if (off) return next(e)
+    // A hook below may answer the request itself, and then no dialog opens.
+    const r = await next(e)
+    if (!r?.decision && modeAsksPerson(e.permission_mode)) {
       const id = dialogCall(flying, e.tool_name, e.tool_input)
       if (id) feed($, { type: 'needs-you', at: Date.now(), toolUseId: id, what: approvalLabel(e.tool_name, (e.tool_input ?? {}) as Record<string, unknown>) })
     }
-    return next(e)
+    return r
   })
 
   on('agent.spawn', async ($, e, next) => {

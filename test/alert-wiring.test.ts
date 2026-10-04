@@ -1,6 +1,6 @@
-import { test, expect, mock } from 'claude-code/testing'
+import { expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
-import { fakeFs } from './kit.ts'
+import { fakeFs, test } from './kit.ts'
 
 const ENGINE_ROW = { type: 'Text', props: {}, children: ['engine row'] } as RenderElement
 const scroll = { offset: 0, bodyRows: 20 }
@@ -24,7 +24,7 @@ function arm() {
   return armed
 }
 
-function base(on: any) {
+function base(on: any, permissionAnswer: object = {}) {
   fakeFs(on); mock.store(on); mock.clock(on)
   on('ui.render', async () => ENGINE_ROW)
   on('ui.panes', async () => ({ value: [{ id: 'glowup', isShown: true, isPlaced: true }] }))
@@ -34,7 +34,7 @@ function base(on: any) {
   on('session.usage', async () => ({ value: { context: { window: 1000, percent: 10 } } as never }))
   on('turn.start', async (_$: unknown, e: any) => ({ turnId: e.turnId }))
   on('turn.complete', async () => ({ text: '' }))
-  on('classic.PermissionRequest', async () => ({}) as never)
+  on('classic.PermissionRequest', async () => permissionAnswer as never)
   on('tool.check', async () => ({ decision: 'ask' }) as never)
 }
 const holdCalls = (on: any) => on('tool.call', async () => { armed.enter(); await armed.gate; return { result: {}, text: 'ok' } as never })
@@ -58,6 +58,11 @@ test('a permission dialog that opens in a prompting mode raises the alert', asyn
   for (const mode of ['default', 'acceptEdits', 'plan']) {
     expect(await needsYouWhen($, () => $.classic.PermissionRequest({ ...ASK, permission_mode: mode } as never)), mode).toBe(true)
   }
+})
+
+test('a lower hook that decides the request means no dialog opens, so no alert', async ($, on) => {
+  base(on, { decision: { behavior: 'allow' } }); holdCalls(on)
+  expect(await needsYouWhen($, () => $.classic.PermissionRequest({ ...ASK, permission_mode: 'default' } as never))).toBe(false)
 })
 
 test('the mode decider answering an ask is not a person being asked', async ($, on) => {
