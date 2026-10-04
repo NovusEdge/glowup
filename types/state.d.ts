@@ -21,6 +21,7 @@ export type GlowupPaneView = {
   reduced?: boolean
 }
 export type GlowupBubble = { text: string; mood: string; until: number }
+export type GlowupPetInput = { working: boolean; kind?: string; needsYou: boolean; lastTest?: { passed: boolean; at: number }; doneAt?: number; doneOk?: boolean; actAt?: number }
 
 // Live data the render sites read. A get while drawing subscribes that site alone;
 // a set redraws only its readers. Values are JSON.
@@ -30,7 +31,7 @@ declare module 'claude-code' {
       band: { model: GlowupModel; at: number }
       pane: { model: GlowupModel; view: GlowupPaneView; at: number }
       spinner: { turnAt: number; detail: string; state: string; at: number }
-      pet: { pose: string; overlays: string[]; bubble?: GlowupBubble; at: number }
+      pet: { input: GlowupPetInput; overlays: string[]; bubble?: GlowupBubble; friday: boolean; at: number }
       config: { draft: unknown; at: number }
     }
   }

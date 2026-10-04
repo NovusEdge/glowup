@@ -362,7 +362,7 @@ test('the 100th passing test run unlocks the shiny pet', async ($, on) => {
   on('tool.call', async () => ({ result: {}, text: 'Tests: 12 passed' }) as never)
   await $.turn.start({ text: 'hi', turnId: 't1' })
   await $.tool.call({ tool: 'Bash', tool_use_id: 'b1', command: 'npm test' } as never)
-  expect(toasts.some(t => t.includes('something was left on your track'))).toBe(true)
+  expect(toasts.some(t => t.includes('Clawd went shiny'))).toBe(true)
   // the command reads the stored shinyAt, so this proves the write landed
   expect((await runGlowup($, 'pet clawd-shiny')).text).toBe('Pet: clawd-shiny')
 })
