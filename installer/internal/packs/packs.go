@@ -34,11 +34,41 @@ type Colors struct {
 	Sel    string `json:"sel"`
 }
 
+// Spinner is a pack's own spinner. Color is empty when the pack leaves it on the accent.
 type Spinner struct {
-	ID    string   `json:"id"`
-	Word  string   `json:"word"`
-	Color string   `json:"color"`
-	Frame [][]Cell `json:"frame"`
+	ID    string `json:"id"`
+	Word  string `json:"word"`
+	Color string `json:"color"`
+}
+
+// Theme is a built-in theme preset: colors and the first spinner word.
+type Theme struct {
+	Name   string `json:"name"`
+	Word   string `json:"word"`
+	Colors Colors `json:"colors"`
+}
+
+// SpinnerAnim is one spinner's frames, one per Ms. Cells are white on black; see
+// Recolor for how the preview puts them onto a pack's colors.
+type SpinnerAnim struct {
+	ID     string     `json:"id"`
+	Name   string     `json:"name"`
+	Ms     int        `json:"ms"`
+	Text   bool       `json:"text"`
+	Frames [][][]Cell `json:"frames"`
+}
+
+// Span is a run of Clawd's half-block cells in one color.
+type Span struct {
+	Text  string `json:"text"`
+	Color string `json:"color"`
+	Bg    string `json:"bg,omitempty"`
+}
+
+// Clawd is the idle pose's first frame as rows of spans, each Cols cells wide.
+type Clawd struct {
+	Cols int      `json:"cols"`
+	Rows [][]Span `json:"rows"`
 }
 
 type Pack struct {
@@ -53,18 +83,26 @@ type Pack struct {
 	Spinner     Spinner  `json:"spinner"`
 }
 
-var all = mustParse(raw)
+type file struct {
+	Packs    []Pack        `json:"packs"`
+	Themes   []Theme       `json:"themes"`
+	Spinners []SpinnerAnim `json:"spinners"`
+	Clawd    Clawd         `json:"clawd"`
+}
+
+var data = mustParse(raw)
+var all = data.Packs
 
 // mustParse rejects unknown fields so a renamed key in hooks/packexport.ts fails the Go tests
 // instead of leaving a preview color silently empty.
-func mustParse(b []byte) []Pack {
+func mustParse(b []byte) file {
 	dec := json.NewDecoder(bytes.NewReader(b))
 	dec.DisallowUnknownFields()
-	var ps []Pack
-	if err := dec.Decode(&ps); err != nil {
+	var f file
+	if err := dec.Decode(&f); err != nil {
 		panic("packs.json: " + err.Error())
 	}
-	return ps
+	return f
 }
 
 // All returns the packs in the mod's preset order.
@@ -88,3 +126,50 @@ func ByName(name string) (Pack, bool) {
 	}
 	return Pack{}, false
 }
+
+// Themes returns the built-in themes in the mod's preset order.
+func Themes() []Theme { return append([]Theme(nil), data.Themes...) }
+
+// ThemeNames returns the built-in theme names in preset order.
+func ThemeNames() []string {
+	out := make([]string, len(data.Themes))
+	for i, t := range data.Themes {
+		out[i] = t.Name
+	}
+	return out
+}
+
+// ThemeByName returns the named theme, or false when there is none.
+func ThemeByName(name string) (Theme, bool) {
+	for _, t := range data.Themes {
+		if t.Name == name {
+			return t, true
+		}
+	}
+	return Theme{}, false
+}
+
+// Spinners returns every spinner the mod has, in the mod's order.
+func Spinners() []SpinnerAnim { return append([]SpinnerAnim(nil), data.Spinners...) }
+
+// SpinnerIDs returns the spinner ids in the mod's order.
+func SpinnerIDs() []string {
+	out := make([]string, len(data.Spinners))
+	for i, s := range data.Spinners {
+		out[i] = s.ID
+	}
+	return out
+}
+
+// SpinnerByID returns the spinner with that id, or false when there is none.
+func SpinnerByID(id string) (SpinnerAnim, bool) {
+	for _, s := range data.Spinners {
+		if s.ID == id {
+			return s, true
+		}
+	}
+	return SpinnerAnim{}, false
+}
+
+// ClawdSprite returns Clawd's idle frame.
+func ClawdSprite() Clawd { return data.Clawd }

@@ -30,14 +30,44 @@ func TestEveryPackIsComplete(t *testing.T) {
 	hex := regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 	for _, p := range All() {
 		c := p.Colors
-		for _, v := range []string{p.Bg, p.BorderColor, p.Spinner.Color, c.Accent, c.Text, c.Dim, c.Faint, c.Read, c.Edit, c.Shell, c.Agent, c.Pass, c.Fail} {
+		for _, v := range []string{p.Bg, p.BorderColor, c.Accent, c.Text, c.Dim, c.Faint, c.Read, c.Edit, c.Shell, c.Agent, c.Pass, c.Fail} {
 			if !hex.MatchString(v) {
 				t.Errorf("%s: color %q is not #rrggbb", p.Name, v)
 			}
 		}
-		if p.Spinner.Word == "" || len(p.Spinner.Frame) == 0 || len(p.Spinner.Frame[0]) == 0 {
-			t.Errorf("%s: spinner word or frame is empty", p.Name)
+		if _, ok := SpinnerByID(p.Spinner.ID); !ok || p.Spinner.Word == "" {
+			t.Errorf("%s: spinner %q or its word is missing", p.Name, p.Spinner.ID)
 		}
+		if p.Spinner.Color != "" && !hex.MatchString(p.Spinner.Color) {
+			t.Errorf("%s: spinner color %q is not #rrggbb", p.Name, p.Spinner.Color)
+		}
+	}
+}
+
+func TestThemesSpinnersAndClawd(t *testing.T) {
+	want := []string{"classic", "glowup", "aurora", "dusk", "cyberpunk", "vaporwave", "high-contrast"}
+	if got := ThemeNames(); !slices.Equal(got, want) {
+		t.Fatalf("ThemeNames() = %v, want %v", got, want)
+	}
+	if d, ok := ThemeByName("dusk"); !ok || d.Colors.Accent != "#b69cff" || d.Colors.Panel == "" {
+		t.Fatalf("dusk = %+v", d)
+	}
+	if want := []string{"stock", "comet", "eyes", "orb-states", "clawd", "shimmer"}; !slices.Equal(SpinnerIDs(), want) {
+		t.Fatalf("SpinnerIDs() = %v, want %v", SpinnerIDs(), want)
+	}
+	for _, s := range Spinners() {
+		if len(s.Frames) == 0 || s.Ms <= 0 {
+			t.Errorf("spinner %s has no frames or no frame time", s.ID)
+		}
+		for _, f := range s.Frames {
+			if len(f) == 0 || len(f[0]) == 0 {
+				t.Errorf("spinner %s has an empty frame", s.ID)
+			}
+		}
+	}
+	c := ClawdSprite()
+	if len(c.Rows) != 6 || c.Cols != 24 {
+		t.Fatalf("Clawd is %d rows of %d cells", len(c.Rows), c.Cols)
 	}
 }
 
