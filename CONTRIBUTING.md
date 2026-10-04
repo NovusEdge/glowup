@@ -10,7 +10,7 @@ pnpm check   # just check: `claude plugin validate` and tsc
 pnpm test    # just test: `claude plugin test .`
 ```
 
-You need Node 24, pnpm, just, and Claude Code 2.1.289 or later. To run the mod in a live session from your clone:
+You need Node 24, pnpm, just, Go 1.26 (for the installer in `installer/`), and Claude Code 2.1.289 or later. To run the mod in a live session from your clone:
 
 ```sh
 claude --plugin-dir .   # just dev
@@ -29,7 +29,7 @@ The session watches the folder and reloads the mod when you save a file.
 
 `type(scope): imperative subject`, under 60 characters.
 
-Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `ci`. Scope is the area: `build`, `themes`, `events`, `model`, `changes`, `layout`, `band`, `pane`, `agents`, `wiring`, `statusline`, `restyle`, `commands`, `release`, `docs`, `docket`, `ci`.
+Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `ci`. Scope is the area: `build`, `themes`, `events`, `model`, `changes`, `layout`, `band`, `pane`, `agents`, `wiring`, `statusline`, `restyle`, `commands`, `release`, `docs`, `docket`, `ci`, `installer`.
 
 The body says what changed and why. It does not narrate how the answer was found.
 
@@ -37,6 +37,7 @@ The body says what changed and why. It does not narrate how the answer was found
 
 - A hook imports only its own files and `claude-code`.
 - `$` is used only in `hooks/register.tsx`.
+- After changing `hooks/packpresets.ts`, run `just packs` and commit `installer/internal/packs/packs.json`. `just ci` fails until you do.
 
 ## Themes
 
@@ -46,7 +47,7 @@ To submit one, open a theme submission issue with the JSON file and a screenshot
 
 ## Gates
 
-CI runs `pnpm check` and `pnpm test` on every PR.
+CI runs `pnpm check`, `pnpm test`, the installer's Go tests, the pack-colors check, shellcheck, and `install.sh` against a fake release on Linux and macOS, on every PR.
 
 ## Releasing
 
@@ -57,7 +58,7 @@ just release 0.1.0
 git push --follow-tags
 ```
 
-`just release` bumps `plugin.json` and `package.json`, dates the changelog section, then commits and tags. The pushed tag starts the release workflow, which checks the versions, runs `pnpm check` and `pnpm test`, and publishes the changelog section with the archives.
+`just release` bumps `plugin.json` and `package.json`, dates the changelog section, then commits and tags. The pushed tag starts the release workflow, which checks the versions, runs `pnpm check` and `pnpm test`, builds the installer for each platform, and publishes the changelog section with the archives, the installer archives and `checksums.txt`.
 
 ## Design changes
 

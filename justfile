@@ -19,7 +19,7 @@ test:
 
 # everything CI runs, in CI's order
 [group('dev')]
-ci: check test packs-check installer-check
+ci: check test packs-check installer-check installsh-test
 
 # open Claude Code with this checkout loaded as the mod
 [group('dev')]
@@ -76,6 +76,11 @@ installer-build:
 [group('installer')]
 installer-run *args:
     cd installer && go run . {{args}}
+
+# test install.sh against fake releases (CI also runs shellcheck on it)
+[group('installer')]
+installsh-test:
+    sh installer/scripts/test-install-sh.sh
 
 # remove node_modules and the types Claude Code generates
 [group('dev')]
