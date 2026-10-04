@@ -1,8 +1,6 @@
 ---
 title: Pets
 description: Clawd, the pixel pet at the bottom of the glowup pane. Where he appears, how he reacts, speech bubbles, and the shiny one.
-order: 5
-section: Use
 ---
 
 ## Clawd

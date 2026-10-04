@@ -1,8 +1,6 @@
 ---
 title: Status line
 description: The status entry glowup shows while Claude works, the opt-in takeover, what it writes to disk, and how to undo it.
-order: 4
-section: Use
 ---
 
 ## Two modes

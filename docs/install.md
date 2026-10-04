@@ -1,8 +1,6 @@
 ---
 title: Install
 description: Install the glowup mod from its marketplace, check that it loads, and remove it.
-order: 1
-section: Start
 ---
 
 ## Install

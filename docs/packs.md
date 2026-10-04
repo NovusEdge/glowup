@@ -1,8 +1,6 @@
 ---
 title: Packs
 description: Set a whole look with one name. Colors, row styles and motion in two layers, the four built-in packs, and how to make and share your own.
-order: 6
-section: Packs
 ---
 
 ## What a pack is
