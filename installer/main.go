@@ -42,7 +42,7 @@ func run() int {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	d := app.Deps{Runner: claude.ExecRunner{}, Out: os.Stdout, Err: os.Stderr, Step: app.PlainStep(os.Stdout)}
+	d := app.Deps{Runner: claude.ExecRunner{}, Out: os.Stdout, Err: os.Stderr, Step: app.PlainStep(os.Stdout), PluginDirs: os.Getenv("CLAUDE_CODE_PLUGIN_DIRS")}
 	if !o.Yes {
 		d.Pick, d.Step = tui.Pick, tui.Step
 	}

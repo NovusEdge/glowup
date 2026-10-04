@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strconv"
@@ -17,7 +18,14 @@ type Step struct {
 	Title string // shown beside the spinner, plain English
 	Argv  []string
 	Stdin string // empty: the command gets no input
+	// Configure marks a `plugin configure` step. The installed glowup may be older
+	// than this installer, so the app drops the keys it does not declare (Restrict).
+	Configure bool
 }
+
+// BaseKeys are the userConfig options every released glowup declares. A fresh
+// install sends only these: `plugin install --config` fails on an unknown key.
+var BaseKeys = []string{"pack", "pet", "bubbles", "reducedMotion", "theme"}
 
 // Plan returns the commands that take Claude Code from s to glowup installed with c.
 // A marketplace that is already added is skipped. An installed glowup gets its
@@ -26,7 +34,8 @@ func Plan(c Choice, s State) []Step { return PlanKeys(c, s, nil) }
 
 // PlanKeys is Plan, except an installed glowup gets only the named userConfig keys
 // (all of pack, pet, bubbles and reducedMotion when keys is nil, plus theme and
-// spinner when the choice has them). A fresh install always sends every value.
+// spinner when the choice has them). A fresh install sends the BaseKeys, then a
+// configure step for the spinner if one was picked.
 func PlanKeys(c Choice, s State, keys []string) []Step {
 	var steps []Step
 	if !s.MarketplaceAdded {
@@ -37,23 +46,76 @@ func PlanKeys(c Choice, s State, keys []string) []Step {
 	}
 	if s.Installed {
 		return append(steps, Step{
-			Title: "Updating glowup's settings",
-			Argv:  []string{"claude", "plugin", "configure", PluginID, "--values-stdin"},
-			Stdin: valuesJSON(c, keys),
+			Title:     "Updating glowup's settings",
+			Argv:      []string{"claude", "plugin", "configure", PluginID, "--values-stdin"},
+			Stdin:     valuesJSON(c, keys),
+			Configure: true,
 		})
 	}
 	argv := []string{"claude", "plugin", "install", PluginID}
 	for _, kv := range values(c) {
-		argv = append(argv, "--config", kv[0]+"="+kv[1])
+		if slices.Contains(BaseKeys, kv[0]) {
+			argv = append(argv, "--config", kv[0]+"="+kv[1])
+		}
 	}
-	return append(steps, Step{Title: "Installing glowup", Argv: argv})
+	steps = append(steps, Step{Title: "Installing glowup", Argv: argv})
+	// The spinner arrived after 0.2, so it goes in once the installed version can say
+	// whether it takes it. Left unpicked, the mod treats an unset spinner as "pack".
+	if c.Spinner != "" {
+		steps = append(steps, Step{
+			Title:     "Setting glowup's spinner",
+			Argv:      []string{"claude", "plugin", "configure", PluginID, "--values-stdin"},
+			Stdin:     valuesJSON(c, []string{"spinner"}),
+			Configure: true,
+		})
+	}
+	return steps
+}
+
+// Declared asks the installed glowup which userConfig options it has: the keys of
+// `plugin configure --json`'s "schema".
+func Declared(ctx context.Context, r Runner) ([]string, error) {
+	var out struct {
+		Schema map[string]json.RawMessage `json:"schema"`
+	}
+	if err := runJSON(ctx, r, &out, "claude", "plugin", "configure", PluginID, "--json"); err != nil {
+		return nil, err
+	}
+	if len(out.Schema) == 0 {
+		return nil, errors.New("it listed no options")
+	}
+	keys := make([]string, 0, len(out.Schema))
+	for k := range out.Schema {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	return keys, nil
+}
+
+// Dropped is a pick the installed glowup cannot take yet.
+type Dropped struct{ Key, Value string }
+
+// Restrict returns a configure step without the keys declared lacks, and what it dropped.
+func Restrict(st Step, declared []string) (Step, []Dropped) {
+	var m map[string]string
+	_ = json.Unmarshal([]byte(st.Stdin), &m)
+	var dropped []Dropped
+	for _, k := range slices.Sorted(maps.Keys(m)) {
+		if !slices.Contains(declared, k) {
+			dropped = append(dropped, Dropped{k, m[k]})
+			delete(m, k)
+		}
+	}
+	b, _ := json.Marshal(m)
+	st.Stdin = string(b)
+	return st, dropped
 }
 
 // values is the userConfig pairs in the order the install argv lists them.
 // theme=classic is the mod's "no theme override" value (hooks/register.tsx ignores a
 // classic theme and uses the pack's palette), and spinner=pack is its "no spinner
 // override" value, so the pack picked here is the look the person gets. Leaving
-// either unset makes `claude plugin install` report an unset option.
+// theme unset makes `claude plugin install` report an unset option.
 func values(c Choice) [][2]string {
 	return [][2]string{
 		{"pack", c.Pack},

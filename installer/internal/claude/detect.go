@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -17,6 +19,25 @@ const (
 type State struct {
 	MarketplaceAdded bool
 	Installed        bool
+	// Other lists glowup copies from any other marketplace (ids like glowup@fork).
+	// Two copies in one session each draw and each run the status line.
+	Other []string
+}
+
+// PluginDirCopies returns the entries of dirs (CLAUDE_CODE_PLUGIN_DIRS, as the
+// platform's path list) whose .claude-plugin/plugin.json names the plugin glowup.
+func PluginDirCopies(dirs string) []string {
+	var found []string
+	for _, d := range filepath.SplitList(dirs) {
+		b, err := os.ReadFile(filepath.Join(d, ".claude-plugin", "plugin.json"))
+		var m struct {
+			Name string `json:"name"`
+		}
+		if err == nil && json.Unmarshal(b, &m) == nil && m.Name == "glowup" {
+			found = append(found, d)
+		}
+	}
+	return found
 }
 
 // Detect asks Claude Code which marketplaces and plugins it has, through the
@@ -40,6 +61,9 @@ func Detect(ctx context.Context, r Runner) (State, error) {
 	}
 	for _, p := range plugins {
 		s.Installed = s.Installed || p.ID == PluginID
+		if p.ID != PluginID && strings.HasPrefix(p.ID, "glowup@") {
+			s.Other = append(s.Other, p.ID)
+		}
 	}
 	return s, nil
 }

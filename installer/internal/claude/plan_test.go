@@ -19,7 +19,7 @@ func TestPlanFreshInstall(t *testing.T) {
 	got := argvs(Plan(Defaults(), State{}))
 	want := []string{
 		"claude plugin marketplace add NovusEdge/glowup",
-		"claude plugin install glowup@glowup --config pack=classic --config pet=clawd --config bubbles=on --config reducedMotion=false --config theme=classic --config spinner=pack",
+		"claude plugin install glowup@glowup --config pack=classic --config pet=clawd --config bubbles=on --config reducedMotion=false --config theme=classic",
 	}
 	if !slices.Equal(got, want) {
 		t.Fatalf("got %q\nwant %q", got, want)
@@ -40,7 +40,7 @@ func TestPlanEveryChoiceCombination(t *testing.T) {
 					want := []string{"claude", "plugin", "install", "glowup@glowup",
 						"--config", "pack=" + pack, "--config", "pet=" + pet,
 						"--config", "bubbles=" + bubbles, "--config", "reducedMotion=" + rmText,
-						"--config", "theme=classic", "--config", "spinner=pack"}
+						"--config", "theme=classic"}
 					if len(steps) != 1 || !slices.Equal(steps[0].Argv, want) || steps[0].Stdin != "" {
 						t.Fatalf("%+v: got %+v", c, steps)
 					}
@@ -77,9 +77,14 @@ func TestPlanKeysSendsOnlyTheNamedKeys(t *testing.T) {
 
 func TestPlanThemeAndSpinner(t *testing.T) {
 	c := Choice{Pack: "crt", Pet: "clawd", Bubbles: "on", Theme: "dusk", Spinner: "eyes"}
-	got := argvs(Plan(c, State{MarketplaceAdded: true}))
-	if want := "claude plugin install glowup@glowup --config pack=crt --config pet=clawd --config bubbles=on --config reducedMotion=false --config theme=dusk --config spinner=eyes"; len(got) != 1 || got[0] != want {
-		t.Fatalf("got %q", got)
+	// the spinner is not an install option: older glowups lack it, so it follows as a configure step
+	want := []string{
+		"claude plugin install glowup@glowup --config pack=crt --config pet=clawd --config bubbles=on --config reducedMotion=false --config theme=dusk",
+		"claude plugin configure glowup@glowup --values-stdin",
+	}
+	fresh := Plan(c, State{MarketplaceAdded: true})
+	if !slices.Equal(argvs(fresh), want) || fresh[1].Stdin != `{"spinner":"eyes"}` || !fresh[1].Configure || fresh[0].Configure {
+		t.Fatalf("got %+v", fresh)
 	}
 	installed := State{MarketplaceAdded: true, Installed: true}
 	if got := Plan(c, installed)[0].Stdin; got != `{"bubbles":"on","pack":"crt","pet":"clawd","reducedMotion":"false","spinner":"eyes","theme":"dusk"}` {
@@ -96,10 +101,39 @@ func TestPlanThemeAndSpinner(t *testing.T) {
 	}
 }
 
+func TestDeclared(t *testing.T) {
+	const cmd = "claude plugin configure glowup@glowup --json"
+	old := `{"pluginId":"glowup@glowup","schema":{"theme":{"type":"string"},"reducedMotion":{"type":"boolean"},"pack":{},"pet":{},"bubbles":{}},"inputs":{}}`
+	got, err := Declared(context.Background(), &fakeRunner{answers: map[string]Result{cmd: {Stdout: old}}})
+	if err != nil || !slices.Equal(got, []string{"bubbles", "pack", "pet", "reducedMotion", "theme"}) {
+		t.Fatalf("got %q, %v", got, err)
+	}
+	for name, res := range map[string]Result{
+		"exit":  {Code: 1, Stderr: "boom\n"},
+		"text":  {Stdout: "nope\n"},
+		"empty": {Stdout: `{"schema":{}}`},
+	} {
+		if _, err := Declared(context.Background(), &fakeRunner{answers: map[string]Result{cmd: res}}); err == nil {
+			t.Errorf("%s: no error", name)
+		}
+	}
+}
+
+func TestRestrict(t *testing.T) {
+	st := Step{Argv: []string{"x"}, Stdin: `{"bubbles":"on","spinner":"eyes","theme":"dusk"}`, Configure: true}
+	got, dropped := Restrict(st, BaseKeys)
+	if got.Stdin != `{"bubbles":"on","theme":"dusk"}` || len(dropped) != 1 || dropped[0] != (Dropped{"spinner", "eyes"}) {
+		t.Fatalf("got %s %+v", got.Stdin, dropped)
+	}
+	if got, dropped := Restrict(st, append([]string{"spinner"}, BaseKeys...)); got.Stdin != st.Stdin || len(dropped) != 0 {
+		t.Fatalf("a declared key is kept: %s %+v", got.Stdin, dropped)
+	}
+}
+
 func TestScript(t *testing.T) {
 	got := Script(Plan(Choice{Pack: "crt", Pet: "off", Bubbles: "on"}, State{}))
 	want := "claude plugin marketplace add NovusEdge/glowup\n" +
-		"claude plugin install glowup@glowup --config pack=crt --config pet=off --config bubbles=on --config reducedMotion=false --config theme=classic --config spinner=pack\n"
+		"claude plugin install glowup@glowup --config pack=crt --config pet=off --config bubbles=on --config reducedMotion=false --config theme=classic\n"
 	if got != want {
 		t.Fatalf("got\n%s\nwant\n%s", got, want)
 	}

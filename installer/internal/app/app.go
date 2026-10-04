@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/novusedge/glowup/installer/internal/claude"
 	"github.com/novusedge/glowup/installer/internal/cli"
@@ -27,6 +28,35 @@ type Deps struct {
 	Err    io.Writer
 	Pick   PickFunc // nil with --yes
 	Step   StepFunc
+	// PluginDirs is $CLAUDE_CODE_PLUGIN_DIRS, a path list of plugins Claude Code loads in place.
+	PluginDirs string
+}
+
+// refuseSecondCopy says what already loads glowup and how to turn it off. An empty
+// string means there is nothing in the way.
+func refuseSecondCopy(others, dirs []string) string {
+	if len(others) == 0 && len(dirs) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("glowup is already loaded from another source. Installing it here would run two copies at once, which draws twice and can loop the status line.\n")
+	for _, id := range others {
+		fmt.Fprintf(&b, "  %s is installed. Run: claude plugin disable %s (or: claude plugin uninstall %s)\n", id, id, id)
+	}
+	for _, d := range dirs {
+		fmt.Fprintf(&b, "  %s is loaded through CLAUDE_CODE_PLUGIN_DIRS. Remove it from that variable and start Claude Code again.\n", d)
+	}
+	b.WriteString("Nothing was installed. Run this installer again once only one copy is left.\n")
+	return b.String()
+}
+
+// dropNote is the line for a pick the installed glowup is too old to take.
+func dropNote(d claude.Dropped) string {
+	cmd := map[string]string{"spinner": "spinner", "theme": "theme", "pack": "pack", "pet": "pet", "bubbles": "bubbles", "reducedMotion": "motion"}[d.Key]
+	if cmd == "" {
+		return fmt.Sprintf("This glowup version can't set %s yet. After it updates, run /glowup config.", d.Key)
+	}
+	return fmt.Sprintf("This glowup version can't set the %s yet. After it updates, run /glowup %s %s.", d.Key, cmd, d.Value)
 }
 
 // PlainStep prints the title and runs fn: the --yes path, where there may be no terminal to spin in.
@@ -39,7 +69,13 @@ func PlainStep(out io.Writer) StepFunc {
 
 // Run is the whole install. It returns the process exit code.
 func Run(ctx context.Context, o cli.Options, d Deps) int {
+	dirs := claude.PluginDirCopies(d.PluginDirs)
 	if o.DryRun {
+		// a dry run starts no process, so only the environment is checked here
+		if msg := refuseSecondCopy(nil, dirs); msg != "" {
+			fmt.Fprint(d.Err, msg)
+			return 1
+		}
 		fmt.Fprintln(d.Out, "These commands install glowup on a machine that does not have it yet. Nothing was run.")
 		fmt.Fprint(d.Out, claude.Script(claude.Plan(o.Choice, claude.State{})))
 		return 0
@@ -64,6 +100,11 @@ func Run(ctx context.Context, o cli.Options, d Deps) int {
 	state, err := claude.Detect(ctx, d.Runner)
 	if err != nil {
 		fmt.Fprintln(d.Err, "Could not ask Claude Code what it has installed:", err)
+		return 1
+	}
+
+	if msg := refuseSecondCopy(state.Other, dirs); msg != "" {
+		fmt.Fprint(d.Err, msg)
 		return 1
 	}
 
@@ -92,7 +133,29 @@ func Run(ctx context.Context, o cli.Options, d Deps) int {
 		keys = o.Given
 	}
 
+	// Declared options are read once, and only if a configure step needs them.
+	var declared []string
+	var declaredErr error
+	read := false
 	for _, st := range claude.PlanKeys(choice, state, keys) {
+		if st.Configure {
+			if !read {
+				read = true
+				declared, declaredErr = claude.Declared(ctx, d.Runner)
+				if declaredErr != nil {
+					declared = claude.BaseKeys
+					fmt.Fprintf(d.Out, "Could not read which settings this glowup has (%v), so only %s are sent.\n", declaredErr, strings.Join(claude.BaseKeys, ", "))
+				}
+			}
+			var dropped []claude.Dropped
+			st, dropped = claude.Restrict(st, declared)
+			for _, dr := range dropped {
+				fmt.Fprintln(d.Out, dropNote(dr))
+			}
+			if st.Stdin == "{}" {
+				continue
+			}
+		}
 		line, err := d.Step(ctx, st.Title, func(ctx context.Context) (string, error) {
 			return claude.RunStep(ctx, d.Runner, st)
 		})
