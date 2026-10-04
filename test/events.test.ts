@@ -1,5 +1,12 @@
 import { test, expect } from 'claude-code/testing'
-import { describeTool, isTestCommand, testOutcome, planFrom, editCounts, shortPath, approvalLabel } from '../hooks/events.ts'
+import { describeTool, isTestCommand, testOutcome, planFrom, editCounts, shortPath, approvalLabel, personAsked } from '../hooks/events.ts'
+
+test('a person is asked unless the mode labels say auto, bypass or dont-ask', async () => {
+  for (const l of ['⏵⏵ auto mode on', '⏵⏵ bypass permissions on', "⏵⏵ don't ask on", '⏵⏵ dont ask on', 'dontAsk mode']) expect(personAsked([l])).toBe(false)
+  for (const l of ['⏵⏵ accept edits on', '⏸ plan mode on']) expect(personAsked([l])).toBe(true)
+  expect(personAsked([])).toBe(true)
+  expect(personAsked(['⏸ plan mode on', '⏵⏵ auto mode on'])).toBe(false)
+})
 
 test('the approval label keeps only the first line of a command', async () => {
   expect(approvalLabel('Bash', { command: 'git push\nrm -rf /' })).toBe('approve git push')

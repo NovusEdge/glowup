@@ -49,6 +49,10 @@ export function describeTool(tool: string, input: Record<string, unknown>): Tool
 export const approvalLabel = (tool: string, input: Record<string, unknown>) =>
   tool === 'Bash' ? `approve ${str(input.command).split('\n')[0]!.slice(0, 40)}` : `approve ${tool}`
 
+// A tool.check `ask` goes to the mode's decider: a dialog, the classifier in auto, nobody in bypass/dontAsk.
+// The footer labels (SessionMode) are the only mode signal a mod gets; unsure keeps the dialog case.
+export const personAsked = (labels: readonly string[]) => !labels.some(l => /auto|bypass|don.?t ?ask/i.test(l))
+
 export function planFrom(tool: string, input: Record<string, unknown>, prev: PlanItem[], resultId?: string): PlanItem[] | undefined {
   if (tool === 'TodoWrite') {
     const todos = Array.isArray(input.todos) ? input.todos as { content?: unknown; status?: unknown }[] : []

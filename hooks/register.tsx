@@ -1,7 +1,7 @@
 import type { EngineInterface, PaneOpenArgs, Register, RenderElement, Timer } from 'claude-code'
 import type { Host } from './host.ts'
 import { initialModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
-import { approvalLabel, shortPath } from './events.ts'
+import { approvalLabel, personAsked, shortPath } from './events.ts'
 import type { Theme } from './themes.ts'
 import { resolveLook, exportMix, DEFAULT_MIX, type Mix, type Look } from './packs.ts'
 import { loadUserPacks, savePack, SAFE_NAME } from './userpacks.ts'
@@ -50,6 +50,7 @@ let reducedMotion = false
 let docked = false
 // Where the surface seated the pane, learned from its last render: panes() does not say.
 let panePlacement: 'dock' | 'inline' | undefined
+let asked = true, modeKey: string | undefined
 let ticker: Timer | undefined
 let refreshSeq = 0
 const refreshQueue = serial()
@@ -498,7 +499,7 @@ export const register: Register = (on, options) => {
   on('tool.check', async ($, e, next) => {
     const r = await next(e)
     // without tool_use_id this is a query: nobody is asked
-    if (r.decision === 'ask' && e.tool_use_id) {
+    if (r.decision === 'ask' && e.tool_use_id && asked) {
       feed($, { type: 'needs-you', at: Date.now(), toolUseId: e.tool_use_id, what: approvalLabel(e.tool, e.input as Record<string, unknown>) })
     }
     return r
@@ -565,6 +566,13 @@ export const register: Register = (on, options) => {
     // other mods draw bands here too: stack ours on top instead of replacing theirs
     const { Box } = els
     return <Box flexDirection="column">{mine}{below}</Box>
+  })
+
+  on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
+    // a render hook cannot write state, so tool.check reads this module variable
+    const key = e.props.modes.join('|')
+    if (key !== modeKey) { modeKey = key; asked = personAsked(e.props.modes); $.ui.log(`session mode labels: ${JSON.stringify(e.props.modes)} -> person asked: ${asked}`, { to: 'debug' }) }
+    return next(e)
   })
 
   on('ui.render', { component: 'Pane', requestId: 'glowup' }, async ($, e) => {
