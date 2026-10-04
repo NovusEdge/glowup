@@ -13,12 +13,32 @@ test('ghostty: palette, background and foreground', async () => {
   expect([s.palette.accent, s.palette.read, s.palette.edit, s.palette.shell, s.palette.agent, s.palette.pass, s.palette.fail, s.palette.dim])
     .toEqual(['#ff79c6', '#8be9fd', '#f1fa8c', '#50fa7b', '#bd93f9', '#50fa7b', '#ff5555', '#6272a4'])
   for (const v of Object.values(s.palette)) expect(v).toMatch(/^#[0-9a-f]{6}$/)
+  expect([s.palette.panel, s.palette.addBg]).toEqual(['#343641', '#305444'])
+})
+
+test('ghostty: a scheme without color 8 gets a blended dim', async () => {
+  const s = parseScheme(GHOSTTY.replace(/^palette = 8=.*$/m, ''), 'x')
+  expect(s.palette.dim).toBe('#9a9b9d')
 })
 
 test('base16: base00-0F', async () => {
   const s = parseScheme(BASE16, 'base16-ocean.yaml')
   expect(s.name).toBe('ocean')
   expect([s.bg, s.palette.text, s.palette.fail, s.palette.pass, s.palette.accent, s.palette.dim]).toEqual(['#2b303b', '#c0c5ce', '#bf616a', '#a3be8c', '#b48ead', '#65737e'])
+})
+
+test('base16: read, edit and agent come from 0C, 0A and 0D', async () => {
+  const s = parseScheme(BASE16, 'x.yaml')
+  expect([s.palette.read, s.palette.edit, s.palette.agent]).toEqual(['#96b5b4', '#ebcb8b', '#8fa1b3'])
+})
+
+test('base16: single-quoted values work', async () => {
+  const s = parseScheme(BASE16.replace(/"([0-9a-f]{6})"/g, "'$1'"), 'x.yaml')
+  expect([s.bg, s.palette.text]).toEqual(['#2b303b', '#c0c5ce'])
+})
+
+test('size is measured in bytes, before parsing', async () => {
+  expect(() => parseScheme('é'.repeat(33_000), 'x')).toThrow('64 KB')
 })
 
 test('garbage, missing colors and oversize files are refused', async () => {

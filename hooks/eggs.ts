@@ -23,7 +23,7 @@ const DEPLOY: RegExp[] = [
 ]
 
 export function isDeployCommand(cmd: string): boolean {
-  return cmd.split(/&&|\|\||[;|]/).some(part => {
+  return cmd.split(/[;&|\r\n]+/).some(part => {
     const p = part.trim().replace(/^(?:[A-Za-z_]\w*=\S*\s+)+/, '')
     return DEPLOY.some(re => re.test(p))
   })
