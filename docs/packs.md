@@ -7,7 +7,7 @@ description: Set a whole look with one name. Colors, row styles and motion in tw
 
 A pack is one JSON file that sets a whole look. It has two layers:
 
-- **Colors** is the palette, the style of the transcript rows, the border around cards, and a few extras such as an HP bar.
+- **Colors** is the palette, the style of the transcript rows, the border around cards (it also sets the shape of the status box and of the pane's section boxes), and a few extras such as an HP bar.
 - **Motion** is the spinner and its shimmer.
 
 A pack holds data only. Nothing in it runs. Sound and voice layers are planned for a later release. A pack file may already carry `sound` and `voice` keys; glowup ignores them.

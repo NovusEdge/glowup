@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The pane's tabs are drawn as boxes in the shape of your pack's border, and Plan & context has room to breathe: the loose divider is gone, rows line up, and free context is a solid faint track.
 - Clawd stretches and yawns when he wakes up.
 - While Claude waits on you, Clawd shows a `?` and has his own waiting animation, so it no longer replays the startle.
 
