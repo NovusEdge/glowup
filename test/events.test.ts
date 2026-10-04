@@ -1,11 +1,17 @@
 import { test, expect } from 'claude-code/testing'
-import { describeTool, isTestCommand, testOutcome, planFrom, editCounts, shortPath, approvalLabel, personAsked } from '../hooks/events.ts'
+import { describeTool, isTestCommand, testOutcome, planFrom, editCounts, shortPath, approvalLabel, modeAsksPerson, dialogCall } from '../hooks/events.ts'
 
-test('a person is asked unless the mode labels say auto, bypass or dont-ask', async () => {
-  for (const l of ['⏵⏵ auto mode on', '⏵⏵ bypass permissions on', "⏵⏵ don't ask on", '⏵⏵ dont ask on', 'dontAsk mode']) expect(personAsked([l])).toBe(false)
-  for (const l of ['⏵⏵ accept edits on', '⏸ plan mode on']) expect(personAsked([l])).toBe(true)
-  expect(personAsked([])).toBe(true)
-  expect(personAsked(['⏸ plan mode on', '⏵⏵ auto mode on'])).toBe(false)
+test('only the prompting modes ask a person; an absent or unknown mode asks no one', async () => {
+  for (const m of ['default', 'acceptEdits', 'plan']) expect(modeAsksPerson(m)).toBe(true)
+  for (const m of ['auto', 'bypassPermissions', 'dontAsk', 'somethingNew', undefined]) expect(modeAsksPerson(m)).toBe(false)
+})
+
+test('a dialog matches its call by tool and input, else the lone call of that tool', async () => {
+  const fly = new Map([['a', { tool: 'Bash', input: { command: 'ls' } }], ['b', { tool: 'Bash', input: { command: 'rm x' } }], ['c', { tool: 'Edit', input: { file_path: '/f' } }]])
+  expect(dialogCall(fly, 'Bash', { command: 'rm x' })).toBe('b')
+  expect(dialogCall(fly, 'Edit', { file_path: '/rewritten' })).toBe('c')
+  expect(dialogCall(fly, 'Bash', { command: 'rewritten' })).toBeUndefined()
+  expect(dialogCall(fly, 'Write', {})).toBeUndefined()
 })
 
 test('the approval label keeps only the first line of a command', async () => {

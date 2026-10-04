@@ -1,7 +1,7 @@
 import type { EngineInterface, PaneOpenArgs, Register, RenderElement, Timer } from 'claude-code'
 import type { Host } from './host.ts'
 import { initialModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
-import { approvalLabel, personAsked, shortPath } from './events.ts'
+import { approvalLabel, dialogCall, modeAsksPerson, shortPath } from './events.ts'
 import type { Theme } from './themes.ts'
 import { resolveLook, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { loadUserPacks } from './userpacks.ts'
@@ -51,7 +51,8 @@ let reducedMotion = false
 let docked = false
 // Where the surface seated the pane, learned from its last render: panes() does not say.
 let panePlacement: 'dock' | 'inline' | undefined
-let asked = true, modeKey: string | undefined
+// Calls between tool.call and its result: a permission dialog names its tool and input but not its id.
+const flying = new Map<string, { tool: string; input: unknown }>()
 let ticker: Timer | undefined
 let refreshSeq = 0
 const refreshQueue = serial()
@@ -137,9 +138,14 @@ const petOn = () => pet !== 'off' && !reducedMotion
 const PET_KINDS: readonly string[] = ['read', 'search', 'edit', 'shell', 'agent', 'plan']
 // Hats sit above the canvas; held and side outfits fit inside it.
 const HEAD_OUTFITS = ['santa', 'party', 'nightcap']
+// Running subagents are work even when the main loop only waits on them or its turn already ended.
+function petKind(): PetKind | undefined {
+  const own = model.working ? (PET_KINDS.includes(model.act.kind ?? '') ? model.act.kind as PetKind : 'think') : undefined
+  return agentsRunning(model) && (own === undefined || own === 'think' || own === 'agent') ? 'agent' : own
+}
 const petInput = (): PetInput => ({
-  working: model.working,
-  kind: model.working ? (PET_KINDS.includes(model.act.kind ?? '') ? model.act.kind as PetKind : 'think') : undefined,
+  working: isBusy(model),
+  kind: petKind(),
   needsYou: !!model.needsYou,
   lastTest: model.lastTest,
   doneAt: model.doneAt,
@@ -465,7 +471,10 @@ export const register: Register = (on, options) => {
     const toolUseId = e.tool_use_id
     if (!e.agentId && e.tool === 'Bash' && typeof input.command === 'string' && fridayDeploy(input.command, localTime(await $.clock.now(), tzOffset))) friday = true
     feed($, { type: 'tool-start', at: Date.now(), tool: e.tool, toolUseId, agentId: e.agentId, input })
-    const ran = await next(e)
+    const { tool: _t, tool_use_id: _i, agentId: _a, consent: _c, ...args } = input
+    flying.set(toolUseId, { tool: e.tool, input: args })
+    let ran
+    try { ran = await next(e) } finally { flying.delete(toolUseId) }
     const denied = ran.deny !== undefined
     const result = denied || ran.isError ? undefined : ran.result as unknown as { task?: { id?: unknown }; totalTokens?: unknown; type?: unknown } | undefined
     const endAt = Date.now()
@@ -494,14 +503,14 @@ export const register: Register = (on, options) => {
     return ran
   })
 
-  on('tool.check', async ($, e, next) => {
-    if (off) return next(e)
-    const r = await next(e)
-    // without tool_use_id this is a query: nobody is asked
-    if (r.decision === 'ask' && e.tool_use_id && asked) {
-      feed($, { type: 'needs-you', at: Date.now(), toolUseId: e.tool_use_id, what: approvalLabel(e.tool, e.input as Record<string, unknown>) })
+  // The one signal that a dialog is on screen. tool.check's `ask` is not it: that hands the call
+  // to the mode's decider, and in auto mode the classifier answers with no one asked.
+  on('classic.PermissionRequest', async ($, e, next) => {
+    if (!off && modeAsksPerson(e.permission_mode)) {
+      const id = dialogCall(flying, e.tool_name, e.tool_input)
+      if (id) feed($, { type: 'needs-you', at: Date.now(), toolUseId: id, what: approvalLabel(e.tool_name, (e.tool_input ?? {}) as Record<string, unknown>) })
     }
-    return r
+    return next(e)
   })
 
   on('agent.spawn', async ($, e, next) => {
@@ -571,14 +580,6 @@ export const register: Register = (on, options) => {
     // other mods draw bands here too: stack ours on top instead of replacing theirs
     const { Box } = els
     return <Box flexDirection="column">{mine}{below}</Box>
-  })
-
-  on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
-    if (off) return next(e)
-    // a render hook cannot write state, so tool.check reads this module variable
-    const key = e.props.modes.join('|')
-    if (key !== modeKey) { modeKey = key; asked = personAsked(e.props.modes); $.ui.log(`session mode labels: ${JSON.stringify(e.props.modes)} -> person asked: ${asked}`, { to: 'debug' }) }
-    return next(e)
   })
 
   on('ui.render', { component: 'Pane', requestId: 'glowup' }, async ($, e, next) => {

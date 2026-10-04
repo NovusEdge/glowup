@@ -50,8 +50,8 @@ export function petPose(p: PetInput, now: number): Pose {
   if (t && !t.passed && now - t.at <= ALERT_MS) return 'fail'
   if (t && t.passed && now - t.at <= HOP_MS) return 'hop'
   if (!p.working && p.doneOk && p.doneAt !== undefined && now - p.doneAt <= DONE_MS) return 'done'
-  // typing while he writes code or runs commands; walking while he reads, searches, plans or waits
-  if (p.working) return p.kind === 'edit' || p.kind === 'shell' ? 'working' : 'walk'
+  // typing while he writes code, runs commands or has subagents at it; walking while he reads, searches, plans or waits
+  if (p.working) return p.kind === 'edit' || p.kind === 'shell' || p.kind === 'agent' ? 'working' : 'walk'
   // 0 is initialModel's "nothing yet", not a real time
   return p.actAt !== undefined && p.actAt > 0 && now - p.actAt >= SLEEP_MS ? 'sleep' : 'idle'
 }

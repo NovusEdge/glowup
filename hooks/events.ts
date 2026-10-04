@@ -49,9 +49,19 @@ export function describeTool(tool: string, input: Record<string, unknown>): Tool
 export const approvalLabel = (tool: string, input: Record<string, unknown>) =>
   tool === 'Bash' ? `approve ${str(input.command).split('\n')[0]!.slice(0, 40)}` : `approve ${tool}`
 
-// A tool.check `ask` goes to the mode's decider: a dialog, the classifier in auto, nobody in bypass/dontAsk.
-// The footer labels (SessionMode) are the only mode signal a mod gets; unsure keeps the dialog case.
-export const personAsked = (labels: readonly string[]) => !labels.some(l => /auto|bypass|don.?t ?ask/i.test(l))
+// The PermissionRequest hook runs on the path that opens the dialog, and it carries the
+// session's permission mode. Only these modes put the dialog in front of a person; an
+// absent or new mode name counts as no one, because a false alert costs more than a late one.
+const ASKING_MODES = ['default', 'acceptEdits', 'plan']
+export const modeAsksPerson = (mode: string | undefined) => mode !== undefined && ASKING_MODES.includes(mode)
+
+// Which in-flight call a dialog is for. PermissionRequest carries no tool_use_id, so match on
+// tool and input; a rewritten input still matches when only one call of that tool is in flight.
+export function dialogCall(flying: ReadonlyMap<string, { tool: string; input: unknown }>, tool: string, input: unknown): string | undefined {
+  const same = [...flying].filter(([, c]) => c.tool === tool)
+  const exact = same.filter(([, c]) => JSON.stringify(c.input) === JSON.stringify(input))
+  return (exact.length === 1 ? exact : same.length === 1 ? same : [])[0]?.[0]
+}
 
 export function planFrom(tool: string, input: Record<string, unknown>, prev: PlanItem[], resultId?: string): PlanItem[] | undefined {
   if (tool === 'TodoWrite') {
