@@ -50,6 +50,17 @@ test('an existing takeover counts as answered', async () => {
   expect(store[FIRST_RUN_KEY]).toBe('yes')
 })
 
+test('a status line that is already glowup is not asked about and counts as answered', async () => {
+  const ours = `{"statusLine":{"type":"command","command":"sh '/home/u/.claude/glowup/statusline.sh'"}}`
+  const { host, files, store } = fakeHost({ files: { [SETTINGS]: ours } })
+  const a = asker(['Yes'])
+  expect(await firstRun(host, a.ask, 0)).toBeUndefined()
+  expect(a.asked).toHaveLength(0)
+  expect(store[FIRST_RUN_KEY]).toBe('yes')
+  expect(BACKUP_KEY in store).toBe(false)
+  expect(files[SETTINGS]).toBe(ours)
+})
+
 test('unreadable settings: nothing asked, nothing stored, no attempt counted', async () => {
   const { host, store } = fakeHost({ files: { [SETTINGS]: '{' } })
   const a = asker(['Yes'])

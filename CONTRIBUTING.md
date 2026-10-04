@@ -48,6 +48,39 @@ To submit one, open a theme submission issue with the JSON file and a screenshot
 
 CI runs `pnpm check` and `pnpm test` on every PR.
 
+## Testing for runaway processes
+
+Once, glowup's status line script called itself and started shells until the machine ran out of memory. A mod that writes shell or settings can do that, so test it for real.
+
+**The two-copies trap.** An installed glowup plus `just dev` loads glowup twice, and each copy has its own store. Disable one before you test: `claude plugin disable glowup@glowup`.
+
+**Run a dev session safely.** Use a throwaway config dir and a process cap:
+
+```sh
+ulimit -u 500
+CLAUDE_CONFIG_DIR=$(mktemp -d) just dev
+```
+
+`ulimit -u` counts every process you own, so pick a number above what you already run (`ps -u $USER --no-headers | wc -l`).
+
+**Watch it.** In a second terminal:
+
+```sh
+watch -n1 'pgrep -c sh; free -h | head -2'
+ps -eo ppid,comm | awk '{n[$1" "$2]++} END {for (k in n) if (n[k] > 20) print n[k], k}'
+```
+
+A `sh` count that climbs while you do nothing, or one parent with dozens of children, is a loop. Kill it with `pkill -f glowup/statusline.sh`.
+
+**What `test/statusline-script.check.ts` covers.** It writes the real generated script to a temp dir and runs it in `sh` with a hard 5 second kill. A fallback that calls the script itself must stop at once and never hold more than a handful of processes. A normal fallback must still print its output. It runs under `pnpm test` after the engine tests, because the engine's runner cannot start processes.
+
+**Checklist for any change that writes shell or settings:**
+
+- Never call yourself: a fallback or backup must not be your own script or command.
+- Guard recursion in the generated script itself, not only in the code that writes it.
+- Run the generated script in a real shell, with the bad input as well as the good one.
+- Remember another copy of the mod may have written the file you are about to read.
+
 ## Releasing
 
 Add entries under `## [Unreleased]` in `CHANGELOG.md` as you merge changes. To cut a release:

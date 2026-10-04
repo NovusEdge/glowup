@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- glowup's status line script could call itself when two copies of glowup were loaded, starting shells until the machine ran out of memory. It now never falls back to itself, and the first-run question no longer takes over a status line glowup already draws.
 - Tool results no longer clip at the right edge, and the `[ OK ]` mark no longer wraps, because rows now take less width around Claude Code's own output.
 
 ## [0.2.2] - 2026-10-04
