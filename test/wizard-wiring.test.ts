@@ -48,7 +48,7 @@ test('/glowup config asks through the engine dialog, applies each pick and never
 test('Tweak colors in the live wizard sets an override that survives a pack switch', { timeoutMs: 20000 }, async ($, on) => {
   const s = setup(on, ['classic (current)', 'Pack default', 'Clawd', 'Tweak colors', 'accent', '#112233'])
   await runGlowup($, 'config')
-  expect(s.asked.map(q => q.header)).toEqual(['Pack', 'Spinner', 'Pet', 'Extras', 'Color', 'Hex'])
+  expect(s.asked.map(q => q.header)).toEqual(['Pack', 'Spinner', 'Pet', 'Extras', 'Color', 'Hex', 'Status line'])
   expect(s.asked[3].options.map((o: any) => o.label).at(-1)).toBe('Tweak colors')
   expect((await runGlowup($, 'color list')).text).toContain('● accent #112233  (override)')
   await runGlowup($, 'pack arcade')

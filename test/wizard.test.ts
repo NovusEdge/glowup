@@ -256,7 +256,7 @@ const TO_EXTRAS = ['classic (current)', 'Pack default', 'Clawd']
 test('Tweak colors asks which role, then which hex, and applies the override', async () => {
   const r = rig([...TO_EXTRAS, 'Tweak colors', 'accent', '#112233'])
   const out = await r.run()
-  expect(r.asked.slice(4).map(q => q.header)).toEqual(['Color', 'Hex'])
+  expect(r.asked.slice(4).map(q => q.header)).toEqual(['Color', 'Hex', 'Status line'])
   expect(r.asked[4]!.options).toEqual(['accent', 'text', 'dim', 'panel'])
   expect(r.asked[5]!.options.length).toBeGreaterThanOrEqual(2)
   expect(r.asked[5]!.options.length).toBeLessThanOrEqual(4)
