@@ -3,7 +3,8 @@ export const CLAWD_COLOR = '#d77757'
 export const SHINY_COLOR = '#f2c94c'
 export type PetSetting = 'clawd' | 'clawd-shiny' | 'off'
 export type PetId = Exclude<PetSetting, 'off'>
-export type Pose = 'idle' | 'walk' | 'hop' | 'alert' | 'done' | 'sleep'
+// 'fail' is optional in a sheet; without one it plays 'alert'.
+export type Pose = 'idle' | 'walk' | 'hop' | 'alert' | 'done' | 'sleep' | 'fail'
 export type PetSpan = { text: string; color: string; bg?: string }
 export type PetInput = { working: boolean; needsYou: boolean; lastTest?: { passed: boolean; at: number }; doneAt?: number; doneOk?: boolean; actAt?: number }
 
@@ -32,7 +33,8 @@ export function petPose(p: PetInput, now: number): Pose {
   if (t && t.passed && now - t.at <= HOP_MS) return 'hop'
   if (!p.working && p.doneOk && p.doneAt !== undefined && now - p.doneAt <= DONE_MS) return 'done'
   if (p.working) return 'walk'
-  return p.actAt !== undefined && now - p.actAt >= SLEEP_MS ? 'sleep' : 'idle'
+  // 0 is initialModel's "nothing yet", not a real time
+  return p.actAt !== undefined && p.actAt > 0 && now - p.actAt >= SLEEP_MS ? 'sleep' : 'idle'
 }
 
 const GOLD = { o: SHINY_COLOR, h: '#ffe68f', s: '#c4941a', K: '#2a1d05', W: '#ffffff' }
@@ -186,7 +188,7 @@ type Draw = (g: Grid, t: number) => Drawn
 const alt = (t: number, every: number) => Math.floor(t / every) % 2 === 1
 const WALK_SPAN = 24, WALK_SPEED = 0.007
 
-const POSES: Record<Pose, { period: number; sample: number; draw: Draw }> = {
+const POSES: Record<Exclude<Pose, 'fail'>, { period: number; sample: number; draw: Draw }> = {
   idle: {
     period: 7200, sample: 40,
     draw(g, t) {
@@ -198,7 +200,7 @@ const POSES: Record<Pose, { period: number; sample: number; draw: Draw }> = {
     },
   },
   walk: {
-    period: 2 * WALK_SPAN / WALK_SPEED, sample: 70,
+    period: 2 * WALK_SPAN / WALK_SPEED, sample: 140,
     draw(g, t) {
       const d = (t * WALK_SPEED) % (WALK_SPAN * 2)
       const face = d < WALK_SPAN ? 1 : -1
@@ -209,7 +211,7 @@ const POSES: Record<Pose, { period: number; sample: number; draw: Draw }> = {
     },
   },
   hop: {
-    period: 1600, sample: 50,
+    period: 1600, sample: 80,
     draw(g, t) {
       const p = t % 1600
       let lift = 0, sq = 0, arms = 'down'
@@ -224,11 +226,11 @@ const POSES: Record<Pose, { period: number; sample: number; draw: Draw }> = {
     },
   },
   alert: {
-    period: 1200, sample: 60,
+    period: 1200, sample: 80,
     draw(g, t) {
       const p = t % 1200
       const lift = p < 300 ? 3 * Math.sin(Math.PI * p / 300) : 0
-      const shake = p > 300 && p < 600 ? (Math.floor(p / 60) % 2 ? 1 : -1) : 0
+      const shake = p > 300 && p < 600 ? (Math.floor(p / 80) % 2 ? 1 : -1) : 0
       shadow(g, CX, lift)
       const b = body(g, { cx: CX + shake, lift, eyes: 'wide', arms: alt(t, 300) ? ['up', 'down'] : ['down', 'up'] })
       bang(g, b.right + 4, b.top - 1, t)
@@ -254,7 +256,7 @@ const POSES: Record<Pose, { period: number; sample: number; draw: Draw }> = {
   },
 }
 
-function build({ period, sample, draw }: (typeof POSES)[Pose]) {
+function build({ period, sample, draw }: (typeof POSES)[keyof typeof POSES]) {
   const frames: (PetFrame & { ms: number })[] = []
   for (let t = 0; t < period; t += sample) {
     const g = newGrid()
@@ -272,9 +274,9 @@ export const CLAWD_SHEET: PetSheet = {
   w: SW,
   h: SH,
   palette: CLAWD_PAL,
-  animations: Object.fromEntries((Object.keys(POSES) as Pose[]).map(k => [k, build(POSES[k])])),
+  animations: Object.fromEntries((Object.keys(POSES) as (keyof typeof POSES)[]).map(k => [k, build(POSES[k])])),
 }
-const SHEETS: Record<PetId, PetSheet> = { clawd: CLAWD_SHEET, 'clawd-shiny': { ...CLAWD_SHEET, palette: shiny(CLAWD_PAL) } }
+const SHEETS: Record<PetId, PetSheet> = { clawd: CLAWD_SHEET, 'clawd-shiny': { ...CLAWD_SHEET, palette: shiny(CLAWD_SHEET.palette) } }
 
 // Outfit grids are anchored at the head: [x, y] is the grid's top-left relative to head.
 type Piece = { at: [number, number]; px: string[] }
@@ -293,7 +295,8 @@ const OUTFIT: Record<string, (now: number) => Piece[]> = {
 }
 
 function frameFor(pet: PetId, pose: Pose, now: number) {
-  const anim = SHEETS[pet].animations[pose]!
+  const a = SHEETS[pet].animations
+  const anim = a[pose] ?? (pose === 'fail' ? a.alert : undefined) ?? a.idle!
   return anim.frames[frameAt(anim, now)]!
 }
 

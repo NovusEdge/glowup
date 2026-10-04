@@ -4,7 +4,7 @@ import { fill, pickLine, bubbleFor, CLAWD_SAY } from '../hooks/bubbles.ts'
 test('fill replaces placeholders, strips unsafe characters and caps at 40', async () => {
   expect(fill('{n}/{n} green', { n: 12 })).toBe('12/12 green')
   expect(fill('editing {file}', {})).toBe('editing …')
-  expect(fill('a\u001b[2J‮b {command}', { command: 'ls' })).toBe('a[2Jb ls')
+  expect(fill('a\u001b[2J\u202eb {command}', { command: 'ls' })).toBe('a[2Jb ls')
   const long = fill('{file}', { file: 'x'.repeat(80) })
   expect([...long]).toHaveLength(40)
   expect(long.endsWith('…')).toBe(true)

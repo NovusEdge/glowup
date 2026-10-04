@@ -28,6 +28,23 @@ test('a long idle falls asleep, work wakes him', async () => {
   expect(petPose({ ...base, needsYou: true }, 1000 + 20 * 60_000)).toBe('alert')
 })
 
+test('an unknown activity time never means asleep', async () => {
+  const base = { working: false, needsYou: false }
+  expect(petPose(base, 99 * 60_000)).toBe('idle')
+  expect(petPose({ ...base, actAt: 0 }, 99 * 60_000)).toBe('idle')
+})
+
+test('a missing animation falls back: fail to alert, anything else to idle', async () => {
+  const rows = (pose: string) => flat(petRows('clawd', pose as 'idle', 0, []))
+  expect(rows('fail')).toEqual(rows('alert'))
+  expect(rows('nope')).toEqual(rows('idle'))
+})
+
+test('the shiny sheet is the sheet palette swapped to gold', async () => {
+  const colors = new Set(petRows('clawd-shiny', 'idle', 0, []).flat().flatMap(s => [s.color, s.bg]))
+  expect(colors.has(shiny(CLAWD_SHEET.palette).h)).toBe(true)
+})
+
 test('halfBlock pairs pixel rows into half-block cells', async () => {
   const pal = { a: '#111111', b: '#222222' }
   expect(halfBlock(['a.ab', '.bab'], pal)[0]).toEqual([
@@ -92,10 +109,10 @@ test('every frame is PET_ROWS rows of exactly PET_COLS cells', async () => {
 })
 
 test('no frame recolors the whole sprite', async () => {
-  // Movement frames may be 30-150 ms; the palette is the sheet's and never swaps mid-animation.
+  // Movement frames last at least 80 ms; the palette is the sheet's and never swaps mid-animation.
   for (const [pose, a] of Object.entries(CLAWD_SHEET.animations)) {
     a.frames.forEach((fr, i) => {
-      expect(fr.ms, `${pose}[${i}]`).toBeGreaterThanOrEqual(30)
+      expect(fr.ms, `${pose}[${i}]`).toBeGreaterThanOrEqual(80)
       const keys = new Set(fr.px.join(''))
       // the body always uses the sheet's own colors, so only movement changes between frames
       for (const k of 'ohs') expect(keys.has(k), `${pose}[${i}] has ${k}`).toBe(true)
