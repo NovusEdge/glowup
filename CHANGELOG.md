@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The `cards` row style now puts your prompts and Claude's replies on a side bar instead of a box, and draws tool calls in a dim box.
 - Clawd's done dance now lasts 4 seconds instead of 1.5.
+- glowup's own spinner now sits 2 columns in from the left edge instead of touching it.
 
 ## [0.2.2] - 2026-10-04
 

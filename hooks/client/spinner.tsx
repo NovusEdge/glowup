@@ -13,7 +13,7 @@ export default function SpinnerClient(p: SpinnerProps, surface: ClientSurface<nu
   const spans = (row: { text: string; color: string; bold?: boolean; bg?: string }[]) =>
     row.map(s => <Text color={s.color} backgroundColor={s.bg} bold={s.bold}>{s.text}</Text>)
   return (
-    <Box flexDirection="row">
+    <Box flexDirection="row" paddingLeft={2}>
       <Box flexDirection="column">{line.badge.map(r => <Box flexDirection="row">{spans(r)}</Box>)}</Box>
       <Box flexDirection="column" marginLeft={1}>
         <Box flexDirection="row">{spans(line.word)}<Text color={p.look.theme.colors.dim}>{' ' + line.tail}</Text></Box>
