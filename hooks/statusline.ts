@@ -19,14 +19,17 @@ export function statusText(m: Model, _t: Theme): string | undefined {
 // The script prints the line glowup wrote for this session; when that file is
 // missing or over 10 minutes old (glowup removed or off) it runs the user's
 // original command with the same stdin, so uninstalling never blanks the line.
+// Single quotes: the config dir may hold a space, `$` or a backquote.
+const sq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`
+const command = (configDir: string) => `sh ${sq(SCRIPT_PATH(configDir))}`
+
 function script(configDir: string, original: string) {
-  const q = original.replace(/'/g, `'\\''`)
   return `#!/bin/sh
 input=$(cat)
 sid=$(printf '%s' "$input" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\\([^"]*\\)".*/\\1/p')
-f="${STATUS_DIR(configDir)}/$sid"
+f=${sq(STATUS_DIR(configDir))}/"$sid"
 if [ -n "$sid" ] && [ -f "$f" ] && [ -n "$(find "$f" -mmin -10 2>/dev/null)" ]; then cat "$f"; exit 0; fi
-${original ? `printf '%s' "$input" | sh -c '${q}'` : 'exit 0'}
+${original ? `printf '%s' "$input" | sh -c ${sq(original)}` : 'exit 0'}
 `
 }
 
@@ -48,7 +51,7 @@ export async function takeOver(host: Host, ask: (question: string) => Promise<bo
   await host.writeFile(SCRIPT_PATH(host.configDir), script(host.configDir, original))
   // re-read just before writing: Claude Code writes this file too
   const fresh = (await readSettings(host)) ?? settings
-  await host.writeFile(SETTINGS(host.configDir), JSON.stringify({ ...fresh, statusLine: { type: 'command', command: `sh ${SCRIPT_PATH(host.configDir)}` } }, null, 2) + '\n')
+  await host.writeFile(SETTINGS(host.configDir), JSON.stringify({ ...fresh, statusLine: { type: 'command', command: command(host.configDir) } }, null, 2) + '\n')
   return 'glowup now draws your status line. `/glowup statusline restore` brings yours back.' + override
 }
 
@@ -57,11 +60,16 @@ export async function restore(host: Host): Promise<string> {
   if (backup === undefined) return 'Nothing to restore: glowup never replaced your status line.'
   const settings = await readSettings(host)
   if (!settings) return `glowup could not read ${SETTINGS(host.configDir)}; nothing changed.`
-  const { statusLine: _drop, ...rest } = settings
-  await host.writeFile(SETTINGS(host.configDir), JSON.stringify(backup === NONE ? rest : { ...rest, statusLine: backup }, null, 2) + '\n')
+  const { statusLine: current, ...rest } = settings
+  // Someone set another status line since the takeover: theirs stays. Matching on
+  // the path also covers the unquoted command older builds wrote.
+  const cmd = (current as { command?: unknown } | undefined)?.command
+  const ours = typeof cmd === 'string' && cmd.includes(SCRIPT_PATH(host.configDir))
+  if (ours) await host.writeFile(SETTINGS(host.configDir), JSON.stringify(backup === NONE ? rest : { ...rest, statusLine: backup }, null, 2) + '\n')
   await host.storeDelete(BACKUP_KEY)
   await host.run(['rm', '-f', SCRIPT_PATH(host.configDir)])
-  return 'Your status line is back.'
+  await host.run(['rm', '-rf', STATUS_DIR(host.configDir)])
+  return ours ? 'Your status line is back.' : 'Your status line was changed since; left it as is.'
 }
 
 // No line: the file goes, so the script falls back to the person's own command

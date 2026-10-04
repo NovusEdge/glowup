@@ -28,18 +28,39 @@ test('a single quote in the original command is escaped in the script', async ()
   expect(files[SCRIPT]).toContain(`sh -c 'echo '\\''hi'\\'''`)
 })
 
+test('a config dir with a space, $ or quote is single-quoted in settings and the script', async () => {
+  const dir = `/home/u/it's $HOME/.claude`
+  const { host: base, files } = fakeHost({ files: { [`${dir}/settings.json`]: '{}' } })
+  const host = { ...base, configDir: dir }
+  await takeOver(host, yes)
+  const q = `'/home/u/it'\\''s $HOME/.claude`
+  expect(JSON.parse(files[`${dir}/settings.json`]!).statusLine.command).toBe(`sh ${q}/glowup/statusline.sh'`)
+  expect(files[`${dir}/glowup/statusline.sh`]).toContain(`f=${q}/glowup/status'/"$sid"`)
+})
+
+test('restore leaves a status line someone changed since, and forgets the backup', async () => {
+  const { host, files, store, ran } = fakeHost({ files: { [SETTINGS]: '{"statusLine":{"type":"command","command":"mine"}}' } })
+  await takeOver(host, yes)
+  files[SETTINGS] = '{"statusLine":{"type":"command","command":"theirs"}}'
+  expect(await restore(host)).toBe('Your status line was changed since; left it as is.')
+  expect(JSON.parse(files[SETTINGS]!).statusLine.command).toBe('theirs')
+  expect('statusline-backup' in store).toBe(false)
+  expect(ran).toContain(`rm -rf /home/u/.claude/glowup/status`)
+})
+
 test('takeover changes only statusLine and restore puts it back', async () => {
   const original = { model: 'opus', statusLine: { type: 'command', command: 'ccstatusline' }, hooks: { Stop: [] } }
   const { host, files, ran } = fakeHost({ files: { [SETTINGS]: JSON.stringify(original, null, 2) } })
   const msg = await takeOver(host, yes)
   expect(msg).toContain('restore')
   const after = JSON.parse(files[SETTINGS]!)
-  expect(after.statusLine).toEqual({ type: 'command', command: `sh ${SCRIPT}` })
+  expect(after.statusLine).toEqual({ type: 'command', command: `sh '${SCRIPT}'` })
   expect({ ...after, statusLine: undefined }).toEqual({ ...original, statusLine: undefined })
   expect(files[SCRIPT]).toContain('ccstatusline')
   await restore(host)
   expect(JSON.parse(files[SETTINGS]!)).toEqual(original)
   expect(ran).toContain(`rm -f ${SCRIPT}`)
+  expect(ran).toContain(`rm -rf /home/u/.claude/glowup/status`)
 })
 
 test('restore removes the key when there was none before, and forgets the backup', async () => {
@@ -89,7 +110,7 @@ test('the question warns when a project statusLine overrides the user one', asyn
 test('accepting the question takes over', async () => {
   const { host, files } = fakeHost({ files: { [SETTINGS]: '{}' } })
   await takeOver(host, async () => true)
-  expect(JSON.parse(files[SETTINGS]!).statusLine.command).toBe(`sh ${SCRIPT}`)
+  expect(JSON.parse(files[SETTINGS]!).statusLine.command).toBe(`sh '${SCRIPT}'`)
 })
 
 test('status text', async () => {
