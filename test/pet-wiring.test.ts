@@ -37,6 +37,16 @@ test('the pane hosts the pet Client with raw inputs; the band never does', { tim
   await pane.unmount(); await band.unmount()
 })
 
+test('the pet region is sized to the strip so he has room to walk; the compact row stays unsized', { timeoutMs: 20000 }, async ($, on) => {
+  base(on); mock.clock(on)
+  const pane = await mountPane($)
+  expect(petClient(await pane.drawn()).props.width).toBe(46)
+  await pane.unmount()
+  const inline = await $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'Pane', requestId: 'glowup', props: { ...(PANE as object), placement: 'inline', bodyColumns: 60 } as never })
+  expect(petClient(await inline.drawn()).props.width).toBeUndefined()
+  await inline.unmount()
+})
+
 test('pet off, or reduced motion: no pet Client in the pane', async ($, on) => {
   base(on); mock.clock(on)
   for (const cmd of ['pet off', 'motion reduced']) {
