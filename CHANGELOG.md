@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `/glowup export konsole` saves your current colors as a Konsole color scheme you can pick in your profile.
+
 ### Changed
 
 - `/glowup config` now asks which spinner you want, right after the pack, and the summary line names a spinner you set.

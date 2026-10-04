@@ -37,6 +37,7 @@ export const SECTIONS: readonly (readonly [title: string, rows: HelpRow[]])[] = 
     ['/glowup pack <url>', 'install a shared pack'],
     ['/glowup theme add <url>', 'install a shared theme'],
     ['/glowup import <file>', 'Ghostty or base16 scheme → pack'],
+    ['/glowup export konsole', 'your look as a Konsole scheme'],
   ]],
   ['Status line', [
     ['/glowup statusline on', 'let glowup draw it'],

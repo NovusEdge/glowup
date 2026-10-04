@@ -6,6 +6,7 @@ import { resolveLook, exportMix, SPINNER_IDS, type Mix } from './packs.ts'
 import { PACKS } from './packpresets.ts'
 import { loadUserPacks, addPack, savePack, SAFE_NAME } from './userpacks.ts'
 import { parseScheme } from './schemes.ts'
+import { konsoleScheme } from './konsole.ts'
 import type { PetSetting } from './pets.ts'
 import type { BubbleSetting } from './bubbles.ts'
 import type { EggStore } from './eggs.ts'
@@ -203,6 +204,14 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     return `Spinner: ${a1}`
   }
   if (sub === 'spinner') return USAGE
+  if (sub === 'export') {
+    if (a1 !== 'konsole') return 'Export targets: konsole'
+    const { look } = resolveLook(ctl.mix(), await loadUserPacks(host), await loadUserThemes(host))
+    const pack = look.colorsFrom.replace(/[^a-z0-9-]/g, '-')
+    const path = `${host.dataHome}/konsole/glowup-${pack}.colorscheme`
+    await host.writeFile(path, konsoleScheme(pack, look.theme.colors, look.bg))
+    return `${path}\nIn Konsole: Settings → Edit Current Profile → Appearance → pick "glowup ${pack}".`
+  }
   if (sub === 'import' && a1) return importScheme(host, ctl, a1, a2 === '--force')
   if (sub === 'pet' && a1 === 'list') {
     const cur = ctl.pet()

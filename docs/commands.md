@@ -90,6 +90,10 @@ The built-in packs are `classic` (the default), `crt`, `cozy` and `arcade`. If a
 
 `/glowup import <file>` turns a Ghostty or base16 color scheme into a pack with a colors layer, saves it in `~/.claude/glowup/packs` and applies it. The file can be at most 64 KB. Add `--force` to replace an installed pack of the same name. See [Packs](packs.md#import-a-color-scheme).
 
+## export
+
+`/glowup export konsole` writes your current colors as a Konsole color scheme to `$XDG_DATA_HOME/konsole/glowup-<pack>.colorscheme` (`~/.local/share/konsole/` when `XDG_DATA_HOME` is not set), replacing an earlier export of the same name. Then in Konsole pick it under Settings → Edit Current Profile → Appearance.
+
 ## pet and bubbles
 
 | Command | What it does |

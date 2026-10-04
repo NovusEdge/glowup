@@ -29,6 +29,7 @@ export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<s
     storeDelete: async k => { delete store[k] },
     projectStatusLine: async () => opts.projectStatusLine === true,
     configDir: '/home/u/.claude',
+    dataHome: '/home/u/.local/share',
     home: '/home/u',
   }
   return { host, files, store, ran, envs }
@@ -36,8 +37,8 @@ export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<s
 
 // Answers $.env, $.fs and $.process from memory, so a wiring test can never reach
 // the real config directory. Call it first in any test that loads the mod's hooks.
-export function fakeFs(on: On, files: Record<string, string> = {}, ran?: (argv: string[]) => { exitCode: number; stdout: string } | void) {
-  mock.env(on, { HOME: '/fake', CLAUDE_CONFIG_DIR: '/fake/.claude' })
+export function fakeFs(on: On, files: Record<string, string> = {}, ran?: (argv: string[]) => { exitCode: number; stdout: string } | void, env: Record<string, string> = {}) {
+  mock.env(on, { HOME: '/fake', CLAUDE_CONFIG_DIR: '/fake/.claude', ...env })
   const writes: string[] = []
   const under = (p: string) => Object.keys(files).filter(f => f.startsWith(p + '/'))
   on('fs.exists', async (_$, e) => ({ value: e.path in files || under(e.path).length > 0 }) as never)
