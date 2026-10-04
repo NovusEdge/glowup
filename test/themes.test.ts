@@ -29,29 +29,63 @@ test('a user theme extends a preset and overrides one color', async () => {
 })
 
 test('bad theme falls back to classic with a reason', async () => {
-  const cases: [string, unknown][] = [
-    ['bad-color', { name: 'x', colors: { accent: 'red' } }],
-    ['bad-extends', { name: 'x', extends: 'nope' }],
-    ['cycle', { name: 'cycle', extends: 'cycle' }],
-    ['not-object', 42],
-    ['hearts-one', { name: 'x', band: { hearts: ['a'] } }],
-    ['hearts-three', { name: 'x', band: { hearts: ['a', 'b', 'c'] } }],
-    ['hearts-not-array', { name: 'x', band: { hearts: 'ab' } }],
-    ['hearts-long', { name: 'x', band: { hearts: ['ab', 'c'] } }],
-    ['hearts-wide', { name: 'x', band: { hearts: ['a', '漢'] } }],
-    ['glyph-wide-cjk', { name: 'x', glyphs: { read: '漢' } }],
-    ['glyph-hangul', { name: 'x', glyphs: { read: '한' } }],
-    ['glyph-fullwidth', { name: 'x', glyphs: { read: 'Ａ' } }],
-    ['glyph-hangul-jamo', { name: 'x', glyphs: { read: 'ᄀ' } }],
-    ['glyph-astral', { name: 'x', glyphs: { read: '😀' } }],
-    ['glyph-two', { name: 'x', glyphs: { read: 'ab' } }],
-    ['glyph-empty', { name: 'x', glyphs: { read: '' } }],
+  const cases: [string, unknown, string][] = [
+    ['bad-color', { name: 'x', colors: { accent: 'red' } }, '#rrggbb'],
+    ['bad-extends', { name: 'x', extends: 'nope' }, 'no theme named "nope"'],
+    ['cycle', { name: 'cycle', extends: 'cycle' }, 'loops'],
+    ['not-object', 42, 'JSON object'],
+    ['hearts-one', { name: 'x', band: { hearts: ['a'] } }, 'band.hearts'],
+    ['hearts-three', { name: 'x', band: { hearts: ['a', 'b', 'c'] } }, 'band.hearts'],
+    ['hearts-not-array', { name: 'x', band: { hearts: 'ab' } }, 'band.hearts'],
+    ['hearts-long', { name: 'x', band: { hearts: ['ab', 'c'] } }, 'band.hearts'],
+    ['hearts-wide', { name: 'x', band: { hearts: ['a', '漢'] } }, 'band.hearts'],
+    ['glyph-wide-cjk', { name: 'x', glyphs: { read: '漢' } }, 'width-1'],
+    ['glyph-hangul', { name: 'x', glyphs: { read: '한' } }, 'width-1'],
+    ['glyph-fullwidth', { name: 'x', glyphs: { read: 'Ａ' } }, 'width-1'],
+    ['glyph-hangul-jamo', { name: 'x', glyphs: { read: 'ᄀ' } }, 'width-1'],
+    ['glyph-astral', { name: 'x', glyphs: { read: '😀' } }, 'width-1'],
+    ['glyph-two', { name: 'x', glyphs: { read: 'ab' } }, 'width-1'],
+    ['glyph-empty', { name: 'x', glyphs: { read: '' } }, 'width-1'],
   ]
-  for (const [name, file] of cases) {
+  for (const [name, file, text] of cases) {
     const { theme, error } = resolveTheme(name, { [name]: file })
     expect(theme.name).toBe('classic')
-    expect(error).toBeDefined()
+    expect(error).toContain(text)
   }
+})
+
+test('wide ranges and their boundaries', async () => {
+  const glyph = (ch: string) => resolveTheme('g', { g: { name: 'g', glyphs: { read: ch } } }).error
+  for (const ch of ['豈', '﫿', '︰', '﹏', '￠', '￦', 'ᅟ']) expect(glyph(ch)).toContain('width-1')
+  expect(glyph('ᅠ')).toBeUndefined()
+  expect(glyph('︯')).toBeUndefined()
+  expect(glyph('￧')).toBeUndefined()
+})
+
+test('glyphs reject control, zero-width and surrogate characters', async () => {
+  const glyph = (ch: string) => resolveTheme('g', { g: { name: 'g', glyphs: { read: ch } } }).error
+  for (const ch of ['\x00', '\x1b', '\x1f', '\x7f', '\x85', '\x9f', '​', '‏', ' ', '‮', '⁠', '⁯', '﻿', '\ud800', '\udfff']) expect(glyph(ch)).toContain('width-1')
+  const hearts = resolveTheme('h', { h: { name: 'h', band: { hearts: ['a', '\x1b'] } } }).error
+  expect(hearts).toContain('band.hearts')
+})
+
+test('glyphs must be an object with known keys', async () => {
+  for (const glyphs of [[], 'abc', 5, null]) {
+    expect(resolveTheme('g', { g: { name: 'g', glyphs } }).error).toContain('"glyphs" must be an object')
+  }
+  expect(resolveTheme('g', { g: { name: 'g', glyphs: { bogus: 'a' } } }).error).toContain('unknown glyph "bogus"')
+})
+
+test('names inherited from Object.prototype are not themes', async () => {
+  expect(resolveTheme('constructor', {}).error).toContain('no theme named "constructor"')
+  expect(resolveTheme('toString', {}).error).toContain('no theme named "toString"')
+  expect(resolveTheme('x', { x: { name: 'x', extends: '__proto__' } }).error).toContain('no theme named "__proto__"')
+})
+
+test('block comments become a space and must be terminated', async () => {
+  expect(() => parseJsonc('{"a": 1 /* oops')).toThrow('unterminated')
+  // "1/*c*/3" must not glue into 13.
+  expect(() => parseJsonc('1/*c*/3')).toThrow('not valid JSON')
 })
 
 test('valid hearts and narrow glyphs are accepted', async () => {

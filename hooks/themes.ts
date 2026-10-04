@@ -16,7 +16,11 @@ export function parseJsonc(text: string): unknown {
     if (inStr) { out += c; if (c === '\\') { out += n ?? ''; i += 2; continue } if (c === '"') inStr = false; i++; continue }
     if (c === '"') { inStr = true; out += c; i++; continue }
     if (c === '/' && n === '/') { while (i < text.length && text[i] !== '\n') i++; continue }
-    if (c === '/' && n === '*') { const end = text.indexOf('*/', i + 2); i = end < 0 ? text.length : end + 2; continue }
+    if (c === '/' && n === '*') {
+      const end = text.indexOf('*/', i + 2)
+      if (end < 0) throw new Error('unterminated /* comment')
+      out += ' '; i = end + 2; continue
+    }
     out += c; i++
   }
   try { return JSON.parse(out) } catch (err) { throw new Error('not valid JSON: ' + (err as Error).message) }
@@ -25,11 +29,17 @@ export function parseJsonc(text: string): unknown {
 // East Asian wide ranges below U+FFFF; the engine refuses cells that aren't width 1.
 const WIDE: [number, number][] = [[0x1100, 0x115f], [0x2e80, 0xa4cf], [0xac00, 0xd7a3], [0xf900, 0xfaff], [0xfe30, 0xfe4f], [0xff00, 0xff60], [0xffe0, 0xffe6]]
 
+// Downloaded themes reach the terminal, so anything that moves the cursor, hides text or
+// is not a scalar value is out: C0/C1 controls, zero-width and bidi marks, surrogates.
+const UNSAFE: [number, number][] = [[0x00, 0x1f], [0x7f, 0x9f], [0x200b, 0x200f], [0x2028, 0x202f], [0x2060, 0x206f], [0xfeff, 0xfeff], [0xd800, 0xdfff]]
+
 function isGlyph(s: unknown): boolean {
   if (typeof s !== 'string' || [...s].length !== 1) return false
   const cp = s.codePointAt(0)!
-  return cp <= 0xffff && !WIDE.some(([lo, hi]) => cp >= lo && cp <= hi)
+  return cp <= 0xffff && ![...WIDE, ...UNSAFE].some(([lo, hi]) => cp >= lo && cp <= hi)
 }
+
+const isPlain = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
 function validate(file: unknown): asserts file is ThemeFile {
   if (typeof file !== 'object' || file === null || Array.isArray(file)) throw new Error('a theme must be a JSON object')
@@ -40,8 +50,11 @@ function validate(file: unknown): asserts file is ThemeFile {
     if (!(COLOR_KEYS as readonly string[]).includes(k)) throw new Error(`unknown color "${k}"`)
     if (typeof v !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(v)) throw new Error(`color "${k}" must be #rrggbb`)
   }
-  const glyphs = (f.glyphs ?? {}) as Record<string, unknown>
-  for (const [k, v] of Object.entries(glyphs)) if (!isGlyph(v)) throw new Error(`glyph "${k}" must be one width-1 character`)
+  if (f.glyphs !== undefined && !isPlain(f.glyphs)) throw new Error('"glyphs" must be an object')
+  for (const [k, v] of Object.entries(f.glyphs ?? {})) {
+    if (!(GLYPH_KEYS as readonly string[]).includes(k)) throw new Error(`unknown glyph "${k}"`)
+    if (!isGlyph(v)) throw new Error(`glyph "${k}" must be one width-1 character`)
+  }
   const hearts = (f.band as { hearts?: unknown } | undefined)?.hearts
   if (hearts !== undefined && (!Array.isArray(hearts) || hearts.length !== 2 || !hearts.every(isGlyph))) throw new Error('band.hearts must be two width-1 characters')
   const words = (f.spinner as { words?: unknown } | undefined)?.words
@@ -50,8 +63,9 @@ function validate(file: unknown): asserts file is ThemeFile {
 
 function chain(name: string, user: Record<string, unknown>, seen: string[] = []): ThemeFile[] {
   if (seen.includes(name)) throw new Error(`"extends" loops: ${[...seen, name].join(' -> ')}`)
-  const raw = user[name] ?? PRESETS[name]
+  const raw = Object.hasOwn(user, name) ? user[name] : Object.hasOwn(PRESETS, name) ? PRESETS[name] : undefined
   if (raw === undefined) throw new Error(`no theme named "${name}"`)
+  if (raw instanceof Error) throw raw
   validate(raw)
   return raw.extends ? [...chain(raw.extends, user, [...seen, name]), raw] : [raw]
 }
