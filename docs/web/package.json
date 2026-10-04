@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "react-router dev",
     "postinstall": "fumadocs-mdx",
-    "test": "node --test \"test/*.test.ts\"",
+    "test": "node --test \"test/*.spec.ts\"",
     "build": "react-router build && node scripts/flatten.ts && node scripts/copy-assets.ts && node scripts/crawl.ts",
     "preview": "node scripts/preview.ts",
     "check": "fumadocs-mdx && react-router typegen && tsc && node scripts/check-links.ts"
