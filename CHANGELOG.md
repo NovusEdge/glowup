@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-05
+
 ### Added
 
 - Clawd juggles while three or more subagents run, crumples up a sheet of paper when the context is compacted, and pants while he stands or walks once the context window is 80% full.
