@@ -132,3 +132,9 @@ demo-editor:
 demo-render:
     pnpm -C demo install --ignore-workspace
     cd demo && systemd-run --user --scope -p MemoryMax=6G -p TasksMax=512 pnpm render
+
+# render the README's pane stills (classic pack, no game layer) into docs/assets
+[group('demo')]
+demo-stills:
+    pnpm -C demo install --ignore-workspace
+    cd demo && STILLS_OUT=../docs/assets systemd-run --user --scope -p MemoryMax=6G -p TasksMax=512 pnpm render stills
