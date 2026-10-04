@@ -3,8 +3,10 @@ import type { Host } from './host.ts'
 import { initialModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
 import { approvalLabel, shortPath } from './events.ts'
 import type { Theme } from './themes.ts'
-import { resolveLook, DEFAULT_MIX, type Mix, type Look } from './packs.ts'
-import { loadUserPacks } from './userpacks.ts'
+import { resolveLook, exportMix, DEFAULT_MIX, type Mix, type Look } from './packs.ts'
+import { loadUserPacks, savePack, SAFE_NAME } from './userpacks.ts'
+import { PACKS } from './packpresets.ts'
+import { renderConfig, type Draft } from './config.tsx'
 import { PET_ROWS, type PetSetting, type PetId, type PetInput, type PetKind } from './pets.ts'
 import { bubbleFor, type BubbleSetting, type BubbleVars, type Mood } from './bubbles.ts'
 import { recordPass, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
@@ -65,6 +67,14 @@ let friday = false
 let tzOffset = 0
 let installed: number | undefined
 let lastPet = ''
+// The config view's draft, mirrored in CONFIG state (the render hook reads that copy).
+let draft: Draft | undefined
+let previewTimer: Timer | undefined
+// Disk reads for the view happen in openConfig; a render hook must not read disk.
+let userPacksCache: Awaited<ReturnType<typeof loadUserPacks>> = {}
+let userThemesCache: Awaited<ReturnType<typeof loadUserThemes>> = {}
+let shinyUnlocked = false
+let paneBefore: 'closed' | 'dock' | 'inline' = 'closed'
 
 function hostOf($: Engine): Host {
   return {
@@ -226,6 +236,66 @@ function feed($: Engine, ev: Ev) {
   }
 }
 
+const configChoices = () => ({
+  packs: [...new Set([...Object.keys(PACKS), ...Object.keys(userPacksCache).filter(n => SAFE_NAME.test(n))])],
+  pets: ['clawd', ...(shinyUnlocked ? ['clawd-shiny' as const] : []), 'off' as const] as PetSetting[],
+})
+function setDraft($: Engine, d: Draft) {
+  draft = d
+  void $.state.set(CONFIG, { draft: d, at: Date.now() })
+}
+function dropDraft($: Engine) {
+  draft = undefined
+  previewTimer?.cancel()
+  previewTimer = undefined
+  void $.state.set(CONFIG, { at: Date.now() })
+}
+async function openConfig($: Engine): Promise<string> {
+  const host = hostOf($)
+  userPacksCache = await loadUserPacks(host)
+  userThemesCache = await loadUserThemes(host)
+  shinyUnlocked = ((await host.storeGet('eggs')) as EggStore | undefined)?.shinyAt !== undefined
+  // panes() does not say drawer from dock; the last render's placement does
+  const shown = (await $.ui.panes()).some(p => p.id === 'glowup' && p.isShown)
+  paneBefore = !shown ? 'closed' : panePlacement === 'dock' ? 'dock' : 'inline'
+  setDraft($, { mix, pet, bubbles, reduced: reducedMotion, saveAs: '' })
+  previewTimer?.cancel()
+  previewTimer = $.clock.every(66, () => { if (draft && !draft.reduced) void $.state.set(CONFIG, { draft, at: Date.now() }) })
+  const r = await $.ui.open({ id: 'glowup', title: 'glowup', focus: true, closeOnEscape: true })
+  if (!r.isPlaced) { dropDraft($); return `glowup pane waits: ${r.reason}` }
+  return 'glowup config open (Esc closes it)'
+}
+// Each open sets closeOnEscape anew, so reopening without it undoes ours.
+async function restorePane($: Engine) {
+  if (paneBefore === 'closed') await $.ui.close({ id: 'glowup' })
+  else await $.ui.open(paneBefore === 'dock' ? { id: 'glowup', title: 'glowup' } : { id: 'glowup', title: 'glowup', focus: true })
+}
+async function finishConfig($: Engine, apply: boolean) {
+  const d = draft
+  dropDraft($)
+  if (apply && d) {
+    const host = hostOf($)
+    mix = d.mix; pet = d.pet; bubbles = d.bubbles; reducedMotion = d.reduced
+    await host.storeSet('mix', mix)
+    await host.storeSet('pet', pet)
+    await host.storeSet('bubbles', bubbles)
+    await host.storeSet('reducedMotion', reducedMotion)
+    await loadLook($)
+  }
+  await restorePane($)
+  publish($)
+}
+async function saveDraftPack($: Engine, name: string) {
+  if (!draft) return
+  if (!name.trim()) { $.ui.toast('Name the pack first.'); return }
+  const { look: l } = resolveLook(draft.mix, userPacksCache, userThemesCache)
+  const host = hostOf($)
+  const msg = await savePack(host, exportMix(l, name.trim()))
+  userPacksCache = await loadUserPacks(host)
+  $.ui.toast(msg)
+  if (draft) setDraft($, { ...draft, saveAs: '' })
+}
+
 async function togglePane($: Engine): Promise<string> {
   const open = (await $.ui.panes()).find(p => p.id === 'glowup')
   if (open?.isShown) { await $.ui.close({ id: 'glowup' }); return 'glowup pane closed' }
@@ -319,6 +389,7 @@ function ctlOf($: Engine): Ctl {
     pet: () => pet,
     setPet: p => { pet = p; relook($) },
     setBubbles: b => { bubbles = b; relook($) },
+    openConfig: () => openConfig($),
   }
 }
 
@@ -331,7 +402,7 @@ export const register: Register = (on, options) => {
     home = (await $.env.get('HOME')) ?? ''
     configDir = (await $.env.get('CLAUDE_CONFIG_DIR')) || `${home}/.claude`
     const host = hostOf($)
-    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'theme|pack|import|pet|bubbles|pane|motion|statusline ...' })
+    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|import|pet|bubbles|pane|motion|statusline ...' })
     mix = await initialMix(host, options)
     const storedPet = await host.storeGet('pet')
     const wantPet = PETS.includes(storedPet as PetSetting) ? storedPet as PetSetting : PETS.includes(options.pet as PetSetting) ? options.pet as PetSetting : 'clawd'
@@ -490,6 +561,26 @@ export const register: Register = (on, options) => {
       const bubbleNow = snap.bubble && snap.bubble.until > Date.now() ? snap.bubble : undefined
       extra = { look, pet: { id: pet as PetId, node, rows: snap.overlays.some(o => HEAD_OUTFITS.includes(o)) ? PET_ROWS + 2 : undefined }, bubble: bubbleNow, friday: snap.friday }
     }
+    const cfg = ((await $.state.get(CONFIG)).value as { draft?: Draft } | undefined)?.draft
+    if (cfg) {
+      const { Box } = els
+      const previewLook = resolveLook(cfg.mix, userPacksCache, userThemesCache).look
+      const act = {
+        change: (d: Draft) => setDraft($, d),
+        apply: () => void finishConfig($, true),
+        cancel: () => void finishConfig($, false),
+        save: (name: string) => void saveDraftPack($, name),
+      }
+      const form = renderConfig(els, cfg, previewLook, configChoices(), e.props.bodyColumns, Date.now(), act)
+      // Clawd stays visible while a pet is picked; the pane's own tabs give way to the form
+      if (!extra.pet) return form
+      return (
+        <Box flexDirection="column" width={e.props.bodyColumns}>
+          {form}
+          <Box key="config-pet" width={petStripCols(e.props.bodyColumns)} height={extra.pet.rows ?? PET_ROWS}>{extra.pet.node as any}</Box>
+        </Box>
+      )
+    }
     return renderPane(els, live?.model ?? model, theme, v, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
       view = { ...view, tab: id }
       publish($)
@@ -535,6 +626,11 @@ export const register: Register = (on, options) => {
     const row = await next(e)
     if (e.surface !== 'terminal') return row
     return styleRow($.ui.resolve(e), look, { site: 'ToolResult' }, row) as RenderElement
+  })
+
+  on('ui.close', async ($, e, next) => {
+    if (e.id === 'glowup' && draft) dropDraft($)
+    return next(e)
   })
 
   on('command.run', { command: 'glowup' }, async ($, e) => {
