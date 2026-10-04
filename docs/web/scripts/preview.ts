@@ -10,6 +10,7 @@ const port = Number(process.env.PORT ?? 4173)
 const types: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css',
   '.json': 'application/json', '.data': 'text/x-script', '.svg': 'image/svg+xml', '.wasm': 'application/wasm',
+  '.md': 'text/markdown; charset=utf-8', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml', '.png': 'image/png',
 }
 
 createServer((req, res) => {

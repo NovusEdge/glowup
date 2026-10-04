@@ -4,6 +4,7 @@ import { DocsBody, DocsDescription, DocsPage, DocsTitle } from 'fumadocs-ui/layo
 import defaultMdxComponents from 'fumadocs-ui/mdx'
 import browserCollections from '../../.source/browser'
 import { baseOptions } from '../lib/layout'
+import { SUMMARY, pageMeta } from '../lib/seo'
 import { source } from '../lib/source'
 import type { Route } from './+types/docs'
 
@@ -14,16 +15,19 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (!page) throw new Response('', { status: 404 })
   return {
     path: page.path,
+    slug,
     title: page.data.title,
     description: page.data.description,
     tree: await source.serializePageTree(source.getPageTree()),
   }
 }
 
-export const meta: Route.MetaFunction = ({ loaderData }) => [
-  { title: `${loaderData?.title} · glowup` },
-  { name: 'description', content: loaderData?.description },
-]
+export const meta: Route.MetaFunction = ({ loaderData }) =>
+  pageMeta({
+    title: loaderData ? `${loaderData.title} · glowup` : 'glowup',
+    description: loaderData?.description ?? SUMMARY,
+    path: `/${loaderData?.slug ?? ''}`,
+  })
 
 const content = browserCollections.docs.createClientLoader({
   id: 'docs',
