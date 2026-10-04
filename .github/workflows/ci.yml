@@ -1,0 +1,23 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  check:
+    name: Validate, types and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      # Same version as types/vendor/claude-code.d.ts; bump both together.
+      # npm, not pnpm: pnpm skips the postinstall that fetches the native binary.
+      - run: npm i -g @anthropic-ai/claude-code@2.1.288 && claude --version
+      - run: pnpm check
+      - run: pnpm test
+  versions:
+    name: Manifest versions agree
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: test "$(jq -r .version .claude-plugin/plugin.json)" = "$(jq -r .version package.json)"

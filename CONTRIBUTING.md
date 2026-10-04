@@ -4,16 +4,18 @@ glowup is pre-release. The code is still being built, so some of what is describ
 
 ## Setup
 
+Run `just --list` to see the dev commands. Each recipe wraps one of these:
+
 ```sh
-pnpm install
-pnpm check   # `claude plugin validate` and tsc
-pnpm test    # `claude plugin test .`
+pnpm install # just setup
+pnpm check   # just check: `claude plugin validate` and tsc
+pnpm test    # just test: `claude plugin test .`
 ```
 
-You need Node 24, pnpm, and Claude Code 2.1.288 or later. To run the mod in a live session from your clone:
+You need Node 24, pnpm, just, and Claude Code 2.1.288 or later. To run the mod in a live session from your clone:
 
 ```sh
-claude --plugin-dir .
+claude --plugin-dir .   # just dev
 ```
 
 The session watches the folder and reloads the mod when you save a file.
