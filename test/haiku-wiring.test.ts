@@ -54,6 +54,27 @@ test('haiku mode swaps the model line into the bubble', async ($, on) => {
   expect(await body($)).toContain('tests are sulking')
 })
 
+test('a Haiku line over the limit or cut by the token cap is never shown', async ($, on) => {
+  const replies = [
+    async () => answer('this line runs well past what the bubble can hold at all'),
+    async (e: any) => ({ isAnswered: true, text: 'a sentence that stops mid', usage: { output_tokens: e.maxTokens } }),
+    async () => answer('whole and short'),
+  ]
+  let n = 0
+  const r = rig(on, e => replies[n++]!(e)); const clock = mock.clock(on)
+  await r.start($); await runGlowup($, 'bubbles haiku')
+  for (const [i, bad] of ['runs well past', 'stops mid'].entries()) {
+    await failTurn($, 't' + i); await flush(clock)
+    const t = await body($)
+    expect(t).not.toContain(bad)
+    expect(FAIL_SAY.some(l => t.includes(l))).toBe(true)
+    await clock.advance(91_000)
+  }
+  expect(r.prompts[0].maxTokens).toBeGreaterThanOrEqual(40)
+  await failTurn($, 't9'); await flush(clock)
+  expect(await body($)).toContain('whole and short')
+})
+
 test('the template shows first and a late line is dropped once the bubble is gone', async ($, on) => {
   let release!: () => void
   const gate = new Promise<void>(r => { release = r })

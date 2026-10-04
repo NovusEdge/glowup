@@ -3,6 +3,7 @@ package tui
 
 import (
 	"cmp"
+	"os"
 	"strings"
 	"time"
 
@@ -108,7 +109,7 @@ func NewModel(in claude.Choice, installed bool) Model {
 			Description("Update its settings to these choices?").
 			Affirmative("Update settings").Negative("Leave it").Value(&update)))
 	}
-	form := huh.NewForm(groups...).WithWidth(FormWidth).WithShowHelp(true)
+	form := huh.NewForm(groups...).WithWidth(FormWidth).WithShowHelp(true).WithTheme(huh.ThemeFunc(theme))
 	return Model{form: form, choice: &c, mode: &mode, colors: &colors, spinner: &spinner, update: &update, asked: installed}
 }
 
@@ -234,7 +235,7 @@ func (m Model) Result() (claude.Choice, bool) {
 
 // Pick runs the picker on the terminal.
 func Pick(in claude.Choice, installed bool) (claude.Choice, bool, error) {
-	final, err := tea.NewProgram(NewModel(in, installed)).Run()
+	final, err := tea.NewProgram(NewModel(in, installed), tea.WithColorProfile(ColorProfile(os.Stdout, os.Environ()))).Run()
 	if err != nil {
 		return in, false, err
 	}

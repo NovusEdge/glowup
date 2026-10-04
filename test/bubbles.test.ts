@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { fill, pickLine, bubbleFor, sanitizeLine, haikuPrompt, haikuLimit, wrapBubble, HaikuGate, kindWords, CLAWD_SAY } from '../hooks/bubbles.ts'
+import { fill, pickLine, bubbleFor, sanitizeLine, fitsBubble, haikuMaxTokens, haikuPrompt, haikuLimit, wrapBubble, HaikuGate, kindWords, CLAWD_SAY } from '../hooks/bubbles.ts'
 
 test('fill replaces placeholders, strips unsafe characters and caps at 40', async () => {
   expect(fill('{n}/{n} green', { n: 12 })).toBe('12/12 green')
@@ -26,12 +26,12 @@ test('bubbleFor has lines for the three shown moods', async () => {
   }
 })
 
-test('sanitizeLine keeps one plain line of at most 40 characters', async () => {
+test('sanitizeLine keeps one plain line and never shortens it', async () => {
   expect(sanitizeLine('  "all   done"\n second line ')).toBe('all done')
   expect(sanitizeLine('nice \u001b[31mwork\u0007 🎉')).toBe('nice [31mwork')
   expect(sanitizeLine("that's a wrap")).toBe("that's a wrap")
   expect(sanitizeLine('\n\nfirst\nsecond')).toBe('first')
-  expect([...sanitizeLine('x'.repeat(90))]).toHaveLength(40)
+  expect([...sanitizeLine('x'.repeat(90))]).toHaveLength(90)
   expect(sanitizeLine('"" \n 🎉')).toBe('')
 })
 
@@ -84,6 +84,11 @@ test('the Haiku limit follows the room, capped at 40, and reaches the prompt and
   expect(haikuLimit(3)).toBe(12)
   expect(haikuLimit(10, 1)).toBe(12)
   expect(haikuPrompt({ mood: 'done', pose: 'idle', daypart: 'night', limit: 18 }).system).toContain('at most 18 characters')
-  expect([...sanitizeLine('x'.repeat(60), 18)]).toHaveLength(18)
-  expect([...sanitizeLine('x'.repeat(60), 90)]).toHaveLength(40)
+  expect(haikuPrompt({ mood: 'done', pose: 'idle', daypart: 'night', limit: 18 }).system).toContain('one short complete sentence')
+  expect(fitsBubble('x'.repeat(18), 18)).toBe(true)
+  expect(fitsBubble('x'.repeat(19), 18)).toBe(false)
+  expect(fitsBubble('x'.repeat(41), 90)).toBe(false)
+  expect(haikuMaxTokens(18)).toBe(40)
+  expect(haikuMaxTokens(40)).toBe(40)
+  expect(haikuMaxTokens(90)).toBe(60)
 })

@@ -45,6 +45,12 @@ export async function gitBase(host: Host, cwd: string): Promise<{ root: string; 
   return { root, base: (await worktreeCommit(host, root, index)) ?? head.trim() }
 }
 
+// symbolic-ref fails on a detached HEAD, which then shows no branch
+export async function branchOf(host: Host, dir: string): Promise<string | undefined> {
+  const r = await git(host, dir, ['symbolic-ref', '--short', '-q', 'HEAD'])
+  return r && r.exitCode === 0 && r.stdout.trim() ? r.stdout.trim() : undefined
+}
+
 // `stash create` refreshes the index it reads, under its .lock, even with
 // --no-optional-locks: on the real index that clashes with Claude's own git
 // commit. A throwaway copy takes that lock instead.
@@ -60,9 +66,8 @@ async function worktreeCommit(host: Host, root: string, index: string): Promise<
   }
 }
 
-// Read files are included on purpose: a shell command can edit a file Claude only
-// read, and mergeCounts promotes it to an edit when git reports changes. Files git
-// reports that Claude never touched (sed -i, the person's editor) join as edits.
+// Files git reports that Claude never edited (sed -i, a file it only read, the person's
+// editor) join as edits.
 // Untracked files are absent from `git diff`, so new files keep their own counts.
 export async function refreshCounts(host: Host, files: FileTouch[], repo: { root: string; base: string } | undefined, at: number): Promise<FileTouch[]> {
   if (!repo) return files

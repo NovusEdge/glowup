@@ -72,7 +72,7 @@ A theme is one JSON file: colors, a few glyphs, spinner words and band hearts. S
 
 ### The status line
 
-While Claude or a subagent is working, glowup adds one entry under the prompt (`◆ editing · ctx 48%`) and clears it when the work is done. glowup asks once, at first run, whether it should draw the whole line; answer No and your status line is left alone. If you want glowup to draw the whole line, opt in with `/glowup statusline on`. `/glowup statusline restore` puts yours back.
+While Claude or a subagent is working, glowup adds one entry under the prompt and clears it when the work is done. You pick its fields and their order, such as activity, context, 5-hour and weekly usage, branch or cost, with `/glowup statusline fields <ids>`. glowup asks once, at first run, whether it should draw the whole line; answer No and your status line is left alone. If you want glowup to draw the whole line, opt in with `/glowup statusline on`. `/glowup statusline restore` puts yours back.
 
 </td>
 </tr>
@@ -128,6 +128,7 @@ glowup runs one copy per session: with an installed copy and `claude --plugin-di
 | `/glowup motion reduced` | Turn glowup's animation off. |
 | `/glowup motion full` | Turn it back on. |
 | `/glowup statusline on` | Ask first, then let glowup draw your status line. |
+| `/glowup statusline fields <ids>` | Choose the status line fields and their order. `default` resets them. |
 | `/glowup statusline restore` | Put your own status line back. |
 
 Details are in [Commands](docs/commands.md).

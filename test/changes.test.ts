@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { parseNumstat, gitBase, refreshCounts, serial } from '../hooks/changes.ts'
+import { parseNumstat, gitBase, branchOf, refreshCounts, serial } from '../hooks/changes.ts'
 import { fakeHost } from './kit.ts'
 
 const REV = 'git --no-optional-locks -C /r rev-parse --show-toplevel --show-prefix --git-path index HEAD'
@@ -31,6 +31,13 @@ test('a rejecting git (not installed) is treated as no repo or unchanged counts'
 test('gitBase is undefined outside a repo', async () => {
   const { host } = fakeHost()
   expect(await gitBase(host, '/r')).toBeUndefined()
+})
+
+test('branchOf names the branch, and nothing when detached or outside git', async () => {
+  const argv = 'git --no-optional-locks -C /w symbolic-ref --short -q HEAD'
+  expect(await branchOf(fakeHost({ runs: { [argv]: { exitCode: 0, stdout: 'main\n' } } }).host, '/w')).toBe('main')
+  expect(await branchOf(fakeHost({ runs: { [argv]: { exitCode: 1, stdout: '' } } }).host, '/w')).toBeUndefined()
+  expect(await branchOf(fakeHost().host, '/w')).toBeUndefined()
 })
 
 test('every git call skips optional locks so Claude\'s own git commit never meets index.lock', async () => {
@@ -78,15 +85,14 @@ test('the root keeps the cwd spelling, so a symlinked checkout matches tool path
   expect(await gitBase(host, '/link/sub/dir')).toEqual({ root: '/link', base: 'abc' })
 })
 
-test('refreshCounts prefers git numbers, keeps reads and non-git files, and adds shell-edited files', async () => {
+test('refreshCounts prefers git numbers, keeps non-git files, and adds shell-edited files', async () => {
   const { host } = fakeHost({ runs: { [DIFF]: { exitCode: 0, stdout: '5\t2\tsrc/a.ts\0' + '1\t1\tsed.ts\0' } } })
   const out = await refreshCounts(host, [
     { path: '/r/src/a.ts', add: 1, del: 1, how: 'edit', at: 3 },
-    { path: '/r/t.ts', add: 0, del: 0, how: 'read', at: 2 },
     { path: '/elsewhere/x.ts', add: 4, del: 0, how: 'edit', at: 1 },
   ], { root: '/r', base: 'abc' }, 9)
   expect(out.map(f => [f.path, f.how, f.add, f.del, f.at])).toEqual([
-    ['/r/src/a.ts', 'edit', 5, 2, 3], ['/r/t.ts', 'read', 0, 0, 2], ['/elsewhere/x.ts', 'edit', 4, 0, 1], ['/r/sed.ts', 'edit', 1, 1, 9],
+    ['/r/src/a.ts', 'edit', 5, 2, 3], ['/elsewhere/x.ts', 'edit', 4, 0, 1], ['/r/sed.ts', 'edit', 1, 1, 9],
   ])
 })
 
@@ -99,12 +105,6 @@ test('git failing mid-session keeps the previous counts', async () => {
   const { host } = fakeHost()
   const files = [{ path: '/r/a.ts', add: 1, del: 0, how: 'edit' as const, at: 1 }]
   expect(await refreshCounts(host, files, { root: '/r', base: 'abc' }, 9)).toEqual(files)
-})
-
-test('refreshCounts reports git numbers for files Claude only read (shell edits)', async () => {
-  const { host } = fakeHost({ runs: { [DIFF]: { exitCode: 0, stdout: '2\t1\tt.ts\0' } } })
-  const out = await refreshCounts(host, [{ path: '/r/t.ts', add: 0, del: 0, how: 'read', at: 2 }], { root: '/r', base: 'abc' }, 9)
-  expect(out.map(f => [f.path, f.add, f.del])).toEqual([['/r/t.ts', 2, 1]])
 })
 
 test('serial runs one job at a time and only one more after a burst', async () => {

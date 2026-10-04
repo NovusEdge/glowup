@@ -68,19 +68,19 @@ export function section(title: string, right: string, body: Seg[][], w: number, 
 type Part = { rows: Seg[][]; n: number }
 
 function changes(m: Model, t: Theme, w: number, compact: boolean, limit: number, border: Border): Part {
-  const c = t.colors, edited = m.files.filter(f => f.how !== 'read')
-  const add = edited.reduce((n, f) => n + f.add, 0), del = edited.reduce((n, f) => n + f.del, 0)
-  const list = compact ? edited : m.files, lead = compact ? '  ' : '', iw = compact ? w : boxInner(w)
+  const c = t.colors, list = m.files
+  const add = list.reduce((n, f) => n + f.add, 0), del = list.reduce((n, f) => n + f.del, 0)
+  const lead = compact ? '  ' : '', iw = compact ? w : boxInner(w)
   const body: Seg[][] = []
   if (!list.length) body.push([{ text: lead + 'Nothing changed yet.', color: c.dim }])
   for (const f of list) {
     const name = shortPath(f.path) + (f.how === 'new' ? '  new' : '')
-    const left: Seg[] = [{ text: lead, color: c.text }, { text: f.how === 'read' ? '▸ ' : '✎ ', color: f.how === 'read' ? c.read : c.edit }, { text: name, color: f.how === 'read' ? c.dim : c.text }]
-    const right: Seg[] = f.how === 'read' ? [{ text: 'read', color: c.dim }] : [{ text: `+${f.add}`, color: c.pass }, { text: ` −${f.del}`, color: c.fail }]
+    const left: Seg[] = [{ text: lead, color: c.text }, { text: '✎ ', color: c.edit }, { text: name, color: c.text }]
+    const right: Seg[] = [{ text: `+${f.add}`, color: c.pass }, { text: ` −${f.del}`, color: c.fail }]
     body.push(spread(left, right, iw, t))
   }
   if (compact) return { rows: cap(body, t, w, 0, limit).map(r => fit(r, w)), n: -1 }
-  return { rows: section('CHANGES', `${edited.length} files  +${add} −${del}`, body, w, t, border), n: body.length }
+  return { rows: section('CHANGES', `${list.length} files  +${add} −${del}`, body, w, t, border), n: body.length }
 }
 
 function agents(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, now: number, limit: number, border: Border): Part {

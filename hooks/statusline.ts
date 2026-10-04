@@ -1,6 +1,7 @@
 import type { Host } from './host.ts'
 import { safeId } from './instances.ts'
-import { agentsRunning, isBusy, type Model } from './model.ts'
+import { renderFields, DEFAULT_FIELDS, type ColorMode, type FieldId } from './fields.ts'
+import type { Model } from './model.ts'
 import type { Theme } from './themes.ts'
 
 export const SCRIPT_PATH = (configDir: string) => `${configDir}/glowup/statusline.sh`
@@ -9,14 +10,8 @@ const SETTINGS = (configDir: string) => `${configDir}/settings.json`
 export const BACKUP_KEY = 'statusline-backup'
 const NONE = '__none__'
 
-const WORD: Record<string, string> = { '▸': 'reading', '⌕': 'searching', '✎': 'editing', $: 'running', '◆': 'delegating', '✗': 'failing', '✓': 'passing', '!': 'waiting' }
-
-// A fresh session still gets a line: with no file the script would fall back to
-// the person's old command until the first turn reports context.
-export function statusText(m: Model, _t: Theme): string {
-  if (!isBusy(m) && !m.ctxPercent) return '◆ idle'
-  const word = m.working ? (Object.hasOwn(WORD, m.act.glyph) ? WORD[m.act.glyph]! : 'thinking') : agentsRunning(m) ? 'delegating' : 'idle'
-  return `◆ ${word} · ctx ${m.ctxPercent}%`
+export function statusText(m: Model, t: Theme, o: { fields?: readonly FieldId[]; now?: number; tzOffset?: number; color?: ColorMode } = {}): string {
+  return renderFields(m, t, o.fields ?? DEFAULT_FIELDS, { now: o.now ?? Date.now(), tzOffset: o.tzOffset ?? 0, color: o.color ?? 'plain' })
 }
 
 // The script prints the line glowup wrote for this session; when that file is
@@ -104,12 +99,8 @@ export async function restore(host: Host): Promise<string> {
   return ours ? 'Your status line is back.' : 'Your status line was changed since; left it as is.'
 }
 
-// No line: the file goes, so the script falls back to the person's own command
-// instead of printing an empty line.
-export async function writeStatusFile(host: Host, sessionId: string, line: string | undefined) {
+export async function writeStatusFile(host: Host, sessionId: string, line: string) {
   const id = safeId(sessionId)
   if (!id) return
-  const path = `${STATUS_DIR(host.configDir)}/${id}`
-  if (line === undefined) await host.run(['rm', '-f', path])
-  else await host.writeFile(path, line)
+  await host.writeFile(`${STATUS_DIR(host.configDir)}/${id}`, line)
 }

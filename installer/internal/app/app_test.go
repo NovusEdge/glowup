@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/novusedge/glowup/installer/internal/claude"
 	"github.com/novusedge/glowup/installer/internal/cli"
@@ -160,6 +161,37 @@ func TestPickerError(t *testing.T) {
 	pick := func(in claude.Choice, _ bool) (claude.Choice, bool, error) { return in, false, errors.New("no tty") }
 	if got := runApp(cli.Options{Choice: claude.Defaults()}, machine(`[]`, `[]`), pick); got.code != 1 {
 		t.Fatalf("code %d", got.code)
+	}
+}
+
+func TestSaysItIsCheckingClaudeBeforeAskingIt(t *testing.T) {
+	got := runApp(crt(), machine(`[]`, `[]`), nil)
+	if !strings.HasPrefix(got.out, "Checking Claude Code...\n") {
+		t.Fatalf("output starts %q", got.out)
+	}
+}
+
+// hung is a claude that never answers until it is cancelled.
+type hung struct{}
+
+func (hung) Run(ctx context.Context, _ string, _ ...string) (claude.Result, error) {
+	<-ctx.Done()
+	return claude.Result{}, ctx.Err()
+}
+
+func TestClaudeThatNeverAnswersEndsTheCheck(t *testing.T) {
+	var out, errb strings.Builder
+	done := make(chan int)
+	go func() {
+		done <- Run(context.Background(), crt(), Deps{Runner: hung{}, Out: &out, Err: &errb, Step: PlainStep(&out), CheckTimeout: 20 * time.Millisecond})
+	}()
+	select {
+	case code := <-done:
+		if code != 1 || !strings.Contains(errb.String(), "did not answer within") {
+			t.Fatalf("code %d err %q", code, errb.String())
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("Run is still waiting on claude")
 	}
 }
 

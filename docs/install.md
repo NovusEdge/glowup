@@ -43,6 +43,12 @@ curl -fsSL https://glowup.khimani.dev/install.sh | sh -s -- --yes --pack crt
 
 Set `GLOWUP_VERSION=v0.3.0` to use that release's installer instead of the latest.
 
+### Terminals
+
+The installer's picker was tested in Konsole, kitty, ghostty, alacritty and xterm. It uses 24-bit color where the terminal says it has it, and at least 256 colors under `TERM=xterm`. `NO_COLOR` turns color off.
+
+xterm draws block characters from its font instead of building them itself, so Clawd shows gaps in it. Use a font with the Block Elements range, such as DejaVu Sans Mono. kitty, ghostty and alacritty draw the blocks themselves.
+
 ### Install by hand
 
 In Claude Code, run:
@@ -62,7 +68,7 @@ If you see neither, read [Layout](layout.md) for the width rules.
 
 ## Settings
 
-The mod has six settings. The installer sets them. You can change them later with `claude plugin configure glowup@glowup`, or in your Claude Code settings.
+The mod has seven settings. The installer sets all but `statusline`. You can change them later with `claude plugin configure glowup@glowup`, or in your Claude Code settings.
 
 | Setting | Values | Default | What it does |
 | --- | --- | --- | --- |
@@ -71,6 +77,7 @@ The mod has six settings. The installer sets them. You can change them later wit
 | `bubbles` | `on`, `off` or `haiku` | `on` | Speech bubbles from templates, none, or lines written by Haiku. |
 | `theme` | A theme name | `classic` | A theme on top of the pack. `classic` keeps the pack's own colors. |
 | `spinner` | A spinner name | `pack` | A spinner on top of the pack: `stock`, `comet`, `eyes`, `orb-states`, `clawd` or `shimmer`. `pack` keeps the pack's own spinner. |
+| `statusline` | Comma-separated field ids | `activity,ctx,5h,week` | The status line fields and their order. Unknown ids are dropped. See [Status line](statusline.md#choosing-the-fields). |
 | `reducedMotion` | `true` or `false` | `false` | Turns off glowup's animation. |
 
 `/glowup theme <name>`, `/glowup spinner <name>` and `/glowup motion` save your choice in the mod's store. A saved choice wins over the setting. See [Commands](commands.md).

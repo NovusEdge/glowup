@@ -4,6 +4,7 @@ import { runCommand, USAGE, type Ctl } from '../hooks/command.ts'
 import { SHORT_TEXT, FULL_TEXT, SECTIONS, DOCS_URL } from '../hooks/help.ts'
 import { resolveLook, cleanOverrides, type Mix } from '../hooks/packs.ts'
 import type { PetSetting } from '../hooks/pets.ts'
+import { DEFAULT_FIELDS, type FieldId } from '../hooks/fields.ts'
 
 test('/glowup and /glowup help print the short card', { timeoutMs: 20000 }, async ($, on) => {
   fakeFs(on)
@@ -40,6 +41,7 @@ const ctl = (answer = true, current = 'classic') => {
   const questions: string[] = []
   let mix: Mix = { colors: 'classic', motion: 'classic' }
   let pet: PetSetting = 'clawd'
+  let fields: readonly FieldId[] = DEFAULT_FIELDS
   const c: Ctl = {
     current: () => current,
     setTheme: async name => { calls.push('theme:' + name) },
@@ -53,6 +55,8 @@ const ctl = (answer = true, current = 'classic') => {
     bubbles: () => 'on',
     setBubbles: b => { calls.push('bubbles:' + b) },
     reduced: () => false,
+    fields: () => fields,
+    setFields: f => { fields = f ?? DEFAULT_FIELDS },
     ask: async () => { throw new Error('dismissed') },
     headless: async () => true,
   }
@@ -212,6 +216,25 @@ test('stored overrides are cleaned: unknown roles and bad colors are dropped', a
   expect(cleanOverrides({ accent: '#ABC', nope: '#ffffff', text: 'blue' })).toEqual({ accent: '#aabbcc' })
   expect(cleanOverrides({ nope: '#ffffff' })).toBeUndefined()
   expect(cleanOverrides('x')).toBeUndefined()
+})
+
+test('statusline fields: set, show, default, unknown, repeats', async () => {
+  const { host, store } = fakeHost()
+  const { ctl: c } = ctl()
+  expect(await runCommand(host, 'statusline fields', c)).toBe('Status line fields: activity ctx 5h week')
+  expect(await runCommand(host, 'statusline fields 5h week 5h branch', c)).toBe('Status line fields: 5h week branch')
+  expect(store.statusline).toEqual(['5h', 'week', 'branch'])
+  const bad = await runCommand(host, 'statusline fields 5h nope zzz', c)
+  expect(bad).toContain('Unknown fields: nope, zzz')
+  expect(bad).toContain('activity, ctx, 5h')
+  expect(store.statusline).toEqual(['5h', 'week', 'branch'])
+  expect(await runCommand(host, 'statusline fields default', c)).toBe('Status line fields: activity ctx 5h week')
+  expect('statusline' in store).toBe(false)
+})
+
+test('bare statusline names the fields subcommand', async () => {
+  const { host } = fakeHost()
+  expect(await runCommand(host, 'statusline', ctl().ctl)).toContain('/glowup statusline fields')
 })
 
 test('statusline on asks first; No changes nothing', async () => {

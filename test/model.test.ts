@@ -90,7 +90,7 @@ test('an agent is done when its own turn completes; the Agent call only brings t
   expect(fg.agents[0]).toMatchObject({ state: 'done', endedAt: 9001, tokens: 4100 })
 })
 
-test('edits accumulate per file; reads are listed once; newest first', async () => {
+test('edits accumulate per file; reads are not recorded; newest first', async () => {
   const m = run([
     { type: 'tool-end', at: 1, tool: 'Read', toolUseId: 'r', input: { file_path: '/r/t.ts' }, isError: false, text: '' },
     { type: 'tool-end', at: 2, tool: 'Edit', toolUseId: 'e1', input: { file_path: '/r/a.ts', old_string: 'x', new_string: 'y\nz' }, isError: false, text: '' },
@@ -98,7 +98,15 @@ test('edits accumulate per file; reads are listed once; newest first', async () 
     { type: 'tool-end', at: 4, tool: 'Write', toolUseId: 'w', input: { file_path: '/r/new.ts', content: 'a\nb' }, isError: false, text: '', writeType: 'create' },
     { type: 'tool-end', at: 5, tool: 'Write', toolUseId: 'w2', input: { file_path: '/r/old.ts', content: 'c' }, isError: false, text: '', writeType: 'update' },
   ])
-  expect(m.files.map(f => [f.path, f.how, f.add, f.del])).toEqual([['/r/old.ts', 'edit', 1, 0], ['/r/new.ts', 'new', 2, 0], ['/r/a.ts', 'edit', 3, 2], ['/r/t.ts', 'read', 0, 0]])
+  expect(m.files.map(f => [f.path, f.how, f.add, f.del])).toEqual([['/r/old.ts', 'edit', 1, 0], ['/r/new.ts', 'new', 2, 0], ['/r/a.ts', 'edit', 3, 2]])
+})
+
+test('a file read and then edited is an edit', async () => {
+  const m = run([
+    { type: 'tool-end', at: 1, tool: 'Read', toolUseId: 'r', input: { file_path: '/r/t.ts' }, isError: false, text: '' },
+    { type: 'tool-end', at: 2, tool: 'Edit', toolUseId: 'e', input: { file_path: '/r/t.ts', old_string: 'x', new_string: 'y' }, isError: false, text: '' },
+  ])
+  expect(m.files.map(f => [f.path, f.how])).toEqual([['/r/t.ts', 'edit']])
 })
 
 test('a notebook edit is an edit with no line counts', async () => {
@@ -183,16 +191,12 @@ test('a subagent todo list leaves the main plan alone', async () => {
   expect(m.plan).toEqual([{ id: '0', title: 'Main', status: 'pending' }])
 })
 
-test('mergeCounts promotes a read file that git shows changed', async () => {
+test('a file only read joins the changes once git shows it changed', async () => {
   const snap = run([
     { type: 'tool-end', at: 1, tool: 'Read', toolUseId: 'r1', input: { file_path: '/r/a.ts' }, isError: false, text: '' },
-    { type: 'tool-end', at: 2, tool: 'Read', toolUseId: 'r2', input: { file_path: '/r/b.ts' }, isError: false, text: '' },
   ])
-  const m = mergeCounts(snap, [
-    { path: '/r/a.ts', add: 3, del: 1, how: 'edit', at: 0 },
-    { path: '/r/b.ts', add: 0, del: 0, how: 'edit', at: 0 },
-  ])
-  expect(m.files.map(f => [f.path, f.how, f.add, f.del])).toEqual([['/r/b.ts', 'read', 0, 0], ['/r/a.ts', 'edit', 3, 1]])
+  const m = mergeCounts(snap, [{ path: '/r/a.ts', add: 3, del: 1, how: 'edit', at: 5 }])
+  expect(m.files.map(f => [f.path, f.how, f.add, f.del])).toEqual([['/r/a.ts', 'edit', 3, 1]])
 })
 
 test('mergeCounts keeps a new file new', async () => {
@@ -247,4 +251,20 @@ test('a new action, a done turn and a question stamp actAt', async () => {
   expect(m.actAt).toBe(7)
   m = applyEvent(m, { type: 'turn-done', at: 9, reason: 'answer' })
   expect(m.actAt).toBe(9)
+})
+
+test('usage, session info and branch events land in the model', () => {
+  let m = initialModel()
+  expect(m.limits).toEqual([])
+  m = applyEvent(m, { type: 'usage', limits: [{ kind: 'five_hour', percentUsed: 23, resetsAt: '2026-10-04T20:00:00Z' }], costUsd: 1.5 })
+  expect(m.limits[0]!.percentUsed).toBe(23)
+  expect(m.costUsd).toBe(1.5)
+  m = applyEvent(m, { type: 'session-info', modelName: 'opus', root: '/w/glowup' })
+  expect([m.modelName, m.root]).toEqual(['opus', '/w/glowup'])
+  m = applyEvent(m, { type: 'session-info', root: '/w/other' })
+  expect([m.modelName, m.root]).toEqual(['opus', '/w/other'])
+  m = applyEvent(m, { type: 'branch', branch: 'main' })
+  expect(m.branch).toBe('main')
+  m = applyEvent(m, { type: 'branch' })
+  expect(m.branch).toBeUndefined()
 })

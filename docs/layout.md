@@ -63,9 +63,9 @@ In the docked pane, each tab is drawn as a box in the shape of the pack's `borde
 
 ### Changes
 
-Every file Claude touched this session.
+Every file that changed this session. A file Claude only read is not listed. Before anything changes, the tab says `Nothing changed yet.`
 
-- Edited files show `+added −removed`. A file Claude only read shows `read`, dimmed.
+- Files show `+added −removed`.
 - New files are marked `new`.
 - The box's top edge counts edited files and total added and removed lines.
 - In a git repository the counts come from `git diff --numstat` against a snapshot taken at session start, which includes any uncommitted work at that moment. Files that were already modified before the session do not appear. Files changed by shell commands during the session do. New untracked files, and sessions outside git, use the counts from the edit's own input.

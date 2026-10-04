@@ -6,9 +6,9 @@ import type { Theme } from './themes.ts'
 import { resolveLook, cleanOverrides, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { loadUserPacks } from './userpacks.ts'
 import { PET_ROWS, type PetSetting, type PetId, type PetInput, type PetKind } from './pets.ts'
-import { bubbleFor, BUBBLE_SETTINGS, daypart, haikuLimit, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
+import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
 import { recordPass, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
-import { gitBase, refreshCounts, serial } from './changes.ts'
+import { branchOf, gitBase, refreshCounts, serial } from './changes.ts'
 import { loadTasks, taskListId } from './tasks.ts'
 import { tierFor, renderSegs } from './layout.tsx'
 import { renderBand } from './band.tsx'
@@ -19,6 +19,7 @@ import { orbStateOf, usesOwnSpinner, checkedSpinnerProps } from './spinner.ts'
 import type { PetClientProps } from './client/pet.tsx'
 import type { OrbState } from './motion.ts'
 import { statusText, writeStatusFile, drawsStatusLine, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
+import { parseFields, DEFAULT_FIELDS, type ColorMode, type FieldId } from './fields.ts'
 import { runCommand, SUMMARY_LEAD, type Ctl } from './command.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 import { renderHelp } from './helpcard.tsx'
@@ -63,6 +64,10 @@ let sessionId = ''
 let off = false
 let guardSid = '', guardRoot = ''
 let takenOver = false
+let fields: readonly FieldId[] = DEFAULT_FIELDS
+// the installer's value; `statusline fields default` returns to it
+let configFields: readonly FieldId[] = DEFAULT_FIELDS
+let colorMode: ColorMode = '256'
 // The one 60 s clock: refreshes this copy's guard entry and rewrites the status file.
 let beatTimer: Timer | undefined
 let lastStatusLine: string | undefined
@@ -119,9 +124,9 @@ function hostOf($: Engine): Host {
 // The takeover script falls back to the person's own command once this file is
 // 10 minutes old, so a quiet session still rewrites it every minute.
 function writeStatus($: Engine, force: boolean) {
-  const line = statusText(model, theme)
-  if (!takenOver || !sessionId || (!force && (line ?? '') === lastStatusLine)) return
-  lastStatusLine = line ?? ''
+  const line = statusText(model, theme, { fields, now: Date.now(), tzOffset, color: colorMode })
+  if (!takenOver || !sessionId || (!force && line === lastStatusLine)) return
+  lastStatusLine = line
   void writeStatusFile(hostOf($), sessionId, line).catch(() => {})
 }
 function startBeat($: Engine) {
@@ -143,7 +148,7 @@ async function syncTakeover($: Engine) {
 
 // The engine pins this entry as a "⚠ glowup:" notice, which reads as an error
 // when it never goes away; the takeover's status line already says the same.
-const statusEntry = () => !takenOver && isBusy(model) ? statusText(model, theme) : undefined
+const statusEntry = () => !takenOver && isBusy(model) ? (statusText(model, theme, { fields, tzOffset }) || undefined) : undefined
 
 // The model's combo moves on after a reply is drawn, and the engine redraws old rows on every
 // invalidate, so each reply keeps the count it first drew with.
@@ -223,11 +228,15 @@ async function askHaiku($: Engine, mine: Bubble, ctx: HaikuContext) {
   const limit = ctx.limit ?? bubbleCap
   try {
     const { system, prompt } = haikuPrompt(ctx)
+    const maxTokens = haikuMaxTokens(limit)
     const aborted = new Promise<undefined>(r => stop.signal.addEventListener('abort', () => r(undefined)))
-    const r = await Promise.race([$.model.complete({ model: HAIKU_MODEL, system, prompt, maxTokens: 40, effort: 'low', timeoutMs: HAIKU_TIMEOUT_MS }, { signal: stop.signal }), aborted])
+    const r = await Promise.race([$.model.complete({ model: HAIKU_MODEL, system, prompt, maxTokens, effort: 'low', timeoutMs: HAIKU_TIMEOUT_MS }, { signal: stop.signal }), aborted])
     if (!r) { $.ui.log('haiku bubble: timed out or cancelled', { to: 'debug' }); return }
     if (!r.isAnswered) { $.ui.log(`haiku bubble: ${r.reason}`, { to: 'debug' }); return }
-    const text = sanitizeLine(r.text, limit)
+    // the result has no stop reason; output tokens at the cap mean the reply was cut off
+    if (r.usage?.output_tokens >= maxTokens) { $.ui.log('haiku bubble: hit the token cap, template kept', { to: 'debug' }); return }
+    const text = sanitizeLine(r.text)
+    if (text && !fitsBubble(text, limit)) { $.ui.log('haiku bubble: over the limit, template kept', { to: 'debug' }); return }
     if (!text || off || bubbles !== 'haiku' || !petOn() || bubble !== mine) return
     mine.text = text
     armBubble($, mine)
@@ -351,7 +360,24 @@ function refresh($: Engine) {
     if (seq !== refreshSeq) return
     model = mergeCounts(model, files)
     redraw($)
+    void readBranch($)
   })
+}
+
+async function readBranch($: Engine) {
+  if (!fields.includes('branch') || !cwd) return
+  const seq = refreshSeq
+  const branch = await branchOf(hostOf($), cwd)
+  if (seq === refreshSeq) feed($, { type: 'branch', branch })
+}
+
+async function readSessionInfo($: Engine) {
+  const seq = refreshSeq
+  const [modelName, root] = await Promise.all([
+    $.session.model().catch(() => undefined),
+    $.session.root().catch(() => undefined),
+  ])
+  if (seq === refreshSeq) feed($, { type: 'session-info', modelName: modelName || undefined, root: root || undefined })
 }
 
 // usage() has no percent before the first response of a session, hence the guard.
@@ -360,6 +386,7 @@ function refresh($: Engine) {
 async function feedContext($: Engine) {
   try {
     const u = await $.session.usage({ breakdown: 'summary' })
+    feed($, { type: 'usage', limits: u.rateLimits ?? [], costUsd: u.cost?.usd })
     const b = u.context.breakdown
     view = { ...view, categories: b?.categories.map(c => ({ name: c.name, tokens: c.tokens, kind: c.kind })), maxTokens: b?.maxTokens }
     if (u.context.percent !== undefined) feed($, { type: 'context', percent: u.context.percent })
@@ -385,7 +412,8 @@ function schedulePlan($: Engine) {
 // A new session id means a new conversation: nothing from the old one carries over.
 async function adoptSession($: Engine, endedId: string) {
   const id = await $.session.id()
-  model = initialModel()
+  const { limits } = model
+  model = { ...initialModel(), limits }
   view = { tab: 'changes' }
   bubble = undefined
   xpByMessage.clear()
@@ -397,6 +425,8 @@ async function adoptSession($: Engine, endedId: string) {
   // at session.end the id may still be the ending one; turn.start re-checks
   sessionId = id === endedId ? '' : id
   git = await gitBase(hostOf($), cwd)
+  void readBranch($)
+  void readSessionInfo($)
   syncTicker($)
   redraw($)
   void loadPlan($)
@@ -452,6 +482,13 @@ function ctlOf($: Engine): Ctl {
     bubbles: () => bubbles,
     setBubbles: b => { bubbles = b; if (b !== 'haiku') cancelHaiku(); relook($) },
     reduced: () => reducedMotion,
+    fields: () => fields,
+    setFields: f => {
+      fields = f ?? configFields
+      void readBranch($)
+      writeStatus($, true)
+      $.ui.status(statusEntry())
+    },
     ask: (question, o) => $.ui.ask(question, o),
     // surfaces() is empty only in a plain -p run
     headless: async () => (await $.session.surfaces().catch(() => ['terminal'])).length === 0,
@@ -528,7 +565,7 @@ export const register: Register = (on, options) => {
       }
     }
     startBeat($)
-    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline ...' })
+    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|restore' })
     mix = await initialMix(host, options)
     const storedPet = await host.storeGet('pet')
     const wantPet = PETS.includes(storedPet as PetSetting) ? storedPet as PetSetting : PETS.includes(options.pet as PetSetting) ? options.pet as PetSetting : 'clawd'
@@ -547,8 +584,14 @@ export const register: Register = (on, options) => {
     tzOffset = localOffset(tzo, zone)
     const at = await host.storeGet('installed-at')
     installed = typeof at === 'number' ? at : undefined
+    configFields = parseFields(options.statusline) ?? DEFAULT_FIELDS
+    fields = parseFields(await host.storeGet('statusline')) ?? configFields
+    const colorterm = await $.env.get('COLORTERM')
+    colorMode = colorterm === 'truecolor' || colorterm === '24bit' ? 'truecolor' : '256'
     await syncTakeover($)
     git = await gitBase(host, cwd)
+    void readBranch($)
+    void readSessionInfo($)
     void loadPlan($)
     // a beat after launch, so the dialog does not open over the startup frame
     if (e.isInteractive) $.clock.after(1500, () => void askFirstRun($))
@@ -649,6 +692,7 @@ export const register: Register = (on, options) => {
     feed($, { type: 'turn-done', at: Date.now(), reason: e.reason })
     refresh($)
     await feedContext($)
+    void readSessionInfo($)
     // one more redraw after the linger so the band folds away
     $.clock.after(1600, () => publish($))
     return r
@@ -665,6 +709,12 @@ export const register: Register = (on, options) => {
     feed($, { type: 'compact' })
     feed($, { type: 'context', percent })
     return r
+  })
+
+  on('session.measure', async ($, e, next) => {
+    if (off) return next(e)
+    feed($, { type: 'usage', limits: e.rateLimits, costUsd: e.cost?.usd })
+    return next(e)
   })
 
   // /clear and resume continue the process under a new session id with no session.start.

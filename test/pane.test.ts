@@ -4,7 +4,7 @@ import { CLAWD_SAY } from '../hooks/bubbles.ts'
 import { resolveLook, BORDERS } from '../hooks/packs.ts'
 import { PACKS } from '../hooks/packpresets.ts'
 import { visibleLength } from '../hooks/layout.tsx'
-import { initialModel, type Model } from '../hooks/model.ts'
+import { initialModel, applyEvent, type Model } from '../hooks/model.ts'
 import { resolveTheme } from '../hooks/themes.ts'
 
 const T = resolveTheme('classic', {}).theme
@@ -18,7 +18,6 @@ const M: Model = {
   files: [
     { path: '/r/src/safe-next.ts', add: 10, del: 1, how: 'new', at: 3 },
     { path: '/r/src/auth.ts', add: 2, del: 1, how: 'edit', at: 2 },
-    { path: '/r/test/auth.test.ts', add: 0, del: 0, how: 'read', at: 1 },
     { path: '/r/src/日本語のとても長いファイル名.ts', add: 5, del: 5, how: 'edit', at: 0 },
   ],
   agents: [
@@ -34,13 +33,24 @@ const many = (n: number): Model => ({
   plan: Array.from({ length: n }, (_, i) => ({ id: String(i), title: 'step ' + i, status: 'pending' as const })),
 })
 
-test('changes tab is one box with the counts in its top edge, reads dimmed', async () => {
+test('changes tab is one box with the counts in its top edge', async () => {
   const rows = text(tabRows(M, T, { tab: 'changes' }, 54, false, 10000))
   expect(rows[0]).toMatch(/^╭─ CHANGES ─+ 3 files  \+17 −7 ─╮$/)
   expect(rows.at(-1)).toBe('╰' + '─'.repeat(52) + '╯')
   expect(rows.some(r => r.includes('src/safe-next.ts') && r.includes('new') && inside(r).endsWith('+10 −1'))).toBe(true)
-  expect(rows.some(r => r.includes('test/auth.test.ts') && inside(r).endsWith('read'))).toBe(true)
   expect(rows.slice(1, -1).every(r => r.startsWith('│ ') && r.endsWith(' │'))).toBe(true)
+})
+
+test('a file Claude only read stays out of the changes tab, and the tab then says nothing changed', async () => {
+  let m = applyEvent(initialModel(), { type: 'tool-end', at: 1, tool: 'Read', toolUseId: 'r', input: { file_path: '/r/test/auth.test.ts' }, isError: false, text: '' })
+  for (const compact of [false, true]) {
+    const rows = text(tabRows(m, T, { tab: 'changes' }, 54, compact, 10000))
+    if (!compact) expect(rows[0]).toMatch(/^╭─ CHANGES ─+ 0 files  \+0 −0 ─╮$/)
+    expect(rows.some(r => r.includes('Nothing changed yet.'))).toBe(true)
+    expect(rows.some(r => r.includes('auth.test.ts'))).toBe(false)
+  }
+  m = applyEvent(m, { type: 'tool-end', at: 2, tool: 'Edit', toolUseId: 'e', input: { file_path: '/r/test/auth.test.ts', old_string: 'a', new_string: 'b' }, isError: false, text: '' })
+  expect(text(tabRows(m, T, { tab: 'changes' }, 54, false, 10000)).some(r => r.includes('auth.test.ts'))).toBe(true)
 })
 
 test('agents tab is one box: status, time, tokens and current tool, entries one blank row apart', async () => {
