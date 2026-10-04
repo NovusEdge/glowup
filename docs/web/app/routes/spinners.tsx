@@ -50,7 +50,7 @@ const ANIM_NOTE: Record<string, string> = {
   hop: 'A flip when a test passes.',
   alert: 'Jumps and flags a question for you.',
   done: 'Confetti when a turn ends well.',
-  sleep: 'Curls up after ten idle minutes.',
+  sleep: 'Curls up after one idle minute.',
   working: 'Types at a keyboard.',
   fail: 'Sags and sweats when a test fails.',
 }
