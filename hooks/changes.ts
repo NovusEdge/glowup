@@ -20,25 +20,55 @@ export function parseNumstat(out: string, root: string): Map<string, { add: numb
 }
 
 // A missing git binary rejects instead of returning a non-zero exit code.
-async function run(host: Host, argv: string[]): Promise<RunResult | undefined> {
-  try { return await host.run(argv) } catch { return undefined }
+// Without --no-optional-locks, `git diff` rewrites a stale index under
+// .git/index.lock, and Claude's own `git commit` at that moment fails.
+async function git(host: Host, dir: string, args: string[]): Promise<RunResult | undefined> {
+  try { return await host.run(['git', '--no-optional-locks', '-C', dir, ...args]) } catch { return undefined }
 }
 
+// The base is the working tree as the session found it (`stash create` writes a
+// commit object and no stash entry), so edits made before the session stay out.
+// The root keeps the cwd's spelling: through a symlink, --show-toplevel gives the
+// real path, which never matches the paths Claude's tools report.
 export async function gitBase(host: Host, cwd: string): Promise<{ root: string; base: string } | undefined> {
-  const top = await run(host, ['git', '-C', cwd, 'rev-parse', '--show-toplevel'])
-  if (!top || top.exitCode !== 0) return undefined
-  const head = await run(host, ['git', '-C', cwd, 'rev-parse', 'HEAD'])
-  if (!head || head.exitCode !== 0) return undefined
-  return { root: top.stdout.trim(), base: head.stdout.trim() }
+  const r = await git(host, cwd, ['rev-parse', '--show-toplevel', '--show-prefix', 'HEAD'])
+  if (!r || r.exitCode !== 0) return undefined
+  const [top = '', prefix = '', head = ''] = r.stdout.split('\n')
+  const dir = cwd.replace(/\/+$/, '')
+  const sub = prefix.replace(/\/$/, '')
+  const root = !sub ? dir : dir.endsWith('/' + sub) ? dir.slice(0, -sub.length - 1) : top
+  const stash = await git(host, root, ['stash', 'create'])
+  const base = stash?.exitCode === 0 && stash.stdout.trim() ? stash.stdout.trim() : head.trim()
+  return { root, base }
 }
 
 // Read files are included on purpose: a shell command can edit a file Claude only
-// read, and mergeCounts promotes it to an edit when git reports changes.
+// read, and mergeCounts promotes it to an edit when git reports changes. Files git
+// reports that Claude never touched (sed -i, the person's editor) join as edits.
 // Untracked files are absent from `git diff`, so new files keep their own counts.
-export async function refreshCounts(host: Host, files: FileTouch[], git: { root: string; base: string } | undefined): Promise<FileTouch[]> {
-  if (!git || !files.some(f => f.path.startsWith(git.root + '/'))) return files
-  const r = await run(host, ['git', '-C', git.root, 'diff', '--numstat', '-z', git.base])
+export async function refreshCounts(host: Host, files: FileTouch[], repo: { root: string; base: string } | undefined, at: number): Promise<FileTouch[]> {
+  if (!repo) return files
+  const r = await git(host, repo.root, ['diff', '--numstat', '-z', repo.base])
   if (!r || r.exitCode !== 0) return files
-  const counts = parseNumstat(r.stdout, git.root)
-  return files.map(f => ({ ...f, ...counts.get(f.path) }))
+  const counts = parseNumstat(r.stdout, repo.root)
+  const known = new Set(files.map(f => f.path))
+  const extra = [...counts].filter(([path]) => !known.has(path)).map(([path, c]): FileTouch => ({ path, ...c, how: 'edit', at }))
+  return [...files.map(f => ({ ...f, ...counts.get(f.path) })), ...extra]
+}
+
+// One git process at a time: a call while a job runs marks the queue dirty, and
+// exactly one more job (the latest) runs when the current one settles.
+export function serial(): (job: () => Promise<void>) => void {
+  let busy = false
+  let next: (() => Promise<void>) | undefined
+  const start = (job: () => Promise<void>) => {
+    busy = true
+    void job().catch(() => {}).finally(() => {
+      busy = false
+      const queued = next
+      next = undefined
+      if (queued) start(queued)
+    })
+  }
+  return job => { if (busy) next = job; else start(job) }
 }

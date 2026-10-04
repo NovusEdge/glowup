@@ -31,19 +31,18 @@ const answered = (m: Model, toolUseId: string): Model =>
   m.needsYou?.toolUseId === toolUseId ? { ...m, act: m.needsYou.before, needsYou: undefined } : m
 
 // git runs while later tool calls land, so its answer may lack files added since
-// it started; those keep their own counts.
+// it started; those keep their own counts. Files only git knows join the list.
 export function mergeCounts(m: Model, refreshed: FileTouch[]): Model {
   const byPath = new Map(refreshed.map(f => [f.path, f]))
-  return {
-    ...m,
-    files: m.files.map(f => {
-      const r = byPath.get(f.path)
-      if (!r) return f
-      // a shell command can edit a file Claude only read; git's counts prove it
-      const how = f.how === 'read' && r.add + r.del > 0 ? 'edit' : f.how
-      return { ...f, how, add: r.add, del: r.del }
-    }),
-  }
+  const have = new Set(m.files.map(f => f.path))
+  const merged = m.files.map(f => {
+    const r = byPath.get(f.path)
+    if (!r) return f
+    // a shell command can edit a file Claude only read; git's counts prove it
+    const how = f.how === 'read' && r.add + r.del > 0 ? 'edit' : f.how
+    return { ...f, how, add: r.add, del: r.del }
+  })
+  return { ...m, files: [...merged, ...refreshed.filter(f => !have.has(f.path))].sort((a, b) => b.at - a.at) }
 }
 
 function touch(files: FileTouch[], path: string, at: number, how: FileTouch['how'], add = 0, del = 0): FileTouch[] {

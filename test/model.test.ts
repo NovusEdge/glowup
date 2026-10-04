@@ -103,12 +103,14 @@ test('a notebook edit is an edit with no line counts', async () => {
   expect(m.files.map(f => [f.path, f.how, f.add, f.del])).toEqual([['/r/a.ipynb', 'edit', 0, 0]])
 })
 
-test('mergeCounts keeps files added after the git snapshot', async () => {
+test('mergeCounts keeps files added after the git snapshot and adds files only git saw', async () => {
   const snap = run([{ type: 'tool-end', at: 1, tool: 'Edit', toolUseId: 'e1', input: { file_path: '/r/a.ts', old_string: 'x', new_string: 'y' }, isError: false, text: '' }])
   const refreshed = snap.files.map(f => ({ ...f, add: 5, del: 2 }))
   const later = applyEvent(snap, { type: 'tool-end', at: 2, tool: 'Write', toolUseId: 'w1', input: { file_path: '/r/b.ts', content: 'q' }, isError: false, text: '', writeType: 'create' })
-  const m = mergeCounts(later, [...refreshed, { path: '/r/gone.ts', add: 9, del: 9, how: 'edit', at: 0 }])
-  expect(m.files.map(f => [f.path, f.add, f.del])).toEqual([['/r/b.ts', 1, 0], ['/r/a.ts', 5, 2]])
+  const m = mergeCounts(later, [...refreshed, { path: '/r/sed.ts', add: 9, del: 9, how: 'edit', at: 3 }])
+  expect(m.files.map(f => [f.path, f.how, f.add, f.del])).toEqual([['/r/sed.ts', 'edit', 9, 9], ['/r/b.ts', 'new', 1, 0], ['/r/a.ts', 'edit', 5, 2]])
+  // a later refresh leaves its first-seen time alone
+  expect(mergeCounts(m, [{ path: '/r/sed.ts', add: 10, del: 9, how: 'edit', at: 7 }]).files[0]).toMatchObject({ path: '/r/sed.ts', add: 10, at: 3 })
 })
 
 test('failed edits do not count', async () => {

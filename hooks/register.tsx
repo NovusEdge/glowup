@@ -2,7 +2,7 @@ import type { EngineInterface, Register, Timer } from 'claude-code'
 import type { Host } from './host.ts'
 import { initialModel, applyEvent, mergeCounts, type Model, type Ev } from './model.ts'
 import { resolveTheme, type Theme } from './themes.ts'
-import { gitBase, refreshCounts } from './changes.ts'
+import { gitBase, refreshCounts, serial } from './changes.ts'
 import { tierFor } from './layout.tsx'
 import { renderBand } from './band.tsx'
 import { renderPane, type PaneView, type TabId } from './pane.tsx'
@@ -27,6 +27,7 @@ let docked = false
 let panePlacement: 'dock' | 'inline' | undefined
 let ticker: Timer | undefined
 let refreshSeq = 0
+const refreshQueue = serial()
 let sessionId = ''
 let takenOver = false
 let statusTimer: Timer | undefined
@@ -79,15 +80,16 @@ async function togglePane($: Engine): Promise<string> {
   return r.isPlaced ? 'glowup pane open (Esc closes it)' : `glowup pane waits: ${r.reason}`
 }
 
-// Not awaited by callers: git must not hold up a tool result. Only the newest
-// refresh lands, so a slow older one can't overwrite newer counts.
+// Not awaited by callers: git must not hold up a tool result. A refresh that
+// started before adoptSession must not land in the new session's model.
 function refresh($: Engine) {
-  const seq = ++refreshSeq
-  void refreshCounts(hostOf($), model.files, git).then(files => {
+  refreshQueue(async () => {
+    const seq = refreshSeq
+    const files = await refreshCounts(hostOf($), model.files, git, Date.now())
     if (seq !== refreshSeq) return
     model = mergeCounts(model, files)
     redraw($)
-  }).catch(() => {})
+  })
 }
 
 // usage() has no percent before the first response of a session, hence the guard.
