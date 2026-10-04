@@ -24,9 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/glowup config` now asks which spinner you want, right after the pack, and the summary line names a spinner you set.
 - glowup's own spinner now sits 2 columns in from the left edge instead of touching it.
 - The docs site moved to https://glowup.khimani.dev.
+- The installer sends an installed glowup only the settings that version has (it failed on one without `spinner`) and says which picks it skipped. It also refuses to install while another glowup copy is loaded.
 
 ### Fixed
 
+- Two copies of glowup in one session (installed plus `claude --plugin-dir .`) showed false "Needs you" alerts. Now one copy stays on (a `--plugin-dir` copy wins) and the other turns itself off with a toast. Old status files are cleaned up, and session ids are cleaned before they reach a file name.
 - glowup's status line script could call itself when two copies of glowup were loaded, starting shells until the machine ran out of memory. It now never falls back to itself, and the first-run question no longer takes over a status line glowup already draws.
 - Tool results no longer clip at the right edge, and the `[ OK ]` mark no longer wraps, because rows now take less width around Claude Code's own output.
 

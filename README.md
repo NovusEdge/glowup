@@ -103,7 +103,7 @@ cd glowup
 claude --plugin-dir .
 ```
 
-More in [Install](docs/install.md).
+glowup runs one copy per session: with an installed copy and `claude --plugin-dir .` together, the clone stays on and the other turns itself off. More in [Install](docs/install.md).
 
 ## Commands
 

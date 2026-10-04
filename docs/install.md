@@ -89,6 +89,8 @@ claude --plugin-dir .
 
 The session watches the folder and reloads the mod when you save a file.
 
+If glowup is also installed, two copies load in one session. glowup notices: the clone wins, the installed copy turns itself off and shows a toast naming the command to disable one (`claude plugin disable glowup@glowup`). The installer refuses to install while it sees a second copy, whether from another marketplace or from `CLAUDE_CODE_PLUGIN_DIRS`.
+
 ## Remove
 
 If you ran `/glowup statusline on`, run `/glowup statusline restore` first. It puts your own status line back, unless you changed it since. See [Status line](statusline.md).
