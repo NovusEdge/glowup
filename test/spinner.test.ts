@@ -93,6 +93,11 @@ test('an empty detail draws no child', async () => {
   expect(out).not.toContain('""')
 })
 
+test('the outer box, which holds the badge rows too, has 2 columns of left padding', async () => {
+  const tree = SpinnerClient(spinnerProps(look('arcade'), IN, true) as any, surface().s) as any
+  expect(tree.props.paddingLeft).toBe(2)
+})
+
 test('client props carry only what the line reads', async () => {
   const p = spinnerProps(look('arcade'), IN, false)
   expect(JSON.stringify(p).length).toBeLessThan(1000)

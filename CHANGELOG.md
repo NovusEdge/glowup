@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clawd's done dance now lasts 4 seconds instead of 1.5.
 - Chat rows in every pack except `classic` now keep a one-column margin on the left.
 - `/glowup config` now asks which spinner you want, right after the pack, and the summary line names a spinner you set.
+- glowup's own spinner now sits 2 columns in from the left edge instead of touching it.
 
 ### Fixed
 
