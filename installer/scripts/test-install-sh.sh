@@ -52,6 +52,12 @@ archive="$(cd "$work/bad/download/$tag" && ls glowup-installer_*.tar.gz)"
 printf 'tampered' >>"$work/bad/download/$tag/$archive"
 check "checksum mismatch stops before running" 1 "checksum mismatch" run "$work/bad"
 check "checksum mismatch runs nothing" 1 "Nothing was installed" run "$work/bad"
+if run "$work/bad" 2>&1 | grep -q "stub-installer ran"; then
+	echo "FAIL checksum mismatch still ran the installer"
+	fail=1
+else
+	echo "ok   checksum mismatch never starts the installer"
+fi
 
 cp -R "$work/good" "$work/other"
 printf '0000  glowup-installer_%s_plan9_mips.tar.gz\n' "$tag" >"$work/other/download/$tag/checksums.txt"
@@ -61,6 +67,60 @@ check "missing release" 1 "could not download" env GLOWUP_BASE_URL="file://$work
 
 # file:// has no redirect, so .../latest cannot resolve: the same as GitHub being unreachable.
 check "latest release cannot be found" 1 "could not find the latest glowup release" env GLOWUP_BASE_URL="file://$work/good" sh "$script"
+
+cp -R "$work/good" "$work/star"
+sum="$(cut -d' ' -f1 "$work/star/download/$tag/checksums.txt")"
+printf '%s *%s\n' "$sum" "$archive" >"$work/star/download/$tag/checksums.txt"
+check "binary-mode checksum line is accepted" 0 "stub-installer ran with" run "$work/star"
+
+# wget path: needs a real HTTP server, since wget cannot fetch file://. The shim
+# bin dir links only the tools install.sh uses, so curl is not on PATH.
+if ! command -v wget >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1; then
+	echo "SKIP: wget not installed (or no python3), wget path not tested"
+else
+	cat >"$work/serve.py" <<'EOF'
+import functools, http.server, sys
+
+class H(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/latest":
+            self.send_response(302)
+            self.send_header("Location", "/tag/" + sys.argv[2])
+            self.end_headers()
+            return
+        super().do_GET()
+    def do_HEAD(self):
+        if self.path == "/latest":
+            return self.do_GET()
+        super().do_HEAD()
+    def log_message(self, *a):
+        pass
+
+srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(H, directory=sys.argv[1]))
+with open(sys.argv[3], "w") as f:
+    f.write(str(srv.server_address[1]))
+srv.serve_forever()
+EOF
+	python3 "$work/serve.py" "$work/good" "$tag" "$work/port" &
+	server=$!
+	trap 'kill "$server" 2>/dev/null; rm -rf "$work"' EXIT
+	i=0
+	while [ ! -s "$work/port" ] && [ "$i" -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
+	port="$(cat "$work/port")"
+
+	mkdir "$work/wgetbin"
+	for t in wget uname mktemp rm tar gzip grep sed tail tr awk cut sha256sum shasum cat env setsid; do
+		p="$(command -v "$t" 2>/dev/null || true)"
+		case "$p" in /*) ln -s "$p" "$work/wgetbin/$t" ;; esac
+	done
+	wget_run() { # args... ; env vars come from the caller via env
+		no_tty env PATH="$work/wgetbin" "$@" </dev/null
+	}
+	check "wget: GLOWUP_VERSION download" 0 "stub-installer ran with: --yes" \
+		wget_run GLOWUP_BASE_URL="http://127.0.0.1:$port" GLOWUP_VERSION="$tag" /bin/sh "$script"
+	check "wget: latest tag from the redirect" 0 "Downloading the glowup installer $tag" \
+		wget_run GLOWUP_BASE_URL="http://127.0.0.1:$port" /bin/sh "$script"
+fi
 
 mkdir "$work/shim"
 cat >"$work/shim/uname" <<'EOF'
