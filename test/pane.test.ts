@@ -1,5 +1,6 @@
 import { test, expect } from 'claude-code/testing'
-import { tabRows, statusRows, renderPane, COMPACT_ROWS, petStripCols, type TabId } from '../hooks/pane.tsx'
+import { tabRows, statusRows, renderPane, COMPACT_ROWS, petStripCols, bubbleBox, type TabId } from '../hooks/pane.tsx'
+import { CLAWD_SAY } from '../hooks/bubbles.ts'
 import { resolveLook } from '../hooks/packs.ts'
 import { visibleLength } from '../hooks/layout.tsx'
 import { initialModel, type Model } from '../hooks/model.ts'
@@ -234,4 +235,40 @@ test('renderPane drops the status section when compact', async () => {
   const bordered = (compact: boolean) => walk(renderPane(els, M, T, { tab: 'plan' }, 58, compact, 0, () => {})).some(n => n.props?.borderStyle)
   expect(bordered(false)).toBe(true)
   expect(bordered(true)).toBe(false)
+})
+
+const SAMPLES = [
+  ...Object.values(CLAWD_SAY).flat().map(t => t.replace('{n}', '3').replace('{command}', 'npm')),
+  'tests are sulking, so am i, honestly ok',
+  'green at last, i knew you had it in you',
+  'supercalifragilisticexpialidocious!!!!!!',
+  'a b c d e f g h i j k l m n o p q r s t',
+  'x'.repeat(40),
+]
+
+test('every bubble line wraps at spaces, in two rows at most, inside the pane', async () => {
+  for (const [width, compact] of [[30, false], [40, false], [60, false], [90, false], [30, true], [40, true], [60, true]] as const) {
+    const box = bubbleBox(width, compact)
+    for (const text of SAMPLES) {
+      const tree = renderPane(els, M, T, { tab: 'changes' }, width, compact, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, bubble: { text, mood: 'fail' } })
+      const bub = walk(tree).find(n => n?.props?.borderColor === T.colors.fail)
+      // the bubble's own rows are checked line by line below; textRows would join its lines
+      const own = (bub?.children ?? []).map((c: any) => c.children.join('')).join('')
+      for (const r of textRows(tree)) if (r !== own) expect(visibleLength([{ text: r, color: '' }]), `${width} ${text}`).toBeLessThanOrEqual(width)
+      const lines: string[] = compact
+        ? [String(walk(tree).filter(n => n?.type === 'Text' && typeof n.children?.[0] === 'string' && n.children[0].startsWith(' ')).map(n => n.children[0]).pop() ?? '').trim()]
+        : (bub?.children ?? []).map((c: any) => c.children.join(''))
+      expect(lines.length, `${width} ${text}`).toBeGreaterThan(0)
+      expect(lines.length).toBeLessThanOrEqual(box.lines)
+      const words = new Set(text.split(' '))
+      lines.forEach((l, i) => {
+        expect(visibleLength([{ text: l, color: '' }]), `${width}/${compact} ${text} -> ${l}`).toBeLessThanOrEqual(box.cols)
+        const cut = l.endsWith('…')
+        const parts = l.replace(/…$/, '').split(' ').filter(Boolean)
+        // a whole word, unless this line was cut at its end
+        parts.forEach((p, j) => { if (!(cut && j === parts.length - 1 && i === lines.length - 1)) expect(words.has(p), `${l}`).toBe(true) })
+      })
+      if (!lines.at(-1)!.endsWith('…')) expect(lines.join(' ')).toBe(text)
+    }
+  }
 })

@@ -6,12 +6,12 @@ import type { Theme } from './themes.ts'
 import { resolveLook, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { loadUserPacks } from './userpacks.ts'
 import { PET_ROWS, type PetSetting, type PetId, type PetInput, type PetKind } from './pets.ts'
-import { bubbleFor, BUBBLE_SETTINGS, daypart, haikuPrompt, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, type BubbleSetting, type BubbleVars, type Mood } from './bubbles.ts'
+import { bubbleFor, BUBBLE_SETTINGS, daypart, haikuLimit, haikuPrompt, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, type BubbleSetting, type BubbleVars, type Mood } from './bubbles.ts'
 import { recordPass, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { gitBase, refreshCounts, serial } from './changes.ts'
 import { tierFor, renderSegs } from './layout.tsx'
 import { renderBand } from './band.tsx'
-import { renderPane, petStripCols, type PaneExtra, type PaneView, type TabId } from './pane.tsx'
+import { renderPane, bubbleBox, petStripCols, type PaneExtra, type PaneView, type TabId } from './pane.tsx'
 import { spinnerWord, newTurnWord } from './restyle.ts'
 import { styleRow } from './rows.tsx'
 import { orbStateOf, usesOwnSpinner, checkedSpinnerProps } from './spinner.ts'
@@ -72,6 +72,8 @@ let lastTemplate: string | undefined
 const haikuGate = new HaikuGate()
 let haikuAbort: AbortController | undefined
 let turnNo = 0
+// Characters the last drawn pane can show in a bubble; 40 until a pane has drawn.
+let bubbleCap = 40
 // false in a plain -p run, where nobody sees a bubble
 let interactive = true
 let friday = false
@@ -189,6 +191,7 @@ async function askHaiku($: Engine, mine: Bubble, mood: Mood, vars: BubbleVars) {
   haikuAbort = stop
   // the abort race below is what ends a call the engine never settles; timeoutMs only bounds the request itself
   const timer = $.clock.after(HAIKU_TIMEOUT_MS, () => stop.abort())
+  const limit = bubbleCap
   try {
     const { system, prompt } = haikuPrompt({
       mood,
@@ -196,12 +199,13 @@ async function askHaiku($: Engine, mine: Bubble, mood: Mood, vars: BubbleVars) {
       label: mood === 'needs-you' ? (vars.command ? `needs approval: ${vars.command}` : undefined) : model.working && model.act.kind ? model.act.label : undefined,
       tests: mood === 'fail' ? (vars.n === undefined ? 'failed' : `failed ${vars.n}`) : model.lastTest ? (model.lastTest.passed ? 'passed' : 'failed') : undefined,
       daypart: daypart(localTime(Date.now(), tzOffset).hour),
+      limit,
     })
     const aborted = new Promise<undefined>(r => stop.signal.addEventListener('abort', () => r(undefined)))
     const r = await Promise.race([$.model.complete({ model: HAIKU_MODEL, system, prompt, maxTokens: 40, effort: 'low', timeoutMs: HAIKU_TIMEOUT_MS }, { signal: stop.signal }), aborted])
     if (!r) { $.ui.log('haiku bubble: timed out or cancelled', { to: 'debug' }); return }
     if (!r.isAnswered) { $.ui.log(`haiku bubble: ${r.reason}`, { to: 'debug' }); return }
-    const text = sanitizeLine(r.text)
+    const text = sanitizeLine(r.text, limit)
     if (!text || off || bubbles !== 'haiku' || !petOn() || bubble !== mine) return
     mine.text = text
     publishPet($)
@@ -633,6 +637,8 @@ export const register: Register = (on, options) => {
     if (panePlacement !== e.props.placement) { panePlacement = e.props.placement; $.clock.after(0, () => publish($)) }
     const live = (await $.state.get(PANE)).value as { model: Model; view: PaneView } | undefined
     const compact = e.props.placement === 'inline' && e.props.bodyColumns < 80
+    const box = bubbleBox(e.props.bodyColumns, compact)
+    bubbleCap = haikuLimit(box.cols, box.lines)
     const v: PaneView = { ...(live?.view ?? view), reduced: reducedMotion }
     const els = $.ui.resolve(e)
     // the look always applies; the pet and its words only while he is on

@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { fill, pickLine, bubbleFor, sanitizeLine, haikuPrompt, HaikuGate, CLAWD_SAY } from '../hooks/bubbles.ts'
+import { fill, pickLine, bubbleFor, sanitizeLine, haikuPrompt, haikuLimit, wrapBubble, HaikuGate, CLAWD_SAY } from '../hooks/bubbles.ts'
 
 test('fill replaces placeholders, strips unsafe characters and caps at 40', async () => {
   expect(fill('{n}/{n} green', { n: 12 })).toBe('12/12 green')
@@ -56,4 +56,24 @@ test('the gate allows one call in flight, one per turn, 90 s apart', async () =>
   expect(g.take(3, 1000 + 90_001)).toBe(false)
   g.done()
   expect(g.take(3, 1000 + 180_000)).toBe(true)
+})
+
+test('wrapBubble wraps at spaces and cuts at a word with an ellipsis', async () => {
+  expect(wrapBubble('all done', 20, 2)).toEqual(['all done'])
+  expect(wrapBubble('hmm tests are sulking today', 14, 2)).toEqual(['hmm tests are', 'sulking today'])
+  expect(wrapBubble('hmm tests are sulking today and more', 14, 2)).toEqual(['hmm tests are', 'sulking today…'])
+  expect(wrapBubble('all done and a lot more words', 12, 1)).toEqual(['all done…'])
+  expect(wrapBubble('abcdefghijklmnop', 8, 2)).toEqual(['abcdefg…'])
+})
+
+test('the Haiku limit follows the room, capped at 40, and reaches the prompt and the sanitizer', async () => {
+  expect(haikuLimit(undefined)).toBe(40)
+  expect(haikuLimit(60)).toBe(40)
+  expect(haikuLimit(20)).toBe(38)
+  expect(haikuLimit(10)).toBe(18)
+  expect(haikuLimit(3)).toBe(12)
+  expect(haikuLimit(10, 1)).toBe(12)
+  expect(haikuPrompt({ mood: 'done', pose: 'idle', daypart: 'night', limit: 18 }).system).toContain('at most 18 characters')
+  expect([...sanitizeLine('x'.repeat(60), 18)]).toHaveLength(18)
+  expect([...sanitizeLine('x'.repeat(60), 90)]).toHaveLength(40)
 })
