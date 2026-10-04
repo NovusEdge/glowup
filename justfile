@@ -26,6 +26,11 @@ ci: check test packs-check installer-check installsh-test
 dev *args:
     claude --plugin-dir . {{args}}
 
+# write every Clawd frame as SVG and PNG to docs/assets/clawd (scale = pixels per sprite pixel)
+[group('dev')]
+clawd-export scale="16":
+    node scripts/export-clawd.ts {{scale}}
+
 # add this checkout as a marketplace and install the mod from it
 [group('install')]
 install:
