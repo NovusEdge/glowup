@@ -5,7 +5,15 @@ export type Act = { glyph: string; label: string; tone: 'text' | 'dim' | 'read' 
 export type Agent = { key: string; agentId?: string; name: string; task: string; state: 'running' | 'done'; startedAt: number; endedAt?: number; tokens?: number; now?: string }
 export type FileTouch = { path: string; add: number; del: number; how: 'read' | 'edit' | 'new'; at: number }
 export type NeedsYou = { toolUseId: string; what: string; before: Act }
-export type Model = { working: boolean; doneAt?: number; act: Act; agents: Agent[]; plan: PlanItem[]; files: FileTouch[]; ctxPercent: number; needsYou?: NeedsYou }
+export type Model = {
+  working: boolean; doneAt?: number; act: Act; agents: Agent[]; plan: PlanItem[]; files: FileTouch[]; ctxPercent: number; needsYou?: NeedsYou
+  turnAt?: number
+  // last time something visible happened; the pet sleeps after a long gap
+  actAt: number
+  // successful main-agent calls in a row this turn
+  combo: number
+  lastTest?: { passed: boolean; at: number }
+}
 export type Ev =
   | { type: 'turn-start'; at: number }
   | { type: 'tool-start'; at: number; tool: string; toolUseId: string; agentId?: string; input: Record<string, unknown> }
@@ -23,7 +31,7 @@ const TONE: Record<string, Act['tone']> = { read: 'read', search: 'read', edit: 
 
 const text = (v: unknown) => (typeof v === 'string' ? v : '')
 
-export const initialModel = (): Model => ({ working: false, act: { glyph: '✻', label: 'Ready', tone: 'text' }, agents: [], plan: [], files: [], ctxPercent: 0 })
+export const initialModel = (): Model => ({ working: false, act: { glyph: '✻', label: 'Ready', tone: 'text' }, agents: [], plan: [], files: [], ctxPercent: 0, actAt: 0, combo: 0 })
 export const agentsRunning = (m: Model) => m.agents.some(a => a.state === 'running')
 // Subagents run in the background, so the main turn usually ends while they work.
 export const isBusy = (m: Model) => m.working || agentsRunning(m)
@@ -65,10 +73,10 @@ function touch(files: FileTouch[], path: string, at: number, how: FileTouch['how
 
 export function applyEvent(m: Model, ev: Ev): Model {
   switch (ev.type) {
-    case 'turn-start': return { ...m, working: true, doneAt: undefined, needsYou: undefined, act: { glyph: '✻', label: 'Thinking', tone: 'text' } }
-    case 'turn-done': return { ...m, working: false, doneAt: ev.at, needsYou: undefined, act: ENDED[ev.reason] }
+    case 'turn-start': return { ...m, working: true, doneAt: undefined, needsYou: undefined, turnAt: ev.at, actAt: ev.at, combo: 0, lastTest: undefined, act: { glyph: '✻', label: 'Thinking', tone: 'text' } }
+    case 'turn-done': return { ...m, working: false, doneAt: ev.at, actAt: ev.at, needsYou: undefined, act: ENDED[ev.reason] }
     case 'context': return { ...m, ctxPercent: Math.max(0, Math.min(100, Math.round(ev.percent))) }
-    case 'needs-you': return { ...m, needsYou: { toolUseId: ev.toolUseId, what: ev.what, before: m.needsYou?.before ?? m.act }, act: { glyph: '!', label: `Needs you: ${ev.what}`, tone: 'fail' } }
+    case 'needs-you': return { ...m, actAt: ev.at, needsYou: { toolUseId: ev.toolUseId, what: ev.what, before: m.needsYou?.before ?? m.act }, act: { glyph: '!', label: `Needs you: ${ev.what}`, tone: 'fail' } }
     case 'agent-bind': return { ...m, agents: m.agents.map(a => a.key === ev.toolUseId ? { ...a, agentId: ev.agentId } : a) }
     case 'agent-done': return { ...m, agents: m.agents.map(a => a.agentId === ev.agentId && a.state === 'running' ? { ...a, state: 'done' as const, endedAt: ev.at, now: undefined, tokens: ev.tokens ?? a.tokens } : a) }
     case 'tool-start': {
@@ -86,7 +94,8 @@ export function applyEvent(m: Model, ev: Ev): Model {
       const act: Act = { glyph: GLYPH[d.kind], label: d.label, tone: TONE[d.kind]! }
       // a parallel call must not hide an open question; it becomes what shows after the answer
       if (m.needsYou) return { ...m, agents, needsYou: { ...m.needsYou, before: act } }
-      return { ...m, agents, act }
+      const changed = act.glyph !== m.act.glyph || act.label !== m.act.label
+      return { ...m, agents, act, actAt: changed ? ev.at : m.actAt }
     }
     case 'tool-end': {
       const d = describeTool(ev.tool, ev.input)
@@ -108,9 +117,16 @@ export function applyEvent(m: Model, ev: Ev): Model {
       // a subagent's own todo list is not Claude's plan
       const plan = ev.isError || ev.agentId ? undefined : planFrom(ev.tool, ev.input, next.plan, ev.resultTaskId)
       if (plan) next = { ...next, plan }
+      if (!ev.agentId) next = { ...next, combo: ev.isError ? 0 : next.combo + 1 }
       if (!ev.agentId && d.isTest) {
         const o = testOutcome(ev.text, ev.isError)
-        next = { ...next, act: { glyph: o.passed ? '✓' : '✗', label: o.summary, tone: o.passed ? 'pass' : 'fail' } }
+        next = {
+          ...next,
+          act: { glyph: o.passed ? '✓' : '✗', label: o.summary, tone: o.passed ? 'pass' : 'fail' },
+          lastTest: { passed: o.passed, at: ev.at },
+          actAt: ev.at,
+          combo: o.passed ? next.combo : 0,
+        }
       }
       return next
     }
