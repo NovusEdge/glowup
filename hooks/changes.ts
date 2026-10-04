@@ -22,8 +22,11 @@ export function parseNumstat(out: string, root: string): Map<string, { add: numb
 // A missing git binary rejects instead of returning a non-zero exit code.
 // Without --no-optional-locks, `git diff` rewrites a stale index under
 // .git/index.lock, and Claude's own `git commit` at that moment fails.
-async function git(host: Host, dir: string, args: string[]): Promise<RunResult | undefined> {
-  try { return await host.run(['git', '--no-optional-locks', '-C', dir, ...args]) } catch { return undefined }
+async function git(host: Host, dir: string, args: string[], env?: Record<string, string>): Promise<RunResult | undefined> {
+  try { return await host.run(['git', '--no-optional-locks', '-C', dir, ...args], env) } catch { return undefined }
+}
+async function run(host: Host, argv: string[]): Promise<RunResult | undefined> {
+  try { return await host.run(argv) } catch { return undefined }
 }
 
 // The base is the working tree as the session found it (`stash create` writes a
@@ -31,15 +34,30 @@ async function git(host: Host, dir: string, args: string[]): Promise<RunResult |
 // The root keeps the cwd's spelling: through a symlink, --show-toplevel gives the
 // real path, which never matches the paths Claude's tools report.
 export async function gitBase(host: Host, cwd: string): Promise<{ root: string; base: string } | undefined> {
-  const r = await git(host, cwd, ['rev-parse', '--show-toplevel', '--show-prefix', 'HEAD'])
+  const r = await git(host, cwd, ['rev-parse', '--show-toplevel', '--show-prefix', '--git-path', 'index', 'HEAD'])
   if (!r || r.exitCode !== 0) return undefined
-  const [top = '', prefix = '', head = ''] = r.stdout.split('\n')
+  const [top = '', prefix = '', indexPath = '', head = ''] = r.stdout.split('\n')
   const dir = cwd.replace(/\/+$/, '')
   const sub = prefix.replace(/\/$/, '')
   const root = !sub ? dir : dir.endsWith('/' + sub) ? dir.slice(0, -sub.length - 1) : top
-  const stash = await git(host, root, ['stash', 'create'])
-  const base = stash?.exitCode === 0 && stash.stdout.trim() ? stash.stdout.trim() : head.trim()
-  return { root, base }
+  // --git-path is relative to the directory rev-parse ran in
+  const index = indexPath.startsWith('/') ? indexPath : `${dir}/${indexPath}`
+  return { root, base: (await worktreeCommit(host, root, index)) ?? head.trim() }
+}
+
+// `stash create` refreshes the index it reads, under its .lock, even with
+// --no-optional-locks: on the real index that clashes with Claude's own git
+// commit. A throwaway copy takes that lock instead.
+async function worktreeCommit(host: Host, root: string, index: string): Promise<string | undefined> {
+  const tmp = (await run(host, ['mktemp']))?.stdout.trim()
+  if (!tmp) return undefined
+  try {
+    if ((await run(host, ['cp', index, tmp]))?.exitCode !== 0) return undefined
+    const r = await git(host, root, ['stash', 'create'], { GIT_INDEX_FILE: tmp })
+    return r?.exitCode === 0 && r.stdout.trim() ? r.stdout.trim() : undefined
+  } finally {
+    await run(host, ['rm', '-f', tmp])
+  }
 }
 
 // Read files are included on purpose: a shell command can edit a file Claude only

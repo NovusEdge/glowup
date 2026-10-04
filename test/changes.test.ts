@@ -2,9 +2,12 @@ import { test, expect } from 'claude-code/testing'
 import { parseNumstat, gitBase, refreshCounts, serial } from '../hooks/changes.ts'
 import { fakeHost } from './kit.ts'
 
-const REV = 'git --no-optional-locks -C /r rev-parse --show-toplevel --show-prefix HEAD'
+const REV = 'git --no-optional-locks -C /r rev-parse --show-toplevel --show-prefix --git-path index HEAD'
 const STASH = 'git --no-optional-locks -C /r stash create'
 const DIFF = 'git --no-optional-locks -C /r diff --numstat -z abc'
+// rev-parse prints --git-path relative to the directory it ran in
+const REV_OUT = '/r\n\n.git/index\nabc\n'
+const COPY = { 'mktemp': { exitCode: 0, stdout: '/tmp/idx.1\n' }, 'cp /r/.git/index /tmp/idx.1': { exitCode: 0, stdout: '' }, 'rm -f /tmp/idx.1': { exitCode: 0, stdout: '' } }
 
 test('parseNumstat reads counts, binary files and renames', async () => {
   const m = parseNumstat('3\t1\tsrc/a.ts\0-\t-\timg.png\0' + '2\t0\t\0src/old.ts\0src/new.ts\0' + '1\t1\tcafé.ts\0' + '4\t2\ta\tb.ts\0', '/r')
@@ -32,26 +35,44 @@ test('gitBase is undefined outside a repo', async () => {
 
 test('every git call skips optional locks so Claude\'s own git commit never meets index.lock', async () => {
   const { host, ran } = fakeHost({ runs: {
-    [REV]: { exitCode: 0, stdout: '/r\n\nabc\n' },
+    [REV]: { exitCode: 0, stdout: REV_OUT },
+    ...COPY,
     [STASH]: { exitCode: 0, stdout: '' },
     [DIFF]: { exitCode: 0, stdout: '' },
   } })
   const git = await gitBase(host, '/r')
   await refreshCounts(host, [], git, 9)
-  expect(ran.length).toBe(3)
-  for (const argv of ran) expect(argv.startsWith('git --no-optional-locks -C ')).toBe(true)
+  const gits = ran.filter(a => a.startsWith('git '))
+  expect(gits.length).toBe(3)
+  for (const argv of gits) expect(argv.startsWith('git --no-optional-locks -C ')).toBe(true)
+})
+
+test('stash create runs on a throwaway copy of the index, never .git/index itself', async () => {
+  const { host, ran, envs } = fakeHost({ runs: { [REV]: { exitCode: 0, stdout: REV_OUT }, ...COPY, [STASH]: { exitCode: 0, stdout: 'f00d\n' } } })
+  expect(await gitBase(host, '/r')).toEqual({ root: '/r', base: 'f00d' })
+  expect(ran).toEqual([REV, 'mktemp', 'cp /r/.git/index /tmp/idx.1', STASH, 'rm -f /tmp/idx.1'])
+  expect(envs[ran.indexOf(STASH)]).toEqual({ GIT_INDEX_FILE: '/tmp/idx.1' })
 })
 
 test('the baseline is the session-start working tree when it is dirty, else HEAD', async () => {
-  const dirty = fakeHost({ runs: { [REV]: { exitCode: 0, stdout: '/r\n\nabc\n' }, [STASH]: { exitCode: 0, stdout: 'f00d\n' } } })
+  const dirty = fakeHost({ runs: { [REV]: { exitCode: 0, stdout: REV_OUT }, ...COPY, [STASH]: { exitCode: 0, stdout: 'f00d\n' } } })
   expect(await gitBase(dirty.host, '/r')).toEqual({ root: '/r', base: 'f00d' })
-  const clean = fakeHost({ runs: { [REV]: { exitCode: 0, stdout: '/r\n\nabc\n' }, [STASH]: { exitCode: 0, stdout: '' } } })
+  const clean = fakeHost({ runs: { [REV]: { exitCode: 0, stdout: REV_OUT }, ...COPY, [STASH]: { exitCode: 0, stdout: '' } } })
   expect(await gitBase(clean.host, '/r')).toEqual({ root: '/r', base: 'abc' })
+})
+
+test('with no index to copy (fresh repo) the baseline is HEAD and stash create never runs', async () => {
+  const { host, ran } = fakeHost({ runs: { [REV]: { exitCode: 0, stdout: REV_OUT }, mktemp: COPY.mktemp, 'rm -f /tmp/idx.1': COPY['rm -f /tmp/idx.1'] } })
+  expect(await gitBase(host, '/r')).toEqual({ root: '/r', base: 'abc' })
+  expect(ran).not.toContain(STASH)
+  expect(ran).toContain('rm -f /tmp/idx.1')
 })
 
 test('the root keeps the cwd spelling, so a symlinked checkout matches tool paths', async () => {
   const { host } = fakeHost({ runs: {
-    'git --no-optional-locks -C /link/sub/dir rev-parse --show-toplevel --show-prefix HEAD': { exitCode: 0, stdout: '/real/repo\nsub/dir/\nabc\n' },
+    'git --no-optional-locks -C /link/sub/dir rev-parse --show-toplevel --show-prefix --git-path index HEAD': { exitCode: 0, stdout: '/real/repo\nsub/dir/\n/real/repo/.git/index\nabc\n' },
+    ...COPY,
+    'cp /real/repo/.git/index /tmp/idx.1': { exitCode: 0, stdout: '' },
     'git --no-optional-locks -C /link stash create': { exitCode: 0, stdout: '' },
   } })
   expect(await gitBase(host, '/link/sub/dir')).toEqual({ root: '/link', base: 'abc' })

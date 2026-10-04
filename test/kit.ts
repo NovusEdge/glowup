@@ -9,9 +9,11 @@ export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<s
   const files = { ...(opts.files ?? {}) }
   const store: Record<string, unknown> = {}
   const ran: string[] = []
+  const envs: (Record<string, string> | undefined)[] = []
   const host: Host = {
-    run: async argv => {
+    run: async (argv, env) => {
       ran.push(argv.join(' '))
+      envs.push(env)
       const hit = opts.runs?.[argv.join(' ')]
       if (!hit) return { exitCode: 127, stdout: '', stderr: 'not found' }
       return { ...hit, stderr: '' }
@@ -27,5 +29,5 @@ export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<s
     projectStatusLine: async () => opts.projectStatusLine === true,
     configDir: '/home/u/.claude',
   }
-  return { host, files, store, ran }
+  return { host, files, store, ran, envs }
 }

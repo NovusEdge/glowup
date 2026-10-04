@@ -36,7 +36,7 @@ let lastStatusLine: string | undefined
 
 function hostOf($: Engine): Host {
   return {
-    run: async argv => { const r = await $.process.run(argv); return { exitCode: r.exitCode, stdout: r.stdout, stderr: r.stderr } },
+    run: async (argv, env) => { const r = await $.process.run(argv, env ? { env } : undefined); return { exitCode: r.exitCode, stdout: r.stdout, stderr: r.stderr } },
     readFile: path => $.fs.read(path),
     writeFile: (path, text) => $.fs.write(path, text),
     exists: path => $.fs.exists(path),

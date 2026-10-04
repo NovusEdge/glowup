@@ -2,7 +2,8 @@
 // import, so register.tsx builds this from $ in hostOf.
 export type RunResult = { exitCode: number; stdout: string; stderr: string }
 export type Host = {
-  run(argv: readonly string[]): Promise<RunResult>
+  // env is set over the engine's own environment
+  run(argv: readonly string[], env?: Record<string, string>): Promise<RunResult>
   readFile(path: string): Promise<string>
   writeFile(path: string, text: string): Promise<void>
   exists(path: string): Promise<boolean>
