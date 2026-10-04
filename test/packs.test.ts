@@ -116,6 +116,22 @@ test('exportMix is self-contained and resolves to the same look', async () => {
   expect(strip(again.look)).toEqual(strip(l))
 })
 
+test('built-in packs win over a stray user file of the same name', async () => {
+  const r = look(pack('crt'), { classic: '{' })
+  expect(r.errors).toEqual([])
+  expect(r.look).toEqual(look(pack('crt')).look)
+})
+
+test('exportMix description is built from shown names and fits 80 characters', async () => {
+  const l = look(pack('crt')).look
+  const long = { ...l, colorsFrom: 'a'.repeat(40), motionFrom: 'b'.repeat(40) }
+  const file = exportMix(long, 'mine')
+  expect(file.description!.length).toBeLessThanOrEqual(80)
+  expect(() => validatePack(file)).not.toThrow()
+  const evil = exportMix({ ...l, colorsFrom: 'a\u001b[2Jb' }, 'mine')
+  expect(evil.description).not.toContain('\u001b')
+})
+
 test('stockMotion freezes motion', async () => {
   expect(stockMotion(look(pack('arcade')).look).motion).toEqual({ spinner: 'stock', shimmer: 0, color: '#38e8ff' })
   expect(SPINNER_IDS).toHaveLength(6)

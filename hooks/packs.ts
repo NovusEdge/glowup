@@ -24,6 +24,7 @@ const FORMAT = 1
 const TOP = ['format', 'name', 'extends', 'description', 'colors', 'motion', 'sound', 'voice']
 const COLORS_KEYS = ['theme', 'palette', 'bg', 'rows', 'border', 'borderColor', 'gradient', 'extras']
 const MOTION_KEYS = ['spinner', 'shimmer', 'color']
+export const isNewerSpinner = (e: string) => /^spinner ".*" needs a newer glowup/.test(e)
 const HEX = /^#[0-9a-fA-F]{6}$/
 const SPINNER_SHAPE = /^[a-z][a-z0-9-]{0,23}$/
 
@@ -94,7 +95,8 @@ const merge = (a: Layer, b: Layer): Layer => {
 function collect(name: string, kind: 'colors' | 'motion', user: Record<string, unknown>, seen: string[]): Layer {
   if (seen.includes(name)) throw new Error(`"extends" loops: ${[...seen, name].map(shown).join(' -> ')}`)
   if (seen.length >= MAX_DEPTH) throw new Error(`chain is deeper than ${MAX_DEPTH}: ${[...seen, name].map(shown).join(' -> ')}`)
-  const raw = Object.hasOwn(user, name) ? user[name] : Object.hasOwn(PACKS, name) ? PACKS[name] : undefined
+  // Built-ins first: a stray user classic.json must not change crt, cozy or arcade.
+  const raw = Object.hasOwn(PACKS, name) ? PACKS[name] : Object.hasOwn(user, name) ? user[name] : undefined
   if (raw === undefined) throw new Error(`no pack named "${shown(name)}"`)
   if (raw instanceof Error) throw raw
   checkTop(raw)
@@ -165,7 +167,9 @@ export function exportMix(look: Look, name: string): PackFile {
   }
   if (Object.hasOwn(PRESETS, look.theme.name)) colors.theme = look.theme.name
   if (look.gradient) colors.gradient = [...look.gradient]
-  return { format: 1, name, description: `${look.colorsFrom} colors, ${look.motionFrom} motion`, colors, motion: { ...look.motion } }
+  // validatePack counts UTF-16 units, so cut there and drop a split surrogate pair.
+  const description = `${shown(look.colorsFrom)} colors, ${shown(look.motionFrom)} motion`.slice(0, 80).replace(/[\ud800-\udbff]$/, '')
+  return { format: 1, name, description, colors, motion: { ...look.motion } }
 }
 
 export const stockMotion = (look: Look): Look => ({ ...look, motion: { ...look.motion, spinner: 'stock', shimmer: 0 } })

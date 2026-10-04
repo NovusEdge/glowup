@@ -25,6 +25,20 @@ test('addPack: https only, validated, built-in names refused, no silent overwrit
   expect(files[`${DIR}/bad.json`]).toBeUndefined()
 })
 
+test('addPack installs a pack that names a spinner this build lacks', async () => {
+  const body = '{"format":1,"name":"later","motion":{"spinner":"hologram"}}'
+  const { host, files } = fakeHost({ fetches: { 'https://x.dev/later.json': body } })
+  expect((await addPack(host, 'https://x.dev/later.json', false)).name).toBe('later')
+  expect(files[`${DIR}/later.json`]).toBe(body)
+})
+
+test('loadUserPacks echoes fs errors without control characters', async () => {
+  const { host } = fakeHost({ files: { [`${DIR}/a.json`]: '{}' } })
+  host.readFile = async () => { throw new Error('bad\u001b[2J path') }
+  const user = await loadUserPacks(host)
+  expect((user.a as Error).message).not.toContain('\u001b')
+})
+
 test('addPack refuses a body over 64 KB before parsing', async () => {
   const { host } = fakeHost({ fetches: { 'https://x.dev/big.json': '{"format":1,"name":"big","description":"' + 'a'.repeat(70_000) + '"}' } })
   expect((await addPack(host, 'https://x.dev/big.json', false)).message).toContain('64 KB')
