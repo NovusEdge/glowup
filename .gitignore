@@ -15,3 +15,6 @@ docs/superpowers/
 
 # Claude Code writes these on every load of the mod
 .claude-plugin/types/
+
+# `just installer-build` output
+installer/glowup-installer

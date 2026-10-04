@@ -1,5 +1,5 @@
 import type { Host } from './host.ts'
-import { takeOver, BACKUP_KEY } from './statusline.ts'
+import { takeOver, drawsStatusLine, BACKUP_KEY } from './statusline.ts'
 
 export const FIRST_RUN_KEY = 'first-run'
 export const TRIES_KEY = 'first-run-tries'
@@ -14,6 +14,8 @@ export async function firstRun(host: Host, ask: (question: string) => Promise<st
   if ((await host.storeGet(FIRST_RUN_KEY)) !== undefined) return undefined
   // an upgrade from 0.1 with the takeover already on: the person has answered
   if ((await host.storeGet(BACKUP_KEY)) !== undefined) { await host.storeSet(FIRST_RUN_KEY, 'yes'); return undefined }
+  // another copy of glowup already draws it: nothing to ask, nothing to back up
+  if (await drawsStatusLine(host)) { await host.storeSet(FIRST_RUN_KEY, 'yes'); return undefined }
   let asked = false, label: string | undefined
   const out = await takeOver(host, async q => { asked = true; label = await ask(q); return label === 'Yes' })
   // takeOver returns before asking when settings.json can't be read: try again next launch

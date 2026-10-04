@@ -38,9 +38,47 @@ jobs:
         run: |
           git archive --format=tar.gz --prefix=glowup/ -o "glowup-${GITHUB_REF_NAME}.tar.gz" HEAD
           git archive --format=zip --prefix=glowup/ -o "glowup-${GITHUB_REF_NAME}.zip" HEAD
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.26'
+          cache-dependency-path: installer/go.sum
+      - name: Installer pack colors match the mod
+        run: node installer/gen/packs.ts --check
+      - name: Installer tests
+        working-directory: installer
+        run: go vet ./... && go test ./...
+      # Built in this job, not a later one, so the release appears with its
+      # installer binaries already attached: install.sh resolves "latest" and
+      # would 404 in the gap between a bare release and a second upload job.
+      - name: Installer binaries
+        working-directory: installer
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          # windows/amd64 is a download only: install.sh is POSIX and never fetches it.
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do
+            os=${target%/*}
+            arch=${target#*/}
+            bin=glowup-installer
+            if [ "$os" = windows ]; then
+              bin=glowup-installer.exe
+            fi
+            GOOS=$os GOARCH=$arch go build \
+              -ldflags "-s -w -X main.version=${GITHUB_REF_NAME}" -o "$bin" .
+            name=glowup-installer_${GITHUB_REF_NAME}_${os}_${arch}
+            if [ "$os" = windows ]; then
+              zip -q "../$name.zip" "$bin"
+            else
+              tar czf "../$name.tar.gz" "$bin"
+            fi
+            rm -f "$bin"
+          done
+          cd ..
+          sha256sum glowup-installer_*.tar.gz glowup-installer_*.zip > checksums.txt
       - name: Publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "$GITHUB_REF_NAME" --title "glowup $GITHUB_REF_NAME" \
-            --notes-file notes.md "glowup-${GITHUB_REF_NAME}.tar.gz" "glowup-${GITHUB_REF_NAME}.zip"
+            --notes-file notes.md "glowup-${GITHUB_REF_NAME}.tar.gz" "glowup-${GITHUB_REF_NAME}.zip" \
+            glowup-installer_*.tar.gz glowup-installer_*.zip checksums.txt

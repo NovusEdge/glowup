@@ -1,0 +1,97 @@
+// Package cli reads the installer's command line.
+package cli
+
+import (
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"slices"
+	"strings"
+
+	"github.com/novusedge/glowup/installer/internal/claude"
+	"github.com/novusedge/glowup/installer/internal/packs"
+)
+
+// Options is the parsed command line. Choice starts at claude.Defaults() and
+// takes any --pack, --theme, --spinner, --pet, --bubbles and --reduced-motion values; the picker
+// starts from it, and --yes installs it as is.
+type Options struct {
+	Choice  claude.Choice
+	Given   []string // userConfig keys whose flags were on the command line, in a fixed order
+	Yes     bool
+	DryRun  bool
+	Version bool
+}
+
+// Parse reads args (without the program name). It returns flag.ErrHelp for
+// -h/--help, and an error for anything it cannot use, after printing why to out.
+func Parse(args []string, out io.Writer) (Options, error) {
+	o := Options{Choice: claude.Defaults()}
+	fs := flag.NewFlagSet("glowup-installer", flag.ContinueOnError)
+	fs.SetOutput(out)
+	fs.Usage = func() {
+		fmt.Fprintln(out, "usage: glowup-installer [--yes] [--pack NAME] [--theme NAME] [--spinner NAME] [--pet clawd|off] [--bubbles on|off] [--reduced-motion] [--dry-run] [--version]")
+		fmt.Fprintln(out, "\nInstalls the glowup mod into Claude Code. With no flags it asks you to pick a look first.")
+		fs.PrintDefaults()
+	}
+	fs.BoolVar(&o.Yes, "yes", false, "install without asking: the defaults, or the values of the flags below")
+	fs.StringVar(&o.Choice.Pack, "pack", o.Choice.Pack, "pack: "+strings.Join(packs.Names(), ", "))
+	fs.StringVar(&o.Choice.Theme, "theme", "", "theme colors on top of the pack: "+strings.Join(packs.ThemeNames(), ", ")+" (classic keeps the pack's own)")
+	fs.StringVar(&o.Choice.Spinner, "spinner", "", "spinner: "+strings.Join(packs.SpinnerIDs(), ", ")+", or pack for the pack's own")
+	fs.StringVar(&o.Choice.Pet, "pet", o.Choice.Pet, "pet: clawd or off")
+	fs.StringVar(&o.Choice.Bubbles, "bubbles", o.Choice.Bubbles, "speech bubbles: on or off")
+	fs.BoolVar(&o.Choice.ReducedMotion, "reduced-motion", o.Choice.ReducedMotion, "turn off glowup's animation")
+	fs.BoolVar(&o.DryRun, "dry-run", false, "print the commands a fresh install runs, and run nothing (not even the checks)")
+	fs.BoolVar(&o.Version, "version", false, "print the installer's version")
+	if err := fs.Parse(args); err != nil {
+		return o, err
+	}
+	set := map[string]bool{}
+	fs.Visit(func(f *flag.Flag) { set[f.Name] = true })
+	for _, g := range [][2]string{{"pack", "pack"}, {"pet", "pet"}, {"bubbles", "bubbles"}, {"reduced-motion", "reducedMotion"}, {"theme", "theme"}, {"spinner", "spinner"}} {
+		if set[g[0]] {
+			o.Given = append(o.Given, g[1])
+		}
+	}
+	if fs.NArg() > 0 {
+		return o, usageErr(out, "unexpected argument %q", fs.Arg(0))
+	}
+	o.Choice.Pack = strings.ToLower(o.Choice.Pack)
+	o.Choice.Pet = strings.ToLower(o.Choice.Pet)
+	o.Choice.Bubbles = strings.ToLower(o.Choice.Bubbles)
+	o.Choice.Theme = strings.ToLower(o.Choice.Theme)
+	o.Choice.Spinner = strings.ToLower(o.Choice.Spinner)
+	if !slices.Contains(packs.Names(), o.Choice.Pack) {
+		return o, usageErr(out, "there is no pack called %q. Pick one of: %s", o.Choice.Pack, strings.Join(packs.Names(), ", "))
+	}
+	if o.Choice.Pet != "clawd" && o.Choice.Pet != "off" {
+		return o, usageErr(out, "--pet takes clawd or off, not %q", o.Choice.Pet)
+	}
+	if o.Choice.Bubbles != "on" && o.Choice.Bubbles != "off" {
+		return o, usageErr(out, "--bubbles takes on or off, not %q", o.Choice.Bubbles)
+	}
+	if t := o.Choice.Theme; set["theme"] && !slices.Contains(packs.ThemeNames(), t) {
+		return o, usageErr(out, "there is no theme called %q. Pick one of: %s", t, strings.Join(packs.ThemeNames(), ", "))
+	}
+	if sp := o.Choice.Spinner; set["spinner"] && sp != "pack" && !slices.Contains(packs.SpinnerIDs(), sp) {
+		return o, usageErr(out, "there is no spinner called %q. Pick one of: %s, or pack for the pack's own", sp, strings.Join(packs.SpinnerIDs(), ", "))
+	}
+	return o, nil
+}
+
+func usageErr(out io.Writer, format string, a ...any) error {
+	err := fmt.Errorf(format, a...)
+	fmt.Fprintln(out, err)
+	return err
+}
+
+// CheckTerminal refuses to start the picker without a terminal to draw it on.
+// install.sh passes --yes itself when there is none; this catches the binary run
+// by hand from a pipe or a CI step.
+func CheckTerminal(o Options, interactive bool) error {
+	if o.Yes || o.DryRun || o.Version || interactive {
+		return nil
+	}
+	return errors.New("there is no terminal to show the picker in. Run again with --yes to install with the defaults, adding --pack, --theme, --spinner, --pet, --bubbles or --reduced-motion to choose")
+}

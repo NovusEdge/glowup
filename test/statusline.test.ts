@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { takeOver, restore, statusText, writeStatusFile } from '../hooks/statusline.ts'
+import { takeOver, restore, statusText, writeStatusFile, script } from '../hooks/statusline.ts'
 import { initialModel } from '../hooks/model.ts'
 import { resolveTheme } from '../hooks/themes.ts'
 import { fakeHost } from './kit.ts'
@@ -144,4 +144,53 @@ test('no status line deletes the session file so the script falls back', async (
   expect(files['/home/u/.claude/glowup/status/s1']).toBe('◆ idle · ctx 5%')
   await writeStatusFile(host, 's1', undefined)
   expect(ran).toContain('rm -f /home/u/.claude/glowup/status/s1')
+})
+
+const OURS = `{"statusLine":{"type":"command","command":"sh '${SCRIPT}'"}}`
+
+test('a status line that is already glowup is never saved as the backup', async () => {
+  const { host, files, store } = fakeHost({ files: { [SETTINGS]: OURS } })
+  let asked = 0
+  expect(await takeOver(host, async () => { asked++; return true })).toContain('already')
+  expect(asked).toBe(0)
+  expect('statusline-backup' in store).toBe(false)
+  expect(files[SETTINGS]).toBe(OURS)
+  expect(SCRIPT in files).toBe(false)
+})
+
+test('a script already on disk that calls itself is rewritten with no fallback', async () => {
+  const bad = `#!/bin/sh\nprintf '%s' "$input" | sh -c 'sh '\\''${SCRIPT}'\\'''\n`
+  const { host, files } = fakeHost({ files: { [SETTINGS]: OURS, [SCRIPT]: bad } })
+  await takeOver(host, yes)
+  expect(files[SCRIPT]).not.toContain('sh -c')
+  expect(files[SCRIPT]).toContain('exit 0')
+})
+
+test('a stored backup that is glowup own command never reaches the script', async () => {
+  const { host, files, store } = fakeHost({ files: { [SETTINGS]: '{}' } })
+  store['statusline-backup'] = { type: 'command', command: `sh '${SCRIPT}'` }
+  await takeOver(host, yes)
+  expect(files[SCRIPT]).not.toContain('sh -c')
+})
+
+test('script refuses a fallback that names glowup own script or status dir', async () => {
+  for (const original of [`sh '${SCRIPT}'`, `cat /home/u/.claude/glowup/status/x`]) {
+    const out = script('/home/u/.claude', original)
+    expect(out).not.toContain('sh -c')
+    expect(out).toContain('exit 0')
+  }
+  expect(script('/home/u/.claude', 'ccstatusline')).toContain(`sh -c 'ccstatusline'`)
+})
+
+test('the script exits at once when it is already running inside itself', async () => {
+  const lines = script('/home/u/.claude', 'ccstatusline').split('\n')
+  expect(lines[0]).toBe('#!/bin/sh')
+  expect(lines[1]).toBe('[ -n "$GLOWUP_STATUSLINE" ] && exit 0; GLOWUP_STATUSLINE=1; export GLOWUP_STATUSLINE')
+})
+
+test('restore treats a backup that is glowup own command as no previous line', async () => {
+  const { host, files, store } = fakeHost({ files: { [SETTINGS]: '{"model":"opus",' + OURS.slice(1) } })
+  store['statusline-backup'] = { type: 'command', command: `sh '${SCRIPT}'` }
+  await restore(host)
+  expect(JSON.parse(files[SETTINGS]!)).toEqual({ model: 'opus' })
 })

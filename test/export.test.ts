@@ -31,6 +31,8 @@ test('export with no or an unknown target lists the targets', async () => {
   expect(Object.keys(files)).toEqual([])
 })
 
+const notGuard = (p: string) => !p.includes('/glowup/instances/')
+
 // session.start is where register.tsx reads the env, so the engine boots first
 const engine = async ($: any, on: any, env?: Record<string, string>) => {
   const fs = fakeFs(on, {}, undefined, env)
@@ -47,19 +49,19 @@ const engine = async ($: any, on: any, env?: Record<string, string>) => {
 test('XDG_DATA_HOME wins over $HOME/.local/share through the engine', { timeoutMs: 20000 }, async ($, on) => {
   const { files } = await engine($, on, { XDG_DATA_HOME: '/xdg' })
   expect((await runGlowup($, 'export konsole')).text).toContain('/xdg/konsole/glowup-classic.colorscheme')
-  expect(Object.keys(files)).toEqual(['/xdg/konsole/glowup-classic.colorscheme'])
+  expect(Object.keys(files).filter(notGuard)).toEqual(['/xdg/konsole/glowup-classic.colorscheme'])
 })
 
 test('without XDG_DATA_HOME the file lands in $HOME/.local/share', { timeoutMs: 20000 }, async ($, on) => {
   const { files } = await engine($, on)
   await runGlowup($, 'export konsole')
-  expect(Object.keys(files)).toEqual(['/fake/.local/share/konsole/glowup-classic.colorscheme'])
+  expect(Object.keys(files).filter(notGuard)).toEqual(['/fake/.local/share/konsole/glowup-classic.colorscheme'])
 })
 
 test('a relative XDG_DATA_HOME is ignored per the XDG spec', { timeoutMs: 20000 }, async ($, on) => {
   const { files } = await engine($, on, { XDG_DATA_HOME: 'rel/share' })
   await runGlowup($, 'export konsole')
-  expect(Object.keys(files)).toEqual(['/fake/.local/share/konsole/glowup-classic.colorscheme'])
+  expect(Object.keys(files).filter(notGuard)).toEqual(['/fake/.local/share/konsole/glowup-classic.colorscheme'])
 })
 
 test('export konsole names the file after the theme override that is exported', async () => {

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A one-line installer: `curl -fsSL https://glowup.khimani.dev/install.sh | sh`. It previews each pack while you pick a pack, a pet and extras, then installs the mod with `claude plugin`. Each release now carries the installer for Linux and macOS, and a Windows download.
+- The installer lets you pick a pack's colors and spinner on their own, and shows Clawd and a wider preview while you choose. It also takes `--theme` and `--spinner`, backed by a new `spinner` setting for the mod (`pack`, the default, keeps the pack's own; `/glowup spinner` still wins).
 - A pack-making skill ships with glowup: ask your agent for a glowup pack from a mood, palette, image or terminal scheme.
 - `/glowup export konsole` saves your current colors as a Konsole color scheme you can pick in your profile.
 
@@ -22,9 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/glowup config` now asks which spinner you want, right after the pack, and the summary line names a spinner you set.
 - glowup's own spinner now sits 2 columns in from the left edge instead of touching it.
 - The docs site moved to https://glowup.khimani.dev.
+- The installer sends an installed glowup only the settings that version has (it failed on one without `spinner`) and says which picks it skipped. It also refuses to install while another glowup copy is loaded.
 
 ### Fixed
 
+- Two copies of glowup in one session (installed plus `claude --plugin-dir .`) showed false "Needs you" alerts. Now one copy stays on (a `--plugin-dir` copy wins) and the other turns itself off with a toast. Old status files are cleaned up, and session ids are cleaned before they reach a file name.
+- glowup's status line script could call itself when two copies of glowup were loaded, starting shells until the machine ran out of memory. It now never falls back to itself, and the first-run question no longer takes over a status line glowup already draws.
 - Tool results no longer clip at the right edge, and the `[ OK ]` mark no longer wraps, because rows now take less width around Claude Code's own output.
 
 ## [0.2.2] - 2026-10-04

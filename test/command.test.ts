@@ -5,7 +5,7 @@ import { SHORT_TEXT, FULL_TEXT, SECTIONS, DOCS_URL } from '../hooks/help.ts'
 import type { Mix } from '../hooks/packs.ts'
 import type { PetSetting } from '../hooks/pets.ts'
 
-test('/glowup and /glowup help print the short card', async ($, on) => {
+test('/glowup and /glowup help print the short card', { timeoutMs: 20000 }, async ($, on) => {
   fakeFs(on)
   mock.store(on)
   for (const args of ['', 'help']) {

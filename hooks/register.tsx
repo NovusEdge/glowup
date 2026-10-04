@@ -3,7 +3,7 @@ import type { Host } from './host.ts'
 import { initialModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
 import { approvalLabel, personAsked, shortPath } from './events.ts'
 import type { Theme } from './themes.ts'
-import { resolveLook, DEFAULT_MIX, type Mix, type Look } from './packs.ts'
+import { resolveLook, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { loadUserPacks } from './userpacks.ts'
 import { PET_ROWS, type PetSetting, type PetId, type PetInput, type PetKind } from './pets.ts'
 import { bubbleFor, type BubbleSetting, type BubbleVars, type Mood } from './bubbles.ts'
@@ -17,12 +17,13 @@ import { styleRow } from './rows.tsx'
 import { orbStateOf, usesOwnSpinner, checkedSpinnerProps } from './spinner.ts'
 import type { PetClientProps } from './client/pet.tsx'
 import type { OrbState } from './motion.ts'
-import { statusText, writeStatusFile, BACKUP_KEY } from './statusline.ts'
+import { statusText, writeStatusFile, drawsStatusLine, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
 import { runCommand, SUMMARY_LEAD, type Ctl } from './command.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 import { renderHelp } from './helpcard.tsx'
 import { loadUserThemes } from './userthemes.ts'
 import { firstRun } from './firstrun.ts'
+import { registerCopy, touchCopy, decide, unregisterCopy, pruneStatus, safeId, HEARTBEAT_MS } from './instances.ts'
 
 type Engine = EngineInterface
 type SpinKey = { turnAt: number; detail: string; state: OrbState }
@@ -55,8 +56,12 @@ let ticker: Timer | undefined
 let refreshSeq = 0
 const refreshQueue = serial()
 let sessionId = ''
+// off: another glowup copy is acting in this session (hooks/instances.ts)
+let off = false
+let guardSid = '', guardRoot = ''
 let takenOver = false
-let statusTimer: Timer | undefined
+// The one 60 s clock: refreshes this copy's guard entry and rewrites the status file.
+let beatTimer: Timer | undefined
 let lastStatusLine: string | undefined
 let spinKey: SpinKey = { turnAt: 0, detail: '', state: 'think' }
 // Pet state, published to PET for the pane only; the band never reads it.
@@ -106,10 +111,19 @@ function writeStatus($: Engine, force: boolean) {
   lastStatusLine = line ?? ''
   void writeStatusFile(hostOf($), sessionId, line).catch(() => {})
 }
+function startBeat($: Engine) {
+  beatTimer?.cancel()
+  beatTimer = $.clock.every(HEARTBEAT_MS, () => {
+    if (guardSid) void touchCopy(hostOf($), guardSid, guardRoot, Date.now()).catch(() => {})
+    writeStatus($, true)
+  })
+}
+// A winning copy whose store has no backup (the takeover was made by another copy
+// or an earlier install) still owns the file settings.json points at.
 async function syncTakeover($: Engine) {
-  takenOver = (await hostOf($).storeGet(BACKUP_KEY)) !== undefined
-  statusTimer?.cancel()
-  statusTimer = takenOver ? $.clock.every(60_000, () => writeStatus($, true)) : undefined
+  // the first-run timer can fire after recheckGuard turned this copy off
+  if (off) return
+  takenOver = (await hostOf($).storeGet(BACKUP_KEY)) !== undefined || await drawsStatusLine(hostOf($))
   writeStatus($, true)
   $.ui.status(statusEntry())
 }
@@ -311,7 +325,9 @@ async function initialMix(host: Host, options: Readonly<Record<string, unknown>>
   const pack = typeof options.pack === 'string' && options.pack ? options.pack : DEFAULT_MIX.colors
   const storedTheme = await host.storeGet('theme')
   const theme = typeof storedTheme === 'string' ? storedTheme : typeof options.theme === 'string' && options.theme !== 'classic' ? options.theme : undefined
-  return { ...DEFAULT_MIX, colors: pack, motion: pack, theme }
+  // "pack" is the userConfig default and means the pack's own spinner; an id this build lacks is ignored like a bad pet.
+  const spinner = typeof options.spinner === 'string' && (SPINNER_IDS as readonly string[]).includes(options.spinner) ? options.spinner : undefined
+  return { ...DEFAULT_MIX, colors: pack, motion: pack, theme, spinner }
 }
 
 function ctlOf($: Engine): Ctl {
@@ -335,6 +351,41 @@ function ctlOf($: Engine): Ctl {
   }
 }
 
+declare function setTimeout(fn: () => void, ms: number): unknown
+// Long enough for a copy that started at the same moment to write its entry.
+const SETTLE_MS = 150
+
+function goOff($: Engine, winner: string) {
+  off = true
+  ticker?.cancel(); ticker = undefined
+  beatTimer?.cancel(); beatTimer = undefined
+  takenOver = false
+  $.ui.status(undefined)
+  $.ui.toast(`glowup is loaded twice (${guardRoot} and ${winner}); this copy is off. Disable one: claude plugin disable glowup@glowup`)
+}
+
+// A copy that registered after our session.start check, or a /clear that gave the session a
+// new id, can change the answer. Only active -> off: a copy that lost at session.start never
+// ran its init, so it cannot be switched back on. Returns true when this copy went off.
+async function recheckGuard($: Engine, id: string): Promise<boolean> {
+  const sid = safeId(id)
+  if (!sid || !guardRoot) return false
+  try {
+    const host = hostOf($)
+    if (sid !== guardSid) {
+      guardSid = sid
+      await registerCopy(host, sid, guardRoot, Date.now())
+    }
+    const d = await decide(host, sid, guardRoot, Date.now())
+    if (d.active) return false
+    goOff($, d.winner)
+    return true
+  } catch { return false }
+}
+
+// The loader reads `on("<event>", hook)` literally, so no wrapper can gate the hooks:
+// each one opens with `if (off) return next(e)`. session.start and session.end run
+// the guard and its cleanup themselves.
 export const register: Register = (on, options) => {
   reducedMotion = options.reducedMotion === true
 
@@ -346,6 +397,25 @@ export const register: Register = (on, options) => {
     const xdg = await $.env.get('XDG_DATA_HOME')
     dataHome = xdg?.startsWith('/') ? xdg : `${home}/.local/share`
     const host = hostOf($)
+    off = false
+    guardSid = safeId(await $.session.id())
+    guardRoot = $.plugin.root
+    if (guardSid) {
+      try {
+        await registerCopy(host, guardSid, guardRoot, Date.now())
+        await new Promise<void>(r => setTimeout(r, SETTLE_MS))
+        const d = await decide(host, guardSid, guardRoot, Date.now())
+        if (!d.active) {
+          goOff($, d.winner)
+          return next(e)
+        }
+        void pruneStatus(host, STATUS_DIR(configDir))
+      } catch (err) {
+        // better two copies than none: a guard that cannot read its files steps aside
+        $.ui.log(`two-copies guard failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
+      }
+    }
+    startBeat($)
     await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|import|export|pet|bubbles|pane|motion|statusline ...' })
     mix = await initialMix(host, options)
     const storedPet = await host.storeGet('pet')
@@ -375,8 +445,10 @@ export const register: Register = (on, options) => {
   })
 
   on('turn.start', async ($, e, next) => {
+    if (off) return next(e)
     // belt and braces: session.end may have run before the new id was visible
     const id = await $.session.id()
+    if (await recheckGuard($, id)) return next(e)
     if (id !== sessionId) await adoptSession($, sessionId)
     newTurnWord()
     friday = false
@@ -386,6 +458,7 @@ export const register: Register = (on, options) => {
   })
 
   on('tool.call', async ($, e, next) => {
+    if (off) return next(e)
     // without an id the call cannot be matched to its end (an Agent row would never close)
     if (!e.tool_use_id) return next(e)
     const input = e as unknown as Record<string, unknown>
@@ -422,6 +495,7 @@ export const register: Register = (on, options) => {
   })
 
   on('tool.check', async ($, e, next) => {
+    if (off) return next(e)
     const r = await next(e)
     // without tool_use_id this is a query: nobody is asked
     if (r.decision === 'ask' && e.tool_use_id && asked) {
@@ -431,12 +505,14 @@ export const register: Register = (on, options) => {
   })
 
   on('agent.spawn', async ($, e, next) => {
+    if (off) return next(e)
     const r = await next(e)
     if (r.agentId && e.tool_use_id) feed($, { type: 'agent-bind', toolUseId: e.tool_use_id, agentId: r.agentId })
     return r
   })
 
   on('turn.complete', async ($, e, next) => {
+    if (off) return next(e)
     // the ticker would redraw through the whole wait for next(); feed restarts it
     // while background subagents still run
     if (!e.agentId) { ticker?.cancel(); ticker = undefined }
@@ -458,6 +534,7 @@ export const register: Register = (on, options) => {
   })
 
   on('session.compact', async ($, e, next) => {
+    if (off) return next(e)
     const r = await next(e)
     if (e.agentId || e.trigger === 'precompute' || 'skip' in r) return r
     // usage().context.percent is absent until the next response, so a manual
@@ -470,11 +547,14 @@ export const register: Register = (on, options) => {
 
   // /clear and resume continue the process under a new session id with no session.start.
   on('session.end', async ($, e, next) => {
+    if (guardSid) await unregisterCopy(hostOf($), guardSid, guardRoot)
+    if (off) return next(e)
     if (e.reason === 'clear' || e.reason === 'resume') await adoptSession($, e.sessionId)
     return next(e)
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    if (off) return next(e)
     if (e.props.hasSurvey || e.props.view.agentId) return next(e)
     // Asked once. Claude Code places it unasked only from 144 columns (110 once the
     // person has opened it); narrower, it waits and the band shows instead.
@@ -494,13 +574,15 @@ export const register: Register = (on, options) => {
   })
 
   on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
+    if (off) return next(e)
     // a render hook cannot write state, so tool.check reads this module variable
     const key = e.props.modes.join('|')
     if (key !== modeKey) { modeKey = key; asked = personAsked(e.props.modes); $.ui.log(`session mode labels: ${JSON.stringify(e.props.modes)} -> person asked: ${asked}`, { to: 'debug' }) }
     return next(e)
   })
 
-  on('ui.render', { component: 'Pane', requestId: 'glowup' }, async ($, e) => {
+  on('ui.render', { component: 'Pane', requestId: 'glowup' }, async ($, e, next) => {
+    if (off) return next(e)
     // a render hook cannot write state: publish after the draw
     if (panePlacement !== e.props.placement) { panePlacement = e.props.placement; $.clock.after(0, () => publish($)) }
     const live = (await $.state.get(PANE)).value as { model: Model; view: PaneView } | undefined
@@ -528,6 +610,7 @@ export const register: Register = (on, options) => {
   })
 
   on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
+    if (off) return next(e)
     const word = spinnerWord(theme, e.props.word, reducedMotion)
     if (!usesOwnSpinner(look, reducedMotion, e.props.message) || (e.surface !== 'terminal' && e.surface !== 'desktop')) {
       return next({ ...e, props: { ...e.props, word } })
@@ -545,29 +628,34 @@ export const register: Register = (on, options) => {
   })
 
   on('ui.render', { component: 'UserMessage' }, async ($, e, next) => {
+    if (off) return next(e)
     const row = await next(e)
     if (e.surface !== 'terminal') return row
     const p = e.props
     return styleRow($.ui.resolve(e), look, { site: 'UserMessage', text: p.text, isExpanded: p.isExpanded, own: p.origin.kind === 'composer' && !p.from && !p.task }, row) as RenderElement
   })
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
+    if (off) return next(e)
     const row = await next(e)
     if (e.surface !== 'terminal') return row
     return styleRow($.ui.resolve(e), look, { site: 'AssistantMessage', isFirstOfReply: e.props.isFirstOfReply }, row) as RenderElement
   })
   on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
+    if (off) return next(e)
     const row = await next(e)
     if (e.surface !== 'terminal') return row
     const p = e.props
     return styleRow($.ui.resolve(e), look, { site: 'ToolUse', tool: p.tool, input: p.input, isRunning: p.isRunning, isErrored: p.isErrored, isInterrupted: p.isInterrupted }, row) as RenderElement
   })
   on('ui.render', { component: 'ToolResult' }, async ($, e, next) => {
+    if (off) return next(e)
     const row = await next(e)
     if (e.surface !== 'terminal') return row
     return styleRow($.ui.resolve(e), look, { site: 'ToolResult' }, row) as RenderElement
   })
 
   on('ui.render', { component: 'CommandOutput' }, async ($, e, next) => {
+    if (off) return next(e)
     const p = e.props
     if ((e.surface !== 'terminal' && e.surface !== 'desktop') || p.command !== 'glowup' || p.isErrored) return next(e)
     // Matched on the exact text the command printed, so an error or a changed answer stays the engine's row.
@@ -591,7 +679,8 @@ export const register: Register = (on, options) => {
     </Box>
   })
 
-  on('command.run', { command: 'glowup' }, async ($, e) => {
+  on('command.run', { command: 'glowup' }, async ($, e, next) => {
+    if (off) return next(e)
     const text = await runCommand(hostOf($), e.args, ctlOf($))
     await syncTakeover($)
     return { text }

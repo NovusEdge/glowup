@@ -80,7 +80,15 @@ While Claude or a subagent is working, glowup adds one entry under the prompt (`
 
 ## Install
 
-You need Claude Code 2.1.289 or later. In Claude Code:
+You need Claude Code 2.1.289 or later. In a terminal, run:
+
+```sh
+curl -fsSL https://glowup.khimani.dev/install.sh | sh
+```
+
+You pick a pack (and, if you like, its colors and spinner on their own), a pet and two extras while a preview shows each choice, then the installer adds the mod through Claude Code's own `claude plugin` commands. It runs once from a temp folder: nothing goes on your PATH and nothing needs sudo. To read the script first, run `curl -fsSL https://glowup.khimani.dev/install.sh | less`.
+
+To install by hand instead, run these in Claude Code:
 
 ```text
 /plugin marketplace add NovusEdge/glowup
@@ -95,7 +103,7 @@ cd glowup
 claude --plugin-dir .
 ```
 
-More in [Install](docs/install.md).
+glowup runs one copy per session: with an installed copy and `claude --plugin-dir .` together, the clone stays on and the other turns itself off. More in [Install](docs/install.md).
 
 ## Commands
 
