@@ -1,5 +1,5 @@
 import type { Model } from './model.ts'
-import { bandVisible } from './model.ts'
+import { bandVisible, normalizeModel } from './model.ts'
 import type { Theme } from './themes.ts'
 import type { Look } from './packs.ts'
 import { comboSegs, fit, hearts, hpBar, renderSegs, toneColor, visibleLength, type Seg, type Tier } from './layout.tsx'
@@ -7,7 +7,8 @@ import { comboSegs, fit, hearts, hpBar, renderSegs, toneColor, visibleLength, ty
 // The pet is never drawn here: it lives at the bottom of the glowup pane.
 export type BandExtra = { look?: Look; friday?: boolean }
 
-export function bandSegments(m: Model, base: Theme, columns: number, extra?: BandExtra): Seg[] {
+export function bandSegments(model: Model, base: Theme, columns: number, extra?: BandExtra): Seg[] {
+  const m = normalizeModel(model)
   const t = extra?.look?.theme ?? base
   const c = t.colors
   const head: Seg[] = [{ text: `${m.act.glyph} ${m.act.label}`, color: toneColor(t, m.act.tone), bold: true }, ...comboSegs(m.combo, extra?.look)]
@@ -26,7 +27,8 @@ export function bandSegments(m: Model, base: Theme, columns: number, extra?: Ban
   return [...fit(head, columns - tailLen), ...tail]
 }
 
-export function renderBand(els: { Box: any; Text: any }, m: Model, t: Theme, columns: number, tier: Tier, now: number, extra?: BandExtra) {
+export function renderBand(els: { Box: any; Text: any }, model: Model, t: Theme, columns: number, tier: Tier, now: number, extra?: BandExtra) {
+  const m = normalizeModel(model)
   if (tier === 'wide' || !bandVisible(m, now)) return null
   return renderSegs(els, bandSegments(m, t, columns, extra), 'band')
 }

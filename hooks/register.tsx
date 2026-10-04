@@ -1,6 +1,6 @@
 import type { EngineInterface, PaneOpenArgs, Register, RenderElement, Timer } from 'claude-code'
 import type { Host } from './host.ts'
-import { initialModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
+import { initialModel, normalizeModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
 import { approvalLabel, dialogCall, modeAsksPerson, shortPath } from './events.ts'
 import type { Theme } from './themes.ts'
 import { resolveLook, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
@@ -677,7 +677,7 @@ export const register: Register = (on, options) => {
     const below = await next(e)
     const els = $.ui.resolve(e)
     const live = (await $.state.get(BAND)).value as { model: Model } | undefined
-    const mine = renderBand(els, live?.model ?? model, theme, e.props.bodyColumns, tier, Date.now(), { look })
+    const mine = renderBand(els, live ? normalizeModel(live.model) : model, theme, e.props.bodyColumns, tier, Date.now(), { look })
     if (!mine) return below
     // other mods draw bands here too: stack ours on top instead of replacing theirs
     const { Box } = els
@@ -707,7 +707,7 @@ export const register: Register = (on, options) => {
       extra = { look, pet: { id: pid as PetId, node, rows: snap.overlays.some(o => HEAD_OUTFITS.includes(o)) ? PET_ROWS + 2 : undefined }, bubble: bubbleNow, friday: snap.friday }
     }
     if (e.props.placement === 'dock') extra = { ...extra, minRows: e.props.scroll.bodyRows }
-    return renderPane(els, live?.model ?? model, theme, v, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
+    return renderPane(els, live ? normalizeModel(live.model) : model, theme, v, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
       view = { ...view, tab: id }
       publish($)
       if (id === 'plan') void feedContext($)

@@ -1,5 +1,5 @@
 import type { ContextCategoryKind } from 'claude-code'
-import type { Model, PlanItem } from './model.ts'
+import { normalizeModel, type Model, type PlanItem } from './model.ts'
 import { capped, legendRows, sparkline, stackBar, tokensK } from './ctxchart.ts'
 import { planOrder } from './tasks.ts'
 import type { Theme } from './themes.ts'
@@ -123,11 +123,13 @@ function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, limi
   return rows.map(r => fit(r, w))
 }
 
-export function tabRows(m: Model, t: Theme, v: PaneView, width: number, compact: boolean, now: number, limit = COMPACT_ROWS): Seg[][] {
+export function tabRows(model: Model, t: Theme, v: PaneView, width: number, compact: boolean, now: number, limit = COMPACT_ROWS): Seg[][] {
+  const m = normalizeModel(model)
   return v.tab === 'changes' ? changes(m, t, width, compact, limit) : v.tab === 'agents' ? agents(m, t, v, width, compact, now, limit) : plan(m, t, v, width, compact, limit)
 }
 
-export function statusRows(m: Model, base: Theme, width: number, look?: Look): Seg[][] {
+export function statusRows(model: Model, base: Theme, width: number, look?: Look): Seg[][] {
+  const m = normalizeModel(model)
   const t = look?.theme ?? base, c = t.colors
   const live = m.agents.filter(a => a.state === 'running')
   const rows: Seg[][] = [

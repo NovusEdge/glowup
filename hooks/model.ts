@@ -41,6 +41,21 @@ const TONE: Record<string, Act['tone']> = { read: 'read', search: 'read', edit: 
 const text = (v: unknown) => (typeof v === 'string' ? v : '')
 
 export const initialModel = (): Model => ({ working: false, act: { glyph: '✻', label: 'Ready', tone: 'text' }, agents: [], plan: [], files: [], ctxPercent: 0, ctxHistory: [], ctxPeak: 0, compactions: 0, actAt: 0, combo: 0 })
+const ARRAYS = ['agents', 'plan', 'files', 'ctxHistory'] as const
+const NUMBERS = ['ctxPercent', 'ctxPeak', 'compactions', 'actAt', 'combo'] as const
+
+// A model read back from $.state or a snapshot may predate fields added since (0.3.1 added
+// ctxHistory, ctxPeak and compactions), and a hot reload keeps old state. Every such read goes
+// through here so the renderers can rely on the current shape.
+export function normalizeModel(raw: unknown): Model {
+  const base = initialModel()
+  if (!raw || typeof raw !== 'object') return base
+  const m = { ...base, ...(raw as Partial<Model>) }
+  for (const k of ARRAYS) if (!Array.isArray(m[k])) (m as Record<string, unknown>)[k] = base[k]
+  for (const k of NUMBERS) if (typeof m[k] !== 'number' || !Number.isFinite(m[k])) (m as Record<string, unknown>)[k] = base[k]
+  if (!m.act || typeof m.act !== 'object') m.act = base.act
+  return m
+}
 export const agentsRunning = (m: Model) => m.agents.some(a => a.state === 'running')
 // Subagents run in the background, so the main turn usually ends while they work.
 export const isBusy = (m: Model) => m.working || agentsRunning(m)
