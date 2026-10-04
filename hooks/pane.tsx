@@ -1,10 +1,11 @@
+import type { ContextCategoryKind } from 'claude-code'
 import type { Model } from './model.ts'
 import type { Theme } from './themes.ts'
 import { shortPath } from './events.ts'
 import { bar, ctxColor, fit, hearts, renderSegs, toneColor, visibleLength, type Seg } from './layout.tsx'
 
 export type TabId = 'changes' | 'agents' | 'plan'
-export type PaneView = { tab: TabId; categories?: { name: string; tokens: number }[]; maxTokens?: number; reduced?: boolean }
+export type PaneView = { tab: TabId; categories?: { name: string; tokens: number; kind: ContextCategoryKind }[]; maxTokens?: number; reduced?: boolean }
 export const TABS: [TabId, string][] = [['changes', 'Changes'], ['agents', 'Agents'], ['plan', 'Plan & context']]
 // The compact drawer sits under a one-row tab strip in a short space.
 export const COMPACT_ROWS = 6
@@ -84,16 +85,16 @@ function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean): Seg
     return [...cap(items, t, w, 1), ctx]
   }
   rows.push(...items, [], header('CONTEXT', `${used}% used`, w, t), [{ text: '  ', color: c.text }, ...bar(used / 100, Math.max(1, w - 4), col, t)], [])
-  if (v.categories?.length && v.maxTokens) {
+  const usedCats = (v.categories ?? []).filter(x => x.kind === 'used' && x.tokens > 0).sort((a, b) => b.tokens - a.tokens)
+  if (usedCats.length && v.maxTokens) {
     const lw = 16, bw = Math.max(4, w - lw - 9)
-    for (const cat of v.categories.filter(x => x.tokens > 0).slice(0, 6)) {
+    for (const cat of usedCats.slice(0, 6)) {
       const pct = Math.round((cat.tokens / v.maxTokens) * 100)
       const name = fit([{ text: cat.name, color: c.dim }], lw - 1)
       rows.push(fit([{ text: '  ', color: c.dim }, ...name, { text: ' '.repeat(lw - visibleLength(name)), color: c.dim }, ...bar(pct / 100, bw, col, t), { text: ` ${String(pct).padStart(3)}%`, color: c.text }], w))
     }
-    const top = [...v.categories].sort((a, b) => b.tokens - a.tokens)[0]
-    if (used >= 70 && top) rows.push([], fit([{ text: `  ! ${top.name} is the biggest share; compaction comes near the limit`, color: c.edit }], w))
   }
+  if (used >= 70) rows.push([], fit([{ text: `  ! ${usedCats[0] && v.maxTokens ? `${usedCats[0].name} is the biggest share` : `context ${used}% used`}`, color: c.edit }], w))
   return rows.map(r => fit(r, w))
 }
 

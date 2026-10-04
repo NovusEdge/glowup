@@ -43,7 +43,7 @@ test('agents tab shows status, time, tokens and current tool', async () => {
 })
 
 test('plan tab shows checklist, context bar and breakdown', async () => {
-  const rows = text(tabRows(M, T, { tab: 'plan', categories: [{ name: 'Messages', tokens: 60000 }, { name: 'System tools', tokens: 20000 }], maxTokens: 200000 }, 54, false, 0))
+  const rows = text(tabRows(M, T, { tab: 'plan', categories: [{ name: 'Messages', tokens: 60000, kind: 'used' }, { name: 'System tools', tokens: 20000, kind: 'used' }], maxTokens: 200000 }, 54, false, 0))
   expect(rows[0]).toMatch(/^PLAN\s+1\/3$/)
   expect(rows).toContain('  ✓ Find it')
   expect(rows).toContain('  ◉ Patch it')
@@ -54,7 +54,33 @@ test('plan tab shows checklist, context bar and breakdown', async () => {
 test('every row fits its width in cells, full and compact, CJK names included', async () => {
   for (const tab of ['changes', 'agents', 'plan'] as const)
     for (const [w, compact] of [[54, false], [40, false], [58, true], [30, true], [20, true]] as const)
-      for (const r of tabRows(M, T, { tab, categories: [{ name: 'メッセージ', tokens: 5 }], maxTokens: 10 }, w, compact, 12000)) expect(visibleLength(r)).toBeLessThanOrEqual(w)
+      for (const r of tabRows(M, T, { tab, categories: [{ name: 'メッセージ', tokens: 5, kind: 'used' }], maxTokens: 10 }, w, compact, 12000)) expect(visibleLength(r)).toBeLessThanOrEqual(w)
+})
+
+const planView = (ctxPercent: number, categories?: { name: string; tokens: number; kind: 'used' | 'free' | 'buffer' | 'deferred' }[]) =>
+  text(tabRows({ ...M, ctxPercent }, T, { tab: 'plan', categories, maxTokens: 200000 }, 54, false, 0))
+const CATS = [
+  { name: 'Free space', tokens: 90000, kind: 'free' as const },
+  { name: 'Autocompact buffer', tokens: 40000, kind: 'buffer' as const },
+  { name: 'Skills', tokens: 10000, kind: 'used' as const },
+  { name: 'Messages', tokens: 50000, kind: 'used' as const },
+]
+
+test('context breakdown draws only used categories, biggest first', async () => {
+  const rows = planView(50, CATS)
+  expect(rows.some(r => r.includes('Free space') || r.includes('Autocompact'))).toBe(false)
+  const at = (n: string) => rows.findIndex(r => r.includes(n))
+  expect(at('Messages')).toBeGreaterThan(-1)
+  expect(at('Messages')).toBeLessThan(at('Skills'))
+})
+
+test('context warning names the biggest used category, falls back to the percent, and is absent below 70', async () => {
+  const withCats = planView(75, CATS)
+  expect(withCats).toContain('  ! Messages is the biggest share')
+  expect(withCats.join('\n')).not.toContain('Free space')
+  expect(planView(75)).toContain('  ! context 75% used')
+  expect(planView(75, [{ name: 'Free space', tokens: 9, kind: 'free' }])).toContain('  ! context 75% used')
+  expect(planView(69, CATS).some(r => r.includes('!'))).toBe(false)
 })
 
 test('compact changes is one row per edited file', async () => {

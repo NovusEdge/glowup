@@ -1,8 +1,16 @@
 import { test, expect } from 'claude-code/testing'
-import { tierFor, fit, visibleLength, hearts, bar, ctxColor, toneColor } from '../hooks/layout.tsx'
+import { tierFor, fit, visibleLength, hearts, bar, ctxColor, toneColor, renderSegs } from '../hooks/layout.tsx'
 import { resolveTheme } from '../hooks/themes.ts'
 
 const T = resolveTheme('classic', {}).theme
+
+test('an empty row renders a one-line spacer Box', async () => {
+  const els = { Box: 'Box', Text: 'Text' }
+  const row: any = renderSegs(els, [], 'sp')
+  expect(row.type).toBe('Box')
+  expect(row.props.height).toBe(1)
+  expect(row.children ?? []).toHaveLength(0)
+})
 
 test('tiers', async () => {
   expect(tierFor(200, true)).toBe('wide')

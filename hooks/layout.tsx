@@ -56,5 +56,7 @@ export const toneColor = (t: Theme, tone: Act['tone']): string => t.colors[tone]
 // Text takes no `key` (not in TextProps); only the Box is keyed.
 export function renderSegs(els: { Box: any; Text: any }, segs: Seg[], key?: string) {
   const { Box, Text } = els
+  // a childless row has zero height; an empty row is a spacer and must keep its line
+  if (!segs.length) return <Box key={key} height={1} />
   return <Box key={key} flexDirection="row">{segs.map(s => <Text color={s.color} bold={s.bold} backgroundColor={s.bg} wrap="truncate">{s.text}</Text>)}</Box>
 }
