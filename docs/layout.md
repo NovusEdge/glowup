@@ -59,13 +59,15 @@ The band hides while the feedback survey shows, and while you view a subagent's 
 
 The pane has three tabs. Press the number key, or click the tab. In the wide pane, a bordered box under the tabs shows the current action, the context hearts and the running subagents.
 
+In the docked pane, each tab is drawn as a box in the shape of the pack's `border`, with the section name and its counts in the top edge. The compact drawer has no boxes.
+
 ### Changes
 
 Every file Claude touched this session.
 
 - Edited files show `+added −removed`. A file Claude only read shows `read`, dimmed.
 - New files are marked `new`.
-- The header counts edited files and total added and removed lines.
+- The box's top edge counts edited files and total added and removed lines.
 - In a git repository the counts come from `git diff --numstat` against a snapshot taken at session start, which includes any uncommitted work at that moment. Files that were already modified before the session do not appear. Files changed by shell commands during the session do. New untracked files, and sessions outside git, use the counts from the edit's own input.
 - glowup runs git without taking locks, so it never blocks Claude's own git commands.
 - The compact form lists edited files only.
@@ -84,13 +86,13 @@ Each subagent in this session. The tab stays live while background subagents run
 
 ### Plan & context
 
-The tab has two sections, `PLAN` and `CONTEXT`, each with a ruled header, and a divider line between them.
+The tab has two boxes, `PLAN` and `CONTEXT`, one blank row apart.
 
-- `PLAN` is Claude's task list. `◉` is in progress (bold, with its active wording when the task has one), `○` is next, `✓` is done. In progress comes first, then next, then the last three done, dimmed, with `+N more done` for the rest. The header shows done over total.
+- `PLAN` is Claude's task list. `◉` is in progress (bold, with its active wording when the task has one), `○` is next, `✓` is done. In progress comes first, then next, then the last three done, dimmed, with `+N more done` for the rest. The top edge shows done over total.
 - The list is Claude Code's saved one, read from `tasks/<list>/*.json` under your config directory when the session starts and again after each `TaskCreate` or `TaskUpdate` Claude makes. `<list>` is `CLAUDE_CODE_TASK_LIST_ID` when that is set, otherwise the working directory with every character outside letters and digits turned into `-` and the leading `-` dropped (`/home/you/Projects` is `home-you-Projects`). Deleted and unreadable tasks are skipped. Subagent task calls do not count. A `TodoWrite` list still shows too.
-- `CONTEXT` has one stacked bar: each part of the context that uses tokens is its own colored segment, biggest first, and free space is faint dots. Segment colors come from your theme's `read`, `agent`, `shell`, `edit` and `accent` colors, so they follow the pack. If the theme gives no usable colors, the segments use the block shades `█▓▒░` instead. The header shows the percent and tokens, such as `62% · 124k / 200k`.
+- `CONTEXT` has one stacked bar: each part of the context that uses tokens is its own colored segment, biggest first, and free space is a faint `░` track (`·` when the theme gives no usable colors). Segment colors come from your theme's `read`, `agent`, `shell`, `edit` and `accent` colors, so they follow the pack. If the theme gives no usable colors, the segments use the block shades `█▓▒░` instead. The top edge shows the percent and tokens, such as `62% · 124k / 200k`.
 - Under the bar, a legend names each part with its share (`● messages 31%`) and wraps onto more lines when the pane is narrow. Up to five parts get their own segment and the rest join as `other`.
-- Below that, a sparkline of the context percent, one sample per finished turn, with the peak and how many times the context was compacted. It shows once there is a sample.
+- Below that, a sparkline of the context percent, one sample per finished turn, with the peak and how many times the context was compacted at the right edge. It shows once there is a sample.
 - From 70% used, a warning line names the biggest part.
 - The compact form is the checklist and one line: the stacked bar and the percent.
 - With no task list, the tab says `No task list yet.`

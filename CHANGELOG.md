@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The pane's tabs are drawn as boxes in the shape of your pack's border, and Plan & context has room to breathe: the loose divider is gone, rows line up, and free context is a solid faint track.
+
 ### Fixed
 
 - Restyled tool rows draw again. Claude Code refused them because of a box setting around its own row, so every tool row fell back to the stock look.
