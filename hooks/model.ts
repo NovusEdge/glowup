@@ -5,6 +5,7 @@ export type Act = { glyph: string; label: string; kind?: string; tone: 'text' | 
 export type Agent = { key: string; agentId?: string; name: string; task: string; state: 'running' | 'done'; startedAt: number; endedAt?: number; tokens?: number; now?: string }
 export type FileTouch = { path: string; add: number; del: number; how: 'read' | 'edit' | 'new'; at: number }
 export type NeedsYou = { toolUseId: string; what: string; before: Act }
+export type RateLimit = { kind: string; percentUsed: number; resetsAt?: string }
 export type Model = {
   working: boolean; doneAt?: number; act: Act; agents: Agent[]; plan: PlanItem[]; files: FileTouch[]; ctxPercent: number; needsYou?: NeedsYou
   // context percent once per finished turn (the first reading after turn-done replaces the stale one), capped at CTX_SAMPLES
@@ -18,6 +19,11 @@ export type Model = {
   // successful main-agent calls in a row this turn
   combo: number
   lastTest?: { passed: boolean; at: number }
+  limits: RateLimit[]
+  costUsd?: number
+  modelName?: string
+  root?: string
+  branch?: string
 }
 export type Ev =
   | { type: 'turn-start'; at: number }
@@ -31,6 +37,10 @@ export type Ev =
   | { type: 'compact' }
   // Claude Code's saved task list; an empty read leaves the plan built from this session's calls
   | { type: 'plan-load'; plan: PlanItem[] }
+  | { type: 'usage'; limits: RateLimit[]; costUsd?: number }
+  // a field left out keeps its last value: model() and root() are read separately and either can fail
+  | { type: 'session-info'; modelName?: string; root?: string }
+  | { type: 'branch'; branch?: string }
 
 export const LINGER_MS = 1500
 export const CTX_SAMPLES = 120
@@ -40,8 +50,8 @@ const TONE: Record<string, Act['tone']> = { read: 'read', search: 'read', edit: 
 
 const text = (v: unknown) => (typeof v === 'string' ? v : '')
 
-export const initialModel = (): Model => ({ working: false, act: { glyph: '✻', label: 'Ready', tone: 'text' }, agents: [], plan: [], files: [], ctxPercent: 0, ctxHistory: [], ctxPeak: 0, compactions: 0, actAt: 0, combo: 0 })
-const ARRAYS = ['agents', 'plan', 'files', 'ctxHistory'] as const
+export const initialModel = (): Model => ({ working: false, act: { glyph: '✻', label: 'Ready', tone: 'text' }, agents: [], plan: [], files: [], ctxPercent: 0, ctxHistory: [], ctxPeak: 0, compactions: 0, actAt: 0, combo: 0, limits: [] })
+const ARRAYS = ['agents', 'plan', 'files', 'ctxHistory', 'limits'] as const
 const NUMBERS = ['ctxPercent', 'ctxPeak', 'compactions', 'actAt', 'combo'] as const
 
 // A model read back from $.state or a snapshot may predate fields added since (0.3.1 added
@@ -106,6 +116,9 @@ export function applyEvent(m: Model, ev: Ev): Model {
     }
     case 'compact': return { ...m, compactions: m.compactions + 1 }
     case 'plan-load': return ev.plan.length ? { ...m, plan: ev.plan } : m
+    case 'usage': return { ...m, limits: ev.limits, costUsd: ev.costUsd ?? m.costUsd }
+    case 'session-info': return { ...m, modelName: ev.modelName ?? m.modelName, root: ev.root ?? m.root }
+    case 'branch': return { ...m, branch: ev.branch }
     case 'needs-you': return { ...m, actAt: ev.at, needsYou: { toolUseId: ev.toolUseId, what: ev.what, before: m.needsYou?.before ?? m.act }, act: { glyph: '!', label: `Needs you: ${ev.what}`, tone: 'fail' } }
     case 'agent-bind': return { ...m, agents: m.agents.map(a => a.key === ev.toolUseId ? { ...a, agentId: ev.agentId } : a) }
     case 'agent-done': return { ...m, agents: m.agents.map(a => a.agentId === ev.agentId && a.state === 'running' ? { ...a, state: 'done' as const, endedAt: ev.at, now: undefined, tokens: ev.tokens ?? a.tokens } : a) }
