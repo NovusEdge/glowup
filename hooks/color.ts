@@ -13,3 +13,10 @@ export function gradient(text: string, c1: string, c2: string): Span[] {
 export function wave(text: string, c1: string, c2: string, tMs: number, speed: number): Span[] {
   return [...text].map((c, k) => ({ text: c, color: mix(c1, c2, (Math.sin(k * 0.5 - (tMs * speed) / 170) + 1) / 2) }))
 }
+// The shimmer spinner's word: the crest of each pulse is also bold.
+export function wave3(text: string, c1: string, c2: string, tMs: number, speed: number): Span[] {
+  return [...text].map((c, k) => {
+    const ph = (tMs / 1000) * speed * 6 - k * 0.55
+    return { text: c, color: mix(c1, c2, (Math.sin(ph) + 1) / 2), bold: Math.sin(ph + 1.1) > 0.55 }
+  })
+}
