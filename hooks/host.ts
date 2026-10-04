@@ -8,6 +8,8 @@ export type Host = {
   writeFile(path: string, text: string): Promise<void>
   exists(path: string): Promise<boolean>
   listDir(path: string): Promise<string[]>
+  // size is in bytes, for a file
+  listFiles(path: string): Promise<{ name: string; size: number }[]>
   fetchText(url: string): Promise<{ ok: boolean; status: number; text: string }>
   storeGet(key: string): Promise<unknown>
   storeSet(key: string, value: unknown): Promise<void>

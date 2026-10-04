@@ -40,6 +40,24 @@ test('task files load sorted by id; deleted, malformed and oversized files are s
   expect(await loadTasks(host, '')).toEqual([])
 })
 
+test('over 200 task files, the newest ids are kept, and an oversized file is never read', async () => {
+  const files: Record<string, string> = {}
+  for (let i = 1; i <= 250; i++) files[`${D}/${i}.json`] = task(String(i), 't' + i, 'completed')
+  files[`${D}/900.json`] = task('900', 'now', 'in_progress')
+  files[`${D}/901.json`] = task('901', 'huge', 'pending', { description: 'x'.repeat(70000) })
+  const { host } = fakeHost({ files })
+  host.configDir = '/home/u/.claude'
+  const read: string[] = []
+  const readFile = host.readFile
+  host.readFile = async p => { read.push(p); return readFile(p) }
+  const plan = await loadTasks(host, 'home-u-Projects')
+  expect(plan).toHaveLength(200)
+  expect(plan.at(-1)).toMatchObject({ id: '900', status: 'in_progress' })
+  expect(plan[0]!.id).toBe('52')
+  expect(read).not.toContain(`${D}/901.json`)
+  expect(read).toHaveLength(200)
+})
+
 test('plan order: in progress, pending, then the last three done', async () => {
   const mk = (id: number, status: 'pending' | 'in_progress' | 'completed') => ({ id: String(id), title: 't' + id, status })
   const plan = [mk(1, 'completed'), mk(2, 'completed'), mk(3, 'pending'), mk(4, 'completed'), mk(5, 'in_progress'), mk(6, 'completed'), mk(7, 'pending')]

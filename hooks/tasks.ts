@@ -25,11 +25,16 @@ export async function loadTasks(host: Host, id: string): Promise<PlanItem[]> {
   if (!id) return []
   const dir = `${host.configDir}/tasks/${id}`
   let names: string[]
-  try { names = (await host.listDir(dir)).filter(n => n.endsWith('.json')).slice(0, MAX_FILES) } catch { return [] }
+  // Newest ids first: the in-progress task is usually the latest. The size comes from the
+  // listing, so an oversized file costs no read and no slot.
+  const fileId = (n: string) => { const v = Number(n.replace(/\.json$/, '')); return Number.isNaN(v) ? -1 : v }
+  try {
+    names = (await host.listFiles(dir)).filter(f => f.name.endsWith('.json') && f.size <= MAX_BYTES).map(f => f.name)
+      .sort((a, b) => fileId(b) - fileId(a)).slice(0, MAX_FILES)
+  } catch { return [] }
   const read = await Promise.all(names.map(async (n): Promise<PlanItem | undefined> => {
     try {
       const raw = await host.readFile(`${dir}/${n}`)
-      if (raw.length > MAX_BYTES) return undefined
       const j = JSON.parse(raw) as Record<string, unknown>
       const status = text(j.status), title = text(j.subject)
       if (!title || !STATUSES.includes(status)) return undefined
