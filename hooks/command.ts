@@ -162,6 +162,14 @@ async function wizard(host: Host, ctl: Ctl): Promise<string> {
 
 export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<string> {
   const [sub, a1, a2] = args.trim().split(/\s+/)
+  // A bare subcommand reports where things stand instead of falling through to Unknown.
+  if (sub === 'theme' && !a1) return runCommand(host, 'theme list', ctl)
+  if (sub === 'pack' && !a1) return packList(host, ctl)
+  if (sub === 'pet' && !a1) return runCommand(host, 'pet list', ctl)
+  if (sub === 'bubbles' && !a1) return `Bubbles: ${ctl.bubbles()}. Change it with /glowup bubbles on|off.`
+  if (sub === 'motion' && !a1) return `Motion: ${ctl.reduced() ? 'reduced' : 'full'}. Change it with /glowup motion reduced|full.`
+  if (sub === 'statusline' && !a1) return 'Use /glowup statusline on to let glowup draw it, or /glowup statusline restore to put yours back.'
+  if (sub === 'import' && !a1) return 'Use /glowup import <file> with a Ghostty or base16 scheme; it becomes a pack.'
   if (sub === 'theme' && a1 === 'list') {
     const names = [...new Set([...Object.keys(PRESETS), ...Object.keys(await loadUserThemes(host))])]
     const current = ctl.current()
