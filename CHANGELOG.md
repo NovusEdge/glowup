@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Pick the status line's fields and their order with `/glowup statusline fields <ids>`, the `/glowup config` "Status line fields?" question, or the `statusline` setting. New fields show your 5-hour and weekly usage with reset times, cost, model, running subagents, plan progress, branch, changes and folder. The status line glowup draws now uses your theme's colors; the entry under the prompt stays plain.
+
+### Changed
+
+- `/glowup config` ends at Extras when you press Esc there, as on every other question.
+
 ## [0.3.4] - 2026-10-05
 
 ### Fixed
@@ -42,12 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Pick the status line's fields and their order with `/glowup statusline fields <ids>`, the `/glowup config` "Status line fields?" question, or the `statusline` setting. New fields show your 5-hour and weekly usage with reset times, cost, model, running subagents, plan progress, branch, changes and folder. The status line glowup draws now uses your theme's colors; the entry under the prompt stays plain.
 - Speech bubbles written by Haiku. `/glowup bubbles haiku`, the `bubbles` setting, the config questions and the installer's `--bubbles haiku` turn it on. It is opt-in: each line is a small Haiku call on your account, at most one per turn and one per 90 seconds, built from glowup's own state only, with the template line as the fallback.
 
 ### Fixed
 
-- With the takeover on, a new session no longer shows your previous status line until the first reply; glowup draws its own line at once.
 - "Needs you" no longer shows when nobody is being asked, as in auto mode. glowup used to guess the permission mode from the footer labels, which never name it, so it always guessed "ask". It now alerts only when Claude Code actually opens a permission dialog in a mode that asks you, and stays quiet when unsure.
 - In auto mode glowup does not alert, even when the auto-mode check hands a call to you. It alerts only for a dialog Claude Code opens, and not when another hook has already decided the request.
 - Speech bubbles wrap onto a second line in the pane instead of running past the edge. A Haiku line that arrives late now shows for the full 3 seconds instead of a blink, and Haiku is told only the kind of work, never a command, path or search pattern.
