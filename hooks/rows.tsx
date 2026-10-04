@@ -2,6 +2,7 @@ import type { Look } from './packs.ts'
 import { gradient } from './color.ts'
 import { describeTool } from './events.ts'
 import { toolGlyph } from './restyle.ts'
+import { MARKS, retroTag } from './rows-text.ts'
 
 export type RowInput =
   | { site: 'ToolUse'; tool: string; input: unknown; isRunning: boolean; isErrored: boolean; isInterrupted: boolean }
@@ -10,11 +11,6 @@ export type RowInput =
   | { site: 'AssistantMessage'; isFirstOfReply: boolean }
 
 type Els = { Box: any; Text: any }
-
-const MARKS = {
-  cards: { done: '✓', fail: '✗', stop: '■', run: '…' },
-  retro: { done: '[ OK ]', fail: '[FAIL]', stop: '[STOP]', run: '[....]' },
-}
 
 function mark(look: Look, row: Extract<RowInput, { site: 'ToolUse' }>, set: typeof MARKS.cards) {
   const c = look.theme.colors
@@ -81,8 +77,7 @@ export function styleRow(els: Els, look: Look, row: RowInput, engine: unknown, o
           return row.isFirstOfReply ? <Box flexDirection="column">{label(els, '[CLAUDE]', look, c.accent, true)}{body}</Box> : body
         }
         const m = mark(look, row, MARKS.retro)
-        const tag = `[${row.tool.toUpperCase().slice(0, 6).padEnd(6)}] `
-        return <Box flexDirection="row">{label(els, tag, look, c.accent)}<Box flexGrow={1}>{engine}</Box><Text color={m.color}>{' ' + m.mark}</Text></Box>
+        return <Box flexDirection="row">{label(els, retroTag(row.tool), look, c.accent)}<Box flexGrow={1}>{engine}</Box><Text color={m.color}>{' ' + m.mark}</Text></Box>
       }
     }
     return engine

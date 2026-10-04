@@ -1,5 +1,5 @@
 // JSX-free: the docs site and Client modules import it.
-import { mix, type Span } from './color.ts'
+import { gradient, mix, wave, wave3, type Span } from './color.ts'
 
 export type Cell = { ch: string; fg: string; bg?: string }
 export type OrbState = 'think' | 'search' | 'work' | 'run' | 'agents'
@@ -133,4 +133,21 @@ export function cellsToSpans(rows: Cell[][]): Span[][] {
     else out.push(c.bg ? { text: c.ch, color: c.fg, bg: c.bg } : { text: c.ch, color: c.fg })
     return out
   }, []))
+}
+
+export type WordLook = {
+  bg: string
+  gradient?: [string, string]
+  motion: { spinner: SpinnerId; shimmer: number; color: string }
+  theme: { colors: { text: string; accent: string } }
+}
+
+export function spinnerWordSpans(look: WordLook, text: string, now: number): Span[] {
+  const { spinner, shimmer, color } = look.motion
+  const c = look.theme.colors
+  const [c1, c2] = look.gradient ?? [c.accent, c.text]
+  if (spinner === 'shimmer') return wave3(text, mix(color, look.bg, 0.45), mix(color, '#ffffff', 0.6), now, Math.max(1, shimmer))
+  if (shimmer > 0) return wave(text, c1, c2, now, shimmer * 1.2).map(s => ({ ...s, bold: true }))
+  if (look.gradient) return gradient(text, c1, c2).map(s => ({ ...s, bold: true }))
+  return [{ text, color: c.accent, bold: true }]
 }

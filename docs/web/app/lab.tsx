@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react'
-import { gradient, mix, wave, wave3, type Span } from '../../../hooks/color.ts'
-import { spinnerCells, type Cell, type OrbState } from '../../../hooks/motion.ts'
+import type { Span } from '../../../hooks/color.ts'
+import { spinnerCells, spinnerWordSpans, type Cell, type OrbState } from '../../../hooks/motion.ts'
 import { resolveLook, type Look } from '../../../hooks/packs.ts'
 import type { SpinnerId } from '../../../hooks/packs.ts'
 
@@ -28,7 +28,8 @@ export function useClock() {
 
   const frozen = reduced || paused
   useEffect(() => {
-    if (frozen) return
+    // The reduced state above only lands after the first render, so read the query here too.
+    if (frozen || matchMedia('(prefers-reduced-motion: reduce)').matches) return
     let raf = 0, last = 0
     const origin = performance.now() - now
     const tick = (ts: number) => {
@@ -88,25 +89,15 @@ export function Spans({ spans }: { spans: Span[] }) {
   return <>{spans.map((s, i) => <span key={i} style={{ color: s.color, ...(s.bg ? { background: s.bg } : {}), ...(s.bold ? { fontWeight: 700 } : {}) }}>{s.text}</span>)}</>
 }
 
-// The same word styling as spinnerLine in hooks/spinner.ts, which this page cannot import.
-export function wordSpans(look: Look, now: number): Span[] {
-  const { spinner, shimmer, color } = look.motion
-  const c = look.theme.colors
-  const text = (look.theme.spinnerWords[0] ?? 'Thinking') + '…'
-  const [c1, c2] = look.gradient ?? [c.accent, c.text]
-  if (spinner === 'shimmer') return wave3(text, mix(color, look.bg, 0.45), mix(color, '#ffffff', 0.6), now, Math.max(1, shimmer))
-  if (shimmer > 0) return wave(text, c1, c2, now, shimmer * 1.2).map(s => ({ ...s, bold: true }))
-  if (look.gradient) return gradient(text, c1, c2).map(s => ({ ...s, bold: true }))
-  return [{ text, color: c.accent, bold: true }]
-}
-
 export function SpinnerView({ look, now, state, name }: { look: Look; now: number; state?: OrbState; name: string }) {
   const c = look.theme.colors
   const rows = spinnerCells(look.motion.spinner, now, { color: look.motion.color, bg: look.bg, fg: c.text }, state)
+  const word = (look.theme.spinnerWords[0] ?? 'Thinking') + '…'
   return (
     <span className="spin">
       <Cells rows={rows} label={`${name} spinner`} size="lg" />
-      <span className="spin-word"><Spans spans={wordSpans(look, now)} /></span>
+      <span className="sr-only">{word}</span>
+      <span className="spin-word" aria-hidden="true"><Spans spans={spinnerWordSpans(look, word, now)} /></span>
     </span>
   )
 }
@@ -117,9 +108,9 @@ export function Term({ look, children, className = '' }: { look: Look; children:
 
 export function PackSwitch({ value, onChange }: { value: string; onChange: (p: string) => void }) {
   return (
-    <div className="seg" role="radiogroup" aria-label="Pack">
+    <div className="seg" role="group" aria-label="Pack">
       {PACK_NAMES.map(p => (
-        <button key={p} type="button" role="radio" aria-checked={p === value} onClick={() => onChange(p)}>{p}</button>
+        <button key={p} type="button" aria-pressed={p === value} onClick={() => onChange(p)}>{p}</button>
       ))}
     </div>
   )

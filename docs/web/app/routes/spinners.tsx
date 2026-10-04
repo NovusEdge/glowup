@@ -1,13 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { SPINNERS, type Cell, type OrbState, type SpinnerId } from '../../../../hooks/motion.ts'
-import { frameAt, halfBlock, type PetSheet } from '../../../../hooks/pets.ts'
+import { CLAWD_SHEET, frameAt, halfBlock } from '../../../../hooks/pets.ts'
 import type { Look } from '../../../../hooks/packs.ts'
-import { BASE } from '../site'
 import { Cells, MotionToggle, PackSwitch, SpinnerView, Term, lookOf, useClock } from '../lab'
 import type { Route } from './+types/spinners'
 
 export const meta: Route.MetaFunction = () => [
-  { title: 'Spinner lab' },
+  { title: 'Spinner lab · glowup' },
   { name: 'description', content: 'Every glowup spinner, live, in each built-in pack, and Clawd\'s animations.' },
 ]
 
@@ -36,20 +35,8 @@ const NOTES: Record<SpinnerId, string> = {
   comet: 'A braille comet on an orbit, 3 by 2 cells.',
   eyes: 'Two eyes that look around and blink, in half blocks.',
   'orb-states': 'A braille sphere whose motion follows what Claude is doing. It cycles through the states here.',
-  clawd: 'Clawd in the quadrant blocks Claude Code uses, bobbing his feet.',
+  clawd: 'Clawd waving, in the quadrant blocks Claude Code uses.',
   shimmer: 'The stock glyph with a bold wave through the word.',
-}
-
-type Sheet = PetSheet & { shiny?: Record<string, string> }
-
-function useSheet(): Sheet | null {
-  const [sheet, setSheet] = useState<Sheet | null>(null)
-  useEffect(() => {
-    let live = true
-    fetch(`${BASE}clawd.json`).then(r => r.json()).then(j => { if (live) setSheet(j as Sheet) }).catch(() => {})
-    return () => { live = false }
-  }, [])
-  return sheet
 }
 
 const TAIL_MS = 800
@@ -69,7 +56,7 @@ const ANIM_NOTE: Record<string, string> = {
 }
 
 function Clawd({ look, now }: { look: Look; now: number }) {
-  const sheet = useSheet()
+  const sheet = CLAWD_SHEET
   const [gold, setGold] = useState(false)
   return (
     <section aria-labelledby="clawd" className="lab-sec">
@@ -78,23 +65,21 @@ function Clawd({ look, now }: { look: Look; now: number }) {
         <button type="button" className="chip" aria-pressed={gold} onClick={() => setGold(!gold)}>Shiny</button>
       </div>
       <p className="section-p">The pet at the bottom of the pane. Each animation is a few hand-drawn frames, shown here at their real timings.</p>
-      {!sheet ? <p className="section-p" role="status">Loading Clawd…</p> : (
-        <div className="lab-grid">
-          {Object.entries(sheet.animations).map(([name, anim]) => {
-            const total = anim.frames.reduce((n, f) => n + f.ms, 0)
-            const t = anim.loop ? now : now % (total + TAIL_MS)
-            const frame = anim.frames[frameAt(anim, t)]!
-            const palette = gold ? { ...sheet.palette, ...sheet.shiny } : sheet.palette
-            return (
-              <article className="lab-card" key={name}>
-                <Term look={look} className="lab-term"><Cells rows={toCells(frame.px, palette)} label={`Clawd ${name}`} size="sm" /></Term>
-                <h3>{name}</h3>
-                <p>{ANIM_NOTE[name] ?? ''}</p>
-              </article>
-            )
-          })}
-        </div>
-      )}
+      <div className="lab-grid">
+        {Object.entries(sheet.animations).map(([name, anim]) => {
+          const total = anim.frames.reduce((n, f) => n + f.ms, 0)
+          const t = anim.loop ? now : now % (total + TAIL_MS)
+          const frame = anim.frames[frameAt(anim, t)]!
+          const palette = gold ? { ...sheet.palette, ...sheet.shiny } : sheet.palette
+          return (
+            <article className="lab-card" key={name}>
+              <Term look={look} className="lab-term"><Cells rows={toCells(frame.px, palette)} label={`Clawd ${name}`} size="sm" /></Term>
+              <h3>{name}</h3>
+              <p>{ANIM_NOTE[name] ?? ''}</p>
+            </article>
+          )
+        })}
+      </div>
     </section>
   )
 }
