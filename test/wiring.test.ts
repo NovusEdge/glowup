@@ -64,3 +64,23 @@ test('pane draws three tab buttons', async $ => {
   expect(await ui.find({ text: /AGENTS/ })).toBeDefined()
   await ui.unmount()
 })
+
+const TOOL = { tool_use_id: 'u1', tool: 'Write', input: {}, isRunning: false, isErrored: false, isInterrupted: false }
+
+test('ToolUse rows get a glyph only when finished and of a known kind', async ($, on) => {
+  on('ui.render', async () => ({ type: 'Text', props: {}, children: ['engine row'] }) as RenderElement)
+  const draw = async (props: typeof TOOL) => {
+    const ui = await $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'ToolUse', requestId: 'u1', props })
+    const out = { row: await ui.find({ text: /engine row/ }), glyph: await ui.find({ text: /✎|▸/ }) }
+    await ui.unmount()
+    return out
+  }
+  const done = await draw(TOOL)
+  expect(done.row).toBeDefined()
+  expect(done.glyph).toBeDefined()
+  for (const props of [{ ...TOOL, isRunning: true }, { ...TOOL, tool: 'mcp__x__y' }]) {
+    const r = await draw(props)
+    expect(r.row).toBeDefined()
+    expect(r.glyph).toBeUndefined()
+  }
+})

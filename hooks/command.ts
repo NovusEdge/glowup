@@ -28,6 +28,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     return names.map(n => `${n === current ? '●' : '○'} ${n}`).join('\n')
   }
   if (sub === 'theme' && a1 === 'add' && a2) return addTheme(host, a2)
+  if (sub === 'theme' && a1 === 'add') return USAGE
   if (sub === 'theme' && a1) {
     const r = resolveTheme(a1, await loadUserThemes(host))
     if (r.error) return r.error

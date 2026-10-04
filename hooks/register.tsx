@@ -257,7 +257,7 @@ export const register: Register = (on, options) => {
     const g = !e.props.isRunning && toolGlyph(theme, e.props.tool)
     if (!g) return row
     const { Box, Text } = $.ui.resolve(e)
-    return <Box flexDirection="row">{row}<Text color={g.color}>{'  ' + g.glyph}</Text></Box>
+    return <Box flexDirection="row">{row}<Box marginTop={1}><Text color={g.color}>{'  ' + g.glyph}</Text></Box></Box>
   })
 
   on('command.run', { command: 'glowup' }, async ($, e) => {

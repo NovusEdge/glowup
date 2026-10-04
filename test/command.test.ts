@@ -102,3 +102,8 @@ test('statusline on warns when project settings set their own', async () => {
   expect(questions[0]).toContain('project or local settings')
   expect(out).toContain('project or local settings')
 })
+
+test('theme add without a URL shows usage', async () => {
+  const { host } = fakeHost()
+  expect(await runCommand(host, 'theme add', ctl().ctl)).toContain('/glowup theme add <url>')
+})
