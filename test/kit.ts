@@ -1,4 +1,5 @@
-import type { Engine } from 'claude-code/testing'
+import { mock, type Engine } from 'claude-code/testing'
+import type { On } from 'claude-code'
 import type { Host } from '../hooks/host.ts'
 
 export const runGlowup = ($: Engine, args = '', columns = 120, isFullscreen = false) =>
@@ -28,6 +29,21 @@ export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<s
     storeDelete: async k => { delete store[k] },
     projectStatusLine: async () => opts.projectStatusLine === true,
     configDir: '/home/u/.claude',
+    home: '/home/u',
   }
   return { host, files, store, ran, envs }
+}
+
+// Answers $.env, $.fs and $.process from memory, so a wiring test can never reach
+// the real config directory. Call it first in any test that loads the mod's hooks.
+export function fakeFs(on: On, files: Record<string, string> = {}) {
+  mock.env(on, { HOME: '/fake', CLAUDE_CONFIG_DIR: '/fake/.claude' })
+  const writes: string[] = []
+  const under = (p: string) => Object.keys(files).filter(f => f.startsWith(p + '/'))
+  on('fs.exists', async (_$, e) => ({ value: e.path in files || under(e.path).length > 0 }) as never)
+  on('fs.read', async (_$, e) => { if (!(e.path in files)) throw new Error('ENOENT ' + e.path); return { value: files[e.path]! } as never })
+  on('fs.write', async (_$, e) => { writes.push(e.path); files[e.path] = e.text; return { value: undefined } as never })
+  on('fs.list', async (_$, e) => ({ value: under(e.path).map(f => f.slice(e.path.length + 1)).filter(n => !n.includes('/')).map(name => ({ name })) }) as never)
+  on('process.run', async () => ({ value: { exitCode: 1, stdout: '', stderr: '' } }) as never)
+  return { files, writes }
 }

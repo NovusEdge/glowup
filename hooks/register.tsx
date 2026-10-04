@@ -12,8 +12,15 @@ import { spinnerWord, newTurnWord, toolGlyph } from './restyle.ts'
 import { statusText, writeStatusFile, BACKUP_KEY } from './statusline.ts'
 import { runCommand, type Ctl } from './command.ts'
 import { loadUserThemes } from './userthemes.ts'
+import { firstRun } from './firstrun.ts'
 
 type Engine = EngineInterface
+
+const BAND = { plugin: 'glowup', key: 'band' } as const
+const PANE = { plugin: 'glowup', key: 'pane' } as const
+const SPIN = { plugin: 'glowup', key: 'spinner' } as const
+const PET = { plugin: 'glowup', key: 'pet' } as const
+const CONFIG = { plugin: 'glowup', key: 'config' } as const
 
 // Module state: one session per process. A hot reload starts it over, which only
 // loses the in-flight session's view (settings and takeover state live in $.store).
@@ -23,6 +30,7 @@ let view: PaneView = { tab: 'changes' }
 let git: { root: string; base: string } | undefined
 let cwd = ''
 let configDir = ''
+let home = ''
 let reducedMotion = false
 let docked = false
 // Where the surface seated the pane, learned from its last render: panes() does not say.
@@ -42,7 +50,13 @@ function hostOf($: Engine): Host {
     writeFile: (path, text) => $.fs.write(path, text),
     exists: path => $.fs.exists(path),
     listDir: async path => (await $.fs.list(path)).map(e => e.name),
-    fetchText: async url => { const r = await $.http.fetch(url); return { ok: r.ok, status: r.status, text: r.text } },
+    fetchText: url => new Promise((resolve, reject) => {
+      // a stalled server must not hold a /glowup command open
+      const timer = $.clock.after(10_000, () => reject(new Error('timed out after 10 s')))
+      // $.http.fetch reads the whole body, so the 64 KB cap is the callers' text.length check
+      $.http.fetch(url).then(r => { timer.cancel(); resolve({ ok: r.ok, status: r.status, text: r.text }) },
+        err => { timer.cancel(); reject(err) })
+    }),
     storeGet: key => $.store.get(key),
     storeSet: (key, value) => $.store.set(key, value),
     storeDelete: key => $.store.delete(key),
@@ -50,6 +64,7 @@ function hostOf($: Engine): Host {
       (await $.settings.read({ source: 'project' })).statusLine !== undefined ||
       (await $.settings.read({ source: 'local' })).statusLine !== undefined,
     configDir,
+    home,
   }
 }
 
@@ -73,10 +88,21 @@ async function syncTakeover($: Engine) {
 // when it never goes away; the takeover's status line already says the same.
 const statusEntry = () => !takenOver && isBusy(model) ? statusText(model, theme) : undefined
 
+// Writes the live data the band and the pane draw from; only their readers redraw.
+function publish($: Engine) {
+  const at = Date.now()
+  void $.state.set(BAND, { model, at })
+  void $.state.set(PANE, { model, view, at })
+}
 function redraw($: Engine) {
-  $.ui.invalidate('ui.render')
+  publish($)
   $.ui.status(statusEntry())
   writeStatus($, false)
+}
+// The one invalidate: the look changed, so every render site draws again.
+function relook($: Engine) {
+  $.ui.invalidate('ui.render')
+  publish($)
 }
 // Elapsed times and agent spinners change with no event behind them, and
 // background subagents keep running after the main turn ends.
@@ -126,7 +152,7 @@ async function feedContext($: Engine) {
     const b = u.context.breakdown
     view = { ...view, categories: b?.categories.map(c => ({ name: c.name, tokens: c.tokens, kind: c.kind })), maxTokens: b?.maxTokens }
     if (u.context.percent !== undefined) feed($, { type: 'context', percent: u.context.percent })
-    else $.ui.invalidate('ui.render')
+    else publish($)
   } catch {}
 }
 
@@ -144,12 +170,20 @@ async function adoptSession($: Engine, endedId: string) {
   redraw($)
 }
 
+async function askFirstRun($: Engine) {
+  try {
+    const toast = await firstRun(hostOf($), q => $.ui.ask(q, ['Yes', 'No']).then(label => label, () => undefined), Date.now())
+    if (toast) $.ui.toast(toast)
+    await syncTakeover($)
+  } catch {}
+}
+
 function ctlOf($: Engine): Ctl {
   return {
     current: () => theme.name,
-    setTheme: async name => { theme = resolveTheme(name, await loadUserThemes(hostOf($))).theme; redraw($) },
+    setTheme: async name => { theme = resolveTheme(name, await loadUserThemes(hostOf($))).theme; relook($) },
     togglePane: () => togglePane($),
-    setMotion: reduced => { reducedMotion = reduced; redraw($) },
+    setMotion: reduced => { reducedMotion = reduced; relook($) },
     // ask rejects when the person dismisses the dialog; that counts as No
     confirm: async question => (await $.ui.ask(question, ['Yes', 'No']).catch(() => 'No')) === 'Yes',
   }
@@ -161,7 +195,8 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     cwd = e.cwd
     // $.env.get takes literal names only; an empty CLAUDE_CONFIG_DIR counts as unset
-    configDir = (await $.env.get('CLAUDE_CONFIG_DIR')) || `${(await $.env.get('HOME')) ?? ''}/.claude`
+    home = (await $.env.get('HOME')) ?? ''
+    configDir = (await $.env.get('CLAUDE_CONFIG_DIR')) || `${home}/.claude`
     const host = hostOf($)
     await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'theme|pane|motion|statusline ...' })
     const chosen = String((await host.storeGet('theme')) ?? options.theme ?? DEFAULT_THEME)
@@ -173,6 +208,8 @@ export const register: Register = (on, options) => {
     sessionId = await $.session.id()
     await syncTakeover($)
     git = await gitBase(host, cwd)
+    // a beat after launch, so the dialog does not open over the startup frame
+    if (e.isInteractive) $.clock.after(1500, () => void askFirstRun($))
     return next(e)
   })
 
@@ -238,7 +275,7 @@ export const register: Register = (on, options) => {
     refresh($)
     await feedContext($)
     // one more redraw after the linger so the band folds away
-    $.clock.after(1600, () => redraw($))
+    $.clock.after(1600, () => publish($))
     return r
   })
 
@@ -270,7 +307,8 @@ export const register: Register = (on, options) => {
     const tier = tierFor(e.props.bodyColumns, paneShown && panePlacement === 'dock')
     const below = await next(e)
     const els = $.ui.resolve(e)
-    const mine = renderBand(els, model, theme, e.props.bodyColumns, tier, Date.now())
+    const live = (await $.state.get(BAND)).value as { model: Model } | undefined
+    const mine = renderBand(els, live?.model ?? model, theme, e.props.bodyColumns, tier, Date.now())
     if (!mine) return below
     // other mods draw bands here too: stack ours on top instead of replacing theirs
     const { Box } = els
@@ -278,12 +316,14 @@ export const register: Register = (on, options) => {
   })
 
   on('ui.render', { component: 'Pane', requestId: 'glowup' }, async ($, e) => {
-    if (panePlacement !== e.props.placement) { panePlacement = e.props.placement; $.ui.invalidate('ui.render') }
+    // a render hook cannot write state: publish after the draw
+    if (panePlacement !== e.props.placement) { panePlacement = e.props.placement; $.clock.after(0, () => publish($)) }
+    const live = (await $.state.get(PANE)).value as { model: Model; view: PaneView } | undefined
     const compact = e.props.placement === 'inline' && e.props.bodyColumns < 80
-    const v: PaneView = { ...view, reduced: reducedMotion }
-    return renderPane($.ui.resolve(e), model, theme, v, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
+    const v: PaneView = { ...(live?.view ?? view), reduced: reducedMotion }
+    return renderPane($.ui.resolve(e), live?.model ?? model, theme, v, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
       view = { ...view, tab: id }
-      $.ui.invalidate('ui.render')
+      publish($)
       if (id === 'plan') void feedContext($)
     })
   })
