@@ -4,7 +4,7 @@ export const baseOptions: BaseLayoutProps = {
   nav: {
     title: (
       <span style={{ font: "700 20px 'Pixelify Sans'" }}>
-        glow<span style={{ color: '#d77757' }}>up</span>
+        glow<span style={{ color: 'var(--color-fd-primary)' }}>up</span>
       </span>
     ),
     url: '/',

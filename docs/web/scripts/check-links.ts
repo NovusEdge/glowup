@@ -45,10 +45,7 @@ export function checkSite(root: string, paths: string[]): string[] {
   for (const file of htmlFiles(root)) {
     const here = '/' + file.slice(root.length).replace(/^[\\/]/, '').replace(/(^|\/)index\.html$/, '')
     const html = readFileSync(file, 'utf8')
-    // TODO(task 7): drop this exemption once the real landing route sets its own meta.
-    const placeholder = here === '/' && !html.includes('<meta name="description"')
-    // The SPA fallback shell is not a crawlable page.
-    if (here !== '/404.html' && here !== '/__spa-fallback.html' && !placeholder) {
+    if (here !== '/404.html') {
       const h1s = (html.match(/<h1[\s>]/g) ?? []).length
       if (h1s !== 1) problems.push(`${here}: expected exactly one <h1>, found ${h1s}`)
       if (!html.includes('<title')) problems.push(`${here}: missing <title>`)

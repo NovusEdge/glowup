@@ -25,5 +25,5 @@ test('llms.txt links each guide to its raw markdown with the description', () =>
 
 test('llms-full.txt and raw .md copies carry the bodies without frontmatter', () => {
   assert.match(files['llms-full.txt']!, /# Foo\nURL: https:\/\/glowup\.khimani\.dev\/foo\n\n# body of foo/)
-  assert.equal(files['foo.md'], '# body of foo\n')
+  assert.equal(files['foo.md'], '# Foo\n\n# body of foo\n')
 })
