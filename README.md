@@ -2,7 +2,7 @@
 
 # glowup
 
-**A glow-up for Claude Code.** A live pane for changes, subagents and context, a one-line activity band, and themes you write as JSON and share by URL.
+**A glow-up for Claude Code.** A live pane for changes, subagents and context, a one-line activity band, packs and themes you write as JSON and share by URL, and a pixel pet named Clawd.
 
 [![CI](https://github.com/NovusEdge/glowup/actions/workflows/ci.yml/badge.svg)](https://github.com/NovusEdge/glowup/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/NovusEdge/glowup?include_prereleases)](https://github.com/NovusEdge/glowup/releases/latest)
@@ -65,14 +65,14 @@ One line above the prompt while Claude works. It shows the current action, runni
 
 ### Themes
 
-A theme is one JSON file: colors, a few glyphs, spinner words and band hearts. Four presets ship. A theme can `extends` another, so you write only what differs. Share one by hosting the file at an `https://` URL.
+A theme is one JSON file: colors, a few glyphs, spinner words and band hearts. Seven presets ship. It is the palette inside a pack. A theme can `extends` another, so you write only what differs. Share one by hosting the file at an `https://` URL.
 
 </td>
 <td width="50%" valign="top">
 
 ### The status line
 
-While Claude or a subagent is working, glowup adds one entry under the prompt (`◆ editing · ctx 48%`) and clears it when the work is done. Your status line is left alone. If you want glowup to draw the whole line, opt in with `/glowup statusline on`. `/glowup statusline restore` puts yours back.
+While Claude or a subagent is working, glowup adds one entry under the prompt (`◆ editing · ctx 48%`) and clears it when the work is done. glowup asks once, at first run, whether it should draw the whole line; answer No and your status line is left alone. If you want glowup to draw the whole line, opt in with `/glowup statusline on`. `/glowup statusline restore` puts yours back.
 
 </td>
 </tr>
@@ -104,6 +104,13 @@ More in [Install](docs/install.md).
 | `/glowup theme <name>` | Switch theme. Saved for the next session. |
 | `/glowup theme list` | List built-in and installed themes. A filled dot marks the current one. |
 | `/glowup theme add <url>` | Install a theme file from an `https://` URL. |
+| `/glowup pack <name\|url>` | Apply a pack, or install one from an `https://` URL first. |
+| `/glowup pack list` | List packs. A filled dot marks the active one. |
+| `/glowup pack save <name>` | Save the current look as a pack file. |
+| `/glowup import <file>` | Turn a Ghostty or base16 color scheme into a pack. |
+| `/glowup pet clawd\|off` | Show Clawd or hide the pet. |
+| `/glowup bubbles on\|off` | Turn speech bubbles on or off. |
+| `/glowup config` | Open the settings view in the pane. |
 | `/glowup pane` | Open or close the glowup pane. |
 | `/glowup motion reduced` | Turn glowup's animation off. |
 | `/glowup motion full` | Turn it back on. |
@@ -152,6 +159,36 @@ A theme you pick with `/glowup theme` is stored, and it overrides the theme chos
 
 Full guide: [Making a theme](docs/themes.md) and the [theme reference](docs/theme-reference.md).
 
+## Packs
+
+A pack sets a whole look with one name: colors and row styles in one layer, motion (the spinner and its shimmer) in another. Four ship: `classic` (the default, Claude Code as it is), `crt`, `cozy` and `arcade`.
+
+```text
+/glowup pack arcade
+```
+
+`/glowup pack list` shows what you have, `/glowup pack save <name>` writes your current look to a file, and `/glowup pack <url>` installs someone else's. `/glowup import <file>` turns a Ghostty or base16 color scheme into a pack. Full guide: [Packs](docs/packs.md).
+
+## Pets
+
+Clawd is a small pixel pet at the bottom of the glowup pane. He walks while Claude works, hops when a test passes, startles when one fails or Claude needs you, and says a short line in a speech bubble. Keep your tests green and see what happens.
+
+```text
+/glowup pet off
+```
+
+Reduced motion hides him. Full guide: [Pets](docs/pets.md).
+
+## Config
+
+`/glowup config` opens an interactive view in the pane. Choose a pack, a spinner, the pet and bubbles, and see a live preview before you apply.
+
+```text
+/glowup config
+```
+
+See [Commands](docs/commands.md#config).
+
 ## Layout by terminal width
 
 glowup picks a layout from your terminal width. Your transcript and prompt never move.
@@ -168,7 +205,7 @@ The pane docks in fullscreen, at 144 columns or more, or from 110 columns once y
 
 ## Accessibility
 
-- `/glowup motion reduced` (or the `reducedMotion` setting) turns off the spinner and shimmer. glowup does not flash.
+- `/glowup motion reduced` (or the `reducedMotion` setting) uses the stock spinner, turns off the shimmer and hides the pet. glowup does not flash.
 - The `high-contrast` theme uses pure white text and fully saturated colors.
 - Under 80 columns, every line is cut to fit with an ellipsis. Color is never the only signal: states also have glyphs and words.
 
@@ -178,10 +215,9 @@ See [Accessibility](docs/accessibility.md).
 
 Coming, in no promised order and with no dates:
 
-- Pixel pets that act out tool calls: Clawd, Kit and Blip.
-- Speech bubbles for the pets.
-- Easter eggs.
-- Full skin: themed message and tool rows and prompt border.
+- Sound and voice layers for packs.
+- Speech bubbles with lines written by Haiku.
+- More spinners, and more pets: Kit and Blip.
 
 Also planned: a diff view in the Changes tab and opening an agent from the Agents tab. See [Roadmap](docs/roadmap.md).
 

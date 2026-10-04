@@ -1,7 +1,7 @@
 ---
 title: Accessibility
 description: Reduced motion, the high-contrast theme, narrow terminals and terminals without color.
-order: 7
+order: 9
 section: More
 ---
 
@@ -12,11 +12,18 @@ Run `/glowup motion reduced`, or set the `reducedMotion` setting to `true`. Run 
 With reduced motion on:
 
 - Running subagents in the Agents tab show a still mark instead of a spinner.
-- The spinner keeps Claude Code's own word, even if your theme has spinner words.
+- The spinner is Claude Code's own `stock` spinner, with its own word, even if your pack has a spinner or your theme has spinner words.
+- There is no shimmer.
+- The pet is hidden.
+- No animation timers run.
 
-glowup does not flash. Elapsed times still count up each second, because they are text that changes in place.
+Colors and row styles from your pack still apply.
 
-The choice is saved and wins over the setting.
+glowup does not flash. Nothing changes faster than every 80 ms, a color flash lasts at least 400 ms, and nothing flashes more than 2.5 times a second. Elapsed times still count up each second, because they are text that changes in place.
+
+The choice is saved and wins over the setting. You can also toggle it in `/glowup config`.
+
+glowup cannot read your operating system's reduced-motion setting, because Claude Code does not pass it to mods. Turn glowup's own setting on if you need it.
 
 ## High contrast
 
@@ -45,4 +52,4 @@ Color is never the only signal. Every state also has a glyph and words:
 
 ## Screen readers
 
-The band, the pane tabs and the status entry are plain text. They contain no images. glowup does not draw sprites or animation grids in 0.1.0.
+The band, the pane tabs and the status entry are plain text. They contain no images. Clawd and the animated spinners are drawn with block and braille characters, so a screen reader may read them as symbols. Turn them off with `/glowup motion reduced`, which hides the pet and uses the stock spinner.

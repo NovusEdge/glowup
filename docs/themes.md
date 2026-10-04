@@ -1,11 +1,13 @@
 ---
 title: Making a theme
 description: Write a theme file, try it, and share it with other people.
-order: 5
+order: 7
 section: Themes
 ---
 
 ## What a theme is
+
+A theme is the palette inside a [pack](packs.md)'s colors layer. Pick a pack for a whole look, or a theme for just the colors: `/glowup theme <name>` puts the theme's palette on top of the pack you use and keeps the pack's row style, border and extras.
 
 A theme is one JSON file. It sets colors, a few glyphs, the spinner words and the band hearts. It holds data only; nothing in it runs. Comments are allowed in the file.
 
@@ -69,7 +71,7 @@ To publish a theme, host the JSON file at an `https://` URL. A raw file in a Git
 /glowup theme sunset
 ```
 
-`theme add` needs a `"name"` field. The name must be lowercase letters, digits and dashes, and it must not be one of the four built-in names. See [Commands](commands.md) for what `theme add` checks.
+`theme add` needs a `"name"` field. The name must be lowercase letters, digits and dashes, and it must not be one of the built-in names. See [Commands](commands.md) for what `theme add` checks.
 
 To get your theme into the project, open a theme submission issue on GitHub with the JSON file and a screenshot, or open a pull request that adds the file.
 
