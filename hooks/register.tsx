@@ -19,6 +19,7 @@ import { orbStateOf, usesOwnSpinner, checkedSpinnerProps } from './spinner.ts'
 import type { PetClientProps } from './client/pet.tsx'
 import type { OrbState } from './motion.ts'
 import { statusText, writeStatusFile, drawsStatusLine, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
+import { parseFields, DEFAULT_FIELDS, type ColorMode, type FieldId } from './fields.ts'
 import { runCommand, SUMMARY_LEAD, type Ctl } from './command.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 import { renderHelp } from './helpcard.tsx'
@@ -63,6 +64,10 @@ let sessionId = ''
 let off = false
 let guardSid = '', guardRoot = ''
 let takenOver = false
+let fields: readonly FieldId[] = DEFAULT_FIELDS
+// the installer's value; `statusline fields default` returns to it
+let configFields: readonly FieldId[] = DEFAULT_FIELDS
+let colorMode: ColorMode = '256'
 // The one 60 s clock: refreshes this copy's guard entry and rewrites the status file.
 let beatTimer: Timer | undefined
 let lastStatusLine: string | undefined
@@ -119,7 +124,7 @@ function hostOf($: Engine): Host {
 // The takeover script falls back to the person's own command once this file is
 // 10 minutes old, so a quiet session still rewrites it every minute.
 function writeStatus($: Engine, force: boolean) {
-  const line = statusText(model, theme)
+  const line = statusText(model, theme, { fields, now: Date.now(), tzOffset, color: colorMode })
   if (!takenOver || !sessionId || (!force && (line ?? '') === lastStatusLine)) return
   lastStatusLine = line ?? ''
   void writeStatusFile(hostOf($), sessionId, line).catch(() => {})
@@ -143,7 +148,7 @@ async function syncTakeover($: Engine) {
 
 // The engine pins this entry as a "⚠ glowup:" notice, which reads as an error
 // when it never goes away; the takeover's status line already says the same.
-const statusEntry = () => !takenOver && isBusy(model) ? statusText(model, theme) : undefined
+const statusEntry = () => !takenOver && isBusy(model) ? statusText(model, theme, { fields, tzOffset }) : undefined
 
 // The model's combo moves on after a reply is drawn, and the engine redraws old rows on every
 // invalidate, so each reply keeps the count it first drew with.
@@ -547,8 +552,12 @@ export const register: Register = (on, options) => {
     tzOffset = localOffset(tzo, zone)
     const at = await host.storeGet('installed-at')
     installed = typeof at === 'number' ? at : undefined
+    configFields = parseFields(options.statusline) ?? DEFAULT_FIELDS
+    fields = parseFields(await host.storeGet('statusline')) ?? configFields
+    const colorterm = await $.env.get('COLORTERM')
+    colorMode = colorterm === 'truecolor' || colorterm === '24bit' ? 'truecolor' : '256'
     await syncTakeover($)
-    git = await gitBase(host, cwd)
+    git =await gitBase(host, cwd)
     void loadPlan($)
     // a beat after launch, so the dialog does not open over the startup frame
     if (e.isInteractive) $.clock.after(1500, () => void askFirstRun($))

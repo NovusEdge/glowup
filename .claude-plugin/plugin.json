@@ -17,6 +17,7 @@
     "pack": { "type": "string", "title": "Pack", "description": "Pack name: classic, crt, cozy, arcade, or one in ~/.claude/glowup/packs", "default": "classic" },
     "spinner": { "type": "string", "title": "Spinner", "description": "Spinner name: stock, comet, eyes, orb-states, clawd, shimmer, or pack for the pack's own", "default": "pack" },
     "pet": { "type": "string", "title": "Pet", "description": "clawd or off", "default": "clawd" },
-    "bubbles": { "type": "string", "title": "Speech bubbles", "description": "on (template lines), off, or haiku (Claude Haiku writes some lines; small paid calls on your account)", "default": "on" }
+    "bubbles": { "type": "string", "title": "Speech bubbles", "description": "on (template lines), off, or haiku (Claude Haiku writes some lines; small paid calls on your account)", "default": "on" },
+    "statusline": { "type": "string", "title": "Status line fields", "description": "Comma-separated, in order: activity, ctx, 5h, week, cost, model, agents, plan, branch, changes, cwd", "default": "activity,ctx,5h,week" }
   }
 }

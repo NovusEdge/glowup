@@ -134,8 +134,15 @@ test('status word comes from the glyph, not the label', async () => {
 test('status says delegating while subagents run after the main turn', async () => {
   const T = resolveTheme('classic', {}).theme
   const agent = { key: 'a1', name: 'scout', task: '', state: 'running' as const, startedAt: 0 }
-  expect(statusText({ ...initialModel(), agents: [agent] }, T)).toBe('◆ delegating · ctx 0%')
+  expect(statusText({ ...initialModel(), agents: [agent] }, T)).toBe('◆ delegating')
   expect(statusText({ ...initialModel(), ctxPercent: 3, agents: [{ ...agent, state: 'done' }] }, T)).toBe('◆ idle · ctx 3%')
+})
+
+test('status text takes a field list and a color mode', async () => {
+  const T = resolveTheme('classic', {}).theme
+  const m = { ...initialModel(), ctxPercent: 5, branch: 'main' }
+  expect(statusText(m, T, { fields: ['branch', 'ctx'] })).toBe('main · ctx 5%')
+  expect(statusText(m, T, { color: 'truecolor' })).toContain('\x1b[38;2;')
 })
 
 test('no status line deletes the session file so the script falls back', async () => {
