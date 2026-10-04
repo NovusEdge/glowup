@@ -17,6 +17,7 @@ glowup
   /glowup pack <name|url>    apply a pack (--force replaces an installed one)
   /glowup pack list          list packs
   /glowup pack save <name>   save the current look as a pack file
+  /glowup config             change the look in a dialog
   /glowup import <file>      turn a Ghostty or base16 scheme into a pack
   /glowup pet clawd|off      choose the pet, or none
   /glowup bubbles on|off     speech bubbles
