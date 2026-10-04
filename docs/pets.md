@@ -34,9 +34,12 @@ glowup cannot hide Claude Code's own task list. The Plan & context tab shows the
 | Claude reads, searches or plans | Walks back and forth. |
 | A test passes | Hops. |
 | A test fails | Sags and sweats. |
-| Claude needs you, for example to approve a tool | Startles, with a `!` beside him. |
+| Claude needs you, for example to approve a tool | Startles, then waits for you with a `?` beside him. |
+| Three or more subagents are running | Juggles. |
+| The context is compacted | Crumples up a sheet of paper and tosses it away. |
+| The context window is 80% full or more | Pants while he stands or walks. |
 | A turn ends | Does a little dance. |
-| One minute with nothing happening | Falls asleep. |
+| One minute with nothing happening | Falls asleep. When something happens, he stretches and yawns. |
 
 glowup alerts only when Claude Code opens a permission dialog in a mode that asks you. In auto mode it never alerts, even when the auto-mode check hands a call to you.
 
