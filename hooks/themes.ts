@@ -4,7 +4,7 @@ export { PRESETS }
 
 export const MAX_THEME_BYTES = 65536
 export const COLOR_KEYS = ['accent', 'text', 'dim', 'faint', 'read', 'edit', 'shell', 'agent', 'pass', 'fail', 'panel', 'addBg', 'delBg', 'sel'] as const
-const GLYPH_KEYS = ['read', 'search', 'edit', 'shell', 'agent', 'plan'] as const
+export const GLYPH_KEYS = ['read', 'search', 'edit', 'shell', 'agent', 'plan'] as const
 export type Colors = Record<(typeof COLOR_KEYS)[number], string>
 export type Theme = { name: string; colors: Colors; spinnerWords: string[]; glyphs: Record<(typeof GLYPH_KEYS)[number], string>; hearts: [string, string] }
 export type ThemeFile = { name: string; extends?: string; colors?: Partial<Colors>; spinner?: { words?: string[] }; glyphs?: Partial<Theme['glyphs']>; band?: { hearts?: [string, string] } }

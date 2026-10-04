@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A pack-making skill ships with glowup: ask your agent for a glowup pack from a mood, palette, image or terminal scheme.
 - `/glowup export konsole` saves your current colors as a Konsole color scheme you can pick in your profile.
 
 ### Changed

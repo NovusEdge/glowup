@@ -21,9 +21,10 @@ export const DEFAULT_MIX: Mix = { colors: 'classic', motion: 'classic' }
 export const MAX_DEPTH = 8
 const FORMAT = 1
 // sound and voice are reserved for later versions: accepted, never read
-const TOP = ['format', 'name', 'extends', 'description', 'colors', 'motion', 'sound', 'voice']
-const COLORS_KEYS = ['theme', 'palette', 'bg', 'rows', 'border', 'borderColor', 'gradient', 'extras']
-const MOTION_KEYS = ['spinner', 'shimmer', 'color']
+export const PACK_KEYS = ['format', 'name', 'extends', 'description', 'colors', 'motion', 'sound', 'voice']
+export const COLORS_KEYS = ['theme', 'palette', 'bg', 'rows', 'border', 'borderColor', 'gradient', 'extras']
+export const MOTION_KEYS = ['spinner', 'shimmer', 'color']
+export const EXTRAS_KEYS = ['hp', 'combo']
 export const isNewerSpinner = (e: string) => /^spinner ".*" needs a newer glowup/.test(e)
 const HEX = /^#[0-9a-fA-F]{6}$/
 const SPINNER_SHAPE = /^[a-z][a-z0-9-]{0,23}$/
@@ -35,7 +36,7 @@ const oneOf = (list: readonly unknown[], v: unknown) => list.includes(v)
 
 function checkTop(file: unknown): asserts file is Record<string, unknown> {
   if (!isPlain(file)) throw new Error('a pack must be a JSON object')
-  for (const k of Object.keys(file)) if (!TOP.includes(k)) throw new Error(`unknown key "${shown(k)}"`)
+  for (const k of Object.keys(file)) if (!PACK_KEYS.includes(k)) throw new Error(`unknown key "${shown(k)}"`)
   const fmt = file.format
   if (fmt === undefined || (typeof fmt === 'number' && fmt < 1)) throw new Error('"format": 1 is missing')
   if (typeof fmt !== 'number' || !Number.isInteger(fmt)) throw new Error('"format" must be a whole number')
@@ -65,7 +66,7 @@ function checkColors(v: unknown): void {
   if (g !== undefined && (!Array.isArray(g) || g.length !== 2 || !g.every(c => typeof c === 'string' && HEX.test(c)))) throw new Error('colors.gradient must be two #rrggbb colors')
   if (v.extras !== undefined) {
     if (!isPlain(v.extras)) throw new Error('colors.extras must be an object of hp and combo booleans')
-    for (const [k, b] of Object.entries(v.extras)) if (!['hp', 'combo'].includes(k) || typeof b !== 'boolean') throw new Error('colors.extras takes only hp and combo, as true or false')
+    for (const [k, b] of Object.entries(v.extras)) if (!EXTRAS_KEYS.includes(k) || typeof b !== 'boolean') throw new Error('colors.extras takes only hp and combo, as true or false')
   }
 }
 

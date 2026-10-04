@@ -172,7 +172,7 @@ A pack sets a whole look with one name: colors and row styles in one layer, moti
 /glowup pack arcade
 ```
 
-`/glowup pack list` shows what you have, `/glowup pack save <name>` writes your current look to a file, and `/glowup pack <url>` installs someone else's. `/glowup import <file>` turns a Ghostty or base16 color scheme into a pack. Full guide: [Packs](docs/packs.md).
+`/glowup pack list` shows what you have, `/glowup pack save <name>` writes your current look to a file, and `/glowup pack <url>` installs someone else's. `/glowup import <file>` turns a Ghostty or base16 color scheme into a pack. Or ask your agent to make one from a mood, palette, image or scheme: glowup ships a skill for it. Full guide: [Packs](docs/packs.md).
 
 ## Pets
 

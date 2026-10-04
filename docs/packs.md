@@ -114,6 +114,10 @@ A layer can also be the name of another pack: `"motion": "crt"` uses `crt`'s mot
 
 `/glowup pack save <name>` writes your current look, both layers, with `"format": 1`. The saved file is self-contained: it does not depend on any theme or pack of yours, so you can host it at an `https://` URL and others can install it. `save` refuses a built-in name and the name of a pack you already have, so it never overwrites one.
 
+## Ask your agent to make a pack
+
+glowup ships a skill that teaches your agent the pack format. Say what you want, for example "make me a glowup pack from this palette", or show it an image or point it at a terminal color scheme. The agent writes `~/.claude/glowup/packs/<name>.json`, checks that the text and role colors have enough contrast, and tells you to run `/glowup pack <name>`. If that prints an error, the agent fixes the file and you run it again.
+
 ## Import a color scheme
 
 `/glowup import <file>` reads a color scheme from a local path (`~` works) and saves it as a pack with only a colors layer, then applies it. Two formats are supported, detected from the content:
