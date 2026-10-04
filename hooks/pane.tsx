@@ -65,7 +65,9 @@ export function section(title: string, right: string, body: Seg[][], w: number, 
   return [top, ...body.map(row), [edge(b.bl + b.h.repeat(w - 2) + b.br)]]
 }
 
-function changes(m: Model, t: Theme, w: number, compact: boolean, limit: number, border: Border): Seg[][] {
+type Part = { rows: Seg[][]; n: number }
+
+function changes(m: Model, t: Theme, w: number, compact: boolean, limit: number, border: Border): Part {
   const c = t.colors, edited = m.files.filter(f => f.how !== 'read')
   const add = edited.reduce((n, f) => n + f.add, 0), del = edited.reduce((n, f) => n + f.del, 0)
   const list = compact ? edited : m.files, lead = compact ? '  ' : '', iw = compact ? w : boxInner(w)
@@ -77,11 +79,11 @@ function changes(m: Model, t: Theme, w: number, compact: boolean, limit: number,
     const right: Seg[] = f.how === 'read' ? [{ text: 'read', color: c.dim }] : [{ text: `+${f.add}`, color: c.pass }, { text: ` −${f.del}`, color: c.fail }]
     body.push(spread(left, right, iw, t))
   }
-  if (compact) return cap(body, t, w, 0, limit).map(r => fit(r, w))
-  return section('CHANGES', `${edited.length} files  +${add} −${del}`, body, w, t, border)
+  if (compact) return { rows: cap(body, t, w, 0, limit).map(r => fit(r, w)), n: -1 }
+  return { rows: section('CHANGES', `${edited.length} files  +${add} −${del}`, body, w, t, border), n: body.length }
 }
 
-function agents(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, now: number, limit: number, border: Border): Seg[][] {
+function agents(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, now: number, limit: number, border: Border): Part {
   const c = t.colors, live = m.agents.filter(a => a.state === 'running').length, iw = boxInner(w)
   const body: Seg[][] = []
   if (!m.agents.length) body.push([{ text: (compact ? '  ' : '') + 'No subagents this session.', color: c.dim }])
@@ -96,8 +98,8 @@ function agents(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, no
     body.push(fit([{ text: '  ' + a.task, color: c.text }], iw))
     if (running && a.now) body.push(fit([{ text: '  └ ', color: c.faint }, { text: a.now, color: c.read }], iw))
   }
-  if (compact) return cap(body, t, w, 0, limit)
-  return section('AGENTS', `${live} running · ${m.agents.length - live} done`, body, w, t, border)
+  if (compact) return { rows: cap(body, t, w, 0, limit), n: -1 }
+  return { rows: section('AGENTS', `${live} running · ${m.agents.length - live} done`, body, w, t, border), n: body.length }
 }
 
 function planRow(p: PlanItem, t: Theme, w: number, lead: string): Seg[] {
@@ -118,7 +120,7 @@ function history(m: Model, w: number, t: Theme): Seg[] | undefined {
   return spread([{ text: lead, color: c.dim }, { text: n ? sparkline(m.ctxHistory.slice(-n)) : '', color: c.accent }], [{ text: tail, color: c.dim }], w, t)
 }
 
-function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, limit: number, border: Border): Seg[][] {
+function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, limit: number, border: Border): Part {
   const c = t.colors, done = m.plan.filter(p => p.status === 'completed').length
   const used = m.ctxPercent, cats = v.categories ?? []
   const { items: shown, hiddenDone } = planOrder(m.plan)
@@ -128,7 +130,7 @@ function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, limi
   if (compact) {
     const inner = Math.max(4, w - 12)
     const ctx = fit([{ text: ' ctx ▕', color: c.dim }, ...stackBar(cats, v.maxTokens, used, inner, t).segs, { text: `▏${String(used).padStart(4)}%`, color: c.text }], w)
-    return [...cap(items, t, w, 1, limit), ctx]
+    return { rows: [...cap(items, t, w, 1, limit), ctx], n: -1 }
   }
   if (hiddenDone) items.push([{ text: `  +${hiddenDone} more done`, color: c.dim }])
   const usedTokens = cats.some(x => x.kind === 'used') ? cats.filter(x => x.kind === 'used').reduce((n, x) => n + x.tokens, 0) : v.maxTokens ? used / 100 * v.maxTokens : undefined
@@ -140,17 +142,24 @@ function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, limi
     const top = stack.slices[0]
     ctx.push([{ text: `! ${top && top.label !== 'used' ? `${top.label} is the biggest share` : `context ${used}% used`}`, color: c.edit }])
   }
-  return [
-    ...section('PLAN', m.plan.length ? `${done}/${m.plan.length}` : '', items, w, t, border),
-    [],
-    ...section('CONTEXT', v.maxTokens && usedTokens !== undefined ? `${used}% · ${tokensK(usedTokens)} / ${tokensK(v.maxTokens)}` : `${used}% used`, ctx, w, t, border),
-  ]
+  return {
+    rows: [
+      ...section('PLAN', m.plan.length ? `${done}/${m.plan.length}` : '', items, w, t, border),
+      [],
+      ...section('CONTEXT', v.maxTokens && usedTokens !== undefined ? `${used}% · ${tokensK(usedTokens)} / ${tokensK(v.maxTokens)}` : `${used}% used`, ctx, w, t, border),
+    ],
+    n: items.length,
+  }
 }
 
-export function tabRows(model: Model, t: Theme, v: PaneView, width: number, compact: boolean, now: number, limit = COMPACT_ROWS, border: Border = 'round'): Seg[][] {
+// body is the half-open row range of the first section's body: row 0 is its top edge (or the unboxed header).
+export function tabParts(model: Model, t: Theme, v: PaneView, width: number, compact: boolean, now: number, limit = COMPACT_ROWS, border: Border = 'round'): { rows: Seg[][]; body: [number, number] } {
   const m = normalizeModel(model)
-  return v.tab === 'changes' ? changes(m, t, width, compact, limit, border) : v.tab === 'agents' ? agents(m, t, v, width, compact, now, limit, border) : plan(m, t, v, width, compact, limit, border)
+  const { rows, n } = v.tab === 'changes' ? changes(m, t, width, compact, limit, border) : v.tab === 'agents' ? agents(m, t, v, width, compact, now, limit, border) : plan(m, t, v, width, compact, limit, border)
+  return { rows, body: n < 0 ? [0, rows.length] : [1, 1 + n] }
 }
+
+export const tabRows = (...a: Parameters<typeof tabParts>): Seg[][] => tabParts(...a).rows
 
 export function statusRows(model: Model, base: Theme, width: number, look?: Look): Seg[][] {
   const m = normalizeModel(model)
@@ -243,13 +252,16 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
   // the drawer shows a tab strip, the tab content and one pet row, all within COMPACT_ROWS
   let rowsLeft = compact && extra?.pet ? COMPACT_ROWS - 2 : COMPACT_ROWS
   if (compact && extra?.bodyRows) rowsLeft = Math.max(1, Math.min(rowsLeft, extra.bodyRows - 1 - (extra.pet ? 1 : 0)))
-  let rows = tabRows(m, t, v, inner, compact, now, rowsLeft, look?.border ?? 'round')
+  let { rows, body } = tabParts(m, t, v, inner, compact, now, rowsLeft, look?.border ?? 'round')
   let hint: any = null
   if (!compact && extra?.bodyRows) {
     // tab strip and its margin sit above, the footer below; the tab gets the rest and scrolls on its own
     const room = Math.max(2, extra.bodyRows - 2 - footerRows(m, t, extra, width))
     if (rows.length > room) {
-      const win = room - 1, last = rows.length - win, top = Math.max(0, Math.min(v.offset ?? 0, last)), below = last - top
+      // box edges and what follows the first box stay put; only that box's body rows scroll
+      const bodyRoom = room - 1 - (rows.length - (body[1] - body[0]))
+      const [from, to] = bodyRoom >= 1 ? body : [0, rows.length]
+      const win = bodyRoom >= 1 ? bodyRoom : room - 1, last = to - from - win, top = Math.max(0, Math.min(v.offset ?? 0, last)), below = last - top
       const go = (to: number) => extra.onScroll?.(Math.max(0, Math.min(to, last)))
       hint = (
         <Box key="scroll" flexDirection="row" gap={1}>
@@ -257,7 +269,7 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
           {below > 0 && <Button key="down" label={`↓ ${below} more`} hotkey="j" dimColor onPress={() => go(top + win)} />}
         </Box>
       )
-      rows = rows.slice(top, top + win)
+      rows = [...rows.slice(0, from), ...rows.slice(from + top, from + top + win), ...rows.slice(to)]
     }
   }
   return (

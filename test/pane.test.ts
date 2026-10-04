@@ -393,3 +393,19 @@ test('a long tab scrolls inside its rows, with buttons for the hidden ones', asy
   ;(down.onPress ?? down.props.onPress)({})
   expect(picks[0]).toBeGreaterThan(0)
 })
+
+test('a long tab keeps its box edges and scrolls only the first body', async () => {
+  const draw = (tab: TabId, bodyRows: number, offset?: number) => renderPane(els, many(40), T, { tab, offset }, 54, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, bodyRows }) as any
+  const status = statusRows(many(40), T, 54 - 2 - 4).length
+  for (const offset of [0, 5]) {
+    const rows = textRows(draw('changes', 30, offset)).slice(0, -status)
+    expect(rows[0], `${offset}`).toMatch(/^╭─ CHANGES/)
+    expect(rows.at(-1), `${offset}`).toMatch(/^╰/)
+    expect(rows.join('\n')).toContain(`f${offset}.ts`)
+  }
+  const rows = textRows(draw('plan', 42)).slice(0, -status)
+  expect(rows[0]).toMatch(/^╭─ PLAN/)
+  const ctx = rows.findIndex(r => r.startsWith('╭─ CONTEXT'))
+  expect(ctx).toBeGreaterThan(0)
+  expect(rows.findIndex((r, i) => i > ctx && r.startsWith('╰'))).toBeGreaterThan(ctx)
+})
