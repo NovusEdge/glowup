@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-04
+
 ### Added
 
 - Speech bubbles written by Haiku. `/glowup bubbles haiku`, the `bubbles` setting, the config questions and the installer's `--bubbles haiku` turn it on. It is opt-in: each line is a small Haiku call on your account, at most one per turn and one per 90 seconds, built from glowup's own state only, with the template line as the fallback.
