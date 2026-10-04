@@ -5,7 +5,16 @@ export type Tier = 'wide' | 'medium' | 'compact'
 export type Seg = { text: string; color: string; bold?: boolean; bg?: string }
 
 export const tierFor = (columns: number, paneDocked: boolean): Tier => paneDocked ? 'wide' : columns >= 80 ? 'medium' : 'compact'
-export const visibleLength = (segs: Seg[]) => segs.reduce((n, s) => n + [...s.text].length, 0)
+// Terminal cells of one code point; no wcwidth package is available to hooks.
+export function cellWidth(cp: number): 0 | 1 | 2 {
+  if ((cp >= 0x300 && cp <= 0x36f) || cp === 0x200d || (cp >= 0xfe00 && cp <= 0xfe0f)) return 0
+  if ((cp >= 0x1100 && cp <= 0x115f) || (cp >= 0x2e80 && cp <= 0xa4cf) || (cp >= 0xac00 && cp <= 0xd7a3) ||
+      (cp >= 0xf900 && cp <= 0xfaff) || (cp >= 0xfe30 && cp <= 0xfe4f) || (cp >= 0xff00 && cp <= 0xff60) ||
+      (cp >= 0xffe0 && cp <= 0xffe6) || (cp >= 0x1f300 && cp <= 0x1faff) || (cp >= 0x20000 && cp <= 0x3fffd)) return 2
+  return 1
+}
+const cells = (text: string) => [...text].reduce((n, c) => n + cellWidth(c.codePointAt(0)!), 0)
+export const visibleLength = (segs: Seg[]) => segs.reduce((n, s) => n + cells(s.text), 0)
 
 export function fit(segs: Seg[], width: number): Seg[] {
   if (width <= 0) return []
@@ -13,9 +22,16 @@ export function fit(segs: Seg[], width: number): Seg[] {
   const out: Seg[] = []
   let used = 0
   for (const s of segs) {
-    const chars = [...s.text]
-    if (used + chars.length < width) { out.push(s); used += chars.length; continue }
-    out.push({ ...s, text: chars.slice(0, Math.max(0, width - used - 1)).join('') + '…' })
+    const w = cells(s.text)
+    if (used + w < width) { out.push(s); used += w; continue }
+    // one cell is kept for the ellipsis; a 2-cell character that would cross the line is dropped
+    let kept = '', room = width - used - 1
+    for (const c of s.text) {
+      const cw = cellWidth(c.codePointAt(0)!)
+      if (cw > room) break
+      kept += c; room -= cw
+    }
+    out.push({ ...s, text: kept + '…' })
     break
   }
   return out

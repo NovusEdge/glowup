@@ -27,6 +27,14 @@ test('hearts and bars', async () => {
   expect(ctxColor(80, T)).toBe(T.colors.fail)
 })
 
+test('width is measured in terminal cells', async () => {
+  expect(visibleLength([{ text: '日本語', color: '#fff' }])).toBe(6)
+  expect(visibleLength([{ text: 'éa', color: '#fff' }])).toBe(2)
+  const cjk = [{ text: '日本語日本語', color: '#fff' }]
+  for (const w of [1, 2, 3, 4, 5, 6, 7, 8, 11, 12]) expect(visibleLength(fit(cjk, w))).toBeLessThanOrEqual(w)
+  expect(fit(cjk, 6).map(s => s.text).join('')).toBe('日本…')
+})
+
 test('toneColor maps every tone to a theme color', async () => {
   const tones = ['text', 'read', 'edit', 'shell', 'agent', 'pass', 'fail', 'accent'] as const
   for (const k of tones) expect(toneColor(T, k)).toBe(T.colors[k])

@@ -21,6 +21,12 @@ test('band fits 40, 60 and 80 columns', async () => {
   for (const w of [40, 60, 80]) expect(visibleLength(bandSegments(m, T, w))).toBeLessThanOrEqual(w)
 })
 
+test('band counts CJK path labels in cells', async () => {
+  let m = applyEvent(initialModel(), { type: 'tool-start', at: 1, tool: 'Read', toolUseId: 'r', input: { file_path: '/プロジェクト/ソース/認証モジュール.ts' } })
+  m = { ...m, working: true, ctxPercent: 30 }
+  for (const w of [40, 60, 80]) expect(visibleLength(bandSegments(m, T, w))).toBeLessThanOrEqual(w)
+})
+
 // Fake element table: lets renderBand run without the engine.
 const els = { Box: 'Box', Text: 'Text' }
 
