@@ -1,6 +1,6 @@
 import type { ContextCategoryKind } from 'claude-code'
 import { normalizeModel, type Model, type PlanItem } from './model.ts'
-import { capped, legendRows, sparkline, stackBar, tokensK } from './ctxchart.ts'
+import { legendRows, sparkline, stackBar, tokensK } from './ctxchart.ts'
 import { planOrder } from './tasks.ts'
 import type { Theme } from './themes.ts'
 import { shortPath } from './events.ts'
@@ -100,59 +100,56 @@ function agents(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, no
   return section('AGENTS', `${live} running · ${m.agents.length - live} done`, body, w, t, border)
 }
 
-const rule = (label: string, right: string, w: number, t: Theme): Seg[] => {
-  const head = ` ${label} `, tail = right ? ` ${right}` : ''
-  return fit([{ text: ' ', color: t.colors.text }, { text: label, color: t.colors.text, bold: true }, { text: ' ' + '─'.repeat(Math.max(1, w - head.length - tail.length - 1)), color: t.colors.faint }, { text: tail, color: t.colors.dim }], w)
-}
-const divider = (w: number, t: Theme): Seg[] => [{ text: w < 2 ? '─' : '├' + '─'.repeat(w - 2) + '┤', color: t.colors.faint }]
-
-function planRow(p: PlanItem, t: Theme, w: number): Seg[] {
+function planRow(p: PlanItem, t: Theme, w: number, lead: string): Seg[] {
   const c = t.colors, on = p.status === 'in_progress', done = p.status === 'completed'
   const g = done ? '✓' : on ? '◉' : '○'
-  return fit([{ text: `  ${g} `, color: done ? c.pass : on ? c.accent : c.dim }, { text: on && p.active ? p.active : p.title, color: done ? c.dim : c.text, bold: on }], w)
+  return fit([{ text: `${lead}${g} `, color: done ? c.pass : on ? c.accent : c.dim }, { text: on && p.active ? p.active : p.title, color: done ? c.dim : c.text, bold: on }], w)
 }
 
-const PAD = '  over this session  '
+const LABEL = 'over this session '
 function history(m: Model, w: number, t: Theme): Seg[] | undefined {
   if (!m.ctxHistory.length && !m.compactions) return undefined
-  const c = t.colors, lead = w >= 52 ? PAD : '  '
-  const peak = `  peak ${Math.max(m.ctxPeak, ...m.ctxHistory)}%`, comp = m.compactions ? ` · compacted ${m.compactions}×` : ''
-  const room = (tail: string) => w - lead.length - tail.length
+  const c = t.colors, lead = w >= 48 ? LABEL : ''
+  const peak = `peak ${Math.max(m.ctxPeak, ...m.ctxHistory)}%`, comp = m.compactions ? ` · compacted ${m.compactions}×` : ''
+  // two cells keep the sparkline off the right-hand text
+  const room = (tail: string) => w - lead.length - tail.length - 2
   const tail = room(peak + comp) >= 4 ? peak + comp : peak
   const n = Math.max(0, Math.min(m.ctxHistory.length, room(tail)))
-  return fit([{ text: lead, color: c.dim }, { text: n ? sparkline(m.ctxHistory.slice(-n)) : '', color: c.accent }, { text: tail, color: c.dim }], w)
+  return spread([{ text: lead, color: c.dim }, { text: n ? sparkline(m.ctxHistory.slice(-n)) : '', color: c.accent }], [{ text: tail, color: c.dim }], w, t)
 }
 
-function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, limit: number): Seg[][] {
+function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, limit: number, border: Border): Seg[][] {
   const c = t.colors, done = m.plan.filter(p => p.status === 'completed').length
-  const used = m.ctxPercent
+  const used = m.ctxPercent, cats = v.categories ?? []
   const { items: shown, hiddenDone } = planOrder(m.plan)
-  const items: Seg[][] = shown.map(p => planRow(p, t, w))
-  if (!m.plan.length) items.push([{ text: '  No task list yet.', color: c.dim }])
-  const cats = v.categories ?? []
+  const lead = compact ? '  ' : '', iw = compact ? w : boxInner(w)
+  const items: Seg[][] = shown.map(p => planRow(p, t, iw, lead))
+  if (!m.plan.length) items.push([{ text: lead + 'No task list yet.', color: c.dim }])
   if (compact) {
     const inner = Math.max(4, w - 12)
     const ctx = fit([{ text: ' ctx ▕', color: c.dim }, ...stackBar(cats, v.maxTokens, used, inner, t).segs, { text: `▏${String(used).padStart(4)}%`, color: c.text }], w)
     return [...cap(items, t, w, 1, limit), ctx]
   }
-  if (hiddenDone) items.push(fit([{ text: `    +${hiddenDone} more done`, color: c.dim }], w))
-  const rows: Seg[][] = [rule('PLAN', m.plan.length ? `${done}/${m.plan.length}` : '', w, t), ...items, divider(w, t)]
+  if (hiddenDone) items.push([{ text: `  +${hiddenDone} more done`, color: c.dim }])
   const usedTokens = cats.some(x => x.kind === 'used') ? cats.filter(x => x.kind === 'used').reduce((n, x) => n + x.tokens, 0) : v.maxTokens ? used / 100 * v.maxTokens : undefined
-  rows.push(rule('CONTEXT', v.maxTokens && usedTokens !== undefined ? `${used}% · ${tokensK(usedTokens)} / ${tokensK(v.maxTokens)}` : `${used}% used`, w, t))
-  const stack = stackBar(cats, v.maxTokens, used, Math.max(1, w - 3), t)
-  rows.push(capped(stack, t), ...legendRows(stack.slices, w, t))
-  const hist = history(m, w, t)
-  if (hist) rows.push([], hist)
+  const stack = stackBar(cats, v.maxTokens, used, iw, t)
+  const ctx: Seg[][] = [stack.segs, ...legendRows(stack.slices, iw, t)]
+  const hist = history(m, iw, t)
+  if (hist) ctx.push([], hist)
   if (used >= 70) {
     const top = stack.slices[0]
-    rows.push(fit([{ text: `  ! ${top && top.label !== 'used' ? `${top.label} is the biggest share` : `context ${used}% used`}`, color: c.edit }], w))
+    ctx.push([{ text: `! ${top && top.label !== 'used' ? `${top.label} is the biggest share` : `context ${used}% used`}`, color: c.edit }])
   }
-  return rows.map(r => fit(r, w))
+  return [
+    ...section('PLAN', m.plan.length ? `${done}/${m.plan.length}` : '', items, w, t, border),
+    [],
+    ...section('CONTEXT', v.maxTokens && usedTokens !== undefined ? `${used}% · ${tokensK(usedTokens)} / ${tokensK(v.maxTokens)}` : `${used}% used`, ctx, w, t, border),
+  ]
 }
 
 export function tabRows(model: Model, t: Theme, v: PaneView, width: number, compact: boolean, now: number, limit = COMPACT_ROWS, border: Border = 'round'): Seg[][] {
   const m = normalizeModel(model)
-  return v.tab === 'changes' ? changes(m, t, width, compact, limit, border) : v.tab === 'agents' ? agents(m, t, v, width, compact, now, limit, border) : plan(m, t, v, width, compact, limit)
+  return v.tab === 'changes' ? changes(m, t, width, compact, limit, border) : v.tab === 'agents' ? agents(m, t, v, width, compact, now, limit, border) : plan(m, t, v, width, compact, limit, border)
 }
 
 export function statusRows(model: Model, base: Theme, width: number, look?: Look): Seg[][] {

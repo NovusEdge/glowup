@@ -14,6 +14,7 @@ const plan = (n: number, status: PlanItem['status'], from = 0): PlanItem[] => Ar
 const base = (extra: Partial<Model> = {}): Model => ({ ...initialModel(), ctxPercent: 62, ...extra })
 const view = { tab: 'plan' as const, categories: CATS, maxTokens: MAX }
 const cells = (s: Seg[]) => s.reduce((n, x) => n + [...x.text].length, 0)
+const inside = (r: string) => r.slice(2, -2).trimEnd()
 
 test('stacked bar segments fill the width exactly and match the percentages', async () => {
   for (const w of [10, 24, 37, 57, 87]) {
@@ -73,22 +74,22 @@ test('the legend wraps onto more rows when narrow and every row fits', async () 
   for (const r of text(narrow)) expect(r.startsWith(' ')).toBe(false)
 })
 
-test('the tab has a header rule, a real divider and a context header with tokens', async () => {
+test('the tab has a PLAN box and a CONTEXT box with tokens in its top edge', async () => {
   const m = base({ plan: [...plan(5, 'completed'), ...plan(1, 'in_progress', 5), ...plan(1, 'pending', 6)] })
   for (const w of [40, 60, 90]) {
     const rows = text(tabRows(m, T, view, w, false, 0))
-    expect(rows[0]).toMatch(/^ PLAN ─+ 5\/7$/)
-    expect(rows.find(r => r.startsWith('├'))).toBe('├' + '─'.repeat(w - 2) + '┤')
-    expect(rows.find(r => r.startsWith(' CONTEXT'))).toMatch(/ ─+ 62% · 126k \/ 200k$/)
-    for (const r of rows) expect(visibleLength([{ text: r, color: '' }])).toBeLessThanOrEqual(w)
+    expect(rows[0]).toMatch(/^╭─ PLAN ─+ 5\/7 ─╮$/)
+    expect(rows.some(r => r.startsWith('├'))).toBe(false)
+    expect(rows.find(r => r.startsWith('╭─ CONTEXT'))).toMatch(/ ─+ 62% · 126k \/ 200k ─╮$/)
+    for (const r of rows) if (r) expect(visibleLength([{ text: r, color: '' }])).toBe(w)
   }
 })
 
 test('plan rows: active first, then pending, then the last three done and a count of the rest', async () => {
   const m = base({ plan: [...plan(12, 'completed'), { id: '13', title: 'Writing speech', status: 'in_progress', active: 'Writing the speech' }, ...plan(2, 'pending', 13)] })
   const rows = text(tabRows(m, T, view, 60, false, 0))
-  expect(rows.slice(1, 8)).toEqual(['  ◉ Writing the speech', '  ○ pending 14', '  ○ pending 15', '  ✓ completed 10', '  ✓ completed 11', '  ✓ completed 12', '    +9 more done'])
-  expect(rows[0]).toMatch(/12\/15$/)
+  expect(rows.slice(1, 8).map(inside)).toEqual(['◉ Writing the speech', '○ pending 14', '○ pending 15', '✓ completed 10', '✓ completed 11', '✓ completed 12', '  +9 more done'])
+  expect(rows[0]).toMatch(/ 12\/15 ─╮$/)
 })
 
 test('the sparkline is bounded by the width and counts compactions and the peak', async () => {
@@ -101,7 +102,7 @@ test('the sparkline is bounded by the width and counts compactions and the peak'
     expect(line).toContain('peak 99%')
   }
   const wide = text(tabRows(base({ ctxHistory: [10, 40, 64], ctxPeak: 64, compactions: 1 }), T, view, 90, false, 0)).find(r => r.includes('over this session'))!
-  expect(wide).toBe('  over this session  ▁▄▆  peak 64% · compacted 1×')
+  expect(wide).toMatch(/^│ over this session ▁▄▆ +peak 64% · compacted 1× │$/)
   expect(sparkline([0, 50, 100])).toBe('▁▅█')
   expect(text(tabRows(base(), T, view, 60, false, 0)).some(r => r.includes('over this session'))).toBe(false)
 })

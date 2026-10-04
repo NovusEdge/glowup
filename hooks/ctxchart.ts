@@ -65,11 +65,6 @@ export function stackBar(cats: Cat[], maxTokens: number | undefined, percent: nu
   return { segs, slices }
 }
 
-// The bar with its end caps, `width` cells in all.
-export function capped(s: Stack, t: Theme): Seg[] {
-  return [{ text: ' ▕', color: t.colors.faint }, ...s.segs, { text: '▏', color: t.colors.faint }]
-}
-
 // Legend items packed into rows of at most `width` cells.
 export function legendRows(slices: Slice[], width: number, t: Theme): Seg[][] {
   const rows: Seg[][] = [], gap: Seg = { text: '   ', color: t.colors.text }

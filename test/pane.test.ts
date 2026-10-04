@@ -2,6 +2,7 @@ import { test, expect } from 'claude-code/testing'
 import { tabRows, statusRows, renderPane, section, BOX, MIN_BOX, COMPACT_ROWS, petStripCols, bubbleBox, type TabId } from '../hooks/pane.tsx'
 import { CLAWD_SAY } from '../hooks/bubbles.ts'
 import { resolveLook, BORDERS } from '../hooks/packs.ts'
+import { PACKS } from '../hooks/packpresets.ts'
 import { visibleLength } from '../hooks/layout.tsx'
 import { initialModel, type Model } from '../hooks/model.ts'
 import { resolveTheme } from '../hooks/themes.ts'
@@ -51,13 +52,45 @@ test('agents tab is one box: status, time, tokens and current tool, entries one 
   expect(rows.filter(r => inside(r) === '')).toHaveLength(1)
 })
 
-test('plan tab shows checklist, context bar and breakdown', async () => {
+test('plan tab is two boxes, PLAN and CONTEXT, one blank row apart, no loose divider', async () => {
   const rows = text(tabRows(M, T, { tab: 'plan', categories: [{ name: 'Messages', tokens: 60000, kind: 'used' }, { name: 'System tools', tokens: 20000, kind: 'used' }], maxTokens: 200000 }, 54, false, 0))
-  expect(rows[0]).toMatch(/^ PLAN ─+ 1\/3$/)
-  expect(rows).toContain('  ✓ Find it')
-  expect(rows).toContain('  ◉ Patch it')
-  expect(rows.some(r => r.startsWith(' CONTEXT') && r.endsWith('64% · 80k / 200k'))).toBe(true)
+  expect(rows[0]).toMatch(/^╭─ PLAN ─+ 1\/3 ─╮$/)
+  expect(rows.map(inside)).toContain('✓ Find it')
+  expect(rows.map(inside)).toContain('◉ Patch it')
+  const end = rows.findIndex(r => r.startsWith('╰'))
+  expect(rows[end + 1]).toBe('')
+  expect(rows[end + 2]).toMatch(/^╭─ CONTEXT ─+ 64% · 80k \/ 200k ─╮$/)
+  expect(inside(rows[end + 3]!)).toMatch(/^█+░+$/)
+  expect(cellsOf(inside(rows[end + 3]!))).toBe(50)
   expect(rows.some(r => r.includes('messages 30%') && r.includes('tools 10%'))).toBe(true)
+  expect(rows.some(r => r.startsWith('├'))).toBe(false)
+  for (const r of rows) if (r) expect(cellsOf(r)).toBe(54)
+})
+
+test('plan tab is boxed in every border style and every built-in pack fits the pane', async () => {
+  for (const border of BORDERS)
+    for (const w of [16, 40, 60, 90]) {
+      const rows = text(tabRows({ ...M, ctxHistory: [10, 40, 64], ctxPeak: 64, compactions: 1 }, T, { tab: 'plan', categories: [{ name: 'メッセージ', tokens: 5, kind: 'used' }], maxTokens: 10 }, w, false, 0, COMPACT_ROWS, border))
+      // tl + h + ' ' matches only a top edge: under classic, tl and bl are both '+'
+      expect(rows.filter(r => r.startsWith(BOX[border].tl + BOX[border].h + ' ')), `${border} ${w}`).toHaveLength(2)
+      for (const r of rows) if (r) expect(cellsOf(r), `${border} ${w}`).toBe(w)
+    }
+  for (const name of Object.keys(PACKS)) {
+    const look = resolveLook({ colors: name, motion: name }, {}, {}).look
+    for (const tab of ['changes', 'agents', 'plan'] as const)
+      for (const width of [40, 54, 80]) {
+        const rows = textRows(renderPane(els, M, T, { tab }, width, false, 0, () => {}, { look }))
+        expect(rows.some(r => r.startsWith(BOX[look.border].tl)), `${name} ${tab} ${width}`).toBe(true)
+        for (const r of rows) expect(cellsOf(r), `${name} ${tab} ${width}`).toBeLessThanOrEqual(width)
+      }
+  }
+})
+
+test('the trend row sits inside CONTEXT with peak and compactions flush right, even with no samples', async () => {
+  const rows = text(tabRows({ ...M, ctxHistory: [], ctxPeak: 40, compactions: 2 }, T, { tab: 'plan' }, 60, false, 0))
+  const trend = rows.find(r => r.includes('peak'))!
+  expect(trend).toMatch(/peak 40% · compacted 2× │$/)
+  expect(cellsOf(trend)).toBe(60)
 })
 
 test('every row fits its width in cells, full and compact, CJK names included', async () => {
@@ -125,10 +158,10 @@ test('context breakdown draws only used categories, biggest first', async () => 
 
 test('context warning names the biggest used category, falls back to the percent, and is absent below 70', async () => {
   const withCats = planView(75, CATS)
-  expect(withCats).toContain('  ! messages is the biggest share')
+  expect(withCats.map(inside)).toContain('! messages is the biggest share')
   expect(withCats.join('\n')).not.toContain('Free space')
-  expect(planView(75)).toContain('  ! context 75% used')
-  expect(planView(75, [{ name: 'Free space', tokens: 9, kind: 'free' }])).toContain('  ! context 75% used')
+  expect(planView(75).map(inside)).toContain('! context 75% used')
+  expect(planView(75, [{ name: 'Free space', tokens: 9, kind: 'free' }]).map(inside)).toContain('! context 75% used')
   expect(planView(69, CATS).some(r => r.includes('!'))).toBe(false)
 })
 
