@@ -11,8 +11,10 @@ const NONE = '__none__'
 
 const WORD: Record<string, string> = { '▸': 'reading', '⌕': 'searching', '✎': 'editing', $: 'running', '◆': 'delegating', '✗': 'failing', '✓': 'passing', '!': 'waiting' }
 
-export function statusText(m: Model, _t: Theme): string | undefined {
-  if (!isBusy(m) && !m.ctxPercent) return undefined
+// A fresh session still gets a line: with no file the script would fall back to
+// the person's old command until the first turn reports context.
+export function statusText(m: Model, _t: Theme): string {
+  if (!isBusy(m) && !m.ctxPercent) return '◆ idle'
   const word = m.working ? (Object.hasOwn(WORD, m.act.glyph) ? WORD[m.act.glyph]! : 'thinking') : agentsRunning(m) ? 'delegating' : 'idle'
   return `◆ ${word} · ctx ${m.ctxPercent}%`
 }

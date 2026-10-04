@@ -118,7 +118,7 @@ test('accepting the question takes over', async () => {
 
 test('status text', async () => {
   const T = resolveTheme('classic', {}).theme
-  expect(statusText(initialModel(), T)).toBeUndefined()
+  expect(statusText(initialModel(), T)).toBe('◆ idle')
   expect(statusText({ ...initialModel(), working: true, ctxPercent: 48, act: { glyph: '✎', label: 'Editing a.ts', tone: 'edit' } }, T)).toBe('◆ editing · ctx 48%')
 })
 
