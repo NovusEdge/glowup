@@ -20,8 +20,8 @@ A [theme](themes.md) is the palette inside a pack's colors layer. You can keep u
 | --- | --- |
 | `classic` | Claude Code as it ships. The default. Nothing is restyled. |
 | `crt` | Green phosphor on near-black. Retro tags on rows, a comet spinner, no shimmer. |
-| `cozy` | Warm pastels. Rounded cards with a pink-to-cream gradient, an eyes spinner. |
-| `arcade` | Neon on deep purple. Bold pink cards, an HP bar for context, a COMBO tag, a spinner that follows what Claude is doing. |
+| `cozy` | Warm pastels. Rounded cards with a pink-to-cream gradient, side bars without labels, an eyes spinner. |
+| `arcade` | Neon on deep purple. Bold pink cards, `▶` and `◆` markers instead of labels, a `+N XP` tag, an HP bar for context, a COMBO tag, a spinner that follows what Claude is doing. |
 
 ## Use a pack
 
@@ -67,7 +67,8 @@ Packs live in `~/.claude/glowup/packs`, or `$CLAUDE_CONFIG_DIR/glowup/packs` whe
     "border": "bold",               // round | single | double | bold | classic
     "borderColor": "#ff3ec8",
     "gradient": ["#ff3ec8", "#38e8ff"],
-    "extras": { "hp": true, "combo": true }
+    "extras": { "hp": true, "combo": true },
+    "rowFlags": { "labels": false, "markers": true, "xp": true }
   },
   "motion": {
     "spinner": "orb-states",        // stock | comet | eyes | orb-states | clawd | shimmer
@@ -140,13 +141,23 @@ A row style changes how your prompts, Claude's replies and tool calls look in th
 | Style | Your prompt | Claude's reply | Tool call |
 | --- | --- | --- | --- |
 | `classic` | Claude Code's | Claude Code's | Claude Code's, plus the theme's kind glyph |
-| `cards` | An accent side bar `▎` and a `you` label | A dim side bar, and a `claude` label on the first block of a reply | A dim bordered card with a mark: `✓`, `✗`, `■` for interrupted, `…` while running |
+| `cards` | An accent side bar `▎` and a `you` label (see the flags below) | A dim side bar, and a `claude` label on the first block of a reply | A dim bordered card with a mark: `✓`, `✗`, `■` for interrupted, `…` while running |
 | `minimal` | A `› text` line | Claude Code's | A dim one-line `· Read src/auth.ts` once it finishes cleanly |
 | `retro` | A `[YOU]` tag on its own line above your prompt | A `[CLAUDE]` tag on the first block | A `[READ  ]`-style tag, then `[ OK ]`, `[FAIL]`, `[STOP]` or `[....]` |
 
 Every style except `classic` also leaves a one-column margin on the left of each row, so the transcript does not touch the window edge.
 
 Only your own prompts are styled. Notifications and messages from other agents keep Claude Code's drawing, as do prompts you expand with ctrl+o or `--verbose`. The folded "Read 3 files" line and tool progress are left alone. In non-fullscreen mode, rows already printed to scrollback keep the style they had when printed.
+
+Three row flags, in `colors.rowFlags`, adjust how message rows look. Each is `true` or `false`.
+
+| Flag | Default | Effect |
+| --- | --- | --- |
+| `labels` | `true` | The `you` and `claude` labels in `cards`, and `[YOU]` and `[CLAUDE]` in `retro`. `false` removes them. |
+| `markers` | `false` | In `cards`, your prompt starts with `▶ ` in the accent color and Claude's reply with `◆ ` in the `read` color, instead of the side bar. Later blocks of one reply are indented to line up. |
+| `xp` | `false` | In `cards`, a `+N XP` tag in the `edit` color, right-aligned on its own line above Claude's reply. N is the combo count when that reply first drew: the successful tool calls in a row this turn. It is left out at 0. |
+
+`cozy` sets `labels` to `false` and keeps its bars. `arcade` sets all three: no labels, glyph markers, and the XP tag.
 
 The extras are two optional bits of the colors layer:
 

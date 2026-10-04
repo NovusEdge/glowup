@@ -23,8 +23,10 @@ const bar = (n: any) => walk(n).find(x => x.type === 'Text' && x.children?.[0] =
 const bordered = (n: any) => walk(n).some(x => x.props?.borderStyle)
 const asst = (first = true): RowInput => ({ site: 'AssistantMessage', isFirstOfReply: first })
 
+const withFlags = (l: Look, f: Partial<Look['rowFlags']>): Look => ({ ...l, rowFlags: { ...l.rowFlags, ...f } })
+
 test('cards: messages have no box, a side bar in accent (you) or faint (claude), accent label', async () => {
-  const l: Look = { ...look('arcade'), gradient: undefined }
+  const l: Look = { ...withFlags(look('arcade'), { labels: true, markers: false, xp: false }), gradient: undefined }
   const u = styleRow(els, l, user(), ENGINE)
   expect(bordered(u)).toBe(false)
   expect(bar(u).props.color).toBe(l.theme.colors.accent)
@@ -54,9 +56,55 @@ test('cards: tool results stay indented 2', async () => {
 })
 
 test('cards: claude label only on the first block of a reply', async () => {
-  const l = look('cozy')
+  const l = withFlags(look('cozy'), { labels: true })
   expect(text(styleRow(els, l, { site: 'AssistantMessage', isFirstOfReply: true }, ENGINE))).toContain('claude')
   expect(text(styleRow(els, l, { site: 'AssistantMessage', isFirstOfReply: false }, ENGINE))).not.toContain('claude')
+})
+
+test('cozy keeps its bars and drops the you and claude labels', async () => {
+  const l = look('cozy')
+  expect(l.rowFlags).toEqual({ labels: false, markers: false, xp: false })
+  const u = styleRow(els, l, user(), ENGINE)
+  const a = styleRow(els, l, asst(), ENGINE)
+  expect(text(u)).toBe('▎ ')
+  expect(bar(u).props.color).toBe(l.theme.colors.accent)
+  expect(text(a)).toBe('▎ ')
+  expect(bar(a).props.color).toBe(l.theme.colors.faint)
+})
+
+test('arcade: a pink triangle marks your prompt, a cyan diamond marks the reply, no labels and no bars', async () => {
+  const l = look('arcade')
+  const c = l.theme.colors
+  const u = styleRow(els, l, user(), ENGINE)
+  expect(text(u)).toBe('▶ ')
+  expect(walk(u).find(x => x.type === 'Text')?.props.color).toBe(c.accent)
+  expect(bar(u)).toBeUndefined()
+  expect(hasEngine(u)).toBe(true)
+  const a = styleRow(els, l, asst(), ENGINE)
+  expect(text(a)).toBe('◆ ')
+  expect(walk(a).find(x => x.type === 'Text')?.props.color).toBe(c.read)
+  expect(bar(a)).toBeUndefined()
+  expect(bordered(a)).toBe(false)
+  expect(text(styleRow(els, l, asst(false), ENGINE))).toBe('  ')
+})
+
+test('arcade: +N XP sits above the first block of a reply, right-aligned with flex only, and is left out at 0', async () => {
+  const l = look('arcade')
+  const a = styleRow(els, l, { site: 'AssistantMessage', isFirstOfReply: true, xp: 4 }, ENGINE)
+  expect(text(a)).toBe('+4 XP◆ ')
+  const tag = walk(a).find(x => x.type === 'Text' && text(x) === '+4 XP')
+  expect(tag.props.color).toBe(l.theme.colors.edit)
+  const row = walk(a).find(x => x.type === 'Box' && x.children?.includes(tag))
+  expect([row.props.flexDirection, row.props.justifyContent, row.props.width, row.props.minWidth]).toEqual(['row', 'flex-end', undefined, undefined])
+  expect(text(styleRow(els, l, { site: 'AssistantMessage', isFirstOfReply: true, xp: 0 }, ENGINE))).toBe('◆ ')
+  expect(text(styleRow(els, l, { site: 'AssistantMessage', isFirstOfReply: false, xp: 4 }, ENGINE))).toBe('  ')
+  expect(text(styleRow(els, look('cozy'), { site: 'AssistantMessage', isFirstOfReply: true, xp: 4 }, ENGINE))).not.toContain('XP')
+})
+
+test('retro: labels off drops [YOU] and [CLAUDE]', async () => {
+  const l = withFlags(look('crt'), { labels: false })
+  expect(text(styleRow(els, l, user(), ENGINE))).toBe('')
+  expect(text(styleRow(els, l, asst(), ENGINE))).toBe('')
 })
 
 test('tool marks: done, failed, interrupted, running', async () => {
@@ -113,7 +161,7 @@ test('prefixCards: tool rows also use a faint side bar instead of a border', asy
 })
 
 test('prefixCards leaves message rows as they are without it', async () => {
-  const l = look('arcade')
+  const l = look('cozy')
   expect(bar(styleRow(els, l, user(), ENGINE, { prefixCards: true })).props.color).toBe(l.theme.colors.accent)
   expect(bar(styleRow(els, l, asst(), ENGINE, { prefixCards: true })).props.color).toBe(l.theme.colors.faint)
 })

@@ -145,6 +145,15 @@ async function syncTakeover($: Engine) {
 // when it never goes away; the takeover's status line already says the same.
 const statusEntry = () => !takenOver && isBusy(model) ? statusText(model, theme) : undefined
 
+// The model's combo moves on after a reply is drawn, and the engine redraws old rows on every
+// invalidate, so each reply keeps the count it first drew with.
+const xpByMessage = new Map<string, number>()
+function xpFor(messageId: string, isFirstOfReply: boolean): number | undefined {
+  if (!look.rowFlags.xp || !isFirstOfReply) return undefined
+  if (!xpByMessage.has(messageId)) xpByMessage.set(messageId, model.combo)
+  return xpByMessage.get(messageId)
+}
+
 const petOn = () => pet !== 'off' && !reducedMotion
 
 const PET_KINDS: readonly string[] = ['read', 'search', 'edit', 'shell', 'agent', 'plan']
@@ -379,6 +388,7 @@ async function adoptSession($: Engine, endedId: string) {
   model = initialModel()
   view = { tab: 'changes' }
   bubble = undefined
+  xpByMessage.clear()
   cancelHaiku()
   friday = false
   failed = false
@@ -743,7 +753,7 @@ export const register: Register = (on, options) => {
     if (off) return next(e)
     const row = await next(e)
     if (e.surface !== 'terminal') return row
-    return styleRow($.ui.resolve(e), look, { site: 'AssistantMessage', isFirstOfReply: e.props.isFirstOfReply }, row) as RenderElement
+    return styleRow($.ui.resolve(e), look, { site: 'AssistantMessage', isFirstOfReply: e.props.isFirstOfReply, xp: xpFor(e.requestId, e.props.isFirstOfReply) }, row) as RenderElement
   })
   on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
     if (off) return next(e)

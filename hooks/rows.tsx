@@ -8,7 +8,7 @@ export type RowInput =
   | { site: 'ToolUse'; tool: string; input: unknown; isRunning: boolean; isErrored: boolean; isInterrupted: boolean }
   | { site: 'ToolResult' }
   | { site: 'UserMessage'; text: string; isExpanded: boolean; own: boolean }
-  | { site: 'AssistantMessage'; isFirstOfReply: boolean }
+  | { site: 'AssistantMessage'; isFirstOfReply: boolean; xp?: number }
 
 type Els = { Box: any; Text: any }
 
@@ -44,6 +44,16 @@ function card({ Box, Text }: Els, look: Look, direction: 'row' | 'column', kids:
   return <Box flexDirection={direction} borderStyle={look.border} borderColor={color} paddingX={1}>{kids}</Box>
 }
 
+// A glyph marker replaces the bar: the glyph column keeps the body aligned on every block of a reply.
+function marked({ Box, Text }: Els, mark: string, color: string, kids: unknown[]) {
+  return <Box flexDirection="row"><Text color={color}>{mark}</Text><Box flexDirection="column">{kids}</Box></Box>
+}
+
+// Right-aligned with flex alone: the engine refuses width props on an ancestor of its node, and this box is a sibling, not one.
+function xpTag({ Box, Text }: Els, xp: number, color: string) {
+  return <Box flexDirection="row" justifyContent="flex-end"><Text color={color}>{`+${xp} XP`}</Text></Box>
+}
+
 export function styleRow(els: Els, look: Look, row: RowInput, engine: unknown, opts: { prefixCards?: boolean } = {}): unknown {
   const out = draw(els, look, row, engine, opts)
   if (look.rows === 'classic') return out
@@ -73,8 +83,14 @@ function draw(els: Els, look: Look, row: RowInput, engine: unknown, opts: { pref
           const m = mark(look, row, MARKS.cards)
           return card(els, look, 'row', [shrinker(Box, engine), fixed(els, m.color, ' ' + m.mark)], c.faint, opts.prefixCards)
         }
-        if (row.site === 'UserMessage') return card(els, look, 'column', [label(els, 'you', look, c.accent), engine], c.accent, true)
-        return card(els, look, 'column', row.isFirstOfReply ? [label(els, 'claude', look, c.accent), engine] : [engine], c.faint, true)
+        const { labels, markers, xp } = look.rowFlags
+        if (row.site === 'UserMessage') {
+          const kids = labels ? [label(els, 'you', look, c.accent), engine] : [engine]
+          return markers ? marked(els, '▶ ', c.accent, kids) : card(els, look, 'column', kids, c.accent, true)
+        }
+        const kids = row.isFirstOfReply && labels ? [label(els, 'claude', look, c.accent), engine] : [engine]
+        const body = markers ? marked(els, row.isFirstOfReply ? '◆ ' : '  ', c.read, kids) : card(els, look, 'column', kids, c.faint, true)
+        return xp && row.isFirstOfReply && row.xp ? <Box flexDirection="column">{xpTag(els, row.xp, c.edit)}{body}</Box> : body
       }
 
       case 'minimal': {
@@ -87,10 +103,10 @@ function draw(els: Els, look: Look, row: RowInput, engine: unknown, opts: { pref
 
       case 'retro': {
         if (row.site === 'ToolResult') return <Box paddingLeft={3}>{engine}</Box>
-        if (row.site === 'UserMessage') return <Box flexDirection="column">{label(els, '[YOU]', look, c.accent, true)}{engine}</Box>
+        if (row.site === 'UserMessage') return look.rowFlags.labels ? <Box flexDirection="column">{label(els, '[YOU]', look, c.accent, true)}{engine}</Box> : engine
         if (row.site === 'AssistantMessage') {
           const body = <Box paddingLeft={3}>{engine}</Box>
-          return row.isFirstOfReply ? <Box flexDirection="column">{label(els, '[CLAUDE]', look, c.accent, true)}{body}</Box> : body
+          return row.isFirstOfReply && look.rowFlags.labels ?<Box flexDirection="column">{label(els, '[CLAUDE]', look, c.accent, true)}{body}</Box> : body
         }
         const m = mark(look, row, MARKS.retro)
         return <Box flexDirection="row"><Box flexShrink={0}>{label(els, retroTag(row.tool), look, c.accent)}</Box>{shrinker(Box, engine)}{fixed(els, m.color, ' ' + m.mark)}</Box>

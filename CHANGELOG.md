@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Packs can set `colors.rowFlags`: `labels`, `markers` and `xp`, so any pack can drop the `you` and `claude` labels, mark rows with `▶` and `◆`, and show a `+N XP` tag above a reply.
+
+### Changed
+
+- `arcade` marks your prompt with a pink `▶` and Claude's reply with a cyan `◆`, with no labels or bars, and shows `+N XP` above a reply after tool calls succeed.
+- `cozy` keeps its bars and no longer shows the `you` and `claude` labels.
+
 ## [0.3.2] - 2026-10-04
 
 ### Fixed

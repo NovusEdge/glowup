@@ -8,23 +8,25 @@ export const ROW_STYLES = ['classic', 'cards', 'minimal', 'retro'] as const
 export type RowStyle = (typeof ROW_STYLES)[number]
 export const BORDERS = ['round', 'single', 'double', 'bold', 'classic'] as const
 export type Border = (typeof BORDERS)[number]
-export type ColorsLayer = { theme?: string; palette?: Partial<Colors>; bg?: string; rows?: RowStyle; border?: Border; borderColor?: string; gradient?: [string, string]; extras?: { hp?: boolean; combo?: boolean } }
+export type RowFlags = { labels: boolean; markers: boolean; xp: boolean }
+export type ColorsLayer = { theme?: string; palette?: Partial<Colors>; bg?: string; rows?: RowStyle; border?: Border; borderColor?: string; gradient?: [string, string]; extras?: { hp?: boolean; combo?: boolean }; rowFlags?: Partial<RowFlags> }
 // spinner is any well-formed id: a pack made for a later glowup may name one this build lacks
 export type MotionLayer = { spinner?: string; shimmer?: 0 | 1 | 2; color?: string }
 export type PackFile = { format: 1; name: string; extends?: string; description?: string; colors?: ColorsLayer | string; motion?: MotionLayer | string }
 export type Mix = { colors: string; motion: string; theme?: string; spinner?: string }
 export type Look = {
   colorsFrom: string; motionFrom: string; theme: Theme; bg: string; rows: RowStyle; border: Border; borderColor: string
-  gradient?: [string, string]; extras: { hp: boolean; combo: boolean }; motion: { spinner: SpinnerId; shimmer: 0 | 1 | 2; color: string }
+  gradient?: [string, string]; extras: { hp: boolean; combo: boolean }; rowFlags: RowFlags; motion: { spinner: SpinnerId; shimmer: 0 | 1 | 2; color: string }
 }
 export const DEFAULT_MIX: Mix = { colors: 'classic', motion: 'classic' }
 export const MAX_DEPTH = 8
 const FORMAT = 1
 // sound and voice are reserved for later versions: accepted, never read
 export const PACK_KEYS = ['format', 'name', 'extends', 'description', 'colors', 'motion', 'sound', 'voice']
-export const COLORS_KEYS = ['theme', 'palette', 'bg', 'rows', 'border', 'borderColor', 'gradient', 'extras']
+export const COLORS_KEYS = ['theme', 'palette', 'bg', 'rows', 'border', 'borderColor', 'gradient', 'extras', 'rowFlags']
 export const MOTION_KEYS = ['spinner', 'shimmer', 'color']
 export const EXTRAS_KEYS = ['hp', 'combo']
+export const ROW_FLAG_KEYS = ['labels', 'markers', 'xp']
 export const isNewerSpinner = (e: string) => /^spinner ".*" needs a newer glowup/.test(e)
 const HEX = /^#[0-9a-fA-F]{6}$/
 const SPINNER_SHAPE = /^[a-z][a-z0-9-]{0,23}$/
@@ -68,6 +70,10 @@ function checkColors(v: unknown): void {
     if (!isPlain(v.extras)) throw new Error('colors.extras must be an object of hp and combo booleans')
     for (const [k, b] of Object.entries(v.extras)) if (!EXTRAS_KEYS.includes(k) || typeof b !== 'boolean') throw new Error('colors.extras takes only hp and combo, as true or false')
   }
+  if (v.rowFlags !== undefined) {
+    if (!isPlain(v.rowFlags)) throw new Error('colors.rowFlags must be an object of labels, markers and xp booleans')
+    for (const [k, b] of Object.entries(v.rowFlags)) if (!ROW_FLAG_KEYS.includes(k) || typeof b !== 'boolean') throw new Error('colors.rowFlags takes only labels, markers and xp, as true or false')
+  }
 }
 
 function checkMotion(v: unknown): void {
@@ -88,7 +94,7 @@ export function validatePack(file: unknown): asserts file is PackFile {
 
 const merge = (a: Layer, b: Layer): Layer => {
   const out: Layer = { ...a, ...b }
-  for (const k of ['palette', 'extras']) if (a[k] || b[k]) out[k] = { ...(a[k] as object), ...(b[k] as object) }
+  for (const k of ['palette', 'extras', 'rowFlags']) if (a[k] || b[k]) out[k] = { ...(a[k] as object), ...(b[k] as object) }
   return out
 }
 
@@ -110,7 +116,7 @@ function collect(name: string, kind: 'colors' | 'motion', user: Record<string, u
   return acc
 }
 
-type ColorsOut = Pick<Look, 'theme' | 'bg' | 'rows' | 'border' | 'borderColor' | 'gradient' | 'extras'>
+type ColorsOut = Pick<Look, 'theme' | 'bg' | 'rows' | 'border' | 'borderColor' | 'gradient' | 'extras' | 'rowFlags'>
 
 function colorsOf(layer: ColorsLayer, override: string | undefined, userThemes: Record<string, unknown>): ColorsOut {
   const { theme: base, error } = resolveTheme(override ?? layer.theme ?? 'classic', userThemes)
@@ -124,6 +130,7 @@ function colorsOf(layer: ColorsLayer, override: string | undefined, userThemes: 
     border: layer.border ?? 'round',
     gradient: layer.gradient ? (override ? [colors.accent, colors.read] : layer.gradient) : undefined,
     extras: { hp: layer.extras?.hp ?? false, combo: layer.extras?.combo ?? false },
+    rowFlags: { labels: layer.rowFlags?.labels ?? true, markers: layer.rowFlags?.markers ?? false, xp: layer.rowFlags?.xp ?? false },
   }
 }
 
@@ -164,7 +171,7 @@ export function resolveLook(mix: Mix, userPacks: Record<string, unknown>, userTh
 // A mix based on a user theme exports only built-in theme names: that theme's glyphs and spinner words are not carried.
 export function exportMix(look: Look, name: string): PackFile {
   const colors: ColorsLayer = {
-    palette: { ...look.theme.colors }, bg: look.bg, rows: look.rows, border: look.border, borderColor: look.borderColor, extras: { ...look.extras },
+    palette: { ...look.theme.colors }, bg: look.bg, rows: look.rows, border: look.border, borderColor: look.borderColor, extras: { ...look.extras }, rowFlags: { ...look.rowFlags },
   }
   if (Object.hasOwn(PRESETS, look.theme.name)) colors.theme = look.theme.name
   if (look.gradient) colors.gradient = [...look.gradient]

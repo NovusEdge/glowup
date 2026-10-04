@@ -31,6 +31,10 @@ A pack is a JSON file at `~/.claude/glowup/packs/<name>.json` (`$CLAUDE_CONFIG_D
 | `extras` | object | Optional extras, below. |
 | `extras.hp` | `true`, `false` | Show an HP bar for context instead of hearts. Default `false`. |
 | `extras.combo` | `true`, `false` | Show `COMBO x3` after three tool calls in a row succeed. Default `false`. |
+| `rowFlags` | object | How message rows are drawn, below. Only `cards` uses `markers` and `xp`; `cards` and `retro` use `labels`. |
+| `rowFlags.labels` | `true`, `false` | Show the `you` and `claude` labels (`[YOU]` and `[CLAUDE]` in `retro`). Default `true`. |
+| `rowFlags.markers` | `true`, `false` | In `cards`, mark your prompt with `▶ ` in `accent` and Claude's reply with `◆ ` in `read`, instead of the side bar. Default `false`. |
+| `rowFlags.xp` | `true`, `false` | In `cards`, draw `+N XP` right-aligned above a reply, N being the successful tool calls in a row so far this turn. Left out at 0, in `edit` color. Default `false`. |
 
 ## Motion layer
 

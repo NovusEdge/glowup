@@ -24,6 +24,7 @@ test('arcade carries the mockup values', async () => {
   expect([l.rows, l.border, l.bg, l.borderColor]).toEqual(['cards', 'bold', '#1a0b33', '#ff3ec8'])
   expect(l.gradient).toEqual(['#ff3ec8', '#38e8ff'])
   expect(l.extras).toEqual({ hp: true, combo: true })
+  expect(l.rowFlags).toEqual({ labels: false, markers: true, xp: true })
   expect(l.motion).toEqual({ spinner: 'orb-states', shimmer: 2, color: '#38e8ff' })
 })
 
@@ -51,6 +52,12 @@ test('extends and layer references', async () => {
   const user = { mine: { format: 1, name: 'mine', extends: 'cozy', colors: { rows: 'retro' }, motion: 'crt' } }
   const l = look(pack('mine'), user).look
   expect([l.rows, l.gradient?.[0], l.motion.spinner]).toEqual(['retro', '#f4a6b8', 'comet'])
+})
+
+test('row flags default to labels on, and a user pack can set them over an extends chain', async () => {
+  expect(look(pack('classic')).look.rowFlags).toEqual({ labels: true, markers: false, xp: false })
+  const user = { mine: { format: 1, name: 'mine', extends: 'arcade', colors: { rowFlags: { markers: false } } } }
+  expect(look(pack('mine'), user).look.rowFlags).toEqual({ labels: false, markers: false, xp: true })
 })
 
 test('a bad layer falls back alone, with its reason', async () => {
@@ -82,6 +89,8 @@ test('validation refuses bad values', async () => {
     [{ format: 1, name: 'x', colors: { border: 'dotted' } }, 'border'],
     [{ format: 1, name: 'x', colors: { gradient: ['#ffffff'] } }, 'gradient'],
     [{ format: 1, name: 'x', colors: { extras: { hp: 'yes' } } }, 'extras'],
+    [{ format: 1, name: 'x', colors: { rowFlags: { labels: 'no' } } }, 'rowFlags'],
+    [{ format: 1, name: 'x', colors: { rowFlags: { sparkle: true } } }, 'rowFlags'],
     [{ format: 1, name: 'x', motion: { spinner: 'Disco Ball' } }, 'spinner'],
     [{ format: 1, name: 'x', motion: { shimmer: 3 } }, 'shimmer'],
     [{ format: 1, name: 'x', wobble: true }, 'unknown key'],
