@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-04
+
 ### Added
 
 - A one-line installer: `curl -fsSL https://glowup.khimani.dev/install.sh | sh`. It previews each pack while you pick a pack, a pet and extras, then installs the mod with `claude plugin`. Each release now carries the installer for Linux and macOS, and a Windows download.
