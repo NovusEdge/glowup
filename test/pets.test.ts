@@ -52,8 +52,8 @@ test('working and fail play their own animations and switch at exit frames', asy
 
 test('a long idle falls asleep, work wakes him', async () => {
   const base = { working: false, needsYou: false, actAt: 1000 }
-  expect(petPose(base, 1000 + 9 * 60_000)).toBe('idle')
-  expect(petPose(base, 1000 + 10 * 60_000)).toBe('sleep')
+  expect(petPose(base, 1000 + 59_000)).toBe('idle')
+  expect(petPose(base, 1000 + 60_000)).toBe('sleep')
   expect(petPose({ ...base, working: true }, 1000 + 20 * 60_000)).toBe('walk')
   expect(petPose({ ...base, needsYou: true }, 1000 + 20 * 60_000)).toBe('alert')
 })

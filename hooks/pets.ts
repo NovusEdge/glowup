@@ -40,7 +40,7 @@ export const OUTFIT_PAD = 4
 export const CLAWD_ROW = '▐▛█▜▌'
 
 const ALERT_MS = 1500, HOP_MS = 1200, DONE_MS = 1500
-export const SLEEP_MS = 10 * 60_000
+export const SLEEP_MS = 60_000
 // the longest a pose change waits for an exit frame
 export const EXIT_WAIT_MS = 300
 

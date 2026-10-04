@@ -38,7 +38,7 @@ glowup cannot hide Claude Code's own task list. The Plan & context tab shows the
 | A test fails | Sags and sweats. |
 | Claude needs you, for example to approve a tool | Startles, with a `!` beside him. |
 | A turn ends | Does a little dance. |
-| Ten minutes with nothing happening | Falls asleep. |
+| One minute with nothing happening | Falls asleep. |
 
 On a Friday after 15:00, when Claude runs a deploy command, Clawd puts on a sweat outfit.
 

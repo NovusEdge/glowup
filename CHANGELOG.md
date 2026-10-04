@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Clawd now falls asleep after one minute with nothing happening, not ten.
+
 ## [0.2.1] - 2026-10-04
 
 ### Fixed
