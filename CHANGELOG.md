@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The installer's pack list no longer disappears in xterm: unselected packs were drawn in a fixed light gray that matched xterm's white background. They now use the terminal's own text color.
+- The installer no longer drops to 16 colors under `TERM=xterm`, which turned the preview pure blue, red and magenta. It uses 256 colors, or 24-bit when xterm says it has them.
+
 ## [0.3.3] - 2026-10-04
 
 ### Added

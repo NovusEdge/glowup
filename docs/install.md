@@ -43,6 +43,12 @@ curl -fsSL https://glowup.khimani.dev/install.sh | sh -s -- --yes --pack crt
 
 Set `GLOWUP_VERSION=v0.3.0` to use that release's installer instead of the latest.
 
+### Terminals
+
+The installer's picker was tested in Konsole, kitty, ghostty, alacritty and xterm. It uses 24-bit color where the terminal says it has it, and at least 256 colors under `TERM=xterm`. `NO_COLOR` turns color off.
+
+xterm draws block characters from its font instead of building them itself, so Clawd shows gaps in it. Use a font with the Block Elements range, such as DejaVu Sans Mono. kitty, ghostty and alacritty draw the blocks themselves.
+
 ### Install by hand
 
 In Claude Code, run:
