@@ -1,6 +1,9 @@
-// Writes every Clawd frame as SVG and PNG under docs/assets/clawd/, plus one
-// sprite-sheet PNG per animation. Run: node scripts/export-clawd.ts [scale]
+// Writes every Clawd frame as SVG and PNG under docs/assets/clawd/, one
+// sprite-sheet PNG per animation, and (with ffmpeg on PATH) each animation as
+// an MP4 on a dark background and a WebM with transparency, timed by each
+// frame's ms. Run: node scripts/export-clawd.ts [scale]
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { deflateSync } from 'node:zlib'
 import { CLAWD_SHEET } from '../hooks/sprites/clawd.ts'
 
@@ -44,6 +47,21 @@ function png(frames: string[][], pal: Record<string, string>) {
 const sets: [string, Record<string, { frames: Frame[] }>][] = [['', CLAWD_SHEET.animations], ['transitions/', CLAWD_SHEET.transitions ?? {}]]
 const variants: [string, Record<string, string>][] = [['', CLAWD_SHEET.palette], ['shiny/', { ...CLAWD_SHEET.palette, ...CLAWD_SHEET.shiny }]]
 
+const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0
+// Looping animations play three times so a short clip still reads as a loop.
+function video(dir: string, anim: { loop?: boolean; frames: Frame[] }) {
+  const reps = anim.loop ? 3 : 1, list: string[] = []
+  for (let r = 0; r < reps; r++) anim.frames.forEach((f, i) => list.push(`file '${String(i).padStart(2, '0')}.png'`, `duration ${f.ms / 1000}`))
+  // the concat demuxer ignores the last duration unless the last file repeats
+  list.push(list[list.length - 2]!)
+  writeFileSync(`${dir}frames.txt`, list.join('\n') + '\n')
+  const base = ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', 'frames.txt']
+  const mp4 = spawnSync('ffmpeg', [...base, '-f', 'lavfi', '-i', 'color=c=0x1e1e1e:s=16x16', '-filter_complex', '[1][0]scale2ref[bg][fg];[bg][fg]overlay=shortest=1,fps=30,format=yuv420p', '-c:v', 'libx264', '-crf', '18', '-movflags', '+faststart', 'clip.mp4'], { cwd: dir })
+  const webm = spawnSync('ffmpeg', [...base, '-vf', 'fps=30,format=yuva420p', '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '20', '-auto-alt-ref', '0', 'clip.webm'], { cwd: dir })
+  rmSync(`${dir}frames.txt`)
+  for (const r of [mp4, webm]) if (r.status !== 0) throw new Error(`ffmpeg failed in ${dir}: ${r.stderr}`)
+}
+
 rmSync(OUT, { recursive: true, force: true })
 let count = 0
 for (const [vdir, pal] of variants) for (const [sdir, anims] of sets) for (const [name, anim] of Object.entries(anims)) {
@@ -56,5 +74,6 @@ for (const [vdir, pal] of variants) for (const [sdir, anims] of sets) for (const
     count++
   })
   writeFileSync(`${dir}sheet.png`, png(anim.frames.map(f => f.px), pal))
+  if (hasFfmpeg) video(dir, anim)
 }
-console.log(`wrote ${count} frames to ${OUT} at ${scale}x`)
+console.log(`wrote ${count} frames to ${OUT} at ${scale}x${hasFfmpeg ? ', with clip.mp4 and clip.webm per animation' : '; no ffmpeg, so no video'}`)

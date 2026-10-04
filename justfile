@@ -31,6 +31,11 @@ dev *args:
 clawd-export scale="16":
     node scripts/export-clawd.ts {{scale}}
 
+# cut the exported clips into captioned square and wide reels for social posts
+[group('dev')]
+clawd-reel: clawd-export
+    node scripts/clawd-reel.ts
+
 # add this checkout as a marketplace and install the mod from it
 [group('install')]
 install:
