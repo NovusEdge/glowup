@@ -43,7 +43,8 @@ if command -v curl >/dev/null 2>&1; then
 	final_url() { curl -fsSL -o /dev/null -w '%{url_effective}' "$1"; }
 elif command -v wget >/dev/null 2>&1; then
 	fetch() { wget -q -O "$2" "$1"; }
-	final_url() { wget -S --spider "$1" 2>&1 | sed -n 's/^ *[Ll]ocation: *//p' | tail -n 1 | tr -d '\r'; }
+	# GNU wget ends the Location line with " [following]"; busybox wget does not. Both print headers on stderr.
+	final_url() { wget -S --spider "$1" 2>&1 | sed -n 's/^ *[Ll]ocation: *//p' | tail -n 1 | tr -d '\r' | sed 's/ *\[following\]$//'; }
 else
 	die "this script needs curl or wget"
 fi
@@ -64,14 +65,16 @@ fi
 archive="glowup-installer_${tag}_${os}_${arch}.tar.gz"
 tmp="$(mktemp -d 2>/dev/null || mktemp -d -t glowup)"
 trap 'rm -rf "$tmp"' EXIT
-trap 'exit 130' INT TERM
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 say "Downloading the glowup installer $tag for $os/$arch..."
 fetch "$base/download/$tag/$archive" "$tmp/$archive" || die "could not download $archive from $base/download/$tag/"
 fetch "$base/download/$tag/checksums.txt" "$tmp/checksums.txt" || die "could not download checksums.txt for $tag"
 
 # Check only our archive's line: checksums.txt also lists the other platforms'.
-grep " $archive\$" "$tmp/checksums.txt" >"$tmp/want.txt" || die "checksums.txt has no entry for $archive"
+awk -v f="$archive" '$2 == f || $2 == "*" f { print $1 "  " f }' "$tmp/checksums.txt" >"$tmp/want.txt"
+[ -s "$tmp/want.txt" ] || die "checksums.txt has no entry for $archive"
 if command -v sha256sum >/dev/null 2>&1; then
 	(cd "$tmp" && sha256sum -c want.txt >/dev/null 2>&1) || die "checksum mismatch for $archive. Nothing was installed."
 elif command -v shasum >/dev/null 2>&1; then
