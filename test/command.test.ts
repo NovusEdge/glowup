@@ -19,7 +19,7 @@ test('config opens the config view', async () => {
   expect(USAGE).toContain('/glowup config')
 })
 
-const SETTINGS ='/home/u/.claude/settings.json'
+const SETTINGS = '/home/u/.claude/settings.json'
 
 const ctl = (answer = true, current = 'classic') => {
   const calls: string[] = []
