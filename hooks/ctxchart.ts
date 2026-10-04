@@ -60,7 +60,8 @@ export function stackBar(cats: Cat[], maxTokens: number | undefined, percent: nu
     color: colorsOk ? cols[i]! : t.colors.text, glyph: colorsOk ? '█' : SHADES[i % SHADES.length]!,
   }))
   const segs: Seg[] = slices.filter(s => s.cells > 0).map(s => ({ text: s.glyph.repeat(s.cells), color: s.color }))
-  if (cells.at(-1)) segs.push({ text: '·'.repeat(cells.at(-1)!), color: t.colors.faint })
+  // '░' is one of the fallback shades, so the mono bar keeps dots for free space
+  if (cells.at(-1)) segs.push({ text: (colorsOk ? '░' : '·').repeat(cells.at(-1)!), color: t.colors.faint })
   return { segs, slices }
 }
 
@@ -69,15 +70,14 @@ export function capped(s: Stack, t: Theme): Seg[] {
   return [{ text: ' ▕', color: t.colors.faint }, ...s.segs, { text: '▏', color: t.colors.faint }]
 }
 
-// Legend items packed into rows of at most `width` cells, indented three.
+// Legend items packed into rows of at most `width` cells.
 export function legendRows(slices: Slice[], width: number, t: Theme): Seg[][] {
-  const rows: Seg[][] = []
+  const rows: Seg[][] = [], gap: Seg = { text: '   ', color: t.colors.text }
   let row: Seg[] = []
   for (const s of slices.filter(x => x.cells > 0)) {
     const item: Seg[] = [{ text: s.glyph === '█' ? '● ' : s.glyph + ' ', color: s.color }, { text: `${s.label} ${s.pct}%`, color: t.colors.dim }]
-    const gap: Seg[] = row.length ? [{ text: '  ', color: t.colors.text }] : [{ text: '   ', color: t.colors.text }]
-    if (row.length && visibleLength([...row, ...gap, ...item]) > width) { rows.push(row); row = []; gap[0] = { text: '   ', color: t.colors.text } }
-    row = [...row, ...gap, ...item]
+    if (row.length && visibleLength([...row, gap, ...item]) > width) { rows.push(row); row = [] }
+    row = row.length ? [...row, gap, ...item] : item
   }
   if (row.length) rows.push(row)
   return rows.map(r => fit(r, width))

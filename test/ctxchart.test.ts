@@ -20,12 +20,12 @@ test('stacked bar segments fill the width exactly and match the percentages', as
     const { segs, slices } = stackBar(CATS, MAX, 62, w, T)
     expect(cells(segs), `width ${w}`).toBe(w)
     for (const s of slices) expect(Math.abs(s.cells - (s.pct / 100) * w), `${s.label} at ${w}`).toBeLessThanOrEqual(1.5)
-    const free = segs.filter(s => s.text.startsWith('·')).reduce((n, s) => n + s.text.length, 0)
+    const free = segs.filter(s => s.text.startsWith('░')).reduce((n, s) => n + s.text.length, 0)
     expect(Math.abs(free - (1 - 126000 / MAX) * w)).toBeLessThanOrEqual(1.5)
   }
 })
 
-test('every category gets its own theme-derived color, biggest first, and free space is faint dots', async () => {
+test('every category gets its own theme-derived color, biggest first, and free space is a faint track', async () => {
   for (const name of Object.keys(PRESETS)) {
     const t = resolveTheme(name, {}).theme
     const { segs, slices } = stackBar(CATS, MAX, 62, 60, t)
@@ -34,7 +34,7 @@ test('every category gets its own theme-derived color, biggest first, and free s
     expect(slices.map(s => s.label)).toEqual(['messages', 'tools', 'system', 'memory', 'skills'])
     expect(colors[0], name).toBe(t.colors.read)
     expect(segs.at(-1)).toMatchObject({ color: t.colors.faint })
-    expect(segs.at(-1)!.text).toMatch(/^·+$/)
+    expect(segs.at(-1)!.text).toMatch(/^░+$/)
   }
 })
 
@@ -43,6 +43,7 @@ test('without usable colors the segments fall back to block shades', async () =>
   const { segs, slices } = stackBar(CATS, MAX, 62, 60, mono)
   expect(slices.map(s => s.glyph)).toEqual(['█', '▓', '▒', '░', '█'])
   expect(segs.some(s => s.text.includes('▓'))).toBe(true)
+  expect(segs.at(-1)!.text).toMatch(/^·+$/)
 })
 
 test('more than six categories fold into other; no categories draws one used segment', async () => {
@@ -68,6 +69,8 @@ test('the legend wraps onto more rows when narrow and every row fits', async () 
   expect(narrow.length).toBeGreaterThan(1)
   for (const r of narrow) expect(visibleLength(r)).toBeLessThanOrEqual(30)
   expect(text(narrow).join(' ')).toContain('messages 31%')
+  expect(text(wide)[0]).toMatch(/^● messages 31%   ● tools 18%/)
+  for (const r of text(narrow)) expect(r.startsWith(' ')).toBe(false)
 })
 
 test('the tab has a header rule, a real divider and a context header with tokens', async () => {
