@@ -75,14 +75,14 @@ export function styleRow(els: Els, look: Look, row: RowInput, engine: unknown, o
 
       case 'retro': {
         if (row.site === 'ToolResult') return <Box paddingLeft={9}>{engine}</Box>
-        if (row.site === 'UserMessage') return <Box flexDirection="row"><Text color={c.accent}>{'[YOU] '}</Text><Box flexGrow={1}>{engine}</Box></Box>
+        if (row.site === 'UserMessage') return <Box flexDirection="row">{label(els, '[YOU] ', look, c.accent, true)}<Box flexGrow={1}>{engine}</Box></Box>
         if (row.site === 'AssistantMessage') {
           const body = <Box paddingLeft={9}>{engine}</Box>
-          return row.isFirstOfReply ? <Box flexDirection="column"><Text color={c.accent} bold>{'[CLAUDE]'}</Text>{body}</Box> : body
+          return row.isFirstOfReply ? <Box flexDirection="column">{label(els, '[CLAUDE]', look, c.accent, true)}{body}</Box> : body
         }
         const m = mark(look, row, MARKS.retro)
         const tag = `[${row.tool.toUpperCase().slice(0, 6).padEnd(6)}] `
-        return <Box flexDirection="row"><Text color={c.accent}>{tag}</Text><Box flexGrow={1}>{engine}</Box><Text color={m.color}>{' ' + m.mark}</Text></Box>
+        return <Box flexDirection="row">{label(els, tag, look, c.accent)}<Box flexGrow={1}>{engine}</Box><Text color={m.color}>{' ' + m.mark}</Text></Box>
       }
     }
     return engine

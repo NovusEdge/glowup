@@ -63,6 +63,29 @@ test('a throw inside a style returns the engine element', async () => {
   expect(styleRow(els, broken, tool(), ENGINE)).toBe(ENGINE)
 })
 
+test('retro: bold [YOU] and [CLAUDE] tags, engine indented 9', async () => {
+  const l = look('crt')
+  const u = styleRow(els, l, user(), ENGINE)
+  expect(text(u)).toBe('[YOU] ')
+  expect(walk(u).find(n => n.type === 'Text')?.props.bold).toBe(true)
+  const first = styleRow(els, l, { site: 'AssistantMessage', isFirstOfReply: true }, ENGINE)
+  expect(text(first)).toBe('[CLAUDE]')
+  expect(walk(first).find(n => n.type === 'Text')?.props.bold).toBe(true)
+  const pad = (n: any) => walk(n).find(x => x.props?.paddingLeft)?.props.paddingLeft
+  expect(pad(first)).toBe(9)
+  expect(pad(styleRow(els, l, { site: 'AssistantMessage', isFirstOfReply: false }, ENGINE))).toBe(9)
+  expect(pad(styleRow(els, l, { site: 'ToolResult' }, ENGINE))).toBe(9)
+})
+
+test('prefixCards on tool and assistant rows', async () => {
+  for (const r of [tool(), { site: 'AssistantMessage', isFirstOfReply: true } as RowInput]) {
+    const c = styleRow(els, look('arcade'), r, ENGINE, { prefixCards: true })
+    expect(walk(c).some(n => n.props?.borderStyle)).toBe(false)
+    expect(text(c)).toContain('▎')
+    expect(hasEngine(c)).toBe(true)
+  }
+})
+
 test('prefixCards draws a rule column instead of a border', async () => {
   const card = styleRow(els, look('arcade'), user(), ENGINE, { prefixCards: true })
   expect(walk(card).some(n => n.props?.borderStyle)).toBe(false)
