@@ -133,6 +133,7 @@ async function adoptSession($: Engine, endedId: string) {
 
 function ctlOf($: Engine): Ctl {
   return {
+    current: () => theme.name,
     setTheme: async name => { theme = resolveTheme(name, await loadUserThemes(hostOf($))).theme; redraw($) },
     togglePane: () => togglePane($),
     setMotion: reduced => { reducedMotion = reduced; redraw($) },

@@ -14,6 +14,8 @@ export const USAGE = [
 ].join('\n')
 
 export type Ctl = {
+  // the theme in use, which may come from userConfig rather than the store
+  current(): string
   setTheme(name: string): Promise<void>
   togglePane(): Promise<string>
   setMotion(reduced: boolean): void
@@ -24,7 +26,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   const [sub, a1, a2] = args.trim().split(/\s+/)
   if (sub === 'theme' && a1 === 'list') {
     const names = [...new Set([...Object.keys(PRESETS), ...Object.keys(await loadUserThemes(host))])]
-    const current = String((await host.storeGet('theme')) ?? 'classic')
+    const current = ctl.current()
     return names.map(n => `${n === current ? '●' : '○'} ${n}`).join('\n')
   }
   if (sub === 'theme' && a1 === 'add' && a2) return addTheme(host, a2)

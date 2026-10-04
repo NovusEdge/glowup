@@ -18,7 +18,8 @@ export async function loadUserThemes(host: Host): Promise<Record<string, unknown
 
 export async function addTheme(host: Host, url: string): Promise<string> {
   if (!url.startsWith('https://')) return 'Theme URLs must start with https://'
-  const r = await host.fetchText(url)
+  let r: Awaited<ReturnType<Host['fetchText']>>
+  try { r = await host.fetchText(url) } catch (err) { return `Could not download the theme: ${err instanceof Error ? err.message : String(err)}` }
   if (!r.ok) return `Could not download the theme (HTTP ${r.status}).`
   let file: unknown
   try { file = parseJsonc(r.text) } catch (err) { return (err as Error).message }

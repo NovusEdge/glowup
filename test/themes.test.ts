@@ -57,6 +57,8 @@ test('bad theme falls back to classic with a reason', async () => {
 test('wide ranges and their boundaries', async () => {
   const glyph = (ch: string) => resolveTheme('g', { g: { name: 'g', glyphs: { read: ch } } }).error
   for (const ch of ['豈', '﫿', '︰', '﹏', '￠', '￦', 'ᅟ']) expect(glyph(ch)).toContain('width-1')
+  // the band measures with layout's cellWidth: a zero-width combining mark is no glyph either
+  expect(glyph('́')).toContain('width-1')
   expect(glyph('ᅠ')).toBeUndefined()
   expect(glyph('︯')).toBeUndefined()
   expect(glyph('￧')).toBeUndefined()
@@ -67,6 +69,23 @@ test('glyphs reject control, zero-width and surrogate characters', async () => {
   for (const ch of ['\x00', '\x1b', '\x1f', '\x7f', '\x85', '\x9f', '​', '‏', ' ', '‮', '⁠', '⁯', '﻿', '\ud800', '\udfff']) expect(glyph(ch)).toContain('width-1')
   const hearts = resolveTheme('h', { h: { name: 'h', band: { hearts: ['a', '\x1b'] } } }).error
   expect(hearts).toContain('band.hearts')
+})
+
+test('spinner words reject the same unsafe characters as glyphs, but allow wide ones', async () => {
+  const words = (w: string[]) => resolveTheme('s', { s: { name: 's', spinner: { words: w } } }).error
+  for (const w of ['\u001b[2J', 'a‮b', 'zero​width', 'lone\ud800', 'c1\x85']) expect(words([w])).toContain('spinner.words')
+  expect(words(['漢字', 'Thinking'])).toBeUndefined()
+})
+
+test('error messages strip control characters and cap echoed names', async () => {
+  const key = '\u001b[2J' + 'k'.repeat(100)
+  const err = resolveTheme('x', { x: { name: 'x', colors: { [key]: '#000000' } } }).error!
+  expect(err).not.toContain('\u001b')
+  expect(err).toContain('[2J' + 'k'.repeat(37) + '"')
+  const ext = resolveTheme('y', { y: { name: 'y', extends: 'evil‮' + 'e'.repeat(80) } }).error!
+  expect(ext).not.toContain('‮')
+  expect(ext.length).toBeLessThan(100)
+  expect(resolveTheme('\u001bghost', {}).error).toBe('theme "ghost": no theme named "ghost"')
 })
 
 test('glyphs must be an object with known keys', async () => {

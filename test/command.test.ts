@@ -10,10 +10,11 @@ test('/glowup with no args prints usage', async ($, on) => {
 
 const SETTINGS = '/home/u/.claude/settings.json'
 
-const ctl = (answer = true) => {
+const ctl = (answer = true, current = 'classic') => {
   const calls: string[] = []
   const questions: string[] = []
   const c: Ctl = {
+    current: () => current,
     setTheme: async name => { calls.push('theme:' + name) },
     togglePane: async () => { calls.push('pane'); return 'glowup pane open' },
     setMotion: reduced => { calls.push('motion:' + reduced) },
@@ -46,13 +47,13 @@ test('unknown theme is refused and nothing changes', async () => {
   expect(calls).toEqual([])
 })
 
-test('theme list shows built-ins and user themes and marks the current one', async () => {
-  const { host, store } = fakeHost({ files: { '/home/u/.claude/glowup/themes/mine.json': '{"name":"mine"}' } })
+test('theme list shows built-ins and user themes and marks the active one', async () => {
+  const { host } = fakeHost({ files: { '/home/u/.claude/glowup/themes/mine.json': '{"name":"mine"}' } })
   const out = await runCommand(host, 'theme list', ctl().ctl)
   for (const n of ['classic', 'cyberpunk', 'vaporwave', 'high-contrast', 'mine']) expect(out).toContain(n)
   expect(out).toContain('● classic')
-  store.theme = 'mine'
-  const again = await runCommand(host, 'theme list', ctl().ctl)
+  // the active theme may come from the plugin's userConfig, with nothing in the store
+  const again = await runCommand(host, 'theme list', ctl(true, 'mine').ctl)
   expect(again).toContain('● mine')
   expect(again).toContain('○ classic')
 })

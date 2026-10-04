@@ -27,6 +27,13 @@ test('theme add validates before saving', async () => {
   expect(await addTheme(host, 'file:///etc/passwd')).toContain('https')
 })
 
+test('a failed download (offline, DNS) is reported, not thrown', async () => {
+  const { host, files } = fakeHost()
+  const offline = { ...host, fetchText: async () => { throw new Error('getaddrinfo ENOTFOUND x.dev') } }
+  expect(await addTheme(offline, 'https://x.dev/t.json')).toBe('Could not download the theme: getaddrinfo ENOTFOUND x.dev')
+  expect(Object.keys(files)).toEqual([])
+})
+
 test('theme names are safe file names', async () => {
   const { host, files } = fakeHost({ fetches: { 'https://x.dev/t.json': '{"name":"../../evil"}' } })
   expect(await addTheme(host, 'https://x.dev/t.json')).toContain('name')
