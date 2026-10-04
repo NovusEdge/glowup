@@ -30,7 +30,13 @@ jobs:
           node-version: 24
           cache: pnpm
           cache-dependency-path: docs/web/pnpm-lock.yaml
-      - run: pnpm -C docs/web install --frozen-lockfile --ignore-workspace
+      # pnpm 12 fails the install on an unapproved build script; esbuild comes in through fumadocs-mdx.
+      # The fumadocs excludes skip the one-day release-age gate and are dead once 16.16.1 is a day old (2026-10-05 14:04Z).
+      - run: >-
+          pnpm -C docs/web install --frozen-lockfile --ignore-workspace
+          --allow-build=esbuild
+          --config.minimum-release-age-exclude=fumadocs-core@16.16.1
+          --config.minimum-release-age-exclude=fumadocs-ui@16.16.1
       - run: pnpm -C docs/web build
       - run: pnpm -C docs/web check
       - uses: actions/configure-pages@v6
