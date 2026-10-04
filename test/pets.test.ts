@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { petPose, halfBlock, frameAt, shiny, petPalette, composeFrame, validateSheet, animFor, newPlayer, stepPlayer, playerFrame, type PetSheet, CLAWD_SHEET, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, PET_COLS, PET_ROWS, OUTFIT_PAD } from '../hooks/pets.ts'
+import { petPose, halfBlock, frameAt, shiny, petPalette, composeFrame, validateSheet, animFor, newPlayer, stepPlayer, playerFrame, mirrored, type PetSheet, CLAWD_SHEET, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, PET_COLS, PET_ROWS, OUTFIT_PAD } from '../hooks/pets.ts'
 import { cellWidth } from '../hooks/cells.ts'
 
 const width = (s: string) => [...s].reduce((n, c) => n + cellWidth(c.codePointAt(0)!), 0)
@@ -71,16 +71,60 @@ test('a long idle falls asleep, work wakes him', async () => {
   expect(petPose({ ...base, needsYou: true }, 1000 + 20 * 60_000)).toBe('alert')
 })
 
+test('three or more running subagents juggle, under the reactions and over the work poses', async () => {
+  const w = { working: true, needsYou: false, kind: 'agent' as const }
+  expect(petPose({ ...w, agents: 2 }, 0)).toBe('working')
+  expect(petPose({ ...w, agents: 3 }, 0)).toBe('juggle')
+  expect(petPose({ ...w, agents: 3, kind: 'read' }, 0)).toBe('juggle')
+  expect(petPose({ ...w, agents: 3, needsYou: true }, 0)).toBe('alert')
+  expect(petPose({ ...w, agents: 3, lastTest: { passed: true, at: 0 } }, 100)).toBe('hop')
+})
+
+test('a compaction scrunches once, then he goes back to what he was doing', async () => {
+  const base = { working: false, needsYou: false, compactAt: 1000 }
+  expect(petPose(base, 900)).toBe('idle')
+  expect(petPose(base, 1000)).toBe('scrunch')
+  expect(petPose({ ...base, working: true, kind: 'edit' as const }, 2400)).toBe('scrunch')
+  expect(petPose({ ...base, needsYou: true }, 1200)).toBe('alert')
+  expect(petPose(base, 2600)).toBe('idle')
+  const p = newPlayer(), clip = CLAWD_SHEET.animations.scrunch!
+  const total = clip.frames.reduce((n, f) => n + f.ms, 0)
+  stepPlayer(p, CLAWD_SHEET, 'scrunch', 0, 0)
+  stepPlayer(p, CLAWD_SHEET, 'idle', total - 50, 0)
+  expect(p.seg!.pose).toBe('scrunch')
+  stepPlayer(p, CLAWD_SHEET, 'idle', total + 400, 0)
+  expect(p.seg!.pose).toBe('idle')
+})
+
+test('a context window 80% full makes him pant while idle or walking', async () => {
+  const base = { working: false, needsYou: false, ctx: 80 }
+  expect(petPose({ ...base, ctx: 79 }, 0)).toBe('idle')
+  expect(petPose(base, 0)).toBe('pant')
+  expect(petPose({ ...base, working: true, kind: 'read' as const }, 0)).toBe('pant-walk')
+  expect(petPose({ ...base, working: true, kind: 'edit' as const }, 0)).toBe('working')
+  expect(petPose({ ...base, actAt: 1000 }, 1000 + 60_000)).toBe('sleep')
+})
+
+test('the panting walk turns at the edge on its own left-facing frames', async () => {
+  const p = newPlayer()
+  // three steps of dx 1 reach maxX 3 and turn him
+  for (let t = 0; t <= 500; t += 20) stepPlayer(p, CLAWD_SHEET, 'pant-walk', t, 3)
+  expect(p.seg!.name).toBe('pant-walk-left')
+  expect(mirrored(p)).toBe(false)
+})
+
 test('an unknown activity time never means asleep', async () => {
   const base = { working: false, needsYou: false }
   expect(petPose(base, 99 * 60_000)).toBe('idle')
   expect(petPose({ ...base, actAt: 0 }, 99 * 60_000)).toBe('idle')
 })
 
-test('a missing animation falls back: fail to alert, anything else to idle', async () => {
+test('a missing animation falls back: fail to alert, a panting walk to the walk, anything else to idle', async () => {
   const fr = (c: string) => ({ ms: 100, px: [c] })
-  const sheet = { w: 1, h: 1, palette: {}, animations: { idle: { loop: true, frames: [fr('i')] }, alert: { loop: true, frames: [fr('a')] } } }
+  const sheet = { w: 1, h: 1, palette: {}, animations: { idle: { loop: true, frames: [fr('i')] }, alert: { loop: true, frames: [fr('a')] }, walk: { loop: true, frames: [fr('w')] } } }
   expect(animFor(sheet, 'fail').frames[0]!.px).toEqual(['a'])
+  expect(animFor(sheet, 'pant-walk').frames[0]!.px).toEqual(['w'])
+  expect(animFor(sheet, 'juggle').frames[0]!.px).toEqual(['i'])
   expect(animFor(sheet, 'nope').frames[0]!.px).toEqual(['i'])
 })
 

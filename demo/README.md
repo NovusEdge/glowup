@@ -1,76 +1,80 @@
 # glowup launch video
 
-A 33 s product video built entirely in code. Nothing in it is captured: the Claude Code
-window, the installer picker, the spinners and Clawd are all drawn each frame from
-glowup's own data, so text stays sharp at any camera zoom.
+A 34 s product video built entirely in code, styled as an 8-bit game ("Clawd's game"). Nothing in
+it is captured: the Claude Code session, the glowup pane, the spinners and Clawd are drawn each
+frame from glowup's own data. There are no captions anywhere; everything you read is the
+session itself, Clawd's bubbles, the game HUD, or the title and high-score screens.
 
 ```
 just demo-editor    # live preview in the Revideo editor
 just demo-render    # out/launch.mp4 (1920x1080) and out/launch-square.mp4 (1080x1080)
 ```
 
-Render one file with `pnpm render launch.mp4`. The render runs headless Chromium (it uses
-`/usr/bin/chromium`; set `CHROMIUM=/path` to override) and ffmpeg, one worker, about
-2.5 minutes per output. `demo-render` wraps it in `systemd-run` with a 6G memory cap.
+Render one file with `pnpm render launch.mp4` (or `launch-square`). The render runs headless
+Chromium (it uses `/usr/bin/chromium`; set `CHROMIUM=/path` to override) and ffmpeg, one worker.
+`demo-render` wraps it in `systemd-run` with a 6G memory cap.
+
+## The storyboard
+
+`src/scenes/launch.tsx`, one scene:
+
+1. Title: GLOWUP over the dimmed session, PRESS START blinks, Clawd walks on, a pixel dissolve lights the session.
+2. Turn 1: the prompt is typed at human cadence, Claude's reply streams, Read and Edit rows land, Clawd works, the Changes tab fills.
+3. A failed `just test`: focus on the row, then on Clawd and "ouch, 1 failed"; a heart blinks and goes dark.
+4. The fix passes: focus on the `+40 XP` tag, the XP bar fills, LEVEL UP flashes the HUD, Clawd hops, "all done".
+5. The Plan & context tab, then `/glowup pack crt` and back to arcade; the session repaints in place through a pixel dissolve.
+6. High scores over the dimmed session; the install line is the INSERT COIN line; Clawd dances.
+
+## Camera and effects (`src/game.tsx`)
+
+- Game camera: the terminal is the world. It cuts between 1x (15 px per terminal cell) and 2x (30 px) and
+  pans to the beat, clamped to the terminal edges. No drift, tilt or blur. The HUD is screen-fixed.
+- Focus is a spotlight: a flat dither (one pixel in four, a checkerboard, then flat dark) steps in over
+  six frames around the focused rectangle, which gets a 4 px frame.
+- Everything outside the terminal text is `fillRect` on a 4 px grid: HUD, hearts, plates, ground, dissolve.
+- The square cut uses the real narrow layout (the pane becomes a drawer under the chat, Clawd is his one-row
+  glyph) and re-frames each beat; the HUD drops its XP number.
 
 ## Where the pictures come from
 
-- Pack colors, themes, spinner frames: `installer/internal/packs/packs.json`.
-- Clawd: `hooks/sprites/clawd.ts`. Its pixel rows are drawn as canvas rectangles, one
-  sprite pixel per terminal cell wide and half a cell tall, and animated from the sheet's
-  own frame timings (idle, walk, hop, working, done, fail).
-- The pane: `hooks/pane.tsx` (tabs, status box, Clawd strip), `hooks/ctxchart.ts` (context bar),
-  `hooks/tasks.ts` (plan order), `hooks/band.tsx`. Clawd lives only in the pane, as in the mod.
-  A wide frame docks it on the right (the band steps aside, as `tierFor` does); a square frame
-  gets the narrow layout: a six-row drawer under the chat, Clawd as his one-row glyph, and the
-  band above the prompt while Claude works. `ctxchart.ts` is re-implemented in `pane.tsx`
-  because importing it drags in `layout.tsx`, which this project's JSX settings cannot type.
-- Row styles (classic, cards, retro) follow `hooks/rows.tsx` and `hooks/rows-text.ts`; the
-  `labels`, `markers` and `xp` flags come from `hooks/packpresets.ts` (arcade: ▶ you, ◆ Claude,
-  "+N XP" above the reply; cozy: bars, no labels).
-- Clawd's speech bubbles: `say(mood, index)` in `src/data.ts` fills a template from
-  `CLAWD_SAY` in `hooks/bubbles.ts` and throws if the line does not exist.
-- The picker follows `installer/internal/tui` (step line, form, Clawd and bubble, preview).
-- Font: JetBrains Mono from `@fontsource/jetbrains-mono`, bundled in the render.
+- Pack colors, themes, spinner frames: `installer/internal/packs/packs.json`; the arcade pack's row flags
+  (`▶` you, `◆` Claude, "+N XP" above the reply) from `hooks/packpresets.ts`.
+- Clawd: `hooks/sprites/clawd.ts`. Its pixel rows are drawn as canvas rectangles and animated from the sheet's
+  own frame timings. In the docked pane a sprite pixel is exactly 15 x 16 screen pixels.
+- The pane: `hooks/pane.tsx`, `hooks/ctxchart.ts` (re-implemented in `src/pane.tsx`: importing it drags in
+  `layout.tsx`, which this project's JSX settings cannot type), `hooks/tasks.ts`, `hooks/band.tsx`.
+  The video draws the arcade HP bar as three flat colour bands instead of the mod's gradient.
+- Clawd's speech bubbles: `say(mood, index)` in `src/data.ts` fills a template from `CLAWD_SAY` in
+  `hooks/bubbles.ts` and throws if the line does not exist.
+- Fonts: JetBrains Mono from `@fontsource/jetbrains-mono` for the session; Press Start 2P (CodeMan38, SIL OFL 1.1)
+  in `fonts/` with its `OFL.txt`, from github.com/google/fonts `ofl/pressstart2p`, for the game layer. Use it at
+  multiples of 8 px so its pixels land on the screen grid.
 
 ## How it is built
 
 | file | job |
 | --- | --- |
-| `src/scenes/launch.tsx` | the storyboard: hook, Clawd, packs tour, installer, end card |
-| `src/term.tsx` | terminal window, conversation rows per pack style, spinner |
-| `src/screen.tsx` | Claude Code screen: prompt, spinner, docked pane or drawer, band, Clawd's bubble |
-| `src/pane.tsx` | the glowup pane's tab rows, status box and band, ported from `hooks/pane.tsx`, `hooks/band.tsx` |
-| `src/picker.tsx` | the installer picker |
+| `src/scenes/launch.tsx` | the storyboard and the camera |
+| `src/game.tsx` | HUD, spotlight, dither veil, pixel dissolve, hearts, ground |
+| `src/term.tsx` | bare terminal grid, conversation rows per pack style, spinner |
+| `src/screen.tsx` | Claude Code screen: prompt, spinner, docked pane or drawer, Clawd's bubble |
+| `src/pane.tsx` | the glowup pane's tab rows, status box and band |
 | `src/pixels.ts` | Clawd's sprite node and animation player |
-| `src/stage.tsx` | camera, wipes, captions |
+| `src/stage.tsx` | the per-frame loop |
 | `src/look.ts` | the colors of one window as tweenable signals |
 
-A pack switch is a single tween of the window's color signals plus a rebuild of the rows
-in the new pack's style.
-
-Everything that changes per frame (Clawd, spinners, text that follows a signal) is
-updated from one loop in `Stage.run`, driven by the scene clock, so any frame renders
-the same regardless of where playback started.
-
-The camera is `Stage.focus(region, seconds)`: Revideo's 2D package has no camera node, so
-it scales, rotates and moves a world node so a region lands centered in the frame above the
-caption strip. Every scene frames its whole window (the fit includes the rotation), so
-nothing is cropped in either aspect; a square frame gets a 64-column Claude window. Captions and wipes sit outside the
-camera. Both outputs come from the same scene; the size is a render setting and the
-camera fits regions to whatever frame it is given.
+Everything that changes per frame is updated from one loop in `Stage.run`, driven by the scene clock, so any
+frame renders the same regardless of where playback started. The conversation scrolls by page: a beat
+clears the rows and redraws the ones still on screen.
 
 ## Tooling choices
 
-- **Revideo 0.11.0** (MIT, fork of Motion Canvas with headless rendering). Last release
-  2026-07-10, repo pushed to in July 2026, renders headlessly on Linux through
-  puppeteer. Motion Canvas (MIT) was the fallback; its last npm release is from
+- **Revideo 0.11.0** (MIT, fork of Motion Canvas with headless rendering). Last release 2026-07-10, renders
+  headlessly on Linux through puppeteer. Motion Canvas (MIT) was the fallback; its last npm release is from
   February 2025, so Revideo wins. Remotion was dropped by the owner's choice.
 - Versions are pinned exactly in `package.json`.
-- pnpm 10+ blocks dependency build scripts by default; `pnpm-workspace.yaml` lists the
-  ones this project needs (esbuild, ffmpeg binaries, puppeteer, revideo telemetry).
+- pnpm 10+ blocks dependency build scripts by default; `pnpm-workspace.yaml` lists the ones this project needs.
   Puppeteer's own Chrome download is not needed when system Chromium is present
   (`PUPPETEER_SKIP_DOWNLOAD=1 pnpm install`).
-- On a fresh `node_modules` the first render fails once while vite re-optimizes its
-  dependencies; `render.ts` retries.
+- On a fresh `node_modules` the first render fails once while vite re-optimizes its dependencies; `render.ts` retries.
 - `render.ts` remuxes each output to set sample_aspect_ratio 1:1 (the encoder leaves it unset).

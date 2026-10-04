@@ -7,6 +7,9 @@ const MOODS: [string, string][] = [
   ['fail', 'a test fails'],
   ['done', 'the turn ends green'],
   ['alert', 'Claude needs you'],
+  ['juggle', 'three subagents at once'],
+  ['scrunch', 'the context is compacted'],
+  ['pant', 'the context is 80% full'],
   ['sleep', 'nothing for a minute'],
   ['hop', 'you click him'],
 ]

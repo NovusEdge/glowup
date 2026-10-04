@@ -25,7 +25,7 @@ A pack is a JSON file at `~/.claude/glowup/packs/<name>.json` (`$CLAUDE_CONFIG_D
 | `palette` | object of theme color keys | Colors that replace the theme's. Keys are listed under Theme colors. Set only what differs. |
 | `bg` | `#rrggbb` | The terminal background glowup fades toward. Match the user's terminal background. Default: the palette's `panel`. |
 | `rows` | `classic`, `cards`, `minimal`, `retro` | Transcript row style. `classic` leaves rows alone, `cards` draws side bars and bordered tool cards, `minimal` is quiet one-liners, `retro` uses `[TAG]` labels. Default `classic`. |
-| `border` | `round`, `single`, `double`, `bold`, `classic` | Border shape around cards. Default `round`. |
+| `border` | `round`, `single`, `double`, `bold`, `classic` | Border shape around cards. Also the shape of the status box and of the pane's section boxes. Default `round`. |
 | `borderColor` | `#rrggbb` | Border color. Default: the palette's `faint`. |
 | `gradient` | array of exactly two `#rrggbb` | Start and end color of the card gradient and spinner shimmer. Default: none. |
 | `extras` | object | Optional extras, below. |
@@ -53,7 +53,7 @@ These are the keys of `colors.palette`, and of `colors` in a theme file. All 14 
 | `accent` | Current plan item, progress pips, spinner, card side bar of your prompts. |
 | `text` | Main text. |
 | `dim` | Secondary text, separators, files that were only read. |
-| `faint` | Empty parts of bars, borders, tree lines. |
+| `faint` | Empty parts of bars, borders, pane section borders, tree lines. |
 | `read` | Read and search rows, running subagent work, low context. |
 | `edit` | Edit rows, medium context, the context warning. |
 | `shell` | Shell rows. |

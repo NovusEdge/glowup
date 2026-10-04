@@ -38,7 +38,7 @@ Every value must match `#rrggbb`: a hash and six hex digits, upper or lower case
 | `accent` | The current plan item, plan progress pips, plan glyphs |
 | `text` | Main text |
 | `dim` | Secondary text, separators, empty hearts |
-| `faint` | Empty parts of bars, the status box border, tree lines |
+| `faint` | Empty parts of bars, the status box border, pane section borders, tree lines |
 | `read` | Read and search rows, running subagent work, low context |
 | `edit` | Edit rows, medium context, the context warning |
 | `shell` | Shell rows |

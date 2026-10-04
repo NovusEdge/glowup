@@ -20,27 +20,31 @@ export class Term {
   readonly width: number;
   readonly height: number;
 
-  constructor(readonly look: LookSig, readonly cols: number, readonly rows: number, title = 'claude  ~/Projects/glowup') {
+  // chrome=false is the bare terminal grid: no title bar, square corners, no shadow.
+  constructor(readonly look: LookSig, readonly cols: number, readonly rows: number, title = 'claude  ~/Projects/glowup', chrome = true) {
+    const bar = chrome ? BAR : 0;
     this.width = cols * CW + 2 * PAD;
-    this.height = rows * LH + BAR + 2 * PAD;
+    this.height = rows * LH + bar + 2 * PAD;
     this.root = (
       <Rect
         width={this.width}
         height={this.height}
         fill={look.sig.bg}
         stroke={look.sig.faint}
-        lineWidth={2}
-        radius={16}
-        shadowBlur={70}
+        lineWidth={chrome ? 2 : 0}
+        radius={chrome ? 16 : 0}
+        shadowBlur={chrome ? 70 : 0}
         shadowColor="#000000cc"
         clip
       />
     ) as Rect;
-    const bar = (<Rect width={this.width} height={BAR} y={-this.height / 2 + BAR / 2} fill={look.sig.panel} />) as Rect;
-    [0, 1, 2].forEach(i => bar.add(<Circle size={14} x={-this.width / 2 + 30 + i * 26} fill={['#ff5f57', '#febc2e', '#28c840'][i]} />));
-    bar.add(<Txt text={title} fontFamily={FONT} fontSize={20} fill={look.sig.dim} />);
-    this.root.add(bar);
-    this.screen = (<Node x={-this.width / 2 + PAD} y={-this.height / 2 + BAR + PAD} />) as Node;
+    if (chrome) {
+      const barNode = (<Rect width={this.width} height={BAR} y={-this.height / 2 + BAR / 2} fill={look.sig.panel} />) as Rect;
+      [0, 1, 2].forEach(i => barNode.add(<Circle size={14} x={-this.width / 2 + 30 + i * 26} fill={['#ff5f57', '#febc2e', '#28c840'][i]} />));
+      barNode.add(<Txt text={title} fontFamily={FONT} fontSize={20} fill={look.sig.dim} />);
+      this.root.add(barNode);
+    }
+    this.screen = (<Node x={-this.width / 2 + PAD} y={-this.height / 2 + bar + PAD} />) as Node;
     this.root.add(this.screen);
   }
 
@@ -146,7 +150,7 @@ export type Entry =
   | {k: 'diff'; del: string; add: string};
 
 export type Status = 'run' | 'ok' | 'fail';
-export type Block = {node: Node; status: SimpleSignal<Status, void>; res?: Txt};
+export type Block = {node: Node; status: SimpleSignal<Status, void>; res?: Txt; main?: Txt; row: number};
 
 const TOOL_KEY: Record<string, ColorKey> = {Read: 'read', Edit: 'edit', Bash: 'shell', Task: 'agent'};
 const MARKS = {
@@ -174,6 +178,11 @@ export class Convo {
     this.row = this.first;
   }
 
+  // The row the next entry will start on.
+  get next() {
+    return this.row;
+  }
+
   get style() {
     return this.term.look.look.rows as 'classic' | 'cards' | 'retro';
   }
@@ -190,32 +199,34 @@ export class Convo {
     const markColor = () => (st() === 'ok' ? L.sig.pass() : st() === 'fail' ? L.sig.fail() : L.sig.dim());
     let rows = 1;
     let resTxt: Txt | undefined;
+    let mainTxt: Txt | undefined;
+    const at = this.row;
 
     const flags = look.rowFlags;
     const grad = (t: Txt, n: number) => look.gradient && t.fill(T.gradientFill(look.gradient, n));
     if (e.k === 'user') {
       if (style === 'classic') {
         put('>', 0, 0, 'accent', {bold: true});
-        put(e.text, 2, 0, 'text');
+        mainTxt = put(e.text, 2, 0, 'text');
       } else if (style === 'cards') {
         // rows.tsx: a glyph marker (arcade) or the accent bar, with a label only when labels is on.
         const m = flags.markers ? '▶ ' : '▎ ';
         put(m, 0, 0, 'accent', {bold: true});
         if (flags.labels) {
           grad(put('you', 2, 0, 'accent', {bold: true}), 3);
-          put(e.text, 2, 1, 'text');
+          mainTxt = put(e.text, 2, 1, 'text');
           if (!flags.markers) put('▎', 0, 1, 'accent');
           rows = 2;
         } else {
-          put(e.text, 2, 0, 'text');
+          mainTxt = put(e.text, 2, 0, 'text');
         }
       } else {
         if (flags.labels) {
           grad(put('[YOU]', 0, 0, 'accent', {bold: true}), 5);
-          put(e.text, 0, 1, 'text');
+          mainTxt = put(e.text, 0, 1, 'text');
           rows = 2;
         } else {
-          put(e.text, 0, 0, 'text');
+          mainTxt = put(e.text, 0, 0, 'text');
         }
       }
     } else if (e.k === 'asst') {
@@ -238,7 +249,7 @@ export class Convo {
           grad(put('claude', 2, r, 'accent', {bold: true}), 6);
           r++;
         }
-        put(e.text, 2, r, 'text');
+        mainTxt = put(e.text, 2, r, 'text');
         rows = r + 1;
       } else {
         let r = 0;
@@ -246,7 +257,7 @@ export class Convo {
           grad(put('[CLAUDE]', 0, 0, 'accent', {bold: true}), 8);
           r = 1;
         }
-        put(e.text, 3, r, 'text');
+        mainTxt = put(e.text, 3, r, 'text');
         rows = r + 1;
       }
     } else if (e.k === 'tool') {
@@ -299,7 +310,7 @@ export class Convo {
     this.row += rows + (e.k === 'tool' ? 0 : 1);
     // A result line stays hidden until the tool finishes.
     if (resTxt && status === 'run') resTxt.opacity(0);
-    const b = {node, status: st, res: resTxt};
+    const b = {node, status: st, res: resTxt, main: mainTxt, row: at};
     this.blocks.push(b);
     return b;
   }

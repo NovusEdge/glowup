@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Clawd juggles while three or more subagents run, crumples up a sheet of paper when the context is compacted, and pants while he stands or walks once the context window is 80% full.
+
 ### Changed
 
+- The pane's tabs are drawn as boxes in the shape of your pack's border, and Plan & context has room to breathe: the loose divider is gone, rows line up, and free context is a solid faint track.
+- Clawd stretches and yawns when he wakes up.
+- While Claude waits on you, Clawd shows a `?` and has his own waiting animation, so it no longer replays the startle.
 - The hearts beside the pet in the pane's status box show the usage you have left, the 5-hour or weekly limit, whichever is tighter. On an API key, where there are no limits, they give way to what the session has spent. The band's hearts still track context.
 
 ## [0.3.5] - 2026-10-05

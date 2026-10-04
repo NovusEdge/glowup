@@ -1,6 +1,5 @@
 import {Node, Rect, Txt} from '@revideo/2d';
 import {useTime} from '@revideo/core';
-import {gradient} from '../../hooks/color.ts';
 import {planOrder} from '../../hooks/tasks.ts';
 import {Look} from './data';
 import {CW, FONT, FS, LH, Paint, QUAD, Term, binders} from './term';
@@ -218,7 +217,10 @@ export function statusRows(m: Model, look: Look, hp: boolean, width: number): Se
     ? (() => {
         const w = width - 22;
         const n = Math.round((left / 100) * w);
-        return [{text: 'HP ', color: 'accent', bold: true}, ...gradient('█'.repeat(n), look.c.fail, look.c.pass).map(s => ({text: s.text, color: s.color as Paint})), {text: '░'.repeat(w - n), color: 'faint'}, {text: `  ${left}% context left`, color: 'dim'}] as Seg[];
+        // Flat blocks in three bands, not the mod's smooth gradient, so the video stays on the pixel grid.
+        const band = (i: number): Paint => (i < w / 3 ? look.c.fail : i < (2 * w) / 3 ? look.c.edit : look.c.pass);
+        const blocks: Seg[] = Array.from({length: w}, (_, i) => ({text: '█', color: i < n ? band(i) : 'faint'}));
+        return [{text: 'HP ', color: 'accent', bold: true}, ...blocks, {text: `  ${left}% context left`, color: 'dim'}] as Seg[];
       })()
     : [{text: '♥'.repeat(full), color: 'fail'}, {text: '♡'.repeat(5 - full), color: 'dim'}, {text: `  context ${left}% left`, color: 'dim'}];
   const rows: Seg[][] = [[{text: `${m.act.glyph} ${m.act.label}`, color: m.act.tone, bold: true}], life];
