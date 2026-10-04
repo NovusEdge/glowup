@@ -1,5 +1,11 @@
 import { test, expect } from 'claude-code/testing'
-import { describeTool, isTestCommand, testOutcome, planFrom, editCounts, shortPath } from '../hooks/events.ts'
+import { describeTool, isTestCommand, testOutcome, planFrom, editCounts, shortPath, approvalLabel } from '../hooks/events.ts'
+
+test('the approval label keeps only the first line of a command', async () => {
+  expect(approvalLabel('Bash', { command: 'git push\nrm -rf /' })).toBe('approve git push')
+  expect(approvalLabel('Bash', { command: 'x'.repeat(60) })).toBe('approve ' + 'x'.repeat(40))
+  expect(approvalLabel('Write', { file_path: '/r/a.ts' })).toBe('approve Write')
+})
 
 test('tool kinds and labels', async () => {
   expect(describeTool('Read', { file_path: '/r/src/auth.ts' })).toMatchObject({ kind: 'read', label: 'Reading src/auth.ts', file: '/r/src/auth.ts' })

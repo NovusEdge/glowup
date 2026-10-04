@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { initialModel, applyEvent, bandVisible, mergeCounts, type Ev } from '../hooks/model.ts'
+import { initialModel, applyEvent, bandVisible, isBusy, mergeCounts, type Ev } from '../hooks/model.ts'
 
 const run = (evs: Ev[]) => evs.reduce(applyEvent, initialModel())
 
@@ -135,10 +135,31 @@ test('needs-you holds until that call ends, then the action comes back', async (
 
 test('turn-done and band linger', async () => {
   let m = run([{ type: 'turn-start', at: 0 }])
-  m = applyEvent(m, { type: 'turn-done', at: 100 })
+  m = applyEvent(m, { type: 'turn-done', at: 100, reason: 'answer' })
   expect(m.working).toBe(false)
+  expect(m.act).toEqual({ glyph: '✓', label: 'Done', tone: 'pass' })
   expect(bandVisible(m, 1500)).toBe(true)
   expect(bandVisible(m, 1601)).toBe(false)
+})
+
+test('an interrupted or failed turn is not reported as done', async () => {
+  const end = (reason: 'aborted' | 'error' | 'refusal') => applyEvent(run([{ type: 'turn-start', at: 0 }]), { type: 'turn-done', at: 1, reason }).act
+  expect(end('aborted')).toEqual({ glyph: '■', label: 'Interrupted', tone: 'dim' })
+  expect(end('error')).toEqual({ glyph: '✗', label: 'Stopped', tone: 'fail' })
+  expect(end('refusal')).toEqual({ glyph: '✗', label: 'Stopped', tone: 'fail' })
+})
+
+test('a running subagent keeps the model busy after the main turn ends', async () => {
+  let m = run([
+    { type: 'turn-start', at: 0 },
+    { type: 'tool-start', at: 1, tool: 'Agent', toolUseId: 'a1', input: { description: 'scout' } },
+    { type: 'agent-bind', toolUseId: 'a1', agentId: 'ag-1' },
+    { type: 'turn-done', at: 2, reason: 'answer' },
+  ])
+  expect(isBusy(m)).toBe(true)
+  expect(bandVisible(m, 1_000_000)).toBe(true)
+  m = applyEvent(m, { type: 'agent-done', at: 3, agentId: 'ag-1' })
+  expect(isBusy(m)).toBe(false)
 })
 
 test('plan follows TaskCreate and uses the result id', async () => {

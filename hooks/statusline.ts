@@ -1,5 +1,5 @@
 import type { Host } from './host.ts'
-import type { Model } from './model.ts'
+import { agentsRunning, isBusy, type Model } from './model.ts'
 import type { Theme } from './themes.ts'
 
 export const SCRIPT_PATH = (configDir: string) => `${configDir}/glowup/statusline.sh`
@@ -11,8 +11,8 @@ const NONE = '__none__'
 const WORD: Record<string, string> = { '▸': 'reading', '⌕': 'searching', '✎': 'editing', $: 'running', '◆': 'delegating', '✗': 'failing', '✓': 'passing', '!': 'waiting' }
 
 export function statusText(m: Model, _t: Theme): string | undefined {
-  if (!m.working && !m.ctxPercent) return undefined
-  const word = m.working ? (Object.hasOwn(WORD, m.act.glyph) ? WORD[m.act.glyph]! : 'thinking') : 'idle'
+  if (!isBusy(m) && !m.ctxPercent) return undefined
+  const word = m.working ? (Object.hasOwn(WORD, m.act.glyph) ? WORD[m.act.glyph]! : 'thinking') : agentsRunning(m) ? 'delegating' : 'idle'
   return `◆ ${word} · ctx ${m.ctxPercent}%`
 }
 
@@ -64,6 +64,10 @@ export async function restore(host: Host): Promise<string> {
   return 'Your status line is back.'
 }
 
-export async function writeStatusFile(host: Host, sessionId: string, line: string) {
-  await host.writeFile(`${STATUS_DIR(host.configDir)}/${sessionId}`, line)
+// No line: the file goes, so the script falls back to the person's own command
+// instead of printing an empty line.
+export async function writeStatusFile(host: Host, sessionId: string, line: string | undefined) {
+  const path = `${STATUS_DIR(host.configDir)}/${sessionId}`
+  if (line === undefined) await host.run(['rm', '-f', path])
+  else await host.writeFile(path, line)
 }

@@ -46,6 +46,9 @@ export function describeTool(tool: string, input: Record<string, unknown>): Tool
   }
 }
 
+export const approvalLabel = (tool: string, input: Record<string, unknown>) =>
+  tool === 'Bash' ? `approve ${str(input.command).split('\n')[0]!.slice(0, 40)}` : `approve ${tool}`
+
 export function planFrom(tool: string, input: Record<string, unknown>, prev: PlanItem[], resultId?: string): PlanItem[] | undefined {
   if (tool === 'TodoWrite') {
     const todos = Array.isArray(input.todos) ? input.todos as { content?: unknown; status?: unknown }[] : []

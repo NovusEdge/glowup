@@ -1,6 +1,7 @@
 import type { EngineInterface, Register, Timer } from 'claude-code'
 import type { Host } from './host.ts'
-import { initialModel, applyEvent, mergeCounts, type Model, type Ev } from './model.ts'
+import { initialModel, applyEvent, mergeCounts, isBusy, type Model, type Ev } from './model.ts'
+import { approvalLabel } from './events.ts'
 import { resolveTheme, type Theme } from './themes.ts'
 import { gitBase, refreshCounts, serial } from './changes.ts'
 import { tierFor } from './layout.tsx'
@@ -54,9 +55,9 @@ function hostOf($: Engine): Host {
 // The takeover script falls back to the person's own command once this file is
 // 10 minutes old, so a quiet session still rewrites it every minute.
 function writeStatus($: Engine, force: boolean) {
-  const line = statusText(model, theme) ?? ''
-  if (!takenOver || !sessionId || (!force && line === lastStatusLine)) return
-  lastStatusLine = line
+  const line = statusText(model, theme)
+  if (!takenOver || !sessionId || (!force && (line ?? '') === lastStatusLine)) return
+  lastStatusLine = line ?? ''
   void writeStatusFile(hostOf($), sessionId, line).catch(() => {})
 }
 async function syncTakeover($: Engine) {
@@ -64,14 +65,25 @@ async function syncTakeover($: Engine) {
   statusTimer?.cancel()
   statusTimer = takenOver ? $.clock.every(60_000, () => writeStatus($, true)) : undefined
   writeStatus($, true)
+  $.ui.status(statusEntry())
 }
+
+// The engine pins this entry as a "⚠ glowup:" notice, which reads as an error
+// when it never goes away; the takeover's status line already says the same.
+const statusEntry = () => !takenOver && isBusy(model) ? statusText(model, theme) : undefined
 
 function redraw($: Engine) {
   $.ui.invalidate('ui.render')
-  $.ui.status(statusText(model, theme))
+  $.ui.status(statusEntry())
   writeStatus($, false)
 }
-function feed($: Engine, ev: Ev) { model = applyEvent(model, ev); redraw($) }
+// Elapsed times and agent spinners change with no event behind them, and
+// background subagents keep running after the main turn ends.
+function syncTicker($: Engine) {
+  if (isBusy(model)) ticker ??= $.clock.every(1000, () => redraw($))
+  else { ticker?.cancel(); ticker = undefined }
+}
+function feed($: Engine, ev: Ev) { model = applyEvent(model, ev); syncTicker($); redraw($) }
 
 async function togglePane($: Engine): Promise<string> {
   const open = (await $.ui.panes()).find(p => p.id === 'glowup')
@@ -93,10 +105,15 @@ function refresh($: Engine) {
 }
 
 // usage() has no percent before the first response of a session, hence the guard.
+// The Plan tab's breakdown is fetched here and cached, not on every pane render
+// (the ticker redraws each second).
 async function feedContext($: Engine) {
   try {
-    const u = await $.session.usage()
+    const u = await $.session.usage({ breakdown: 'summary' })
+    const b = u.context.breakdown
+    view = { ...view, categories: b?.categories.map(c => ({ name: c.name, tokens: c.tokens, kind: c.kind })), maxTokens: b?.maxTokens }
     if (u.context.percent !== undefined) feed($, { type: 'context', percent: u.context.percent })
+    else $.ui.invalidate('ui.render')
   } catch {}
 }
 
@@ -110,6 +127,7 @@ async function adoptSession($: Engine, endedId: string) {
   // at session.end the id may still be the ending one; turn.start re-checks
   sessionId = id === endedId ? '' : id
   git = await gitBase(hostOf($), cwd)
+  syncTicker($)
   redraw($)
 }
 
@@ -150,9 +168,6 @@ export const register: Register = (on, options) => {
     if (id !== sessionId) await adoptSession($, sessionId)
     newTurnWord()
     feed($, { type: 'turn-start', at: Date.now() })
-    // elapsed times and agent spinners change with no event behind them
-    ticker?.cancel()
-    ticker = $.clock.every(1000, () => redraw($))
     return next(e)
   })
 
@@ -181,8 +196,7 @@ export const register: Register = (on, options) => {
     const r = await next(e)
     // without tool_use_id this is a query: nobody is asked
     if (r.decision === 'ask' && e.tool_use_id) {
-      const what = e.tool === 'Bash' ? `approve ${String((e.input as { command?: string }).command ?? '').slice(0, 40)}` : `approve ${e.tool}`
-      feed($, { type: 'needs-you', at: Date.now(), toolUseId: e.tool_use_id, what })
+      feed($, { type: 'needs-you', at: Date.now(), toolUseId: e.tool_use_id, what: approvalLabel(e.tool, e.input as Record<string, unknown>) })
     }
     return r
   })
@@ -194,7 +208,8 @@ export const register: Register = (on, options) => {
   })
 
   on('turn.complete', async ($, e, next) => {
-    // the ticker would redraw through the whole wait for next()
+    // the ticker would redraw through the whole wait for next(); feed restarts it
+    // while background subagents still run
     if (!e.agentId) { ticker?.cancel(); ticker = undefined }
     const r = await next(e)
     if (e.agentId) {
@@ -205,7 +220,7 @@ export const register: Register = (on, options) => {
       refresh($)
       return r
     }
-    feed($, { type: 'turn-done', at: Date.now() })
+    feed($, { type: 'turn-done', at: Date.now(), reason: e.reason })
     refresh($)
     await feedContext($)
     // one more redraw after the linger so the band folds away
@@ -249,14 +264,14 @@ export const register: Register = (on, options) => {
   })
 
   on('ui.render', { component: 'Pane', requestId: 'glowup' }, async ($, e) => {
-    if (view.tab === 'plan') {
-      const b = (await $.session.usage({ breakdown: 'summary' })).context.breakdown
-      view = { ...view, categories: b?.categories.map(c => ({ name: c.name, tokens: c.tokens, kind: c.kind })), maxTokens: b?.maxTokens }
-    }
     if (panePlacement !== e.props.placement) { panePlacement = e.props.placement; $.ui.invalidate('ui.render') }
     const compact = e.props.placement === 'inline' && e.props.bodyColumns < 80
     const v: PaneView = { ...view, reduced: reducedMotion }
-    return renderPane($.ui.resolve(e), model, theme, v, e.props.bodyColumns, compact, Date.now(), (id: TabId) => { view = { ...view, tab: id }; $.ui.invalidate('ui.render') })
+    return renderPane($.ui.resolve(e), model, theme, v, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
+      view = { ...view, tab: id }
+      $.ui.invalidate('ui.render')
+      if (id === 'plan') void feedContext($)
+    })
   })
 
   on('ui.render', { component: 'Spinner' }, async ($, e, next) => next({ ...e, props: { ...e.props, word: spinnerWord(theme, e.props.word, reducedMotion) } }))

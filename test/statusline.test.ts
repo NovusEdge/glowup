@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { takeOver, restore, statusText } from '../hooks/statusline.ts'
+import { takeOver, restore, statusText, writeStatusFile } from '../hooks/statusline.ts'
 import { initialModel } from '../hooks/model.ts'
 import { resolveTheme } from '../hooks/themes.ts'
 import { fakeHost } from './kit.ts'
@@ -105,4 +105,19 @@ test('status word comes from the glyph, not the label', async () => {
   const cases: Record<string, string> = { '▸': 'reading', '⌕': 'searching', '✎': 'editing', $: 'running', '◆': 'delegating', '✗': 'failing', '✓': 'passing', '!': 'waiting', '✻': 'thinking', '·': 'thinking' }
   for (const [g, w] of Object.entries(cases)) expect(line(g)).toBe(`◆ ${w} · ctx 1%`)
   expect(statusText({ ...initialModel(), ctxPercent: 5 }, T)).toBe('◆ idle · ctx 5%')
+})
+
+test('status says delegating while subagents run after the main turn', async () => {
+  const T = resolveTheme('classic', {}).theme
+  const agent = { key: 'a1', name: 'scout', task: '', state: 'running' as const, startedAt: 0 }
+  expect(statusText({ ...initialModel(), agents: [agent] }, T)).toBe('◆ delegating · ctx 0%')
+  expect(statusText({ ...initialModel(), ctxPercent: 3, agents: [{ ...agent, state: 'done' }] }, T)).toBe('◆ idle · ctx 3%')
+})
+
+test('no status line deletes the session file so the script falls back', async () => {
+  const { host, files, ran } = fakeHost()
+  await writeStatusFile(host, 's1', '◆ idle · ctx 5%')
+  expect(files['/home/u/.claude/glowup/status/s1']).toBe('◆ idle · ctx 5%')
+  await writeStatusFile(host, 's1', undefined)
+  expect(ran).toContain('rm -f /home/u/.claude/glowup/status/s1')
 })

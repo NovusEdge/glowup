@@ -1,7 +1,7 @@
 import { describeTool, testOutcome, planFrom, editCounts, type PlanItem } from './events.ts'
 export type { PlanItem }
 
-export type Act = { glyph: string; label: string; tone: 'text' | 'read' | 'edit' | 'shell' | 'agent' | 'pass' | 'fail' | 'accent' }
+export type Act = { glyph: string; label: string; tone: 'text' | 'dim' | 'read' | 'edit' | 'shell' | 'agent' | 'pass' | 'fail' | 'accent' }
 export type Agent = { key: string; agentId?: string; name: string; task: string; state: 'running' | 'done'; startedAt: number; endedAt?: number; tokens?: number; now?: string }
 export type FileTouch = { path: string; add: number; del: number; how: 'read' | 'edit' | 'new'; at: number }
 export type NeedsYou = { toolUseId: string; what: string; before: Act }
@@ -13,7 +13,7 @@ export type Ev =
   | { type: 'needs-you'; at: number; toolUseId: string; what: string }
   | { type: 'agent-bind'; toolUseId: string; agentId: string }
   | { type: 'agent-done'; at: number; agentId: string; tokens?: number }
-  | { type: 'turn-done'; at: number }
+  | { type: 'turn-done'; at: number; reason: 'answer' | 'aborted' | 'error' | 'refusal' }
   | { type: 'context'; percent: number }
 
 export const LINGER_MS = 1500
@@ -24,7 +24,17 @@ const TONE: Record<string, Act['tone']> = { read: 'read', search: 'read', edit: 
 const text = (v: unknown) => (typeof v === 'string' ? v : '')
 
 export const initialModel = (): Model => ({ working: false, act: { glyph: '✻', label: 'Ready', tone: 'text' }, agents: [], plan: [], files: [], ctxPercent: 0 })
-export const bandVisible = (m: Model, now: number) => m.working || (m.doneAt !== undefined && now - m.doneAt <= LINGER_MS)
+export const agentsRunning = (m: Model) => m.agents.some(a => a.state === 'running')
+// Subagents run in the background, so the main turn usually ends while they work.
+export const isBusy = (m: Model) => m.working || agentsRunning(m)
+export const bandVisible = (m: Model, now: number) => isBusy(m) || (m.doneAt !== undefined && now - m.doneAt <= LINGER_MS)
+
+const ENDED: Record<Extract<Ev, { type: 'turn-done' }>['reason'], Act> = {
+  answer: { glyph: '✓', label: 'Done', tone: 'pass' },
+  aborted: { glyph: '■', label: 'Interrupted', tone: 'dim' },
+  error: { glyph: '✗', label: 'Stopped', tone: 'fail' },
+  refusal: { glyph: '✗', label: 'Stopped', tone: 'fail' },
+}
 
 // The permission question for this call is answered: show what Claude was doing again.
 const answered = (m: Model, toolUseId: string): Model =>
@@ -56,7 +66,7 @@ function touch(files: FileTouch[], path: string, at: number, how: FileTouch['how
 export function applyEvent(m: Model, ev: Ev): Model {
   switch (ev.type) {
     case 'turn-start': return { ...m, working: true, doneAt: undefined, needsYou: undefined, act: { glyph: '✻', label: 'Thinking', tone: 'text' } }
-    case 'turn-done': return { ...m, working: false, doneAt: ev.at, needsYou: undefined, act: { glyph: '✓', label: 'Done', tone: 'pass' } }
+    case 'turn-done': return { ...m, working: false, doneAt: ev.at, needsYou: undefined, act: ENDED[ev.reason] }
     case 'context': return { ...m, ctxPercent: Math.max(0, Math.min(100, Math.round(ev.percent))) }
     case 'needs-you': return { ...m, needsYou: { toolUseId: ev.toolUseId, what: ev.what, before: m.needsYou?.before ?? m.act }, act: { glyph: '!', label: `Needs you: ${ev.what}`, tone: 'fail' } }
     case 'agent-bind': return { ...m, agents: m.agents.map(a => a.key === ev.toolUseId ? { ...a, agentId: ev.agentId } : a) }

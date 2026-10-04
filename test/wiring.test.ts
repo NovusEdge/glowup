@@ -1,5 +1,6 @@
 import { test, expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
+import { runGlowup } from './kit.ts'
 
 declare function setTimeout(fn: (value: unknown) => void, ms: number): unknown
 const scroll = { offset: 0, bodyRows: 10 }
@@ -62,6 +63,81 @@ test('pane draws three tab buttons', async $ => {
   for (const label of ['Changes', 'Agents', 'Plan & context']) expect(await ui.find({ text: label })).toBeDefined()
   await ui.press({ key: 'tab-agents' })
   expect(await ui.find({ text: /AGENTS/ })).toBeDefined()
+  await ui.unmount()
+})
+
+const AGENT_CALL = { tool: 'Agent', tool_use_id: 'a1', description: 'scout', prompt: 'look', subagent_type: 'Explore' }
+const END = { answer: '', durationMs: 10, isAborted: false, turnId: 't1' }
+
+test('the status entry shows only while Claude or a subagent works', async ($, on) => {
+  const clock = mock.clock(on)
+  const statuses: (string | undefined)[] = []
+  on('ui.status', async (_$, e) => { statuses.push(e.text); return { value: undefined } as never })
+  on('ui.panes', async () => ({ value: [] }))
+  on('ui.render', async () => ({ type: 'Text', props: {}, children: ['engine'] }) as RenderElement)
+  on('session.id', async () => ({ value: 's1' }))
+  on('session.usage', async () => ({ value: { context: { window: 1000, percent: 10 } } as never }))
+  on('turn.start', async (_$, e) => ({ turnId: e.turnId }))
+  on('turn.complete', async () => ({ text: '' }))
+  on('tool.call', async () => ({ result: { status: 'async_launched' }, text: 'Async agent launched' }) as never)
+  on('agent.spawn', async () => ({ model: 'm', agentId: 'ag-1' }))
+
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  expect(statuses.at(-1)).toContain('thinking')
+  await $.tool.call(AGENT_CALL as never)
+  await $.agent.spawn({ tool_use_id: 'a1', prompt: 'look', description: 'scout', subagentType: 'Explore', background: true } as never)
+  await $.turn.complete({ ...END, reason: 'answer' })
+  // the main turn is over; the background subagent is not
+  expect(statuses.at(-1)).toBe('◆ delegating · ctx 10%')
+  const band = await $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'AbovePrompt', props: { ...BAND, isWorking: false } })
+  expect(await band.find({ text: /1 subagent/ })).toBeDefined()
+  await band.unmount()
+  const ticks = statuses.length
+  await clock.advance(3000)
+  expect(statuses.length).toBeGreaterThanOrEqual(ticks + 3)
+
+  await $.turn.complete({ ...END, turnId: 'sub', agentId: 'ag-1', reason: 'answer' })
+  expect(statuses.at(-1)).toBeUndefined()
+  const idle = statuses.length
+  await clock.advance(3000)
+  expect(statuses.length).toBe(idle)
+})
+
+test('the takeover keeps the status entry cleared', async ($, on) => {
+  mock.clock(on)
+  mock.store(on, { 'statusline-backup': '__none__' })
+  const statuses: (string | undefined)[] = []
+  on('ui.status', async (_$, e) => { statuses.push(e.text); return { value: undefined } as never })
+  on('ui.panes', async () => ({ value: [] }))
+  on('session.id', async () => ({ value: 's1' }))
+  on('turn.start', async (_$, e) => ({ turnId: e.turnId }))
+  await runGlowup($, 'statusline nothing')
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  expect(statuses.length).toBeGreaterThan(0)
+  expect(statuses.every(s => s === undefined)).toBe(true)
+})
+
+test('the Plan tab reads the breakdown once, not on every redraw', async ($, on) => {
+  const clock = mock.clock(on)
+  let usageCalls = 0
+  on('ui.status', async () => ({ value: undefined }) as never)
+  on('ui.panes', async () => ({ value: [] }))
+  on('session.id', async () => ({ value: 's1' }))
+  on('turn.start', async (_$, e) => ({ turnId: e.turnId }))
+  on('session.usage', async () => {
+    usageCalls++
+    return { value: { context: { window: 1000, percent: 10, breakdown: { categories: [{ name: 'Messages', tokens: 400, kind: 'used' }], maxTokens: 1000 } } } as never }
+  })
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  const ui = await $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'Pane', requestId: 'glowup', props: { title: 'glowup', isFocused: false, bodyColumns: 54, placement: 'dock', scroll: { offset: 0, bodyRows: 40 }, view: {} } })
+  await ui.press({ key: 'tab-plan' })
+  await clock.advance(10)
+  expect(await ui.find({ text: /Messages/ })).toBeDefined()
+  const after = usageCalls
+  await clock.advance(3000)
+  for (let i = 0; i < 3; i++) await ui.redraw()
+  expect(await ui.find({ text: /Messages/ })).toBeDefined()
+  expect(usageCalls).toBe(after)
   await ui.unmount()
 })
 
