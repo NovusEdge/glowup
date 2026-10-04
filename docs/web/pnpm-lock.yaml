@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@react-router/node':
-        specifier: ^8.4.0
-        version: 8.4.0(react-router@8.4.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(typescript@7.0.2)
       '@types/mdx':
         specifier: ^2.0.14
         version: 2.0.14
@@ -24,11 +21,8 @@ importers:
         specifier: ^16.16.1
         version: 16.16.1(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(fumadocs-core@16.16.1(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.51.0(@types/react@19.3.0)(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react-router@8.4.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(zod@4.6.5))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(tailwindcss@4.3.3)
       isbot:
-        specifier: ^5.2.2
+        specifier: ^5
         version: 5.2.2
-      lucide-react:
-        specifier: ^1.51.0
-        version: 1.51.0(@types/react@19.3.0)(react@19.3.0)
       react:
         specifier: ^19.3.0
         version: 19.3.0
@@ -60,12 +54,6 @@ importers:
       mdast-util-from-markdown:
         specifier: ^2.1.0
         version: 2.1.0
-      remark-gfm:
-        specifier: ^4.0.1
-        version: 4.0.1
-      shiki:
-        specifier: ^4.5.0
-        version: 4.5.0
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
