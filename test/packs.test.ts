@@ -24,6 +24,7 @@ test('arcade carries the mockup values', async () => {
   expect([l.rows, l.border, l.bg, l.borderColor]).toEqual(['cards', 'bold', '#1a0b33', '#ff3ec8'])
   expect(l.gradient).toEqual(['#ff3ec8', '#38e8ff'])
   expect(l.extras).toEqual({ hp: true, combo: true })
+  expect(l.rowFlags).toEqual({ labels: false, markers: true, xp: true })
   expect(l.motion).toEqual({ spinner: 'orb-states', shimmer: 2, color: '#38e8ff' })
 })
 
@@ -51,6 +52,23 @@ test('extends and layer references', async () => {
   const user = { mine: { format: 1, name: 'mine', extends: 'cozy', colors: { rows: 'retro' }, motion: 'crt' } }
   const l = look(pack('mine'), user).look
   expect([l.rows, l.gradient?.[0], l.motion.spinner]).toEqual(['retro', '#f4a6b8', 'comet'])
+})
+
+test('row flags default to labels on, and a user pack can set them over an extends chain', async () => {
+  expect(look(pack('classic')).look.rowFlags).toEqual({ labels: true, markers: false, xp: false })
+  const user = { mine: { format: 1, name: 'mine', extends: 'arcade', colors: { rowFlags: { markers: false } } } }
+  expect(look(pack('mine'), user).look.rowFlags).toEqual({ labels: false, markers: false, xp: true })
+})
+
+test('mix.overrides sit on top of the pack, a theme override, and the classic fallback', async () => {
+  const overrides = { accent: '#010203', panel: '#040506' }
+  const a = look({ ...pack('cozy'), overrides }).look
+  expect([a.theme.colors.accent, a.theme.colors.text, a.motion.color]).toEqual(['#010203', '#f5e6d3', '#ffd9a0'])
+  const t = look({ ...pack('classic'), theme: 'dusk', overrides }).look
+  expect([t.theme.colors.accent, t.bg, t.theme.colors.read]).toEqual(['#010203', '#040506', resolveTheme('dusk', {}).theme.colors.read])
+  const fallback = look({ ...pack('ghost'), overrides }).look
+  expect(fallback.theme.colors.accent).toBe('#010203')
+  expect(look({ ...pack('cozy'), overrides: { accent: 'nope', bogus: '#ffffff' } as never }).look.theme.colors.accent).toBe('#f4a6b8')
 })
 
 test('a bad layer falls back alone, with its reason', async () => {
@@ -82,6 +100,8 @@ test('validation refuses bad values', async () => {
     [{ format: 1, name: 'x', colors: { border: 'dotted' } }, 'border'],
     [{ format: 1, name: 'x', colors: { gradient: ['#ffffff'] } }, 'gradient'],
     [{ format: 1, name: 'x', colors: { extras: { hp: 'yes' } } }, 'extras'],
+    [{ format: 1, name: 'x', colors: { rowFlags: { labels: 'no' } } }, 'rowFlags'],
+    [{ format: 1, name: 'x', colors: { rowFlags: { sparkle: true } } }, 'rowFlags'],
     [{ format: 1, name: 'x', motion: { spinner: 'Disco Ball' } }, 'spinner'],
     [{ format: 1, name: 'x', motion: { shimmer: 3 } }, 'shimmer'],
     [{ format: 1, name: 'x', wobble: true }, 'unknown key'],

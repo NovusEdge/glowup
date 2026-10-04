@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { validatePack, resolveLook, ROW_STYLES, BORDERS, SPINNER_IDS, PACK_KEYS, COLORS_KEYS, MOTION_KEYS, EXTRAS_KEYS } from '../hooks/packs.ts'
+import { validatePack, resolveLook, ROW_STYLES, BORDERS, SPINNER_IDS, PACK_KEYS, COLORS_KEYS, MOTION_KEYS, EXTRAS_KEYS, ROW_FLAG_KEYS } from '../hooks/packs.ts'
 import { COLOR_KEYS, GLYPH_KEYS, parseJsonc, resolveTheme } from '../hooks/themes.ts'
 import { loadUserPacks, PACK_DIR, SAFE_NAME } from '../hooks/userpacks.ts'
 import type { Host } from '../hooks/host.ts'
@@ -55,10 +55,24 @@ test('the worked example loads through the real loaders with no errors', async (
   assert.equal(look.motionFrom, file.name)
 })
 
+test('the edit example in the skill loads and changes only what it names', () => {
+  const m = /`(\{ "format": 1, "name": "arcade-soft"[^`]*\})`/.exec(skill)
+  assert.ok(m, 'SKILL.md needs the arcade-soft extends example')
+  const file = JSON.parse(m[1]!)
+  validatePack(file)
+  const mine = resolveLook({ colors: 'soft', motion: 'soft' }, { soft: file }, {})
+  const base = resolveLook({ colors: 'arcade', motion: 'arcade' }, {}, {})
+  assert.deepEqual(mine.errors, [])
+  assert.equal(mine.look.theme.colors.accent, (file.colors as { palette: { accent: string } }).palette.accent)
+  assert.equal(mine.look.theme.colors.text, base.look.theme.colors.text)
+  assert.deepEqual(mine.look.rowFlags, base.look.rowFlags)
+})
+
 test('documented pack fields are the fields the pack loader accepts', () => {
   assert.deepEqual(names('Pack file'), [...PACK_KEYS].sort())
   assert.deepEqual(names('Colors layer').filter(n => !n.includes('.')), [...COLORS_KEYS].sort())
   assert.deepEqual(names('Colors layer').filter(n => n.startsWith('extras.')), EXTRAS_KEYS.map(k => `extras.${k}`).sort())
+  assert.deepEqual(names('Colors layer').filter(n => n.startsWith('rowFlags.')), ROW_FLAG_KEYS.map(k => `rowFlags.${k}`).sort())
   assert.deepEqual(names('Motion layer'), [...MOTION_KEYS].sort())
 })
 

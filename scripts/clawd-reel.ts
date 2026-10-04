@@ -32,7 +32,9 @@ function reel(name: string, W: number, H: number, spriteW: number) {
   const parts = SHOTS.map(([anim, caption], i) => {
     const out = `${tmp}/${i}.mp4`
     const vf = [
+      // a non-square SAR on an input clip carries through and players squash the reel
       `scale=${spriteW}:-1:flags=neighbor`,
+      'setsar=1',
       `pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2-${Math.round(H * 0.06)}:color=0x1e1e1e`,
       `drawtext=fontfile='${FONT}':text='${esc(caption)}':fontcolor=0xfff4ec:fontsize=${Math.round(H * 0.05)}:x=(w-tw)/2:y=h*0.78`,
       `drawtext=fontfile='${FONT}':text='glowup':fontcolor=0xd77757:fontsize=${Math.round(H * 0.035)}:x=(w-tw)/2:y=h*0.08`,

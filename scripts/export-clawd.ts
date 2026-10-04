@@ -56,7 +56,7 @@ function video(dir: string, anim: { loop?: boolean; frames: Frame[] }) {
   list.push(list[list.length - 2]!)
   writeFileSync(`${dir}frames.txt`, list.join('\n') + '\n')
   const base = ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', 'frames.txt']
-  const mp4 = spawnSync('ffmpeg', [...base, '-f', 'lavfi', '-i', 'color=c=0x1e1e1e:s=16x16', '-filter_complex', '[1][0]scale2ref[bg][fg];[bg][fg]overlay=shortest=1,fps=30,format=yuv420p', '-c:v', 'libx264', '-crf', '18', '-movflags', '+faststart', 'clip.mp4'], { cwd: dir })
+  const mp4 = spawnSync('ffmpeg', [...base, '-f', 'lavfi', '-i', 'color=c=0x1e1e1e:s=16x16', '-filter_complex', '[1][0]scale2ref[bg][fg];[bg][fg]overlay=shortest=1,setsar=1,fps=30,format=yuv420p', '-c:v', 'libx264', '-crf', '18', '-movflags', '+faststart', 'clip.mp4'], { cwd: dir })
   const webm = spawnSync('ffmpeg', [...base, '-vf', 'fps=30,format=yuva420p', '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '20', '-auto-alt-ref', '0', 'clip.webm'], { cwd: dir })
   rmSync(`${dir}frames.txt`)
   for (const r of [mp4, webm]) if (r.status !== 0) throw new Error(`ffmpeg failed in ${dir}: ${r.stderr}`)

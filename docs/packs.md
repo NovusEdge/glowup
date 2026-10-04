@@ -20,8 +20,8 @@ A [theme](themes.md) is the palette inside a pack's colors layer. You can keep u
 | --- | --- |
 | `classic` | Claude Code as it ships. The default. Nothing is restyled. |
 | `crt` | Green phosphor on near-black. Retro tags on rows, a comet spinner, no shimmer. |
-| `cozy` | Warm pastels. Rounded cards with a pink-to-cream gradient, an eyes spinner. |
-| `arcade` | Neon on deep purple. Bold pink cards, an HP bar for context, a COMBO tag, a spinner that follows what Claude is doing. |
+| `cozy` | Warm pastels. Rounded cards with a pink-to-cream gradient, side bars without labels, an eyes spinner. |
+| `arcade` | Neon on deep purple. Bold pink cards, `▶` and `◆` markers instead of labels, a `+N XP` tag, an HP bar for context, a COMBO tag, a spinner that follows what Claude is doing. |
 
 ## Use a pack
 
@@ -45,6 +45,7 @@ The two layers are independent. You can have the colors of one pack and the moti
 
 - `/glowup pack <name>` sets both layers to that pack and clears any theme or spinner you set on top.
 - `/glowup theme <name>` swaps the colors layer's palette, background and border color for the theme's. It keeps the pack's row style, border shape and extras, and recolors the gradient from the theme's accent.
+- `/glowup color <role> <#hex>` overrides one palette color on top of all of it. Overrides survive a pack or theme switch. See [Commands](commands.md#color).
 - `/glowup config` asks which pack to apply, which sets both layers. See [Commands](commands.md#config).
 
 If one layer fails to load, glowup uses `classic`'s for that layer only and shows one notice with the reason. A broken motion layer never costs you your colors.
@@ -67,7 +68,8 @@ Packs live in `~/.claude/glowup/packs`, or `$CLAUDE_CONFIG_DIR/glowup/packs` whe
     "border": "bold",               // round | single | double | bold | classic
     "borderColor": "#ff3ec8",
     "gradient": ["#ff3ec8", "#38e8ff"],
-    "extras": { "hp": true, "combo": true }
+    "extras": { "hp": true, "combo": true },
+    "rowFlags": { "labels": false, "markers": true, "xp": true }
   },
   "motion": {
     "spinner": "orb-states",        // stock | comet | eyes | orb-states | clawd | shimmer
@@ -116,6 +118,8 @@ A layer can also be the name of another pack: `"motion": "crt"` uses `crt`'s mot
 
 glowup ships a skill that teaches your agent the pack format. Say what you want, for example "make me a glowup pack from this palette", or show it an image or point it at a terminal color scheme. The agent writes `~/.claude/glowup/packs/<name>.json`, checks that the text and role colors have enough contrast, and tells you to run `/glowup pack <name>`. If that prints an error, the agent fixes the file and you run it again.
 
+The same skill changes a look you already have. Ask it to "make arcade less pink" or "drop the labels in cozy". For a built-in it writes a new pack that `extends` it with only your changes. For one of your packs it edits the file. For a small color change it points you to `/glowup color` instead of writing a file.
+
 ## Import a color scheme
 
 `/glowup import <file>` reads a color scheme from a local path (`~` works) and saves it as a pack with only a colors layer, then applies it. Two formats are supported, detected from the content:
@@ -140,13 +144,23 @@ A row style changes how your prompts, Claude's replies and tool calls look in th
 | Style | Your prompt | Claude's reply | Tool call |
 | --- | --- | --- | --- |
 | `classic` | Claude Code's | Claude Code's | Claude Code's, plus the theme's kind glyph |
-| `cards` | An accent side bar `▎` and a `you` label | A dim side bar, and a `claude` label on the first block of a reply | A dim bordered card with a mark: `✓`, `✗`, `■` for interrupted, `…` while running |
+| `cards` | An accent side bar `▎` and a `you` label (see the flags below) | A dim side bar, and a `claude` label on the first block of a reply | A dim bordered card with a mark: `✓`, `✗`, `■` for interrupted, `…` while running |
 | `minimal` | A `› text` line | Claude Code's | A dim one-line `· Read src/auth.ts` once it finishes cleanly |
 | `retro` | A `[YOU]` tag on its own line above your prompt | A `[CLAUDE]` tag on the first block | A `[READ  ]`-style tag, then `[ OK ]`, `[FAIL]`, `[STOP]` or `[....]` |
 
 Every style except `classic` also leaves a one-column margin on the left of each row, so the transcript does not touch the window edge.
 
 Only your own prompts are styled. Notifications and messages from other agents keep Claude Code's drawing, as do prompts you expand with ctrl+o or `--verbose`. The folded "Read 3 files" line and tool progress are left alone. In non-fullscreen mode, rows already printed to scrollback keep the style they had when printed.
+
+Three row flags, in `colors.rowFlags`, adjust how message rows look. Each is `true` or `false`.
+
+| Flag | Default | Effect |
+| --- | --- | --- |
+| `labels` | `true` | The `you` and `claude` labels in `cards`, and `[YOU]` and `[CLAUDE]` in `retro`. `false` removes them. |
+| `markers` | `false` | In `cards`, your prompt starts with `▶ ` in the accent color and Claude's reply with `◆ ` in the `read` color, instead of the side bar. Later blocks of one reply are indented to line up. |
+| `xp` | `false` | In `cards`, a `+N XP` tag in the `edit` color, right-aligned on its own line above Claude's reply. N is the combo count when that reply first drew: the successful tool calls in a row this turn. It is left out at 0. |
+
+`cozy` sets `labels` to `false` and keeps its bars. `arcade` sets all three: no labels, glyph markers, and the XP tag.
 
 The extras are two optional bits of the colors layer:
 

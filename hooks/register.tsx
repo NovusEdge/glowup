@@ -3,7 +3,7 @@ import type { Host } from './host.ts'
 import { initialModel, normalizeModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
 import { approvalLabel, dialogCall, modeAsksPerson, shortPath } from './events.ts'
 import type { Theme } from './themes.ts'
-import { resolveLook, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
+import { resolveLook, cleanOverrides, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { loadUserPacks } from './userpacks.ts'
 import { PET_ROWS, type PetSetting, type PetId, type PetInput, type PetKind } from './pets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, haikuLimit, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
@@ -144,6 +144,15 @@ async function syncTakeover($: Engine) {
 // The engine pins this entry as a "⚠ glowup:" notice, which reads as an error
 // when it never goes away; the takeover's status line already says the same.
 const statusEntry = () => !takenOver && isBusy(model) ? statusText(model, theme) : undefined
+
+// The model's combo moves on after a reply is drawn, and the engine redraws old rows on every
+// invalidate, so each reply keeps the count it first drew with.
+const xpByMessage = new Map<string, number>()
+function xpFor(messageId: string, isFirstOfReply: boolean): number | undefined {
+  if (!look.rowFlags.xp || !isFirstOfReply) return undefined
+  if (!xpByMessage.has(messageId)) xpByMessage.set(messageId, model.combo)
+  return xpByMessage.get(messageId)
+}
 
 const petOn = () => pet !== 'off' && !reducedMotion
 
@@ -379,6 +388,7 @@ async function adoptSession($: Engine, endedId: string) {
   model = initialModel()
   view = { tab: 'changes' }
   bubble = undefined
+  xpByMessage.clear()
   cancelHaiku()
   friday = false
   failed = false
@@ -416,7 +426,8 @@ const BUBBLES = BUBBLE_SETTINGS
 async function initialMix(host: Host, options: Readonly<Record<string, unknown>>): Promise<Mix> {
   const stored = await host.storeGet('mix') as Partial<Mix> | undefined
   if (stored && typeof stored.colors === 'string' && typeof stored.motion === 'string') {
-    return { colors: stored.colors, motion: stored.motion, theme: typeof stored.theme === 'string' ? stored.theme : undefined, spinner: typeof stored.spinner === 'string' ? stored.spinner : undefined }
+    const overrides = cleanOverrides(stored.overrides)
+    return { colors: stored.colors, motion: stored.motion, theme: typeof stored.theme === 'string' ? stored.theme : undefined, spinner: typeof stored.spinner === 'string' ? stored.spinner : undefined, ...(overrides && { overrides }) }
   }
   const pack = typeof options.pack === 'string' && options.pack ? options.pack : DEFAULT_MIX.colors
   const storedTheme = await host.storeGet('theme')
@@ -517,7 +528,7 @@ export const register: Register = (on, options) => {
       }
     }
     startBeat($)
-    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|import|export|pet|bubbles|pane|motion|statusline ...' })
+    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline ...' })
     mix = await initialMix(host, options)
     const storedPet = await host.storeGet('pet')
     const wantPet = PETS.includes(storedPet as PetSetting) ? storedPet as PetSetting : PETS.includes(options.pet as PetSetting) ? options.pet as PetSetting : 'clawd'
@@ -706,9 +717,11 @@ export const register: Register = (on, options) => {
       const bubbleNow = snap.bubble && snap.bubble.until > Date.now() ? snap.bubble : undefined
       extra = { look, pet: { id: pid as PetId, node, rows: snap.overlays.some(o => HEAD_OUTFITS.includes(o)) ? PET_ROWS + 2 : undefined }, bubble: bubbleNow, friday: snap.friday }
     }
+    // the engine scrolls the whole body, which would carry the pet off with a long tab: budget the tab to bodyRows instead
+    extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onScroll: (offset: number) => { view = { ...view, offset }; publish($) } }
     if (e.props.placement === 'dock') extra = { ...extra, minRows: e.props.scroll.bodyRows }
     return renderPane(els, live ? normalizeModel(live.model) : model, theme, v, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
-      view = { ...view, tab: id }
+      view = { ...view, tab: id, offset: 0 }
       publish($)
       if (id === 'plan') void feedContext($)
     }, extra)
@@ -743,7 +756,7 @@ export const register: Register = (on, options) => {
     if (off) return next(e)
     const row = await next(e)
     if (e.surface !== 'terminal') return row
-    return styleRow($.ui.resolve(e), look, { site: 'AssistantMessage', isFirstOfReply: e.props.isFirstOfReply }, row) as RenderElement
+    return styleRow($.ui.resolve(e), look, { site: 'AssistantMessage', isFirstOfReply: e.props.isFirstOfReply, xp: xpFor(e.requestId, e.props.isFirstOfReply) }, row) as RenderElement
   })
   on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
     if (off) return next(e)

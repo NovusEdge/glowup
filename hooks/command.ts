@@ -1,8 +1,8 @@
 import type { Host } from './host.ts'
-import { resolveTheme, PRESETS } from './themes.ts'
+import { resolveTheme, PRESETS, COLOR_KEYS, shown } from './themes.ts'
 import { loadUserThemes, addTheme } from './userthemes.ts'
 import { takeOver, restore } from './statusline.ts'
-import { resolveLook, exportMix, SPINNER_IDS, type Mix } from './packs.ts'
+import { resolveLook, exportMix, normalizeHex, cleanOverrides, SPINNER_IDS, type Mix } from './packs.ts'
 import { PACKS } from './packpresets.ts'
 import { loadUserPacks, addPack, savePack, SAFE_NAME } from './userpacks.ts'
 import { parseScheme } from './schemes.ts'
@@ -57,8 +57,44 @@ async function packList(host: Host, ctl: Ctl): Promise<string> {
   return lines.join('\n')
 }
 
+const isRole = (s: string | undefined): s is (typeof COLOR_KEYS)[number] => (COLOR_KEYS as readonly string[]).includes(s ?? '')
+const noRole = (s: string) => `No color role named "${shown(s)}". Roles: ${COLOR_KEYS.join(', ')}.`
+
+async function colorList(host: Host, ctl: Ctl): Promise<string> {
+  const m = ctl.mix()
+  const { look } = resolveLook(m, await loadUserPacks(host), await loadUserThemes(host))
+  const over = cleanOverrides(m.overrides) ?? {}
+  const rows = COLOR_KEYS.map(k => `${k in over ? '●' : '○'} ${k.padEnd(6)} ${look.theme.colors[k]}${k in over ? '  (override)' : ''}`)
+  return [...rows, '', '● overridden. Set one with /glowup color <role> <#hex>; clear with /glowup color reset [role].'].join('\n')
+}
+
+async function setColor(host: Host, ctl: Ctl, role: string, hex: string): Promise<string> {
+  if (!isRole(role)) return noRole(role)
+  const v = normalizeHex(hex)
+  if (!v) return `"${shown(hex)}" is not a color. Use #rgb or #rrggbb.`
+  const m = ctl.mix()
+  await applyMix(host, ctl, { ...m, overrides: { ...cleanOverrides(m.overrides), [role]: v } })
+  return `Color ${role}: ${v}`
+}
+
+async function resetColor(host: Host, ctl: Ctl, role: string | undefined): Promise<string> {
+  const { overrides, ...rest } = ctl.mix()
+  const over = cleanOverrides(overrides) ?? {}
+  if (role === undefined) {
+    if (!Object.keys(over).length) return 'No color overrides to clear.'
+    await applyMix(host, ctl, rest)
+    return 'Color overrides cleared.'
+  }
+  if (!isRole(role)) return noRole(role)
+  if (!(role in over)) return `${role} has no override.`
+  const { [role]: _, ...left } = over
+  await applyMix(host, ctl, Object.keys(left).length ? { ...rest, overrides: left } : rest)
+  return `Color ${role}: back to the look's own.`
+}
+
 async function usePack(host: Host, ctl: Ctl, name: string): Promise<string> {
-  const mix: Mix = { colors: name, motion: name }
+  const keep = ctl.mix().overrides
+  const mix: Mix = { colors: name, motion: name, ...(keep && { overrides: keep }) }
   const { errors } = resolveLook(mix, await loadUserPacks(host), await loadUserThemes(host))
   if (errors.length) return errors.join('\n')
   await applyMix(host, ctl, mix)
@@ -84,6 +120,7 @@ async function importScheme(host: Host, ctl: Ctl, rawPath: string, force: boolea
 }
 
 const CURRENT = ' (current)'
+const TWEAK = 'Tweak colors'
 const PET_LABELS: [PetSetting, string][] = [['clawd', 'Clawd'], ['clawd-shiny', 'Clawd (shiny)'], ['off', 'No pet']]
 
 // register.tsx's CommandOutput hook recognises this line by its leading "glowup · ".
@@ -155,9 +192,21 @@ async function wizard(host: Host, ctl: Ctl): Promise<string> {
     bubbles === 'haiku' ? ['Use template bubbles', 'bubbles on'] : ['Write bubbles with Haiku', 'bubbles haiku'],
     [`Turn reduced motion ${reduced ? 'off' : 'on'}`, `motion ${reduced ? 'full' : 'reduced'}`],
   ]
-  const extras = await ask('Anything else to change?', 'Extras', toggles.map(([l]) => l), true)
+  const extras = await ask('Anything else to change?', 'Extras', [...toggles.map(([l]) => l), TWEAK], true)
   const picked = (extras ?? '').split(',').map(s => s.trim())
   for (const [l, cmd] of toggles) if (picked.includes(l)) await apply(cmd)
+  if (picked.includes(TWEAK)) {
+    const role = (await ask('Which color?', 'Color', ['accent', 'text', 'dim', 'panel']))?.trim()
+    if (role === undefined) return summary(ctl)
+    if (!isRole(role)) return noRole(role)
+    const c = resolveLook(ctl.mix(), user, await loadUserThemes(host)).look.theme.colors
+    const ideas = [...new Set([c.accent, c.read, c.edit, c.shell, c.agent, c.fail, '#ffffff', '#000000'])].filter(h => h !== c[role]).slice(0, 4)
+    const hex = (await ask(`Which hex for ${role}? Now ${c[role]}.`, 'Hex', ideas))?.trim()
+    if (hex === undefined) return summary(ctl)
+    const v = normalizeHex(hex)
+    if (!v) return `"${shown(hex)}" is not a color. Use #rgb or #rrggbb.`
+    await apply(`color ${role} ${v}`)
+  }
   return summary(ctl)
 }
 
@@ -170,6 +219,9 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   if (sub === 'bubbles' && !a1) return `Bubbles: ${ctl.bubbles()}. Change it with /glowup bubbles on|off|haiku.`
   if (sub === 'motion' && !a1) return `Motion: ${ctl.reduced() ? 'reduced' : 'full'}. Change it with /glowup motion reduced|full.`
   if (sub === 'statusline' && !a1) return 'Use /glowup statusline on to let glowup draw it, or /glowup statusline restore to put yours back.'
+  if (sub === 'color' && (!a1 || a1 === 'list')) return colorList(host, ctl)
+  if (sub === 'color' && a1 === 'reset') return resetColor(host, ctl, a2)
+  if (sub === 'color') return a2 ? setColor(host, ctl, a1!, a2) : 'Use /glowup color <role> <#hex>, /glowup color list, or /glowup color reset [role].'
   if (sub === 'import' && !a1) return 'Use /glowup import <file> with a Ghostty or base16 scheme; it becomes a pack.'
   if (sub === 'theme' && a1 === 'list') {
     const names = [...new Set([...Object.keys(PRESETS), ...Object.keys(await loadUserThemes(host))])]
@@ -194,7 +246,8 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   if (sub === 'pack' && a1?.startsWith('https://')) {
     const r = await addPack(host, a1, a2 === '--force')
     if (!r.name) return r.message
-    await applyMix(host, ctl, { colors: r.name, motion: r.name })
+    const keep = ctl.mix().overrides
+    await applyMix(host, ctl, { colors: r.name, motion: r.name, ...(keep && { overrides: keep }) })
     return `Pack: ${r.name}`
   }
   if (sub === 'pack' && a1) return usePack(host, ctl, a1)

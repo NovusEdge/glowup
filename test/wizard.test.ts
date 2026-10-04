@@ -51,7 +51,7 @@ test('asks Pack, Spinner, Pet, Extras in order with the current pack marked', as
   expect(r.asked[2]!.options).toEqual(['Clawd', 'No pet'])
   expect(r.asked[3]!.question).toBe('Anything else to change?')
   expect(r.asked[3]!.multiSelect).toBe(true)
-  expect(r.asked[3]!.options).toEqual(['Turn bubbles off', 'Write bubbles with Haiku', 'Turn reduced motion on'])
+  expect(r.asked[3]!.options).toEqual(['Turn bubbles off', 'Write bubbles with Haiku', 'Turn reduced motion on', 'Tweak colors'])
   expect(r.asked.every(q => q.options.length >= 2 && q.options.length <= 4 && q.header.length <= 12)).toBe(true)
 })
 
@@ -231,7 +231,7 @@ test('the shiny pet is offered only once unlocked, and applies', async () => {
 test('extras toggle relative to the current state, in both directions', async () => {
   const r = rig(['classic (current)', 'Pack default', 'Clawd', 'Turn bubbles on,Turn reduced motion off'], { bubbles: 'off', reduced: true })
   const out = await r.run()
-  expect(r.asked[3]!.options).toEqual(['Turn bubbles on', 'Write bubbles with Haiku', 'Turn reduced motion off'])
+  expect(r.asked[3]!.options).toEqual(['Turn bubbles on', 'Write bubbles with Haiku', 'Turn reduced motion off', 'Tweak colors'])
   expect(out).toBe('glowup · classic · Clawd · bubbles on · full motion')
   expect(r.kv.bubbles).toBe('on')
   expect(r.kv.reducedMotion).toBe(false)
@@ -243,8 +243,53 @@ test('the extras offer Haiku bubbles, and template bubbles from haiku', async ()
   expect(a.kv.bubbles).toBe('haiku')
   const b = rig(['classic (current)', 'Pack default', 'Clawd', 'Use template bubbles'], { bubbles: 'haiku' })
   await b.run()
-  expect(b.asked[3]!.options).toEqual(['Turn bubbles off', 'Use template bubbles', 'Turn reduced motion on'])
+  expect(b.asked[3]!.options).toEqual(['Turn bubbles off', 'Use template bubbles', 'Turn reduced motion on', 'Tweak colors'])
   expect(b.kv.bubbles).toBe('on')
+})
+
+const TO_EXTRAS = ['classic (current)', 'Pack default', 'Clawd']
+
+test('Tweak colors asks which role, then which hex, and applies the override', async () => {
+  const r = rig([...TO_EXTRAS, 'Tweak colors', 'accent', '#112233'])
+  const out = await r.run()
+  expect(r.asked.slice(4).map(q => q.header)).toEqual(['Color', 'Hex'])
+  expect(r.asked[4]!.options).toEqual(['accent', 'text', 'dim', 'panel'])
+  expect(r.asked[5]!.options.length).toBeGreaterThanOrEqual(2)
+  expect(r.asked[5]!.options.length).toBeLessThanOrEqual(4)
+  expect(r.asked[5]!.options.every(o => /^#[0-9a-f]{6}$/.test(o))).toBe(true)
+  expect(r.asked[5]!.options).not.toContain('#d77757')
+  expect(r.kv.mix).toEqual({ colors: 'classic', motion: 'classic', overrides: { accent: '#112233' } })
+  expect(out).toContain('glowup · classic')
+})
+
+test('Tweak colors accepts a typed role and a short hex', async () => {
+  const r = rig([...TO_EXTRAS, 'Tweak colors', ' fail ', '#f00'])
+  await r.run()
+  expect(r.kv.mix).toEqual({ colors: 'classic', motion: 'classic', overrides: { fail: '#ff0000' } })
+})
+
+test('Tweak colors stops with the reason on an unknown role or a bad hex', async () => {
+  const role = rig([...TO_EXTRAS, 'Tweak colors', 'glow'])
+  expect(await role.run()).toContain('No color role named "glow"')
+  expect(role.asked).toHaveLength(5)
+  const hex = rig([...TO_EXTRAS, 'Tweak colors', 'accent', 'orange'])
+  expect(await hex.run()).toContain('is not a color')
+  expect(hex.kv.mix).toBeUndefined()
+})
+
+test('Tweak colors runs after the other extras, and Esc in it keeps them', async () => {
+  const r = rig([...TO_EXTRAS, 'Turn bubbles off,Tweak colors', ESC])
+  const out = await r.run()
+  expect(r.kv.bubbles).toBe('off')
+  expect(r.kv.mix).toBeUndefined()
+  expect(out).toContain('glowup ·')
+})
+
+test('a color override does not make the mix custom, and the pack pick keeps it', async () => {
+  const r = rig(['crt', 'Pack default', ESC], { mix: { colors: 'cozy', motion: 'cozy', overrides: { accent: '#112233' } } })
+  await r.run()
+  expect(r.asked[0]!.options).toEqual(['arcade', 'classic', 'cozy (current)', 'crt'])
+  expect(r.ctl.mix()).toEqual({ colors: 'crt', motion: 'crt', overrides: { accent: '#112233' } })
 })
 
 test('an empty extras selection changes nothing', async () => {

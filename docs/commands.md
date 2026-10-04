@@ -19,11 +19,11 @@ glowup
 more: /glowup help all   docs: https://glowup.khimani.dev/
 ```
 
-`/glowup help all` lists every command in groups: Start here, Look, Pet, Comfort, Make your own and Status line.
+`/glowup help all` lists every command in groups: Start here, Look, Pet, Comfort, Make your own and Status line. The Look group includes the `color` commands.
 
 On the terminal and desktop app the card is drawn in the colors of your current pack, with a header box, swatches and the spinner word. Elsewhere, and for the model, you get the plain text above.
 
-`/glowup config` asks up to four questions. See [config](#config).
+`/glowup config` asks four questions, plus two for color tweaks. See [config](#config).
 
 An unknown subcommand prints `Unknown: <what you typed>` followed by the short card.
 
@@ -84,6 +84,19 @@ A theme file holds data only. Nothing in it runs. Adding a theme with a name you
 
 The built-in packs are `classic` (the default), `crt`, `cozy` and `arcade`. If a pack cannot load, glowup prints the reason and keeps the current look. The file format, limits and every refusal message are in [Packs](packs.md).
 
+## color
+
+| Command | What it does |
+| --- | --- |
+| `/glowup color` or `/glowup color list` | List the 14 color roles with their current hex. A filled dot and `(override)` mark the ones you changed. |
+| `/glowup color <role> <#hex>` | Override one role. The hex is `#rgb` or `#rrggbb`. Prints `Color <role>: #rrggbb`. |
+| `/glowup color reset <role>` | Clear one override. |
+| `/glowup color reset` | Clear all overrides. |
+
+The roles are the ones in the [theme reference](theme-reference.md): `accent`, `text`, `dim`, `faint`, `read`, `edit`, `shell`, `agent`, `pass`, `fail`, `panel`, `addBg`, `delBg` and `sel`. An unknown role or a bad hex prints the reason and changes nothing.
+
+An override is saved and applied on top of whatever pack and theme are active. It survives `/glowup pack <name>` and `/glowup theme <name>`, and `/glowup export konsole` and `/glowup pack save <name>` include it. A pack's own gradient, border color and spinner color stay as the pack set them. Overrides are not part of a pack file unless you save one.
+
 ## import
 
 `/glowup import <file>` turns a Ghostty or base16 color scheme into a pack with a colors layer, saves it in `~/.claude/glowup/packs` and applies it. The file can be at most 64 KB. Add `--force` to replace an installed pack of the same name. See [Packs](packs.md#import-a-color-scheme).
@@ -108,16 +121,17 @@ See [Pets](pets.md).
 
 ## config
 
-`/glowup config` asks up to four questions in Claude Code's own question dialog, and each answer applies as soon as you give it:
+`/glowup config` asks four questions, and two more if you pick "Tweak colors", in Claude Code's own question dialog. Each answer applies as soon as you give it:
 
 1. **Pack**: `arcade`, `classic`, `cozy` or `crt`, with the one in use marked `(current)`. Choose Other and type the name of a pack you installed to use that one. An unknown name prints an error and stops the questions.
 2. **Spinner**: `Pack default` (clears a spinner you set), then three spinners, leaving out the one your pack already uses. A spinner you set is marked `(current)`. Choose Other and type any spinner name from `/glowup spinner list`; an unknown name prints an error and stops the questions.
 3. **Pet**: Clawd, the shiny Clawd once you have unlocked him, or no pet.
 4. **Extras**: pick any of "Turn bubbles on/off", "Write bubbles with Haiku" (or "Use template bubbles" when Haiku is on) and "Turn reduced motion on/off". The labels flip the current setting. Picking none changes nothing.
+   - **Tweak colors** asks **Color**: `accent`, `text`, `dim` or `panel`, or Other to type any role from `/glowup color list`. Then it asks **Hex**: a few colors from the current palette, or Other to type `#rgb` or `#rrggbb`. It sets the same override as `/glowup color <role> <#hex>`. An unknown role or a bad hex prints the reason and stops.
 
 Esc on any question stops there. Answers you already gave stay applied. The command ends with a one-line summary, for example `glowup · arcade · spinner comet · Clawd · bubbles on · full motion` (the spinner part appears only when you set one), drawn with the pack's colors.
 
-Each answer does what the matching typed command does (`pack`, `spinner`, `pet`, `bubbles`, `motion`), so the questions add nothing the commands lack. The colors and motion layers on their own, and saving a look are not in the questions: use `/glowup pack save <name>` to save the current look. In a `-p` run there is no one to ask, so `/glowup config` prints the command list instead.
+Each answer does what the matching typed command does (`pack`, `spinner`, `pet`, `bubbles`, `motion`, `color`), so the questions add nothing the commands lack. The colors and motion layers on their own, and saving a look are not in the questions: use `/glowup pack save <name>` to save the current look. In a `-p` run there is no one to ask, so `/glowup config` prints the command list instead.
 
 ## Settings and the store
 

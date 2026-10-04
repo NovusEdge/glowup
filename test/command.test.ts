@@ -2,7 +2,7 @@ import { expect, mock } from 'claude-code/testing'
 import { runGlowup, fakeHost, fakeFs, test } from './kit.ts'
 import { runCommand, USAGE, type Ctl } from '../hooks/command.ts'
 import { SHORT_TEXT, FULL_TEXT, SECTIONS, DOCS_URL } from '../hooks/help.ts'
-import type { Mix } from '../hooks/packs.ts'
+import { resolveLook, cleanOverrides, type Mix } from '../hooks/packs.ts'
 import type { PetSetting } from '../hooks/pets.ts'
 
 test('/glowup and /glowup help print the short card', { timeoutMs: 20000 }, async ($, on) => {
@@ -128,9 +128,90 @@ test('a subcommand with no argument answers with its current value, never Unknow
   expect(await ask('statusline')).toContain('/glowup statusline on')
   expect(await ask('import')).toContain('/glowup import <file>')
   expect(await ask('export')).toContain('konsole')
-  for (const sub of ['pack', 'theme', 'pet', 'bubbles', 'motion', 'statusline', 'import', 'export', 'spinner']) {
+  for (const sub of ['color', 'pack','theme', 'pet', 'bubbles', 'motion', 'statusline', 'import', 'export', 'spinner']) {
     expect(await ask(sub), sub).not.toContain('Unknown')
   }
+})
+
+test('color lists every role with its hex and marks overrides', async () => {
+  const { host } = fakeHost()
+  const { ctl: c } = ctl()
+  const plain = await runCommand(host, 'color', c)
+  expect(plain).toBe(await runCommand(host, 'color list', c))
+  expect(plain).toContain('○ accent #d77757')
+  expect(plain.split('\n').filter(l => l.startsWith('○'))).toHaveLength(14)
+  expect(plain).not.toContain('(override)')
+  await runCommand(host, 'color accent #0f0', c)
+  const after = await runCommand(host, 'color list', c)
+  expect(after).toContain('● accent #00ff00  (override)')
+  expect(after).toContain('○ text')
+})
+
+test('color <role> <hex> stores an override, normalised to #rrggbb', async () => {
+  const { host, store } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'color accent #ABC', c)).toBe('Color accent: #aabbcc')
+  expect(await runCommand(host, 'color fail #FF0000', c)).toBe('Color fail: #ff0000')
+  expect(store.mix).toEqual({ colors: 'classic', motion: 'classic', overrides: { accent: '#aabbcc', fail: '#ff0000' } })
+  expect(calls).toHaveLength(2)
+})
+
+test('color refuses an unknown role and a bad hex with the reason, and stores nothing', async () => {
+  const { host, store } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'color glow #fff', c)).toContain('No color role named "glow". Roles: accent, text')
+  for (const hex of ['red', 'fff', '#ff', '#12345', '#gggggg', '#1234567']) expect(await runCommand(host, `color accent ${hex}`, c), hex).toContain('is not a color. Use #rgb or #rrggbb.')
+  expect(await runCommand(host, 'color accent', c)).toContain('/glowup color <role> <#hex>')
+  expect(store.mix).toBeUndefined()
+  expect(calls).toEqual([])
+})
+
+test('color reset clears one override or all', async () => {
+  const { host, store } = fakeHost()
+  const { ctl: c } = ctl()
+  expect(await runCommand(host, 'color reset', c)).toBe('No color overrides to clear.')
+  await runCommand(host, 'color accent #111111', c)
+  await runCommand(host, 'color text #222222', c)
+  expect(await runCommand(host, 'color reset ghost', c)).toContain('No color role named "ghost"')
+  expect(await runCommand(host, 'color reset dim', c)).toBe('dim has no override.')
+  expect(await runCommand(host, 'color reset accent', c)).toContain('accent')
+  expect(store.mix).toEqual({ colors: 'classic', motion: 'classic', overrides: { text: '#222222' } })
+  expect(await runCommand(host, 'color reset text', c)).toContain('text')
+  expect(store.mix).toEqual({ colors: 'classic', motion: 'classic' })
+  await runCommand(host, 'color accent #111111', c)
+  await runCommand(host, 'color text #222222', c)
+  expect(await runCommand(host, 'color reset', c)).toBe('Color overrides cleared.')
+  expect(store.mix).toEqual({ colors: 'classic', motion: 'classic' })
+})
+
+test('color overrides survive pack, theme and spinner changes and apply on top of them', async () => {
+  const { host } = fakeHost()
+  const { ctl: c } = ctl()
+  await runCommand(host, 'color accent #123456', c)
+  await runCommand(host, 'pack arcade', c)
+  await runCommand(host, 'theme dusk', c)
+  await runCommand(host, 'spinner comet', c)
+  expect(c.mix().overrides).toEqual({ accent: '#123456' })
+  expect(resolveLook(c.mix(), {}, {}).look.theme.colors.accent).toBe('#123456')
+  expect(resolveLook({ colors: 'arcade', motion: 'arcade' }, {}, {}).look.theme.colors.accent).toBe('#ff3ec8')
+  const list = await runCommand(host, 'color list', c)
+  expect(list).toContain('● accent #123456  (override)')
+  expect(list).toContain('○ read')
+})
+
+test('export konsole uses the overridden colors', async () => {
+  const { host, files } = fakeHost()
+  const { ctl: c } = ctl()
+  await runCommand(host, 'color text #abcdef', c)
+  const out = await runCommand(host, 'export konsole', c)
+  const path = out.split('\n')[0]!
+  expect(files[path]).toContain('171,205,239')
+})
+
+test('stored overrides are cleaned: unknown roles and bad colors are dropped', async () => {
+  expect(cleanOverrides({ accent: '#ABC', nope: '#ffffff', text: 'blue' })).toEqual({ accent: '#aabbcc' })
+  expect(cleanOverrides({ nope: '#ffffff' })).toBeUndefined()
+  expect(cleanOverrides('x')).toBeUndefined()
 })
 
 test('statusline on asks first; No changes nothing', async () => {

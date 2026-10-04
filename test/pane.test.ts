@@ -352,3 +352,44 @@ test('every bubble line wraps at spaces, in two rows at most, inside the pane', 
     }
   }
 })
+
+// Rows a tree takes: Box columns sum, rows take the tallest, a set height wins, a border adds two.
+const rowsOf = (n: any): number => {
+  if (!n || typeof n !== 'object') return 0
+  if (n.type === 'Text' || n.type === 'Button') return 1
+  if (n.type !== 'Box') return 0
+  const kids = (n.children ?? []).flat(Infinity).map(rowsOf)
+  const inside = n.props.flexDirection === 'row' ? Math.max(0, ...kids) : kids.reduce((a: number, b: number) => a + b, 0)
+  return (n.props.height ?? inside) + (n.props.borderStyle ? 2 : 0) + (n.props.marginTop ?? 0)
+}
+
+test('a long tab leaves the pet and status box in the rows the pane has, docked or inline', async () => {
+  const BODY = 30
+  for (const [width, compact] of [[54, false], [80, false], [50, true]] as const)
+    for (const tab of ['changes', 'agents', 'plan'] as const) {
+      const tree = renderPane(els, many(60), T, { tab }, width, compact, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, bodyRows: compact ? COMPACT_ROWS : BODY, minRows: compact ? undefined : BODY }) as any
+      expect(rowsOf(tree), `${tab} ${width}`).toBeLessThanOrEqual(compact ? COMPACT_ROWS : BODY)
+      expect(walk(tree)).toContain(PETNODE)
+    }
+})
+
+test('with a bubble above the pet the long tab still fits the body exactly', async () => {
+  const tree = renderPane(els, many(60), T, { tab: 'changes' }, 54, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, bubble: { text: 'ouch, 3 failed', mood: 'fail' }, bodyRows: 30 }) as any
+  expect(rowsOf(tree)).toBe(30)
+})
+
+test('a long tab scrolls inside its rows, with buttons for the hidden ones', async () => {
+  const draw = (offset?: number, onScroll: (o: number) => void = () => {}) => renderPane(els, many(60), T, { tab: 'changes', offset }, 54, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, bodyRows: 30, onScroll }) as any
+  const all = (t: any) => walk(t).filter(n => n.type === 'Text').map(n => n.children.join('')).join('\n')
+  expect(all(draw())).toContain('f0.ts')
+  expect(all(draw())).not.toContain('f40.ts')
+  const labels = (t: any) => walk(t).filter(n => n.type === 'Button').map(b => b.props.label).filter((l: string) => /more/.test(l))
+  expect(labels(draw())).toEqual([expect.stringMatching(/^↓ \d+ more$/)])
+  expect(all(draw(1000))).toContain('f59.ts')
+  expect(labels(draw(1000))).toEqual([expect.stringMatching(/^↑ \d+ more$/)])
+  expect(rowsOf(draw(1000))).toBeLessThanOrEqual(30)
+  const picks: number[] = []
+  const down = walk(draw(0, o => picks.push(o))).find(n => n.type === 'Button' && /↓/.test(n.props.label))
+  ;(down.onPress ?? down.props.onPress)({})
+  expect(picks[0]).toBeGreaterThan(0)
+})

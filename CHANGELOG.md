@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A long Changes, Agents or Plan & context tab no longer pushes Clawd and the status box off the bottom of the pane. The tab now scrolls inside the rows left over, with `↑ N more` and `↓ N more` buttons (hotkeys `k` and `j`).
+
+## [0.3.3] - 2026-10-04
+
+### Added
+
+- Packs can set `colors.rowFlags`: `labels`, `markers` and `xp`, so any pack can drop the `you` and `claude` labels, mark rows with `▶` and `◆`, and show a `+N XP` tag above a reply.
+- `/glowup color`: list every color role with its hex, set one with `/glowup color <role> <#hex>`, or clear with `/glowup color reset [role]`. Overrides are saved and stay on top of any pack or theme, and `/glowup export konsole` and `/glowup pack save` use them.
+- `/glowup config` has a "Tweak colors" extra that asks for a role and a hex.
+- The pack-making skill can change an existing pack or theme: it extends a built-in with only your changes, edits your own packs, and suggests `/glowup color` for a small color tweak.
+
+### Changed
+
+- `arcade` marks your prompt with a pink `▶` and Claude's reply with a cyan `◆`, with no labels or bars, and shows `+N XP` above a reply after tool calls succeed.
+- `cozy` keeps its bars and no longer shows the `you` and `claude` labels.
+
+## [0.3.2] - 2026-10-04
+
+### Fixed
+
 - Restyled tool rows draw again. Claude Code refused them because of a box setting around its own row, so every tool row fell back to the stock look.
 - The pane and band no longer fail to draw after an update or reload when the saved state comes from an older glowup.
 - Updating glowup no longer shows the "glowup is loaded twice" toast or turns the new version off.
