@@ -30,8 +30,10 @@ function label({ Text }: Els, text: string, look: Look, color: string, bold?: bo
 
 // Built-in renderers size text from the terminal width, not their container, so only a little
 // slack exists beside an engine row. The engine box is the one that gives up width; tags and
-// marks keep theirs, or "[ OK ]" wraps its "]" onto the next line.
-const shrinker = (Box: any, engine: unknown) => <Box flexGrow={1} flexShrink={1} minWidth={0} overflow="hidden">{engine}</Box>
+// marks keep theirs, or "[ OK ]" wraps its "]" onto the next line. Claude Code refuses an engine
+// node under a Box with width, height, min sizes, overflow, display or position, so only the
+// flex props go here (test/engine-tree.ts).
+const shrinker = (Box: any, engine: unknown) => <Box flexGrow={1} flexShrink={1}>{engine}</Box>
 const fixed = ({ Box, Text }: Els, color: string, s: string) => <Box flexShrink={0}><Text color={color} wrap="truncate">{s}</Text></Box>
 
 // Messages are always a bar; tool rows are boxed unless prefixCards asks for the bar too.

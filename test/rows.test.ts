@@ -193,14 +193,14 @@ test('tool header marks and tags never shrink or wrap; the engine box gives up w
       const wrapper = walk(s).find(x => x.type === 'Box' && x.children?.includes(mk))
       expect([name, prefixCards, wrapper.props.flexShrink, mk.props.wrap]).toEqual([name, prefixCards, 0, 'truncate'])
       const eng = walk(s).find(x => x.type === 'Box' && x.children?.includes(ENGINE))
-      expect([name, prefixCards, eng.props.flexShrink, eng.props.minWidth, eng.props.overflow]).toEqual([name, prefixCards, 1, 0, 'hidden'])
+      expect([name, prefixCards, eng.props.flexShrink, eng.props.minWidth, eng.props.overflow]).toEqual([name, prefixCards, 1, undefined, undefined])
     }
   }
   const c = styleRow(els, look('classic'), tool(), ENGINE) as any
   const g = walk(c).find(x => x.type === 'Text' && text(x).includes('▸'))
   expect([walk(c).find(x => x.type === 'Box' && x.children?.includes(g)).props.flexShrink, g.props.wrap]).toEqual([0, 'truncate'])
   const ce = walk(c).find(x => x.type === 'Box' && x.children?.includes(ENGINE))
-  expect([ce.props.flexShrink, ce.props.minWidth, ce.props.overflow]).toEqual([1, 0, 'hidden'])
+  expect([ce.props.flexShrink, ce.props.minWidth, ce.props.overflow]).toEqual([1, undefined, undefined])
   expect(c.props.marginLeft).toBeUndefined()
   const tag = walk(styleRow(els, look('crt'), tool(), ENGINE)).find(x => x.type === 'Box' && x.props?.flexShrink === 0 && text(x).startsWith('[READ'))
   expect(tag).toBeDefined()
