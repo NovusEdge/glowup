@@ -284,7 +284,7 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
       </Box>
       {compact && extra?.pet && petLine(els, t, extra, inner)}
       {!compact && (
-        <Box flexDirection="column" borderStyle={look?.border ?? 'round'} borderColor={look?.borderColor ?? t.colors.faint} marginTop={1} paddingX={1}>
+        <Box flexDirection="column" width={inner} borderStyle={look?.border ?? 'round'} borderColor={look?.borderColor ?? t.colors.faint} marginTop={1} paddingX={1}>
           {statusRows(m, t, inner - 4, look).map((r, i) => renderSegs(els, r, 's' + i))}
           {extra?.pet && petStrip(els, t, extra, width)}
         </Box>

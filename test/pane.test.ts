@@ -409,3 +409,8 @@ test('a long tab keeps its box edges and scrolls only the first body', async () 
   expect(ctx).toBeGreaterThan(0)
   expect(rows.findIndex((r, i) => i > ctx && r.startsWith('╰'))).toBeGreaterThan(ctx)
 })
+
+test('the docked status box is as wide as the section boxes', async () => {
+  const tree = renderPane(els, M, T, { tab: 'changes' }, 54, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE } })
+  expect(walk(tree).find(n => n.props?.borderStyle).props.width).toBe(52)
+})
