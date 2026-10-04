@@ -1,6 +1,6 @@
-import { test, expect, mock } from 'claude-code/testing'
+import { expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
-import { runGlowup, fakeFs } from './kit.ts'
+import { runGlowup, fakeFs, test } from './kit.ts'
 import { SHORT_TEXT, FULL_TEXT, SECTIONS, DOCS_URL } from '../hooks/help.ts'
 import { resolveLook } from '../hooks/packs.ts'
 

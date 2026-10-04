@@ -1,6 +1,6 @@
-import { test, expect, mock } from 'claude-code/testing'
+import { expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
-import { runGlowup, fakeFs } from './kit.ts'
+import { runGlowup, fakeFs, test } from './kit.ts'
 import { USAGE } from '../hooks/command.ts'
 
 const walk = (n: any, out: any[] = []): any[] => { if (typeof n === 'string') out.push(n); else if (n && typeof n === 'object') { out.push(n); for (const c of n.children ?? []) walk(c, out) } return out }

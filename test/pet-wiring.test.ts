@@ -1,6 +1,6 @@
-import { test, expect, mock } from 'claude-code/testing'
+import { expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
-import { runGlowup, fakeFs } from './kit.ts'
+import { runGlowup, fakeFs, test } from './kit.ts'
 import { CLAWD_SAY } from '../hooks/bubbles.ts'
 
 const ENGINE_ROW = { type: 'Text', props: {}, children: ['engine row'] } as RenderElement

@@ -1,6 +1,6 @@
-import { test, expect, mock } from 'claude-code/testing'
+import { expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
-import { runGlowup, fakeFs } from './kit.ts'
+import { runGlowup, fakeFs, test } from './kit.ts'
 
 declare function setTimeout(fn: (value: unknown) => void, ms: number): unknown
 const scroll = { offset: 0, bodyRows: 10 }
