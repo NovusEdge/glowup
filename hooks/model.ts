@@ -13,6 +13,7 @@ export type Model = {
   ctxSampledAt?: number
   ctxPeak: number
   compactions: number
+  compactAt?: number
   turnAt?: number
   // last time something visible happened; the pet sleeps after a long gap
   actAt: number
@@ -34,7 +35,7 @@ export type Ev =
   | { type: 'agent-done'; at: number; agentId: string; tokens?: number }
   | { type: 'turn-done'; at: number; reason: 'answer' | 'aborted' | 'error' | 'refusal' }
   | { type: 'context'; percent: number }
-  | { type: 'compact' }
+  | { type: 'compact'; at: number }
   // Claude Code's saved task list; an empty read leaves the plan built from this session's calls
   | { type: 'plan-load'; plan: PlanItem[] }
   | { type: 'usage'; limits: RateLimit[]; costUsd?: number }
@@ -113,7 +114,7 @@ export function applyEvent(m: Model, ev: Ev): Model {
       const fresh = !m.working && m.ctxSampledAt !== undefined && m.ctxSampledAt === m.doneAt && m.ctxHistory.length > 0
       return { ...m, ctxPercent, ctxPeak: Math.max(m.ctxPeak, ctxPercent), ctxHistory: fresh ? [...m.ctxHistory.slice(0, -1), ctxPercent] : m.ctxHistory }
     }
-    case 'compact': return { ...m, compactions: m.compactions + 1 }
+    case 'compact': return { ...m, compactions: m.compactions + 1, compactAt: ev.at }
     case 'plan-load': return ev.plan.length ? { ...m, plan: ev.plan } : m
     case 'usage': return { ...m, limits: ev.limits, costUsd: ev.costUsd ?? m.costUsd }
     case 'session-info': return { ...m, modelName: ev.modelName ?? m.modelName, root: ev.root ?? m.root }
