@@ -2,7 +2,7 @@ import type { Host } from './host.ts'
 import { resolveTheme, PRESETS } from './themes.ts'
 import { loadUserThemes, addTheme } from './userthemes.ts'
 import { takeOver, restore } from './statusline.ts'
-import { resolveLook, exportMix, type Mix } from './packs.ts'
+import { resolveLook, exportMix, SPINNER_IDS, type Mix } from './packs.ts'
 import { PACKS } from './packpresets.ts'
 import { loadUserPacks, addPack, savePack, SAFE_NAME } from './userpacks.ts'
 import { parseScheme } from './schemes.ts'
@@ -18,7 +18,8 @@ export const USAGE = [
   '  /glowup pack <name|url>    apply a pack (--force replaces an installed one)',
   '  /glowup pack list          list packs',
   '  /glowup pack save <name>   save the current look as a pack file',
-  '  /glowup config             pick a pack, pet and extras by answering questions',
+  '  /glowup spinner <name|list|default>  set just the spinner',
+  '  /glowup config           pick a pack, pet and extras by answering questions',
   '  /glowup import <file>      turn a terminal color scheme into a pack',
   '  /glowup pet clawd|off      choose the pet, or none',
   '  /glowup bubbles on|off     speech bubbles',
@@ -186,6 +187,21 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     return `Pack: ${r.name}`
   }
   if (sub === 'pack' && a1) return usePack(host, ctl, a1)
+  if (sub === 'spinner' && a1 === 'list') {
+    const { look } = resolveLook(ctl.mix(), await loadUserPacks(host), await loadUserThemes(host))
+    return SPINNER_IDS.map(n => `${n === look.motion.spinner ? '●' : '○'} ${n}`).join('\n')
+  }
+  if (sub === 'spinner' && a1 === 'default') {
+    const { spinner: _, ...rest } = ctl.mix()
+    await applyMix(host, ctl, rest)
+    return 'Spinner: pack default'
+  }
+  if (sub === 'spinner' && a1) {
+    if (!(SPINNER_IDS as readonly string[]).includes(a1)) return `No spinner named "${a1}". Choose one of: ${SPINNER_IDS.join(', ')}.`
+    await applyMix(host, ctl, { ...ctl.mix(), spinner: a1 })
+    return `Spinner: ${a1}`
+  }
+  if (sub === 'spinner') return USAGE
   if (sub === 'import' && a1) return importScheme(host, ctl, a1, a2 === '--force')
   if (sub === 'pet' && a1 === 'list') {
     const cur = ctl.pet()

@@ -107,6 +107,7 @@ More in [Install](docs/install.md).
 | `/glowup pack <name\|url>` | Apply a pack, or install one from an `https://` URL first. |
 | `/glowup pack list` | List packs. A filled dot marks the active one. |
 | `/glowup pack save <name>` | Save the current look as a pack file. |
+| `/glowup spinner <name\|list\|default>` | Set just the spinner, list them, or go back to the pack's own. |
 | `/glowup import <file>` | Turn a Ghostty or base16 color scheme into a pack. |
 | `/glowup pet clawd\|off` | Show Clawd or hide the pet. |
 | `/glowup bubbles on\|off` | Turn speech bubbles on or off. |

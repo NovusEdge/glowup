@@ -161,7 +161,7 @@ The extras are two optional bits of the colors layer:
 
 The shimmer is a wave of color across the spinner word, between the gradient's two colors (or the accent and the text color). Shimmer `1` is soft and `2` is fast.
 
-A spinner comes with its pack. To use a different one, edit the `motion.spinner` field of a pack file; see [The file format](#the-file-format).
+Switch spinners without a new pack through `/glowup spinner <name>`. `/glowup spinner default` goes back to the pack's own.
 
 ## Reduced motion
 

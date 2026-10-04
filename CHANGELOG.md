@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `/glowup spinner <name|list|default>` sets just the spinner on top of the current pack, lists the spinners, or goes back to the pack's own.
+
 ### Changed
 
 - Clawd now falls asleep after one minute with nothing happening, not ten.

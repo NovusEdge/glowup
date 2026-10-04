@@ -141,6 +141,50 @@ test('an unknown pack changes nothing', async () => {
   expect(calls).toEqual([])
 })
 
+test('spinner <name> sets the override and persists the mix', async () => {
+  const { host, store } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'spinner comet', c)).toBe('Spinner: comet')
+  expect(store.mix).toEqual({ colors: 'classic', motion: 'classic', spinner: 'comet' })
+  expect(calls).toEqual(['mix:classic/classic'])
+})
+
+test('an unknown spinner is refused and lists the valid ones', async () => {
+  const { host, store } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  const out = await runCommand(host, 'spinner nope', c)
+  for (const n of ['stock', 'comet', 'eyes', 'orb-states', 'clawd', 'shimmer']) expect(out).toContain(n)
+  expect(store.mix).toBeUndefined()
+  expect(calls).toEqual([])
+})
+
+test('spinner list marks the override, else the pack spinner', async () => {
+  const { host } = fakeHost()
+  const { ctl: c } = ctl()
+  expect(await runCommand(host, 'spinner list', c)).toContain('● stock')
+  await c.setMix({ colors: 'crt', motion: 'crt' })
+  expect(await runCommand(host, 'spinner list', c)).toContain('● comet')
+  await runCommand(host, 'spinner eyes', c)
+  const out = await runCommand(host, 'spinner list', c)
+  expect(out).toContain('● eyes')
+  expect(out).toContain('○ comet')
+})
+
+test('spinner default clears the override and keeps the rest of the mix', async () => {
+  const { host, store } = fakeHost()
+  const { ctl: c } = ctl()
+  await c.setMix({ colors: 'cozy', motion: 'cozy', theme: 'dusk', spinner: 'comet' })
+  expect(await runCommand(host, 'spinner default', c)).toBe('Spinner: pack default')
+  expect(store.mix).toEqual({ colors: 'cozy', motion: 'cozy', theme: 'dusk' })
+  expect(c.mix().spinner).toBeUndefined()
+})
+
+test('spinner with no argument prints usage', async () => {
+  const { host } = fakeHost()
+  expect(await runCommand(host, 'spinner', ctl().ctl)).toBe(USAGE)
+  expect(USAGE).toContain('/glowup spinner')
+})
+
 test('pack list marks the active pack or the custom mix', async () => {
   const { host } = fakeHost({ files: { [`${PACKS_DIR}/mine.json`]: '{"format":1,"name":"mine"}' } })
   const { ctl: c } = ctl()

@@ -17,6 +17,7 @@ glowup
   /glowup pack <name|url>    apply a pack (--force replaces an installed one)
   /glowup pack list          list packs
   /glowup pack save <name>   save the current look as a pack file
+  /glowup spinner <name|list|default>  set just the spinner
   /glowup config             pick a pack, pet and extras by answering questions
   /glowup import <file>      turn a Ghostty or base16 scheme into a pack
   /glowup pet clawd|off      choose the pet, or none
@@ -74,6 +75,16 @@ A theme file holds data only. Nothing in it runs. Adding a theme with a name you
 | `/glowup pack save <name>` | Save the current look as a self-contained pack file in `~/.claude/glowup/packs`. Prints `Saved pack "<name>" to <path>.` |
 | `/glowup pack <url>` | Download, check and install a pack from an `https://` URL, then apply it. |
 | `/glowup pack <url> --force` | The same, replacing an installed pack of that name. |
+
+## spinner
+
+| Command | What it does |
+| --- | --- |
+| `/glowup spinner <name>` | Use one spinner (`stock`, `comet`, `eyes`, `orb-states`, `clawd` or `shimmer`) on top of the current pack. Prints `Spinner: <name>`. An unknown name lists the valid ones. |
+| `/glowup spinner list` | List the spinners. A filled dot marks the one showing now, whether it is your override or the pack's own. |
+| `/glowup spinner default` | Drop the override and go back to the pack's spinner. Prints `Spinner: pack default`. |
+
+`/glowup pack <name>` clears a spinner override, so choose the pack first and the spinner after.
 
 The built-in packs are `classic` (the default), `crt`, `cozy` and `arcade`. If a pack cannot load, glowup prints the reason and keeps the current look. The file format, limits and every refusal message are in [Packs](packs.md).
 

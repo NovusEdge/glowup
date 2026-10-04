@@ -338,7 +338,7 @@ export const register: Register = (on, options) => {
     home = (await $.env.get('HOME')) ?? ''
     configDir = (await $.env.get('CLAUDE_CONFIG_DIR')) || `${home}/.claude`
     const host = hostOf($)
-    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|import|pet|bubbles|pane|motion|statusline ...' })
+    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|import|pet|bubbles|pane|motion|statusline ...' })
     mix = await initialMix(host, options)
     const storedPet = await host.storeGet('pet')
     const wantPet = PETS.includes(storedPet as PetSetting) ? storedPet as PetSetting : PETS.includes(options.pet as PetSetting) ? options.pet as PetSetting : 'clawd'
