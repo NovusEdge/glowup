@@ -68,7 +68,9 @@ export function Terminal() {
   const prevBubble = useRef<TermState['bubble']>(null)
 
   useEffect(() => {
-    if (reduced || !visible) return
+    // runScript starts before the reduced-motion effect has corrected `reduced`, leaving the first frame behind.
+    if (reduced) { setState(finalState()); return }
+    if (!visible) return
     const r = runScript(s => {
       if (s.bubble && s.bubble !== prevBubble.current) setBub(b => ({ kind: s.bubble!, n: b.n + 1 }))
       prevBubble.current = s.bubble
