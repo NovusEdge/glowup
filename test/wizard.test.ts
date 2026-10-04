@@ -4,17 +4,18 @@ import { runCommand, USAGE, type Ctl } from '../hooks/command.ts'
 import type { Mix } from '../hooks/packs.ts'
 import type { PetSetting } from '../hooks/pets.ts'
 import type { BubbleSetting } from '../hooks/bubbles.ts'
-import { DEFAULT_FIELDS } from '../hooks/fields.ts'
+import { DEFAULT_FIELDS, type FieldId } from '../hooks/fields.ts'
 
 type Q = { question: string; header: string; options: string[]; multiSelect?: true }
 const ESC = Symbol('esc')
 
 // answers are consumed one per question; ESC rejects like a dismissed dialog
-const rig = (answers: (string | typeof ESC)[], start: { mix?: Mix; pet?: PetSetting; bubbles?: BubbleSetting; reduced?: boolean; headless?: boolean } = {}, files: Record<string, string> = {}, store: Record<string, unknown> = {}) => {
+const rig = (answers: (string | typeof ESC)[], start: { mix?: Mix; pet?: PetSetting; bubbles?: BubbleSetting; reduced?: boolean; headless?: boolean; fields?: FieldId[] } = {}, files: Record<string, string> = {}, store: Record<string, unknown> = {}) => {
   const { host, store: kv } = fakeHost({ files })
   Object.assign(kv, store)
   const asked: Q[] = []
   const calls: string[] = []
+  let fields: readonly FieldId[] = start.fields ?? DEFAULT_FIELDS
   let mix: Mix = start.mix ?? { colors: 'classic', motion: 'classic' }
   let pet = start.pet ?? 'clawd', bubbles = start.bubbles ?? 'on', reduced = start.reduced ?? false
   const ctl: Ctl = {
@@ -30,8 +31,8 @@ const rig = (answers: (string | typeof ESC)[], start: { mix?: Mix; pet?: PetSett
     bubbles: () => bubbles,
     setBubbles: b => { bubbles = b; calls.push('bubbles:' + b) },
     reduced: () => reduced,
-    fields: () => DEFAULT_FIELDS,
-    setFields: () => {},
+    fields: () => fields,
+    setFields: f => { fields = f ? [...f] : DEFAULT_FIELDS; calls.push('fields:' + fields.join(' ')) },
     ask: async (question, o) => {
       asked.push({ question, header: o.header, options: [...o.options], multiSelect: o.multiSelect })
       const a = answers.shift()
@@ -43,10 +44,10 @@ const rig = (answers: (string | typeof ESC)[], start: { mix?: Mix; pet?: PetSett
   return { host, kv, ctl, asked, calls, run: () => runCommand(host, 'config', ctl) }
 }
 
-test('asks Pack, Spinner, Pet, Extras in order with the current pack marked', async () => {
+test('asks Pack, Spinner, Pet, Extras, Status line in order with the current pack marked', async () => {
   const r = rig(['classic (current)', 'Pack default', 'Clawd', 'Turn bubbles off'])
   await r.run()
-  expect(r.asked.map(q => q.header)).toEqual(['Pack', 'Spinner', 'Pet', 'Extras'])
+  expect(r.asked.map(q => q.header)).toEqual(['Pack', 'Spinner', 'Pet', 'Extras', 'Status line'])
   expect(r.asked[0]!.question).toBe('Which look?')
   expect(r.asked[0]!.options).toEqual(['arcade', 'classic (current)', 'cozy', 'crt'])
   expect(r.asked[1]!.question).toBe('Which spinner?')
@@ -161,7 +162,7 @@ test('a user pack start offers Keep first, then classic and the built-ins up to 
   await r.run()
   expect(r.asked[0]!.options).toEqual(['Keep mine', 'classic', 'arcade', 'cozy'])
   expect(r.calls).toEqual([])
-  expect(r.asked).toHaveLength(4)
+  expect(r.asked).toHaveLength(5)
 })
 
 test('a theme override start offers Keep custom mix and Keep leaves the override alone', async () => {
@@ -321,6 +322,56 @@ test('a headless run gets the usage text', async () => {
   const r = rig([ESC], { headless: true })
   expect(await r.run()).toBe(USAGE)
   expect(r.asked).toHaveLength(1)
+})
+
+const BASE = ['classic (current)', 'Pack default', 'Clawd', '']
+
+test('Pick across the three groups sets the fields in group order', async () => {
+  const r = rig([...BASE, 'Pick', 'activity,ctx', '5h,week', 'branch'])
+  await r.run()
+  expect(r.asked.slice(4).map(q => q.header)).toEqual(['Status line', 'Session', 'Account', 'Repo'])
+  expect(r.asked.slice(5).every(q => q.multiSelect === true)).toBe(true)
+  expect(r.asked[5]!.options).toEqual(['activity', 'ctx', 'agents', 'plan'])
+  expect(r.asked[6]!.options).toEqual(['5h', 'week', 'cost', 'model'])
+  expect(r.asked[7]!.options).toEqual(['branch', 'changes', 'cwd'])
+  expect(r.calls).toContain('fields:activity ctx 5h week branch')
+  expect(r.kv.statusline).toEqual(['activity', 'ctx', '5h', 'week', 'branch'])
+})
+
+test('an empty pick, or the current list, changes nothing', async () => {
+  for (const answers of [['', '', ''], ['activity,ctx', '5h,week', '']]) {
+    const r = rig([...BASE, 'Pick', ...answers])
+    await r.run()
+    expect(r.calls.some(c => c.startsWith('fields:'))).toBe(false)
+    expect('statusline' in r.kv).toBe(false)
+  }
+})
+
+test('text typed under Other is filtered to known ids', async () => {
+  const r = rig([...BASE, 'Pick', 'ctx; rm -rf ~,activity', '5h', 'nope'])
+  await r.run()
+  expect(r.kv.statusline).toEqual(['activity', '5h'])
+})
+
+test('Esc in a group question changes no fields', async () => {
+  const r = rig([...BASE, 'Pick', 'ctx', ESC])
+  await r.run()
+  expect('statusline' in r.kv).toBe(false)
+})
+
+test('Default clears a stored list; Keep does nothing', async () => {
+  const d = rig([...BASE, 'Default'], {}, {}, { statusline: ['branch'] })
+  await d.run()
+  expect('statusline' in d.kv).toBe(false)
+  const k = rig([...BASE, 'Keep'], {}, {}, { statusline: ['branch'] })
+  await k.run()
+  expect(k.kv.statusline).toEqual(['branch'])
+})
+
+test('without a takeover the question says where the fields show', async () => {
+  const r = rig([...BASE, 'Keep'])
+  await r.run()
+  expect(r.asked[4]!.question).toContain('/glowup statusline on')
 })
 
 test('usage describes config as a question wizard', () => {

@@ -35,7 +35,7 @@ const mountRow = ($: any, props: unknown, surface = 'terminal') => $.ui.mount({ 
 test('/glowup config asks through the engine dialog, applies each pick and never opens the pane', { timeoutMs: 20000 }, async ($, on) => {
   const s = setup(on, ['arcade', 'Pack default', 'No pet', 'Turn bubbles off'])
   const out = await runGlowup($, 'config')
-  expect(s.asked.map(q => q.header)).toEqual(['Pack', 'Spinner', 'Pet', 'Extras'])
+  expect(s.asked.map(q => q.header)).toEqual(['Pack', 'Spinner', 'Pet', 'Extras', 'Status line'])
   expect(s.asked[0].options.map((o: any) => o.label)).toEqual(['arcade', 'classic (current)', 'cozy', 'crt'])
   expect(s.asked[1].options.map((o: any) => o.label)).toEqual(['Pack default', 'stock', 'comet', 'eyes'])
   expect(s.asked[3].multiSelect).toBe(true)

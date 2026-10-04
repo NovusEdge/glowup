@@ -1,7 +1,7 @@
 import type { Host } from './host.ts'
 import { resolveTheme, PRESETS, COLOR_KEYS, shown } from './themes.ts'
 import { loadUserThemes, addTheme } from './userthemes.ts'
-import { takeOver, restore } from './statusline.ts'
+import { takeOver, restore, drawsStatusLine } from './statusline.ts'
 import { resolveLook, exportMix, normalizeHex, cleanOverrides, SPINNER_IDS, type Mix } from './packs.ts'
 import { PACKS } from './packpresets.ts'
 import { loadUserPacks, addPack, savePack, SAFE_NAME } from './userpacks.ts'
@@ -197,7 +197,8 @@ async function wizard(host: Host, ctl: Ctl): Promise<string> {
     [`Turn reduced motion ${reduced ? 'off' : 'on'}`, `motion ${reduced ? 'full' : 'reduced'}`],
   ]
   const extras = await ask('Anything else to change?', 'Extras', [...toggles.map(([l]) => l), TWEAK], true)
-  const picked = (extras ?? '').split(',').map(s => s.trim())
+  if (extras === undefined) return summary(ctl)
+  const picked = extras.split(',').map(s => s.trim())
   for (const [l, cmd] of toggles) if (picked.includes(l)) await apply(cmd)
   if (picked.includes(TWEAK)) {
     const role = (await ask('Which color?', 'Color', ['accent', 'text', 'dim', 'panel']))?.trim()
@@ -210,6 +211,25 @@ async function wizard(host: Host, ctl: Ctl): Promise<string> {
     const v = normalizeHex(hex)
     if (!v) return `"${shown(hex)}" is not a color. Use #rgb or #rrggbb.`
     await apply(`color ${role} ${v}`)
+  }
+
+  const draws = await drawsStatusLine(host)
+  const sl = await ask(
+    draws ? 'Status line fields?' : 'Status line fields? They show under the prompt while Claude works; /glowup statusline on draws the whole line.',
+    'Status line', ['Keep', 'Default', 'Pick'])
+  if (sl === undefined) return summary(ctl)
+  if (sl.trim() === 'Default') { if (await host.storeGet('statusline') !== undefined) await apply('statusline fields default') }
+  else if (sl.trim() === 'Pick') {
+    const groups: [string, FieldId[]][] = [['Session', ['activity', 'ctx', 'agents', 'plan']], ['Account', ['5h', 'week', 'cost', 'model']], ['Repo', ['branch', 'changes', 'cwd']]]
+    const chosen: FieldId[] = []
+    for (const [header, ids] of groups) {
+      const a = await ask(`Which ${header.toLowerCase()} fields?`, header, ids, true)
+      if (a === undefined) return summary(ctl)
+      // typed text comes back raw and is spliced into a command line
+      const got = new Set(a.split(',').map(s => s.trim()))
+      chosen.push(...ids.filter(id => got.has(id)))
+    }
+    if (chosen.length && chosen.join(' ') !== ctl.fields().join(' ')) await apply(`statusline fields ${chosen.join(' ')}`)
   }
   return summary(ctl)
 }
