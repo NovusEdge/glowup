@@ -6,11 +6,12 @@ export const CLAWD_COLOR = '#d77757'
 export const SHINY_COLOR = '#f2c94c'
 export type PetSetting = 'clawd' | 'clawd-shiny' | 'off'
 export type PetId = Exclude<PetSetting, 'off'>
-// 'fail' is optional in a sheet; without one it plays 'alert'.
-export type Pose = 'idle' | 'walk' | 'working' | 'hop' | 'alert' | 'done' | 'sleep' | 'fail'
+// 'fail' is optional in a sheet; without one it plays 'alert'. The others fall back to idle.
+export type Pose = 'idle' | 'walk' | 'working' | 'hop' | 'alert' | 'done' | 'sleep' | 'fail' | 'juggle' | 'scrunch' | 'pant' | 'pant-walk'
 export type PetSpan = { text: string; color: string; bg?: string }
 export type PetKind = 'read' | 'search' | 'edit' | 'shell' | 'agent' | 'plan' | 'think'
-export type PetInput = { working: boolean; kind?: PetKind; needsYou: boolean; lastTest?: { passed: boolean; at: number }; doneAt?: number; doneOk?: boolean; actAt?: number }
+// agents is the number of subagents running; ctx the context window's percent used.
+export type PetInput = { working: boolean; kind?: PetKind; needsYou: boolean; lastTest?: { passed: boolean; at: number }; doneAt?: number; doneOk?: boolean; actAt?: number; agents?: number; compactAt?: number; ctx?: number }
 
 // Pixel rows of single-char palette keys, '.' = transparent. Two pixel rows make one terminal row.
 // head is [x, y] of the top-centre of the head, where outfits anchor; dx is horizontal travel in pixels.
@@ -39,8 +40,9 @@ export const OUTFIT_PAD = 4
 // the compact pane drawer's one-row Clawd
 export const CLAWD_ROW = '▐▛█▜▌'
 
-const ALERT_MS = 1500, HOP_MS = 1200, DONE_MS = 4000
+const ALERT_MS = 1500, HOP_MS = 1200, DONE_MS = 4000, SCRUNCH_MS = 1500
 export const SLEEP_MS = 60_000
+export const JUGGLE_AGENTS = 3, PANT_CTX = 80
 // the longest a pose change waits for an exit frame
 export const EXIT_WAIT_MS = 300
 
@@ -49,11 +51,15 @@ export function petPose(p: PetInput, now: number): Pose {
   const t = p.lastTest
   if (t && !t.passed && now - t.at <= ALERT_MS) return 'fail'
   if (t && t.passed && now - t.at <= HOP_MS) return 'hop'
+  if (p.compactAt !== undefined && now - p.compactAt >= 0 && now - p.compactAt <= SCRUNCH_MS) return 'scrunch'
   if (!p.working && p.doneOk && p.doneAt !== undefined && now - p.doneAt <= DONE_MS) return 'done'
+  if ((p.agents ?? 0) >= JUGGLE_AGENTS) return 'juggle'
+  const tired = (p.ctx ?? 0) >= PANT_CTX
   // typing while he writes code, runs commands or has subagents at it; walking while he reads, searches, plans or waits
-  if (p.working) return p.kind === 'edit' || p.kind === 'shell' || p.kind === 'agent' ? 'working' : 'walk'
+  if (p.working) return p.kind === 'edit' || p.kind === 'shell' || p.kind === 'agent' ? 'working' : tired ? 'pant-walk' : 'walk'
   // 0 is initialModel's "nothing yet", not a real time
-  return p.actAt !== undefined && p.actAt > 0 && now - p.actAt >= SLEEP_MS ? 'sleep' : 'idle'
+  if (p.actAt !== undefined && p.actAt > 0 && now - p.actAt >= SLEEP_MS) return 'sleep'
+  return tired ? 'pant' : 'idle'
 }
 
 export const shiny = (palette: Record<string, string>, tint: Record<string, string> = CLAWD_SHEET.shiny ?? {}): Record<string, string> => ({ ...palette, ...tint })
@@ -143,8 +149,9 @@ export function validateSheet(sheet: PetSheet): void {
   for (const [name, o] of Object.entries(sheet.outfits ?? {})) for (const r of o.px) for (const k of r) if (!known(k)) throw new Error(`outfit ${name}: unknown palette key "${k}"`)
 }
 
-// A missing animation falls back: fail to alert, anything else to idle.
-export const animFor = (sheet: PetSheet, name: string): PetAnim => sheet.animations[name] ?? (name === 'fail' ? sheet.animations.alert : undefined) ?? sheet.animations.idle!
+// A missing animation falls back: fail to alert, a panting walk to the walk, anything else to idle.
+const FALLBACK: Record<string, string> = { fail: 'alert', 'pant-walk': 'walk', 'pant-walk-left': 'walk-left' }
+export const animFor = (sheet: PetSheet, name: string): PetAnim => sheet.animations[name] ?? sheet.animations[FALLBACK[name] ?? ''] ?? sheet.animations.idle!
 
 const clipMs = (c: { frames: { ms: number }[] }) => c.frames.reduce((n, f) => n + f.ms, 0)
 

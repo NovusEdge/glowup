@@ -177,6 +177,9 @@ const petInput = (): PetInput => ({
   doneAt: model.doneAt,
   doneOk: model.act.tone === 'pass' && !model.working,
   actAt: model.actAt,
+  agents: model.agents.filter(a => a.state === 'running').length,
+  compactAt: model.compactAt,
+  ctx: model.ctxPercent,
 })
 // Through JSON because Client props refuse undefined fields.
 function petSnap(): PetSnap {
@@ -706,7 +709,7 @@ export const register: Register = (on, options) => {
     // /compact would leave the hearts empty; derive it from the result.
     const u = await $.session.usage()
     const percent = u.context.percent ?? (r.tokensAfter !== undefined && u.context.window > 0 ? Math.round(r.tokensAfter / u.context.window * 100) : 0)
-    feed($, { type: 'compact' })
+    feed($, { type: 'compact', at: Date.now() })
     feed($, { type: 'context', percent })
     return r
   })

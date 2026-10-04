@@ -48,10 +48,6 @@ Outfits:
 
 Animations:
 
-- Juggling while three or more subagents run.
-- Stretching and yawning when he wakes up.
-- Panting when the context window is over 80% full.
-- Sweeping after `/compact` or a context clear.
 - Waving at session start and when you come back after he fell asleep.
 - Eating a cookie when a turn finishes in under ten seconds.
 - Sneezing when a command fails with "permission denied".

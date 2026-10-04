@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Clawd juggles while three or more subagents run, crumples up a sheet of paper when the context is compacted, and pants while he stands or walks once the context window is 80% full.
+
+### Changed
+
+- Clawd stretches and yawns when he wakes up.
+- While Claude waits on you, Clawd shows a `?` and has his own waiting animation, so it no longer replays the startle.
+
 ## [0.3.5] - 2026-10-05
 
 ### Added
