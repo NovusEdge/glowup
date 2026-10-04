@@ -18,13 +18,38 @@ test('classic leaves every row to the engine, plus the finished tool glyph', asy
   expect(styleRow(els, l, tool({ isRunning: true }), ENGINE)).toBe(ENGINE)
 })
 
-test('cards: a bordered Box in the pack border, label as the first Text row', async () => {
+const bar = (n: any) => walk(n).find(x => x.type === 'Text' && x.children?.[0] === '▎ ')
+const bordered = (n: any) => walk(n).some(x => x.props?.borderStyle)
+const asst = (first = true): RowInput => ({ site: 'AssistantMessage', isFirstOfReply: first })
+
+test('cards: messages have no box, a side bar in accent (you) or faint (claude), accent label', async () => {
+  const l: Look = { ...look('arcade'), gradient: undefined }
+  const u = styleRow(els, l, user(), ENGINE)
+  expect(bordered(u)).toBe(false)
+  expect(bar(u).props.color).toBe(l.theme.colors.accent)
+  const label = walk(u).find(x => x.type === 'Text' && text(x) === 'you')
+  expect([label.props.color, label.props.bold]).toEqual([l.theme.colors.accent, undefined])
+  expect(hasEngine(u)).toBe(true)
+  for (const first of [true, false]) {
+    const a = styleRow(els, l, asst(first), ENGINE)
+    expect(bordered(a)).toBe(false)
+    expect(bar(a).props.color).toBe(l.theme.colors.faint)
+    expect(hasEngine(a)).toBe(true)
+  }
+})
+
+test('cards: tool rows keep the pack border style, framed in faint', async () => {
   const l = look('arcade')
-  const card = styleRow(els, l, user(), ENGINE) as any
-  expect([card.type, card.props.borderStyle, card.props.borderColor]).toEqual(['Box', 'bold', '#ff3ec8'])
-  expect(card.children[0].type).toBe('Text')
-  expect(text(card.children[0])).toBe('you')
+  const card = styleRow(els, l, tool(), ENGINE) as any
+  expect([card.type, card.props.borderStyle, card.props.borderColor]).toEqual(['Box', 'bold', l.theme.colors.faint])
+  expect(card.props.borderColor).not.toBe(l.borderColor)
   expect(hasEngine(card)).toBe(true)
+})
+
+test('cards: tool results stay indented 2', async () => {
+  const r = styleRow(els, look('cozy'), { site: 'ToolResult' }, ENGINE) as any
+  expect(r.props.paddingLeft).toBe(2)
+  expect(bordered(r)).toBe(false)
 })
 
 test('cards: claude label only on the first block of a reply', async () => {
@@ -77,17 +102,28 @@ test('retro: bold [YOU] and [CLAUDE] tags, engine indented 9', async () => {
   expect(pad(styleRow(els, l, { site: 'ToolResult' }, ENGINE))).toBe(9)
 })
 
-test('prefixCards on tool and assistant rows', async () => {
-  for (const r of [tool(), { site: 'AssistantMessage', isFirstOfReply: true } as RowInput]) {
-    const c = styleRow(els, look('arcade'), r, ENGINE, { prefixCards: true })
-    expect(walk(c).some(n => n.props?.borderStyle)).toBe(false)
-    expect(text(c)).toContain('▎')
-    expect(hasEngine(c)).toBe(true)
-  }
+test('prefixCards: tool rows also use a faint side bar instead of a border', async () => {
+  const l = look('arcade')
+  const c = styleRow(els, l, tool(), ENGINE, { prefixCards: true })
+  expect(bordered(c)).toBe(false)
+  expect(bar(c).props.color).toBe(l.theme.colors.faint)
+  expect(hasEngine(c)).toBe(true)
+  expect(text(c)).toContain('✓')
 })
 
-test('prefixCards draws a rule column instead of a border', async () => {
-  const card = styleRow(els, look('arcade'), user(), ENGINE, { prefixCards: true })
-  expect(walk(card).some(n => n.props?.borderStyle)).toBe(false)
-  expect(text(card)).toContain('▎')
+test('prefixCards leaves message rows as they are without it', async () => {
+  const l = look('arcade')
+  expect(bar(styleRow(els, l, user(), ENGINE, { prefixCards: true })).props.color).toBe(l.theme.colors.accent)
+  expect(bar(styleRow(els, l, asst(), ENGINE, { prefixCards: true })).props.color).toBe(l.theme.colors.faint)
+})
+
+test('other styles never draw the side bar or a border on messages', async () => {
+  for (const rows of ['minimal', 'retro', 'classic'] as const) {
+    const l: Look = { ...look('arcade'), rows }
+    for (const r of [user(), asst()]) {
+      const s = styleRow(els, l, r, ENGINE)
+      expect(bar(s)).toBeUndefined()
+      expect(bordered(s)).toBe(false)
+    }
+  }
 })

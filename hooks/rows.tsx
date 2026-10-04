@@ -28,12 +28,12 @@ function label({ Text }: Els, text: string, look: Look, color: string, bold?: bo
   return <Text color={color} bold={bold}>{text}</Text>
 }
 
-// Cards draw a full border; prefixCards is the fallback that draws a rule column instead.
-function card({ Box, Text }: Els, look: Look, direction: 'row' | 'column', kids: unknown[], prefix?: boolean) {
+// Messages are always a bar; tool rows are boxed unless prefixCards asks for the bar too.
+function card({ Box, Text }: Els, look: Look, direction: 'row' | 'column', kids: unknown[], color: string, prefix?: boolean) {
   if (prefix) {
-    return <Box flexDirection="row"><Text color={look.borderColor}>{'▎ '}</Text><Box flexDirection={direction}>{kids}</Box></Box>
+    return <Box flexDirection="row"><Text color={color}>{'▎ '}</Text><Box flexDirection={direction}>{kids}</Box></Box>
   }
-  return <Box flexDirection={direction} borderStyle={look.border} borderColor={look.borderColor} paddingX={1}>{kids}</Box>
+  return <Box flexDirection={direction} borderStyle={look.border} borderColor={color} paddingX={1}>{kids}</Box>
 }
 
 export function styleRow(els: Els, look: Look, row: RowInput, engine: unknown, opts: { prefixCards?: boolean } = {}): unknown {
@@ -55,10 +55,10 @@ export function styleRow(els: Els, look: Look, row: RowInput, engine: unknown, o
         if (row.site === 'ToolResult') return <Box paddingLeft={2}>{engine}</Box>
         if (row.site === 'ToolUse') {
           const m = mark(look, row, MARKS.cards)
-          return card(els, look, 'row', [<Box flexGrow={1}>{engine}</Box>, <Text color={m.color}>{' ' + m.mark}</Text>], opts.prefixCards)
+          return card(els, look, 'row', [<Box flexGrow={1}>{engine}</Box>, <Text color={m.color}>{' ' + m.mark}</Text>], c.faint, opts.prefixCards)
         }
-        if (row.site === 'UserMessage') return card(els, look, 'column', [label(els, 'you', look, c.accent), engine], opts.prefixCards)
-        return card(els, look, 'column', row.isFirstOfReply ? [label(els, 'claude', look, c.accent), engine] : [engine], opts.prefixCards)
+        if (row.site === 'UserMessage') return card(els, look, 'column', [label(els, 'you', look, c.accent), engine], c.accent, true)
+        return card(els, look, 'column', row.isFirstOfReply ? [label(els, 'claude', look, c.accent), engine] : [engine], c.faint, true)
       }
 
       case 'minimal': {

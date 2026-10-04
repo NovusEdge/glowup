@@ -31,7 +31,8 @@ function Label({ look, text, color, bold }: { look: Look; text: string; color: s
   return <span style={{ whiteSpace: 'pre', color, ...(bold ? { fontWeight: 700 } : {}) }}>{text}</span>
 }
 
-const cardBox = (look: Look): CSSProperties => ({ ...BORDER[look.border], borderColor: look.borderColor, padding: '0 8px' })
+const cardBox = (look: Look): CSSProperties => ({ ...BORDER[look.border], borderColor: look.theme.colors.faint, padding: '0 8px' })
+const sideBar = (color: string): CSSProperties => ({ borderLeft: `2px solid ${color}`, paddingLeft: 8 })
 
 // The same text and structure rows.tsx draws in the terminal. The page cannot import that file, which needs Ink elements.
 function Mock({ look }: { look: Look }) {
@@ -47,14 +48,14 @@ function Mock({ look }: { look: Look }) {
   let body: ReactNode
   if (look.rows === 'cards') {
     body = <>
-      <div className="mock-row" style={cardBox(look)}><Label look={look} text="you" color={c.accent} /><div>{user}</div></div>
+      <div className="mock-row" style={sideBar(c.accent)}><Label look={look} text="you" color={c.accent} /><div>{user}</div></div>
       {rows.map(r => (
         <div key={r.tool} className="mock-row" style={{ ...cardBox(look), display: 'flex', gap: 8 }}>
           <span style={{ flex: 1, color: c.text }}>{r.tool}({r.target})</span>
           <span style={{ color: c.pass }}>{MARKS.cards.done}</span>
         </div>
       ))}
-      <div className="mock-row" style={cardBox(look)}><Label look={look} text="claude" color={c.accent} /><div>{reply}</div></div>
+      <div className="mock-row" style={sideBar(c.faint)}><Label look={look} text="claude" color={c.accent} /><div>{reply}</div></div>
     </>
   } else if (look.rows === 'retro') {
     body = <>

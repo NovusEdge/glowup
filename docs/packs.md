@@ -137,7 +137,7 @@ A row style changes how your prompts, Claude's replies and tool calls look in th
 | Style | Your prompt | Claude's reply | Tool call |
 | --- | --- | --- | --- |
 | `classic` | Claude Code's | Claude Code's | Claude Code's, plus the theme's kind glyph |
-| `cards` | A bordered card labeled `you` | A bordered card labeled `claude` on the first block of a reply | A bordered card with a mark: `✓`, `✗`, `■` for interrupted, `…` while running |
+| `cards` | An accent side bar `▎` and a `you` label | A dim side bar, and a `claude` label on the first block of a reply | A dim bordered card with a mark: `✓`, `✗`, `■` for interrupted, `…` while running |
 | `minimal` | A `› text` line | Claude Code's | A dim one-line `· Read src/auth.ts` once it finishes cleanly |
 | `retro` | A `[YOU]` tag | A `[CLAUDE]` tag on the first block | A `[READ  ]`-style tag, then `[ OK ]`, `[FAIL]`, `[STOP]` or `[....]` |
 
