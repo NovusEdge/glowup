@@ -14,10 +14,18 @@ glowup
   /glowup theme <name>       switch theme
   /glowup theme list         list installed themes
   /glowup theme add <url>    install a theme file from an https URL
+  /glowup pack <name|url>    apply a pack (--force replaces an installed one)
+  /glowup pack list          list packs
+  /glowup pack save <name>   save the current look as a pack file
+  /glowup import <file>      turn a Ghostty or base16 scheme into a pack
+  /glowup pet clawd|off      choose the pet, or none
+  /glowup bubbles on|off     speech bubbles
   /glowup pane               open or close the glowup pane
   /glowup motion reduced|full
   /glowup statusline on|restore
 ```
+
+`/glowup config` opens the settings view in the pane. See [config](#config).
 
 An unknown subcommand prints `Unknown: <what you typed>` followed by the usage text.
 
@@ -29,7 +37,7 @@ An unknown subcommand prints `Unknown: <what you typed>` followed by the usage t
 | `/glowup theme list` | List the built-in themes and your own. The active theme has a filled dot, including one chosen in the settings menu. |
 | `/glowup theme add <url>` | Download a theme file, check it, and install it. |
 
-The switch applies at once and is saved, so the next session starts with it. If the theme cannot load, glowup prints the reason and keeps the current theme. The built-in themes are `glowup`, `aurora`, `dusk`, `classic` (the default), `cyberpunk`, `vaporwave` and `high-contrast`. Your own themes come from `~/.claude/glowup/themes`. See [Making a theme](themes.md).
+The switch applies at once and is saved, so the next session starts with it. A theme sits on top of the current [pack](packs.md): it replaces the pack's palette and keeps its row style, border and extras. If the theme cannot load, glowup prints the reason and keeps the current theme. The built-in themes are `glowup`, `aurora`, `dusk`, `classic` (the default), `cyberpunk`, `vaporwave` and `high-contrast`. Your own themes come from `~/.claude/glowup/themes`. See [Making a theme](themes.md).
 
 ### theme add
 
@@ -38,7 +46,7 @@ The switch applies at once and is saved, so the next session starts with it. If 
 1. Refuses anything that is not `https://`.
 2. Downloads the file. A download over 64 KB is refused.
 3. Reads the `name` field. The name must be lowercase letters, digits and dashes, start with a letter or digit, and be at most 40 characters.
-4. Refuses a name that is one of the four built-in themes.
+4. Refuses a name that is one of the built-in themes.
 5. Checks the whole file, including the `extends` chain, against the [theme reference](theme-reference.md).
 6. Saves it as `<name>.json` in `~/.claude/glowup/themes`.
 
@@ -55,6 +63,45 @@ A theme file holds data only. Nothing in it runs. Adding a theme with a name you
 | `A theme needs a "name" of lowercase letters, digits and dashes.` | The name is missing or has other characters. |
 | `"cyberpunk" is a built-in theme name; pick another.` | The name is taken by a built-in theme. |
 | `theme "<name>": ...` | A field failed validation. The text after the colon names it. |
+
+## pack
+
+| Command | What it does |
+| --- | --- |
+| `/glowup pack <name>` | Apply a pack to both layers. Prints `Pack: <name>`. |
+| `/glowup pack list` | List built-in and installed packs. A filled dot marks the active one. If the look is a mix of packs or has a theme or spinner on top, a last line starts `custom mix:` and names each layer. |
+| `/glowup pack save <name>` | Save the current look as a self-contained pack file in `~/.claude/glowup/packs`. Prints `Saved pack "<name>" to <path>.` |
+| `/glowup pack <url>` | Download, check and install a pack from an `https://` URL, then apply it. |
+| `/glowup pack <url> --force` | The same, replacing an installed pack of that name. |
+
+The built-in packs are `classic` (the default), `crt`, `cozy` and `arcade`. If a pack cannot load, glowup prints the reason and keeps the current look. The file format, limits and every refusal message are in [Packs](packs.md).
+
+## import
+
+`/glowup import <file>` turns a Ghostty or base16 color scheme into a pack with a colors layer, saves it in `~/.claude/glowup/packs` and applies it. The file can be at most 64 KB. Add `--force` to replace an installed pack of the same name. See [Packs](packs.md#import-a-color-scheme).
+
+## pet and bubbles
+
+| Command | What it does |
+| --- | --- |
+| `/glowup pet clawd` | Show Clawd. Prints `Pet: clawd`. |
+| `/glowup pet off` | Hide the pet. Prints `Pet: off`. |
+| `/glowup pet list` | List the pets you can pick. A filled dot marks the current one. |
+| `/glowup pet clawd-shiny` | The shiny Clawd. Prints `The shiny pet is not unlocked yet.` until you earn him. |
+| `/glowup bubbles on` | Turn speech bubbles on. Prints `Bubbles: on`. |
+| `/glowup bubbles off` | Turn them off. |
+
+See [Pets](pets.md).
+
+## config
+
+`/glowup config` opens an interactive view in the glowup pane. Pick a pack, the colors or motion layer on its own, a spinner, the pet and bubbles, and reduced motion, and watch a preview change as you go. Apply stores the choices. Cancel and Esc drop them. The view can also save the look you are drafting as a pack.
+
+The view needs menus and text input, which mobile does not have. There it shows the current look and the typed commands instead. Every setting stays available as a typed command.
+
+## Settings and the store
+
+The mod's settings in Claude Code's `/plugin` menu (`theme`, `pack`, `pet`, `bubbles` and `reducedMotion`) are defaults. glowup's own saved choice wins over a setting only after a `/glowup` command or the config view has written that choice. After that, changing the value in `/plugin` has no effect until you use the matching `/glowup` command again. There is no command that clears a saved choice.
 
 ## pane
 

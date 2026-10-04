@@ -7,7 +7,7 @@ section: Use
 
 ## Two modes
 
-Without the takeover, glowup adds one entry under the prompt while Claude is working and leaves your own status line alone. If you want glowup to draw the whole status line, you opt in with `/glowup statusline on`.
+Without the takeover, glowup adds one entry under the prompt while Claude is working and leaves your own status line alone. If you want glowup to draw the whole status line, you opt in with `/glowup statusline on`, or by saying Yes to the [first-run question](#the-first-run-question).
 
 | | Default | Takeover |
 | --- | --- | --- |
@@ -15,6 +15,24 @@ Without the takeover, glowup adds one entry under the prompt while Claude is wor
 | Your `statusLine` setting | Untouched | Replaced, with a saved copy |
 | Files glowup writes | None | A script and a status file per session |
 | How to undo | Not needed | `/glowup statusline restore` |
+
+## The first-run question
+
+The first time you start an interactive session after installing glowup, it waits about a second and a half and asks once whether it should draw your status line. The question is the same one `/glowup statusline on` asks. It names your settings file and warns you if a project sets its own status line.
+
+- **Yes** runs the takeover described below, with a backup.
+- **No**, or any text you type under "Other", changes nothing. glowup shows a notice that names `/glowup statusline on`.
+
+Your answer is saved and glowup does not ask again.
+
+If you close the question without answering, glowup asks again on the next interactive start, up to three times in all. After the third, it stops asking. Answer it yourself at any time:
+
+```text title="claude code"
+/glowup statusline on
+/glowup statusline restore
+```
+
+glowup does not ask in non-interactive runs (`-p`) or SDK runs. If `settings.json` cannot be read, it does not ask and does not count that start as a try. If you upgraded from 0.1 with the takeover already on, it counts as answered.
 
 ## The default entry
 

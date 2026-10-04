@@ -10,6 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Themes: three new presets, `glowup`, `aurora` and `dusk`.
+- Packs: one name or `https://` URL sets a whole look in two layers, colors and motion. Four built-in packs: `classic` (still the default), `crt`, `cozy` and `arcade`. Commands: `/glowup pack`, `pack list`, `pack save`.
+- Row styles for your prompts, Claude's replies and tool calls: `classic`, `cards`, `minimal` and `retro`, plus an optional HP bar and COMBO tag.
+- Pack spinners (`comet`, `eyes`, `orb-states`, `clawd`, `shimmer`) and a shimmering spinner word.
+- `/glowup import <file>` turns a Ghostty or base16 color scheme into a pack.
+- Clawd, a pixel pet at the bottom of the glowup pane, with reactions to work, tests and requests for you, and a one-row form in the narrow drawer. `/glowup pet clawd|off`.
+- Speech bubbles for Clawd. `/glowup bubbles on|off`.
+- Easter eggs, including a shiny Clawd and a few outfits.
+- A first-run question that asks once whether glowup should draw the status line. `/glowup statusline restore` undoes it.
+- `/glowup config`, an interactive settings view in the pane with a live preview.
+
+### Changed
+
+- glowup redraws only what changed, driven by state, instead of redrawing every hooked row on each event.
+- Reduced motion now also means the stock spinner, no shimmer and no pet.
+- Types and CI moved to Claude Code 2.1.289.
 
 ## [0.1.0] - 2026-10-04
 
