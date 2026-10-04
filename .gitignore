@@ -18,3 +18,6 @@ docs/superpowers/
 
 # `just installer-build` output
 installer/glowup-installer
+
+# `just demo-render` output
+demo/out/
