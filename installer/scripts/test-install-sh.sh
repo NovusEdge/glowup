@@ -105,7 +105,12 @@ EOF
 	server=$!
 	trap 'kill "$server" 2>/dev/null; rm -rf "$work"' EXIT
 	i=0
-	while [ ! -s "$work/port" ] && [ "$i" -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
+	# the first python3 start on a macOS runner can take well over 5 s
+	while [ ! -s "$work/port" ] && [ "$i" -lt 300 ]; do sleep 0.1; i=$((i + 1)); done
+	if [ ! -s "$work/port" ]; then
+		echo "FAIL the test server never wrote its port"
+		exit 1
+	fi
 	port="$(cat "$work/port")"
 
 	mkdir "$work/wgetbin"
