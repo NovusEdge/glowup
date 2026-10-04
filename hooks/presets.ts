@@ -1,7 +1,7 @@
 import type { ThemeFile } from './themes.ts'
 
 // classic is Claude Code's own palette; every other preset extends it.
-export const DEFAULT_THEME = 'glowup'
+export const DEFAULT_THEME = 'classic'
 
 export const PRESETS: Record<string, ThemeFile> = {
   classic: {

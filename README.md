@@ -114,7 +114,7 @@ Details are in [Commands](docs/commands.md).
 
 ## Themes
 
-Presets: `glowup` is the default. `classic` is Claude Code's own palette. The other presets extend it. If you already picked a theme, you keep it.
+Presets: `classic` is the default and is Claude Code's own palette. The other presets extend it.
 
 | Preset | Accent |
 | --- | --- |

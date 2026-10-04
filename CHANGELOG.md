@@ -9,11 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Themes: new presets `glowup` (the new default), `aurora` and `dusk`. People who already chose a theme keep it. `classic` is still available.
-
-### Changed
-
-- A theme that fails to load now falls back to `glowup` instead of `classic`.
+- Themes: three new presets, `glowup`, `aurora` and `dusk`.
 
 ## [0.1.0] - 2026-10-04
 

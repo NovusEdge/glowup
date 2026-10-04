@@ -29,7 +29,7 @@ test('a user theme extends a preset and overrides one color', async () => {
   expect(theme.colors.read).toBe(resolveTheme('cyberpunk', {}).theme.colors.read)
 })
 
-test('bad theme falls back to glowup with a reason', async () => {
+test('bad theme falls back to classic with a reason', async () => {
   const cases: [string, unknown, string][] = [
     ['bad-color', { name: 'x', colors: { accent: 'red' } }, '#rrggbb'],
     ['bad-extends', { name: 'x', extends: 'nope' }, 'no theme named "nope"'],
@@ -50,8 +50,8 @@ test('bad theme falls back to glowup with a reason', async () => {
   ]
   for (const [name, file, text] of cases) {
     const { theme, error } = resolveTheme(name, { [name]: file })
-    expect(theme.name).toBe('glowup')
-    expect(theme.colors.accent).toBe('#ffc857')
+    expect(theme.name).toBe('classic')
+    expect(theme.colors.accent).toBe('#d77757')
     expect(error).toContain(text)
   }
 })
@@ -122,11 +122,11 @@ test('unknown theme name falls back to the default', async () => {
   expect(theme.name).toBe(DEFAULT_THEME)
 })
 
-test('the default theme is glowup and resolves', async () => {
-  expect(DEFAULT_THEME).toBe('glowup')
+test('the default theme is classic and resolves', async () => {
+  expect(DEFAULT_THEME).toBe('classic')
   const { theme, error } = resolveTheme(DEFAULT_THEME, {})
   expect(error).toBeUndefined()
-  expect(theme.name).toBe('glowup')
+  expect(theme.name).toBe('classic')
 })
 
 test('new presets resolve with all 14 colors set', async () => {

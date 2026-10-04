@@ -28,7 +28,7 @@ The mod has two settings. You can change them when you enable the mod, or in you
 
 | Setting | Values | Default | What it does |
 | --- | --- | --- | --- |
-| `theme` | A theme name | `glowup` | The theme at session start. |
+| `theme` | A theme name | `classic` | The theme at session start. |
 | `reducedMotion` | `true` or `false` | `false` | Turns off glowup's animation. |
 
 `/glowup theme <name>` and `/glowup motion` save your choice in the mod's store. A saved choice wins over the setting. See [Commands](commands.md).

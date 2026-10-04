@@ -93,11 +93,11 @@ Every file in the chain is validated. Errors:
 | `theme "<name>": "extends" must be a theme name` | `extends` is not a string. |
 | `theme "<name>": a theme must be a JSON object` | The file is not an object. |
 
-When any of these happen, `/glowup theme <name>` prints the message and keeps your current theme. At session start, glowup shows the message and uses `glowup`.
+When any of these happen, `/glowup theme <name>` prints the message and keeps your current theme. At session start, glowup shows the message and uses `classic`.
 
 ## Built-in themes
 
-`glowup` is the default theme. `glowup`, `aurora`, `dusk`, `cyberpunk`, `vaporwave` and `high-contrast` extend `classic`. They set all 14 colors. All of them except `high-contrast` set spinner words.
+`classic` is the default theme. `glowup`, `aurora`, `dusk`, `cyberpunk`, `vaporwave` and `high-contrast` extend `classic`. They set all 14 colors. All of them except `high-contrast` set spinner words.
 
 | Key | glowup | aurora | dusk |
 | --- | --- | --- | --- |
