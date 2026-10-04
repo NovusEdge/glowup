@@ -1,11 +1,12 @@
 import { test, expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
-import { runGlowup } from './kit.ts'
+import { runGlowup, fakeFs } from './kit.ts'
 
 declare function setTimeout(fn: (value: unknown) => void, ms: number): unknown
 const scroll = { offset: 0, bodyRows: 10 }
 
 test('band is empty when idle, on terminal and desktop', async ($, on) => {
+  fakeFs(on)
   // the harness has no engine under the hooks: answer what the band asks of it
   on('ui.panes', async () => ({ value: [] }))
   on('ui.render', async () => ({ type: 'Text', props: {}, children: ['engine'] }) as RenderElement)
@@ -19,6 +20,7 @@ test('band is empty when idle, on terminal and desktop', async ($, on) => {
 const BAND = { hasSurvey: false, isWorking: true, maxRows: 6, bodyColumns: 100, scroll, view: {} }
 
 test('the band shows during a turn and folds after the linger', async ($, on) => {
+  fakeFs(on)
   const clock = mock.clock(on)
   on('ui.panes', async () => ({ value: [] }))
   on('ui.render', async () => ({ type: 'Text', props: {}, children: ['engine'] }) as RenderElement)
@@ -40,6 +42,7 @@ test('the band shows during a turn and folds after the linger', async ($, on) =>
 })
 
 test('/clear starts the model over under the new session id', async ($, on) => {
+  fakeFs(on)
   let id = 's1'
   on('ui.panes', async () => ({ value: [] }))
   on('ui.render', async () => ({ type: 'Text', props: {}, children: ['engine'] }) as RenderElement)
@@ -58,7 +61,8 @@ test('/clear starts the model over under the new session id', async ($, on) => {
   await cleared.unmount()
 })
 
-test('pane draws three tab buttons', async $ => {
+test('pane draws three tab buttons', async ($, on) => {
+  fakeFs(on)
   const ui = await $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'Pane', requestId: 'glowup', props: { title: 'glowup', isFocused: false, bodyColumns: 54, placement: 'dock', scroll, view: {} } })
   for (const label of ['Changes', 'Agents', 'Plan & context']) expect(await ui.find({ text: label })).toBeDefined()
   await ui.press({ key: 'tab-agents' })
@@ -70,6 +74,7 @@ const AGENT_CALL = { tool: 'Agent', tool_use_id: 'a1', description: 'scout', pro
 const END = { answer: '', durationMs: 10, isAborted: false, turnId: 't1' }
 
 test('the status entry shows only while Claude or a subagent works', async ($, on) => {
+  fakeFs(on)
   const clock = mock.clock(on)
   const statuses: (string | undefined)[] = []
   on('ui.status', async (_$, e) => { statuses.push(e.text); return { value: undefined } as never })
@@ -104,6 +109,7 @@ test('the status entry shows only while Claude or a subagent works', async ($, o
 })
 
 test('a named teammate that goes idle stops counting as running', async ($, on) => {
+  fakeFs(on)
   const clock = mock.clock(on)
   const statuses: (string | undefined)[] = []
   let status = 'running'
@@ -115,7 +121,7 @@ test('a named teammate that goes idle stops counting as running', async ($, on) 
   on('turn.complete', async () => ({ text: '' }))
   on('tool.call', async () => ({ result: { status: 'teammate_spawned' }, text: 'Spawned' }) as never)
   on('agent.spawn', async () => ({ model: 'm', agentId: 'sleeper@s1' }))
-  on('agent.list', async () => ({ value: [{ id: 'sleeper@s1', description: 'nap', type: 'general-purpose', status, name: 'sleeper' }] }))
+  on('agent.list', async () => ({ value: [{ id: 'sleeper@s1', description: 'nap', type: 'general-purpose', status, name: 'sleeper' }] }) as never)
 
   await $.turn.start({ text: 'hi', turnId: 't1' })
   await $.tool.call({ ...AGENT_CALL, name: 'sleeper' } as never)
@@ -130,6 +136,7 @@ test('a named teammate that goes idle stops counting as running', async ($, on) 
 })
 
 test('the takeover keeps the status entry cleared', async ($, on) => {
+  fakeFs(on)
   mock.clock(on)
   mock.store(on, { 'statusline-backup': '__none__' })
   const statuses: (string | undefined)[] = []
@@ -144,6 +151,7 @@ test('the takeover keeps the status entry cleared', async ($, on) => {
 })
 
 test('the Plan tab reads the breakdown once, not on every redraw', async ($, on) => {
+  fakeFs(on)
   const clock = mock.clock(on)
   let usageCalls = 0
   on('ui.status', async () => ({ value: undefined }) as never)
@@ -170,6 +178,7 @@ test('the Plan tab reads the breakdown once, not on every redraw', async ($, on)
 const TOOL = { tool_use_id: 'u1', tool: 'Write', input: {}, isRunning: false, isErrored: false, isInterrupted: false }
 
 test('ToolUse rows get a glyph only when finished and of a known kind', async ($, on) => {
+  fakeFs(on)
   on('ui.render', async () => ({ type: 'Text', props: {}, children: ['engine row'] }) as RenderElement)
   const draw = async (props: typeof TOOL) => {
     const ui = await $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'ToolUse', requestId: 'u1', props })
@@ -185,4 +194,123 @@ test('ToolUse rows get a glyph only when finished and of a known kind', async ($
     expect(r.row).toBeDefined()
     expect(r.glyph).toBeUndefined()
   }
+})
+
+test('tool events and ticks do not re-render a ToolUse row', async ($, on) => {
+  fakeFs(on)
+  const clock = mock.clock(on)
+  mock.store(on)
+  let toolRows = 0
+  on('ui.render', async (_$, e) => { if (e.component === 'ToolUse') toolRows++; return { type: 'Text', props: {}, children: ['engine'] } as RenderElement })
+  on('ui.panes', async () => ({ value: [] }))
+  on('ui.status', async () => ({ value: undefined }) as never)
+  on('session.id', async () => ({ value: 's1' }))
+  on('session.usage', async () => ({ value: { context: { window: 1000, percent: 10 } } as never }))
+  on('turn.start', async (_$, e) => ({ turnId: e.turnId }))
+  on('tool.call', async () => ({ result: {}, text: 'ok' }) as never)
+  const row = await $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'ToolUse', requestId: 'u1', props: TOOL })
+  const before = toolRows
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await $.tool.call({ tool: 'Read', tool_use_id: 'r1', file_path: '/a' } as never)
+  await clock.advance(3000)
+  expect(toolRows).toBe(before)
+  await row.unmount()
+})
+
+// the harness has no engine under session.start: answer what the hook sets up
+function bootable(on: Parameters<typeof fakeFs>[0]) {
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.start', async (_$, e) => ({ cwd: e.cwd }) as never)
+  on('ui.status', async () => ({ value: undefined }) as never)
+}
+
+test('the first interactive launch asks once and writes only under the config dir', async ($, on) => {
+  const { files, writes } = fakeFs(on, { '/fake/.claude/settings.json': '{"model":"opus"}' })
+  const clock = mock.clock(on)
+  mock.store(on)
+  bootable(on)
+  const asked: string[] = []
+  // $.ui.ask runs as an AskUserQuestion tool call; answer it with the Yes label.
+  on('tool.call', async (_$, e) => {
+    if (e.tool !== 'AskUserQuestion') return { result: {}, text: '' } as never
+    const q = (e as unknown as { questions: { question: string }[] }).questions[0]!.question
+    asked.push(q)
+    return { result: { questions: [], answers: { [q]: 'Yes' } }, text: 'Yes' } as never
+  })
+  let toasted!: () => void
+  const toast = new Promise<void>(r => { toasted = r })
+  on('ui.toast', async () => { toasted(); return { value: undefined } as never })
+  on('session.id', async () => ({ value: 's1' }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  await clock.advance(1600)
+  await toast
+  expect(asked).toHaveLength(1)
+  expect(JSON.parse(files['/fake/.claude/settings.json']!).statusLine.command).toContain('/fake/.claude/glowup/statusline.sh')
+  expect(writes.length).toBeGreaterThan(0)
+  expect(writes.every(p => p.startsWith('/fake/'))).toBe(true)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  await clock.advance(1600)
+  expect(asked).toHaveLength(1)
+})
+
+test('two launches inside the delay open one dialog', async ($, on) => {
+  fakeFs(on, { '/fake/.claude/settings.json': '{}' })
+  const clock = mock.clock(on)
+  mock.store(on)
+  bootable(on)
+  let asked = 0
+  let release!: () => void
+  const gate = new Promise<void>(r => { release = r })
+  on('tool.call', async (_$, e) => {
+    if (e.tool !== 'AskUserQuestion') return { result: {}, text: '' } as never
+    asked++
+    await gate
+    return { result: { questions: [], answers: {} }, text: 'No' } as never
+  })
+  on('ui.toast', async () => ({ value: undefined }) as never)
+  on('session.id', async () => ({ value: 's1' }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  await clock.advance(1600)
+  expect(asked).toBe(1)
+  release()
+})
+
+test('-p runs never ask', async ($, on) => {
+  fakeFs(on, { '/fake/.claude/settings.json': '{}' })
+  const clock = mock.clock(on)
+  mock.store(on)
+  bootable(on)
+  let asked = 0
+  on('tool.call', async (_$, e) => { if (e.tool === 'AskUserQuestion') asked++; return { result: {}, text: '' } as never })
+  on('session.id', async () => ({ value: 's1' }))
+  await $.session.start({ cwd: '/r', surface: null, isInteractive: false })
+  await clock.advance(5000)
+  expect(asked).toBe(0)
+})
+
+test('a download that never answers times out after 10 s', async ($, on) => {
+  fakeFs(on)
+  const clock = mock.clock(on)
+  mock.store(on)
+  bootable(on)
+  on('http.fetch', async () => new Promise(() => {}))
+  on('ui.toast', async () => ({ value: undefined }) as never)
+  on('session.id', async () => ({ value: 's1' }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  const out = runGlowup($, 'theme add https://x.dev/slow.json')
+  await clock.advance(10_000)
+  expect(String((await out as { text?: string }).text)).toContain('timed out')
+})
+
+test('a download over 64 KB is refused before parsing', async ($, on) => {
+  fakeFs(on)
+  mock.clock(on)
+  mock.store(on)
+  bootable(on)
+  on('http.fetch', async () => ({ value: { ok: true, status: 200, headers: {}, text: '{"name":"big","x":"' + 'a'.repeat(70_000) + '"}' } }) as never)
+  on('session.id', async () => ({ value: 's1' }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  const out = await runGlowup($, 'theme add https://x.dev/big.json') as { text?: string }
+  expect(String(out.text)).toMatch(/64 KB|65536 bytes/)
 })

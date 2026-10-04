@@ -16,4 +16,6 @@ export type Host = {
   projectStatusLine(): Promise<boolean>
   // $CLAUDE_CONFIG_DIR, else $HOME/.claude
   configDir: string
+  // $HOME
+  home: string
 }
