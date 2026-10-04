@@ -104,6 +104,7 @@ The built-in packs are `classic` (the default), `crt`, `cozy` and `arcade`. If a
 | `/glowup pet clawd-shiny` | The shiny Clawd. Prints `The shiny pet is not unlocked yet.` until you earn him. |
 | `/glowup bubbles on` | Turn speech bubbles on. Prints `Bubbles: on`. |
 | `/glowup bubbles off` | Turn them off. |
+| `/glowup bubbles haiku` | Let Claude Haiku write some lines. Each one is a small call on your account. Prints `Bubbles: haiku`. |
 
 See [Pets](pets.md).
 
@@ -114,7 +115,7 @@ See [Pets](pets.md).
 1. **Pack**: `arcade`, `classic`, `cozy` or `crt`, with the one in use marked `(current)`. Choose Other and type the name of a pack you installed to use that one. An unknown name prints an error and stops the questions.
 2. **Spinner**: `Pack default` (clears a spinner you set), then three spinners, leaving out the one your pack already uses. A spinner you set is marked `(current)`. Choose Other and type any spinner name from `/glowup spinner list`; an unknown name prints an error and stops the questions.
 3. **Pet**: Clawd, the shiny Clawd once you have unlocked him, or no pet.
-4. **Extras**: pick any of "Turn bubbles on/off" and "Turn reduced motion on/off". The labels flip the current setting. Picking none changes nothing.
+4. **Extras**: pick any of "Turn bubbles on/off", "Write bubbles with Haiku" (or "Use template bubbles" when Haiku is on) and "Turn reduced motion on/off". The labels flip the current setting. Picking none changes nothing.
 
 Esc on any question stops there. Answers you already gave stay applied. The command ends with a one-line summary, for example `glowup · arcade · spinner comet · Clawd · bubbles on · full motion` (the spinner part appears only when you set one), drawn with the pack's colors.
 

@@ -6,7 +6,7 @@ import type { Theme } from './themes.ts'
 import { resolveLook, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { loadUserPacks } from './userpacks.ts'
 import { PET_ROWS, type PetSetting, type PetId, type PetInput, type PetKind } from './pets.ts'
-import { bubbleFor, type BubbleSetting, type BubbleVars, type Mood } from './bubbles.ts'
+import { bubbleFor, BUBBLE_SETTINGS, daypart, haikuPrompt, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, type BubbleSetting, type BubbleVars, type Mood } from './bubbles.ts'
 import { recordPass, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { gitBase, refreshCounts, serial } from './changes.ts'
 import { tierFor, renderSegs } from './layout.tsx'
@@ -69,6 +69,11 @@ type Bubble = { text: string; mood: Mood; until: number }
 type PetSnap = { input: PetInput; overlays: string[]; bubble?: Bubble; friday: boolean }
 let bubble: Bubble | undefined
 let lastTemplate: string | undefined
+const haikuGate = new HaikuGate()
+let haikuAbort: AbortController | undefined
+let turnNo = 0
+// false in a plain -p run, where nobody sees a bubble
+let interactive = true
 let friday = false
 let failed = false
 let tzOffset = 0
@@ -173,8 +178,43 @@ function publish($: Engine) {
   publishPet($)
 }
 
+function cancelHaiku() {
+  haikuAbort?.abort(); haikuAbort = undefined
+  haikuGate.reset()
+}
+// The template is already up; Haiku's line replaces it only if it lands while that bubble is still showing.
+async function askHaiku($: Engine, mine: Bubble, mood: Mood, vars: BubbleVars) {
+  if (bubbles !== 'haiku' || !interactive || !petOn() || !haikuGate.take(turnNo, await $.clock.now())) return
+  const stop = new AbortController()
+  haikuAbort = stop
+  // the abort race below is what ends a call the engine never settles; timeoutMs only bounds the request itself
+  const timer = $.clock.after(HAIKU_TIMEOUT_MS, () => stop.abort())
+  try {
+    const { system, prompt } = haikuPrompt({
+      mood,
+      pose: model.working ? (PET_KINDS.includes(model.act.kind ?? '') ? model.act.kind! : 'think') : 'idle',
+      label: mood === 'needs-you' ? (vars.command ? `needs approval: ${vars.command}` : undefined) : model.working && model.act.kind ? model.act.label : undefined,
+      tests: mood === 'fail' ? (vars.n === undefined ? 'failed' : `failed ${vars.n}`) : model.lastTest ? (model.lastTest.passed ? 'passed' : 'failed') : undefined,
+      daypart: daypart(localTime(Date.now(), tzOffset).hour),
+    })
+    const aborted = new Promise<undefined>(r => stop.signal.addEventListener('abort', () => r(undefined)))
+    const r = await Promise.race([$.model.complete({ model: HAIKU_MODEL, system, prompt, maxTokens: 40, effort: 'low', timeoutMs: HAIKU_TIMEOUT_MS }, { signal: stop.signal }), aborted])
+    if (!r) { $.ui.log('haiku bubble: timed out or cancelled', { to: 'debug' }); return }
+    if (!r.isAnswered) { $.ui.log(`haiku bubble: ${r.reason}`, { to: 'debug' }); return }
+    const text = sanitizeLine(r.text)
+    if (!text || off || bubbles !== 'haiku' || !petOn() || bubble !== mine) return
+    mine.text = text
+    publishPet($)
+  } catch (err) {
+    $.ui.log(`haiku bubble failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
+  } finally {
+    timer.cancel()
+    if (haikuAbort === stop) { haikuAbort = undefined; haikuGate.done() }
+  }
+}
+
 async function say($: Engine, mood: Mood, vars: BubbleVars) {
-  if (bubbles !== 'on' || !petOn()) return
+  if (bubbles === 'off' || !petOn()) return
   try {
     // a closed pane shows nobody the bubble
     if (!(await $.ui.panes()).some(p => p.id === 'glowup' && p.isShown)) return
@@ -185,6 +225,7 @@ async function say($: Engine, mood: Mood, vars: BubbleVars) {
   bubble = mine
   publishPet($)
   $.clock.after(3100, () => { if (bubble === mine) { bubble = undefined; publishPet($) } })
+  void askHaiku($, mine, mood, vars)
 }
 function moodOf(old: Model, now: Model, ev: Ev): { mood: Mood; vars: BubbleVars } | undefined {
   if (now.needsYou && !old.needsYou) return { mood: 'needs-you', vars: { command: now.needsYou.what.replace(/^approve /, '').split(/\s+/)[0] } }
@@ -285,6 +326,7 @@ async function adoptSession($: Engine, endedId: string) {
   model = initialModel()
   view = { tab: 'changes' }
   bubble = undefined
+  cancelHaiku()
   friday = false
   failed = false
   lastStatusLine = undefined
@@ -313,7 +355,7 @@ async function askFirstRun($: Engine) {
 }
 
 const PETS: readonly PetSetting[] = ['clawd', 'clawd-shiny', 'off']
-const BUBBLES: readonly BubbleSetting[] = ['on', 'off']
+const BUBBLES = BUBBLE_SETTINGS
 
 // The store wins only once a command wrote it. Without a stored mix, the
 // 0.1 settings migrate in memory; only a command writes the result back.
@@ -343,7 +385,7 @@ function ctlOf($: Engine): Ctl {
     pet: () => pet,
     setPet: p => { pet = p; relook($) },
     bubbles: () => bubbles,
-    setBubbles: b => { bubbles = b; relook($) },
+    setBubbles: b => { bubbles = b; if (b !== 'haiku') cancelHaiku(); relook($) },
     reduced: () => reducedMotion,
     ask: (question, o) => $.ui.ask(question, o),
     // surfaces() is empty only in a plain -p run
@@ -357,6 +399,7 @@ const SETTLE_MS = 150
 
 function goOff($: Engine, winner: string) {
   off = true
+  cancelHaiku()
   ticker?.cancel(); ticker = undefined
   beatTimer?.cancel(); beatTimer = undefined
   takenOver = false
@@ -391,6 +434,8 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     cwd = e.cwd
+    interactive = e.isInteractive
+    cancelHaiku()
     // $.env.get takes literal names only; an empty CLAUDE_CONFIG_DIR counts as unset
     home = (await $.env.get('HOME')) ?? ''
     configDir = (await $.env.get('CLAUDE_CONFIG_DIR')) || `${home}/.claude`
@@ -451,6 +496,7 @@ export const register: Register = (on, options) => {
     if (await recheckGuard($, id)) return next(e)
     if (id !== sessionId) await adoptSession($, sessionId)
     newTurnWord()
+    turnNo++
     friday = false
     failed = false
     feed($, { type: 'turn-start', at: Date.now() })

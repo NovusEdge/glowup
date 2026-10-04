@@ -51,7 +51,7 @@ test('asks Pack, Spinner, Pet, Extras in order with the current pack marked', as
   expect(r.asked[2]!.options).toEqual(['Clawd', 'No pet'])
   expect(r.asked[3]!.question).toBe('Anything else to change?')
   expect(r.asked[3]!.multiSelect).toBe(true)
-  expect(r.asked[3]!.options).toEqual(['Turn bubbles off', 'Turn reduced motion on'])
+  expect(r.asked[3]!.options).toEqual(['Turn bubbles off', 'Write bubbles with Haiku', 'Turn reduced motion on'])
   expect(r.asked.every(q => q.options.length >= 2 && q.options.length <= 4 && q.header.length <= 12)).toBe(true)
 })
 
@@ -231,10 +231,20 @@ test('the shiny pet is offered only once unlocked, and applies', async () => {
 test('extras toggle relative to the current state, in both directions', async () => {
   const r = rig(['classic (current)', 'Pack default', 'Clawd', 'Turn bubbles on,Turn reduced motion off'], { bubbles: 'off', reduced: true })
   const out = await r.run()
-  expect(r.asked[3]!.options).toEqual(['Turn bubbles on', 'Turn reduced motion off'])
+  expect(r.asked[3]!.options).toEqual(['Turn bubbles on', 'Write bubbles with Haiku', 'Turn reduced motion off'])
   expect(out).toBe('glowup · classic · Clawd · bubbles on · full motion')
   expect(r.kv.bubbles).toBe('on')
   expect(r.kv.reducedMotion).toBe(false)
+})
+
+test('the extras offer Haiku bubbles, and template bubbles from haiku', async () => {
+  const a = rig(['classic (current)', 'Pack default', 'Clawd', 'Write bubbles with Haiku'])
+  expect(await a.run()).toBe('glowup · classic · Clawd · bubbles haiku · full motion')
+  expect(a.kv.bubbles).toBe('haiku')
+  const b = rig(['classic (current)', 'Pack default', 'Clawd', 'Use template bubbles'], { bubbles: 'haiku' })
+  await b.run()
+  expect(b.asked[3]!.options).toEqual(['Turn bubbles off', 'Use template bubbles', 'Turn reduced motion on'])
+  expect(b.kv.bubbles).toBe('on')
 })
 
 test('an empty extras selection changes nothing', async () => {

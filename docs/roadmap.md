@@ -22,7 +22,6 @@ section: More
 These are planned. None of them is in 0.2.0, and the order and timing can change.
 
 - Sound and voice layers for packs. The pack file format already reserves the keys.
-- Speech bubbles with lines written by Haiku, instead of templates.
 - More spinners.
 - More pets: Kit and Blip.
 - Import of iTerm2 color schemes.

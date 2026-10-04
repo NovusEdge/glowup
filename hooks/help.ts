@@ -27,7 +27,7 @@ export const SECTIONS: readonly (readonly [title: string, rows: HelpRow[]])[] = 
   ]],
   ['Pet', [
     ['/glowup pet clawd|off', 'Clawd, or no pet'],
-    ['/glowup bubbles on|off', 'his speech bubbles'],
+    ['/glowup bubbles on|off|haiku', 'his speech bubbles, templates or Haiku lines'],
   ]],
   ['Comfort', [
     ['/glowup motion reduced|full', 'animation off or on'],
