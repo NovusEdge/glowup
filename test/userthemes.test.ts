@@ -34,6 +34,17 @@ test('a failed download (offline, DNS) is reported, not thrown', async () => {
   expect(Object.keys(files)).toEqual([])
 })
 
+test('a JSON error never echoes control bytes from the file', async () => {
+  const body = '\u001b[2J\u001b]0;pwned\u0007' + 'x'.repeat(200)
+  const { host } = fakeHost({ fetches: { 'https://x.dev/e.json': body }, files: { [`${DIR}/bad.json`]: body } })
+  const added = await addTheme(host, 'https://x.dev/e.json')
+  expect(added).toContain('not valid JSON')
+  expect(/[\u0000-\u001f\u007f-\u009f]/.test(added)).toBe(false)
+  expect(added.length).toBeLessThanOrEqual('not valid JSON: '.length + 40)
+  const toast = resolveTheme('bad', await loadUserThemes(host)).error!
+  expect(/[\u0000-\u001f\u007f-\u009f]/.test(toast)).toBe(false)
+})
+
 test('theme names are safe file names', async () => {
   const { host, files } = fakeHost({ fetches: { 'https://x.dev/t.json': '{"name":"../../evil"}' } })
   expect(await addTheme(host, 'https://x.dev/t.json')).toContain('name')

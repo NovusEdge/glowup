@@ -61,10 +61,11 @@ export async function restore(host: Host): Promise<string> {
   const settings = await readSettings(host)
   if (!settings) return `glowup could not read ${SETTINGS(host.configDir)}; nothing changed.`
   const { statusLine: current, ...rest } = settings
-  // Someone set another status line since the takeover: theirs stays. Matching on
-  // the path also covers the unquoted command older builds wrote.
+  // Someone set another status line since the takeover: theirs stays. The path
+  // match covers the unquoted command older builds wrote; a quote in the config
+  // dir is escaped in ours, so that needs the exact match.
   const cmd = (current as { command?: unknown } | undefined)?.command
-  const ours = typeof cmd === 'string' && cmd.includes(SCRIPT_PATH(host.configDir))
+  const ours = typeof cmd === 'string' && (cmd === command(host.configDir) || cmd.includes(SCRIPT_PATH(host.configDir)))
   if (ours) await host.writeFile(SETTINGS(host.configDir), JSON.stringify(backup === NONE ? rest : { ...rest, statusLine: backup }, null, 2) + '\n')
   await host.storeDelete(BACKUP_KEY)
   await host.run(['rm', '-f', SCRIPT_PATH(host.configDir)])

@@ -36,6 +36,9 @@ test('a config dir with a space, $ or quote is single-quoted in settings and the
   const q = `'/home/u/it'\\''s $HOME/.claude`
   expect(JSON.parse(files[`${dir}/settings.json`]!).statusLine.command).toBe(`sh ${q}/glowup/statusline.sh'`)
   expect(files[`${dir}/glowup/statusline.sh`]).toContain(`f=${q}/glowup/status'/"$sid"`)
+  // the quoted command no longer holds the raw path, and is still ours
+  expect(await restore(host)).toBe('Your status line is back.')
+  expect(JSON.parse(files[`${dir}/settings.json`]!)).toEqual({})
 })
 
 test('restore leaves a status line someone changed since, and forgets the backup', async () => {

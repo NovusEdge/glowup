@@ -24,7 +24,8 @@ export function parseJsonc(text: string): unknown {
     }
     out += c; i++
   }
-  try { return JSON.parse(out) } catch (err) { throw new Error('not valid JSON: ' + (err as Error).message) }
+  // the runtime's message can quote source bytes, ESC included
+  try { return JSON.parse(out) } catch (err) { throw new Error('not valid JSON: ' + shown((err as Error).message)) }
 }
 
 // Downloaded themes reach the terminal, so anything that moves the cursor, hides text or
