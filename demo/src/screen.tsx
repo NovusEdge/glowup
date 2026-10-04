@@ -72,7 +72,7 @@ export class Claude {
       T.rect(CHAT + GAP, 0.5, PANE_W, 27, {stroke: look.sig.faint, lineWidth: 2, radius: 14});
       T.rect(x0 + 0.5, 0, 8, 1, {fill: look.sig.bg});
       T.txt(' glowup ', x0 + 0.5, 0, 'accent', {bold: true});
-      this.statusBox = T.rect(x0, 13.5, PANE_W - 4, 13, {stroke: look.sig.borderColor, lineWidth: 2, radius: 14}) as Rect;
+      this.statusBox = T.rect(x0 + 0.5, 13.5, PANE_W - 5, 13, {stroke: look.sig.borderColor, lineWidth: 2, radius: 14}) as Rect;
       const strip = (x0 + 2) * CW;
       this.pet = new Pet(o.pix?.pw ?? CW, o.pix?.ph ?? LH / 2, strip + 8 * CW, strip, strip + (STRIP - PET_COLS) * CW);
       this.pet.sprite.y(20 * LH);

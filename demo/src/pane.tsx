@@ -1,4 +1,4 @@
-import {Node, Rect, Txt} from '@revideo/2d';
+import {Line, Node, Rect, Txt} from '@revideo/2d';
 import {useTime} from '@revideo/core';
 import {planOrder} from '../../hooks/tasks.ts';
 import {Look} from './data';
@@ -317,6 +317,10 @@ const ARMS: Record<string, [number, number, number, number]> = {
   '╔': [0, 3, 0, 3], '╗': [0, 3, 3, 0], '╚': [3, 0, 0, 3], '╝': [3, 0, 3, 0],
 };
 const THICK = [0, 2, 4, 2];
+const ROUND = '╭╮╰╯';
+// Vertical extent of the font's full block, so a free cell lines up with the filled ones beside it.
+const SHADE_TOP = 3;
+const SHADE_H = 32.5;
 const SPIN = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏';
 
 export function drawSegs(T: Term, parent: Node, col: number, row: number, segs: Seg[]) {
@@ -334,24 +338,38 @@ export function drawSegs(T: Term, parent: Node, col: number, row: number, segs: 
         const [up, down, left, right] = ARMS[ch];
         const cx = x * CW + CW / 2;
         const cy = row * LH + LH / 2;
-        // Each arm reaches the cell edge; a double arm is two thin lines 4 px apart, with the same offset at a corner.
-        const arm = (n: number, horizontal: boolean, sign: number) => {
-          if (!n) return;
-          const lines = n === 3 ? [-3, 3] : [0];
-          for (const d of lines) {
+        if (ROUND.includes(ch)) {
+          // A quarter arc as a rounded two-segment line; the radius is the shorter arm, half a cell wide.
+          const pts: [number, number][] = [[cx, cy + (down ? LH / 2 : -LH / 2)], [cx, cy], [cx + (right ? CW / 2 : -CW / 2), cy]];
+          parent.add(<Line points={pts} radius={CW / 2} lineWidth={THICK[1]} stroke={T.paint(s.color)} />);
+        } else {
+          const vs = down ? 1 : up ? -1 : 0;
+          const hs = right ? 1 : left ? -1 : 0;
+          // Each arm reaches the cell edge. A double arm is two lines 6 px apart; at a corner the outer pair
+          // meets at the outer point and the inner pair at the inner one, so an arm starts at d * vs * hs.
+          const arm = (n: number, horizontal: boolean, sign: number) => {
+            if (!n) return;
             const t = THICK[n];
-            const len = (horizontal ? CW : LH) / 2 + t / 2;
-            const w = horizontal ? len : t;
-            const h = horizontal ? t : len;
-            const px = horizontal ? cx + (sign * len) / 2 - (sign * t) / 2 : cx + d;
-            const py = horizontal ? cy + d : cy + (sign * len) / 2 - (sign * t) / 2;
-            parent.add(<Rect x={px} y={py} width={w} height={h} fill={T.paint(s.color)} />);
-          }
-        };
-        arm(up, false, -1);
-        arm(down, false, 1);
-        arm(left, true, -1);
-        arm(right, true, 1);
+            for (const d of n === 3 ? [-3, 3] : [0]) {
+              const start = vs && hs && n === 3 ? d * vs * hs : 0;
+              const c = horizontal ? cx : cy;
+              const a = c + start - (sign * t) / 2;
+              const b = c + (sign * (horizontal ? CW : LH)) / 2;
+              const mid = (a + b) / 2;
+              const size = Math.abs(b - a);
+              parent.add(<Rect x={horizontal ? mid : cx + d} y={horizontal ? cy + d : mid} width={horizontal ? size : t} height={horizontal ? t : size} fill={T.paint(s.color)} />);
+            }
+          };
+          arm(up, false, -1);
+          arm(down, false, 1);
+          arm(left, true, -1);
+          arm(right, true, 1);
+        }
+      } else if (ch === '░') {
+        // The shade glyph is stippled and its fallback font ignores the cell advance, which leaves seams at the
+        // edge of a bar; a flat tint of the same colour fills the cell exactly.
+        flush();
+        parent.add(<Rect x={x * CW} y={row * LH + SHADE_TOP} width={CW + 0.5} height={SHADE_H} offset={[-1, -1]} fill={T.paint(s.color)} opacity={0.3} />);
       } else if (QUAD[ch] !== undefined && ch !== '█') {
         // Quadrant blocks are drawn as rectangles: the font's glyphs leave seams once the camera zooms.
         flush();
