@@ -110,7 +110,7 @@ func TestDeclared(t *testing.T) {
 	const cmd = "claude plugin configure glowup@glowup --json"
 	old := `{"pluginId":"glowup@glowup","schema":{"theme":{"type":"string"},"reducedMotion":{"type":"boolean"},"pack":{},"pet":{},"bubbles":{}},"inputs":{}}`
 	got, err := Declared(context.Background(), &fakeRunner{answers: map[string]Result{cmd: {Stdout: old}}})
-	if err != nil || !slices.Equal(got, []string{"bubbles", "pack", "pet", "reducedMotion", "theme"}) {
+	if err != nil || !slices.Equal(got, []string{"bubbles", "bubbles=haiku", "pack", "pet", "reducedMotion", "theme"}) {
 		t.Fatalf("got %q, %v", got, err)
 	}
 	for name, res := range map[string]Result{
@@ -121,6 +121,35 @@ func TestDeclared(t *testing.T) {
 		if _, err := Declared(context.Background(), &fakeRunner{answers: map[string]Result{cmd: res}}); err == nil {
 			t.Errorf("%s: no error", name)
 		}
+	}
+}
+
+func TestDeclaredValueGate(t *testing.T) {
+	const cmd = "claude plugin configure glowup@glowup --json"
+	for name, c := range map[string]struct {
+		schema string
+		gated  bool
+	}{
+		"old":        {`{"schema":{"bubbles":{"description":"on or off"}}}`, false},
+		"new":        {`{"schema":{"bubbles":{"description":"on, off, or haiku (Claude Haiku)"}}}`, true},
+		"no text":    {`{"schema":{"bubbles":{"type":"string"}}}`, true},
+		"no bubbles": {`{"schema":{"pet":{}}}`, false},
+	} {
+		got, err := Declared(context.Background(), &fakeRunner{answers: map[string]Result{cmd: {Stdout: c.schema}}})
+		if err != nil || slices.Contains(got, "bubbles=haiku") != c.gated {
+			t.Errorf("%s: got %q, %v", name, got, err)
+		}
+	}
+	st := Step{Argv: []string{"x"}, Stdin: `{"bubbles":"haiku","pet":"clawd"}`, Configure: true}
+	got, dropped := Restrict(st, []string{"bubbles", "pet"})
+	if got.Stdin != `{"pet":"clawd"}` || len(dropped) != 1 || dropped[0] != (Dropped{"bubbles", "haiku"}) {
+		t.Fatalf("an older glowup drops haiku: %s %+v", got.Stdin, dropped)
+	}
+	if got, dropped := Restrict(st, []string{"bubbles", "bubbles=haiku", "pet"}); got.Stdin != st.Stdin || len(dropped) != 0 {
+		t.Fatalf("a glowup that names haiku keeps it: %s %+v", got.Stdin, dropped)
+	}
+	if got, _ := Restrict(Step{Stdin: `{"bubbles":"on"}`}, []string{"bubbles"}); got.Stdin != `{"bubbles":"on"}` {
+		t.Fatalf("on stays: %s", got.Stdin)
 	}
 }
 

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Speech bubbles written by Haiku. `/glowup bubbles haiku`, the `bubbles` setting, the config questions and the installer's `--bubbles haiku` turn it on. It is opt-in: each line is a small Haiku call on your account, at most one per turn and one per 90 seconds, built from glowup's own state only, with the template line as the fallback.
+
 ### Fixed
 
 - "Needs you" no longer shows when nobody is being asked, as in auto mode. glowup used to guess the permission mode from the footer labels, which never name it, so it always guessed "ask". It now alerts only when Claude Code actually opens a permission dialog in a mode that asks you, and stays quiet when unsure.

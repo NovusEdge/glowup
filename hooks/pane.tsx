@@ -5,6 +5,7 @@ import { shortPath } from './events.ts'
 import type { Look } from './packs.ts'
 import type { Mood } from './bubbles.ts'
 import { CLAWD_ROW, PET_ROWS, type PetId } from './pets.ts'
+import { wrapBubble } from './bubbles.ts'
 import { bar, comboSegs, ctxColor, fit, hearts, hpBar, renderSegs, toneColor, visibleLength, type Seg } from './layout.tsx'
 
 export type TabId = 'changes' | 'agents' | 'plan'
@@ -127,16 +128,28 @@ const bubbleColor = (t: Theme, mood: Mood) => (mood === 'fail' ? t.colors.fail :
 // Width of the Box the pet's Client sits in on a docked pane: inside the pane's border and padding (2 + 4).
 export const petStripCols = (paneWidth: number) => Math.max(0, Math.min(PET_STRIP_COLS, paneWidth - 6))
 
+const BUBBLE_LINES = 2
+const cellsOf = (s: string) => visibleLength([{ text: s, color: '' }])
+
+// Text cells and rows a bubble has at this pane width: inside its border and padding,
+// beside Clawd when the docked strip leaves room, above him otherwise, and one row in the drawer.
+export function bubbleBox(paneWidth: number, compact: boolean): { cols: number; lines: number; beside: boolean } {
+  if (compact) return { cols: Math.max(1, paneWidth - 2 - CLAWD_ROW.length - 1), lines: 1, beside: true }
+  const width = paneWidth - 6, room = width - petStripCols(paneWidth)
+  const beside = room >= BUBBLE_ROOM
+  return { cols: Math.max(1, (beside ? room : width) - 4), lines: BUBBLE_LINES, beside }
+}
+
 function petStrip(els: { Box: any; Text: any }, t: Theme, extra: PaneExtra, paneWidth: number) {
   const { Box, Text } = els
   const width = paneWidth - 6
   const rows = extra.pet!.rows ?? PET_ROWS, cols = petStripCols(paneWidth)
   const room = width - cols
-  const beside = room >= BUBBLE_ROOM
+  const { beside, cols: textCols, lines } = bubbleBox(paneWidth, false)
   const say = extra.bubble
   const bubble = say && (
-    <Box key="bubble" borderStyle="round" borderColor={bubbleColor(t, say.mood)} paddingX={1}>
-      <Text color={t.colors.text} wrap="truncate">{fit([{ text: say.text, color: '' }], (beside ? room : width) - 4).map(s => s.text).join('')}</Text>
+    <Box key="bubble" borderStyle="round" borderColor={bubbleColor(t, say.mood)} paddingX={1} alignSelf="flex-start" flexDirection="column">
+      {wrapBubble(say.text, textCols, lines, cellsOf).map((l, i) => <Text key={'b' + i} color={t.colors.text} wrap="truncate">{l}</Text>)}
     </Box>
   )
   const sign = !say && extra.friday && <Box key="friday"><Text color={t.colors.accent} wrap="truncate">{"it's friday"}</Text></Box>
@@ -159,7 +172,7 @@ function petLine(els: { Box: any; Text: any }, t: Theme, extra: PaneExtra, width
   return (
     <Box flexDirection="row" key="pet" height={1}>
       <Box width={CLAWD_ROW.length} height={1}>{extra.pet!.node as any}</Box>
-      {text && <Text color={color} wrap="truncate">{' ' + fit([{ text, color }], width - CLAWD_ROW.length - 1).map(s => s.text).join('')}</Text>}
+      {text && <Text color={color} wrap="truncate">{' ' + (wrapBubble(text, Math.max(1, width - CLAWD_ROW.length - 1), 1, cellsOf)[0] ?? '')}</Text>}
     </Box>
   )
 }

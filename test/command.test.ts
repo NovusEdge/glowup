@@ -291,5 +291,7 @@ test('pet and bubbles; clawd-shiny stays locked until earned', async () => {
   expect(await runCommand(host, 'pet list', c)).toContain('● clawd-shiny')
   expect(await runCommand(host, 'bubbles off', c)).toBe('Bubbles: off')
   expect([store.pet, store.bubbles]).toEqual(['clawd-shiny', 'off'])
-  expect(calls).toEqual(['pet:off', 'pet:clawd-shiny', 'bubbles:off'])
+  expect(await runCommand(host, 'bubbles haiku', c)).toBe('Bubbles: haiku')
+  expect(store.bubbles).toBe('haiku')
+  expect(calls).toEqual(['pet:off', 'pet:clawd-shiny', 'bubbles:off', 'bubbles:haiku'])
 })

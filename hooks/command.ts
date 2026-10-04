@@ -149,9 +149,10 @@ async function wizard(host: Host, ctl: Ctl): Promise<string> {
   // an unchanged pick must not turn a userConfig default into a stored setting
   if (hit && hit[0] !== ctl.pet()) await apply(`pet ${hit[0]}`)
 
-  const bubbles = ctl.bubbles() === 'on', reduced = ctl.reduced()
+  const bubbles = ctl.bubbles(), reduced = ctl.reduced()
   const toggles: [string, string][] = [
-    [`Turn bubbles ${bubbles ? 'off' : 'on'}`, `bubbles ${bubbles ? 'off' : 'on'}`],
+    bubbles === 'off' ? ['Turn bubbles on', 'bubbles on'] : ['Turn bubbles off', 'bubbles off'],
+    bubbles === 'haiku' ? ['Use template bubbles', 'bubbles on'] : ['Write bubbles with Haiku', 'bubbles haiku'],
     [`Turn reduced motion ${reduced ? 'off' : 'on'}`, `motion ${reduced ? 'full' : 'reduced'}`],
   ]
   const extras = await ask('Anything else to change?', 'Extras', toggles.map(([l]) => l), true)
@@ -233,7 +234,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     ctl.setPet(a1)
     return `Pet: ${a1}`
   }
-  if (sub === 'bubbles' && (a1 === 'on' || a1 === 'off')) {
+  if (sub === 'bubbles' && (a1 === 'on' || a1 === 'off' || a1 === 'haiku')) {
     await host.storeSet('bubbles', a1)
     ctl.setBubbles(a1)
     return `Bubbles: ${a1}`

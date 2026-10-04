@@ -51,9 +51,20 @@ In a narrow drawer the bubble line shows beside the one-row Clawd.
 ```text title="claude code"
 /glowup bubbles off
 /glowup bubbles on
+/glowup bubbles haiku
 ```
 
 Bubbles are on by default. The choice is saved.
+
+### Lines written by Haiku
+
+With `/glowup bubbles haiku`, glowup sometimes asks Claude Haiku for the line instead of using a template. The template shows first. Haiku's line replaces it only if it arrives while that bubble is still up, so drawing never waits on the call.
+
+**Cost.** Each line is a small Haiku call on your own account, with the same credentials as your session. It is off unless you choose it.
+
+What it sends: the mood, the pose, the short label glowup already shows for the current tool, a test summary such as `failed 3`, and the time of day. It never sends your prompts, file contents, code or secrets. The reply is cleaned to one plain line of at most 40 characters; an empty reply falls back to the template.
+
+Limits: one call at a time, at most one per turn, and at least 90 seconds between calls. A call is cut off after 4 seconds. An error, a timeout, a `-p` run, reduced motion, or no pet all mean the template shows, with no retry. Details go to the debug log only.
 
 ## Choose a pet
 

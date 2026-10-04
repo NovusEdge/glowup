@@ -96,7 +96,7 @@ func NewModel(in claude.Choice, installed bool) Model {
 			Options(huh.NewOption("Clawd", "clawd"), huh.NewOption("No pet", "off")).Value(&c.Pet)),
 		huh.NewGroup(
 			huh.NewSelect[string]().Key("bubbles").Title("Speech bubbles").
-				Options(huh.NewOption("On", "on"), huh.NewOption("Off", "off")).Value(&c.Bubbles),
+				Options(huh.NewOption("On", "on"), huh.NewOption("Off", "off"), huh.NewOption("Haiku lines (small paid calls)", "haiku")).Value(&c.Bubbles),
 			huh.NewConfirm().Key("reducedMotion").Title("Reduced motion").
 				Description("Turns off glowup's shimmer and spinner animation.").
 				Affirmative("On").Negative("Off").Value(&c.ReducedMotion),

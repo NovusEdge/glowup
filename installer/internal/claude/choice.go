@@ -5,7 +5,7 @@ package claude
 type Choice struct {
 	Pack          string // a name from packs.Names()
 	Pet           string // "clawd" or "off"
-	Bubbles       string // "on" or "off"
+	Bubbles       string // "on", "off" or "haiku"
 	ReducedMotion bool
 	// Theme and Spinner are empty until the person picks them. A configure run sends
 	// them only then; a fresh install sends "classic" and "pack", the mod's values

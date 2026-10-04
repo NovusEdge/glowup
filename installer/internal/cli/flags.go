@@ -31,7 +31,7 @@ func Parse(args []string, out io.Writer) (Options, error) {
 	fs := flag.NewFlagSet("glowup-installer", flag.ContinueOnError)
 	fs.SetOutput(out)
 	fs.Usage = func() {
-		fmt.Fprintln(out, "usage: glowup-installer [--yes] [--pack NAME] [--theme NAME] [--spinner NAME] [--pet clawd|off] [--bubbles on|off] [--reduced-motion] [--dry-run] [--version]")
+		fmt.Fprintln(out, "usage: glowup-installer [--yes] [--pack NAME] [--theme NAME] [--spinner NAME] [--pet clawd|off] [--bubbles on|off|haiku] [--reduced-motion] [--dry-run] [--version]")
 		fmt.Fprintln(out, "\nInstalls the glowup mod into Claude Code. With no flags it asks you to pick a look first.")
 		fs.PrintDefaults()
 	}
@@ -40,7 +40,7 @@ func Parse(args []string, out io.Writer) (Options, error) {
 	fs.StringVar(&o.Choice.Theme, "theme", "", "theme colors on top of the pack: "+strings.Join(packs.ThemeNames(), ", ")+" (classic keeps the pack's own)")
 	fs.StringVar(&o.Choice.Spinner, "spinner", "", "spinner: "+strings.Join(packs.SpinnerIDs(), ", ")+", or pack for the pack's own")
 	fs.StringVar(&o.Choice.Pet, "pet", o.Choice.Pet, "pet: clawd or off")
-	fs.StringVar(&o.Choice.Bubbles, "bubbles", o.Choice.Bubbles, "speech bubbles: on or off")
+	fs.StringVar(&o.Choice.Bubbles, "bubbles", o.Choice.Bubbles, "speech bubbles: on (template lines), off, or haiku (lines written by Claude Haiku: small calls on your account)")
 	fs.BoolVar(&o.Choice.ReducedMotion, "reduced-motion", o.Choice.ReducedMotion, "turn off glowup's animation")
 	fs.BoolVar(&o.DryRun, "dry-run", false, "print the commands a fresh install runs, and run nothing (not even the checks)")
 	fs.BoolVar(&o.Version, "version", false, "print the installer's version")
@@ -68,8 +68,8 @@ func Parse(args []string, out io.Writer) (Options, error) {
 	if o.Choice.Pet != "clawd" && o.Choice.Pet != "off" {
 		return o, usageErr(out, "--pet takes clawd or off, not %q", o.Choice.Pet)
 	}
-	if o.Choice.Bubbles != "on" && o.Choice.Bubbles != "off" {
-		return o, usageErr(out, "--bubbles takes on or off, not %q", o.Choice.Bubbles)
+	if !slices.Contains([]string{"on", "off", "haiku"}, o.Choice.Bubbles) {
+		return o, usageErr(out, "--bubbles takes on, off or haiku, not %q", o.Choice.Bubbles)
 	}
 	if t := o.Choice.Theme; set["theme"] && !slices.Contains(packs.ThemeNames(), t) {
 		return o, usageErr(out, "there is no theme called %q. Pick one of: %s", t, strings.Join(packs.ThemeNames(), ", "))

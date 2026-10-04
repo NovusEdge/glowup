@@ -122,7 +122,7 @@ glowup runs one copy per session: with an installed copy and `claude --plugin-di
 | `/glowup import <file>` | Turn a Ghostty or base16 color scheme into a pack. |
 | `/glowup export konsole` | Write your current colors as a Konsole color scheme. |
 | `/glowup pet clawd\|off` | Show Clawd or hide the pet. |
-| `/glowup bubbles on\|off` | Turn speech bubbles on or off. |
+| `/glowup bubbles on\|off\|haiku` | Turn speech bubbles on or off, or let Haiku write some lines (small calls on your account). |
 | `/glowup config` | Pick a pack, pet and extras by answering questions. |
 | `/glowup pane` | Open or close the glowup pane. |
 | `/glowup motion reduced` | Turn glowup's animation off. |
@@ -229,7 +229,6 @@ See [Accessibility](docs/accessibility.md).
 Coming, in no promised order and with no dates:
 
 - Sound and voice layers for packs.
-- Speech bubbles with lines written by Haiku.
 - More spinners, and more pets: Kit and Blip.
 
 Also planned: a diff view in the Changes tab and opening an agent from the Agents tab. See [Roadmap](docs/roadmap.md).
