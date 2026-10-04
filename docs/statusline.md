@@ -1,13 +1,13 @@
 ---
 title: Status line
-description: The status entry glowup adds by default, the opt-in takeover, what it writes to disk, and how to undo it.
+description: The status entry glowup shows while Claude works, the opt-in takeover, what it writes to disk, and how to undo it.
 order: 4
 section: Use
 ---
 
 ## Two modes
 
-By default glowup adds one entry under the prompt and leaves your own status line alone. If you want glowup to draw the whole status line, you opt in with `/glowup statusline on`.
+Without the takeover, glowup adds one entry under the prompt while Claude is working and leaves your own status line alone. If you want glowup to draw the whole status line, you opt in with `/glowup statusline on`.
 
 | | Default | Takeover |
 | --- | --- | --- |
@@ -24,7 +24,9 @@ glowup shows an entry such as:
 ◆ editing · ctx 48%
 ```
 
-It has a state word and the context used. The word is one of `thinking`, `reading`, `searching`, `editing`, `running`, `delegating`, `failing`, `passing`, `waiting` or `idle`. The entry is hidden while Claude is idle and context is empty. It sits beside whatever status line you already have.
+It has a state word and the context used. The word is one of `thinking`, `reading`, `searching`, `editing`, `running`, `delegating`, `failing`, `passing` or `waiting`. The entry shows only while Claude or a subagent is working, including background subagents that keep running after the main turn ends (the word is then `delegating`). glowup clears it when everything is idle, and never shows it while the takeover is on, because the takeover line says the same thing.
+
+Claude Code draws the entry with a `⚠ glowup:` prefix. That is Claude Code's own styling for mod status entries. It is not a warning.
 
 ## The takeover
 
@@ -51,7 +53,13 @@ If `settings.json` exists but does not parse as a JSON object, glowup says so an
 
 ## Restore
 
-Run `/glowup statusline restore`. glowup puts the saved `statusLine` value back in `settings.json`, or removes the key if you had none, and deletes the script. It prints `Your status line is back.` If glowup never replaced your status line, it prints `Nothing to restore: glowup never replaced your status line.`
+Run `/glowup statusline restore`. If the current `statusLine` is still glowup's, glowup puts the saved value back in `settings.json`, or removes the key if you had none. It prints `Your status line is back.`
+
+If you changed `statusLine` since the takeover, glowup leaves your setting alone, forgets the backup, and prints `Your status line was changed since; left it as is.`
+
+Either way, restore deletes glowup's script and status files. If glowup never replaced your status line, it prints `Nothing to restore: glowup never replaced your status line.`
+
+All of these paths follow `CLAUDE_CONFIG_DIR`, and default to `~/.claude`.
 
 ## Project settings win
 

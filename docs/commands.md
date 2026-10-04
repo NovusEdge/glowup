@@ -26,7 +26,7 @@ An unknown subcommand prints `Unknown: <what you typed>` followed by the usage t
 | Command | What it does |
 | --- | --- |
 | `/glowup theme <name>` | Switch to a theme. Prints `Theme: <name>`. |
-| `/glowup theme list` | List the built-in themes and your own. The current theme has a filled dot. |
+| `/glowup theme list` | List the built-in themes and your own. The active theme has a filled dot, including one chosen in the settings menu. |
 | `/glowup theme add <url>` | Download a theme file, check it, and install it. |
 
 The switch applies at once and is saved, so the next session starts with it. If the theme cannot load, glowup prints the reason and keeps the current theme. The built-in themes are `classic`, `cyberpunk`, `vaporwave` and `high-contrast`. Your own themes come from `~/.claude/glowup/themes`. See [Making a theme](themes.md).
@@ -48,6 +48,7 @@ A theme file holds data only. Nothing in it runs. Adding a theme with a name you
 | --- | --- |
 | `Theme URLs must start with https://` | The URL uses another scheme. |
 | `Could not download the theme (HTTP 404).` | The server answered with an error. |
+| `Could not download the theme: ...` | The request failed, for example no network. The text after the colon is the reason. |
 | `file is over 65536 bytes` | The file is larger than the limit. |
 | `not valid JSON: ...` | The file does not parse. |
 | `A theme must be a JSON object.` | The top level is an array or a plain value. |
@@ -77,4 +78,4 @@ The choice is saved. See [Accessibility](accessibility.md) for what changes.
 | `/glowup statusline on` | Ask for confirmation, then let glowup draw your status line. |
 | `/glowup statusline restore` | Put your own status line back. |
 
-This is opt-in. Without it, glowup only adds its own entry under the prompt. See [Status line](statusline.md).
+This is opt-in. Without it, glowup only adds its own entry under the prompt while Claude works. Restore puts your line back only if it is still glowup's. See [Status line](statusline.md).

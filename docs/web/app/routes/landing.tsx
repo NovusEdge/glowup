@@ -59,7 +59,7 @@ const FEATURES = [
   },
   {
     title: 'Status line',
-    body: 'A glowup entry sits beside your status line by default. If you want glowup to draw the whole line, one command does it after you confirm, and one command undoes it.',
+    body: 'While Claude works, a glowup entry shows under the prompt and your own status line stays untouched. If you want glowup to draw the whole line, one command does it after you confirm, and one command undoes it.',
     to: '/statusline',
   },
 ]

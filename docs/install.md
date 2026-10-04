@@ -47,7 +47,7 @@ The session watches the folder and reloads the mod when you save a file.
 
 ## Remove
 
-If you ran `/glowup statusline on`, run `/glowup statusline restore` first. It puts your own status line back. See [Status line](statusline.md).
+If you ran `/glowup statusline on`, run `/glowup statusline restore` first. It puts your own status line back, unless you changed it since. See [Status line](statusline.md).
 
 Then remove the mod:
 

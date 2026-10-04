@@ -70,7 +70,7 @@ Errors: `unknown glyph "<key>"`, `glyph "<key>" must be one width-1 character`, 
 
 ## Spinner words
 
-`spinner.words` is an array of strings. Each string can be at most 24 characters. An empty array is ignored and the parent's words stay. A bad value is an error: `spinner.words must be short strings`.
+`spinner.words` is an array of strings. Each string can be at most 24 characters. glowup rejects a word that contains control, bidirectional or zero-width characters. An empty array is ignored and the parent's words stay. A bad value is an error: `spinner.words must be short strings`.
 
 glowup picks one word at random at the start of each turn and uses it for the whole turn. A theme named `classic` keeps Claude Code's own rotating words, so `classic` ignores its words. With reduced motion on, every theme keeps Claude Code's word. glowup can change the word only; the spinner frames are Claude Code's.
 

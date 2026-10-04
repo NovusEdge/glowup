@@ -31,7 +31,7 @@ A drawer narrower than 80 columns uses the compact form of each tab.
 
 ## The band
 
-The band is one line above the prompt. It shows while Claude works and stays for 1.5 seconds after the turn ends, then folds away. It shows, left to right:
+The band is one line above the prompt. It shows while Claude works and stays for 1.5 seconds after the turn ends, then folds away. It also stays up while background subagents run after the main turn ends, with the action shown as `delegating`. When a turn ends, the action reads `✓ Done`, `■ Interrupted` if you interrupted it, or `✗ Stopped` after an error or a refusal. It shows, left to right:
 
 - The current action with its glyph and color, for example `✎ Editing auth.ts`. Failures show in the `fail` color and passes in the `pass` color.
 - The number of running subagents, for example `◆ 2 subagents`.
@@ -55,13 +55,14 @@ Every file Claude touched this session.
 - Edited files show `+added −removed`. A file Claude only read shows `read`, dimmed.
 - New files are marked `new`.
 - The header counts edited files and total added and removed lines.
-- In a git repository the counts come from `git diff --numstat` against the commit you started the session on, so edits made by shell commands count too. Counts for new untracked files, and for sessions outside git, come from the edit's own input.
+- In a git repository the counts come from `git diff --numstat` against a snapshot taken at session start, which includes any uncommitted work at that moment. Files that were already modified before the session do not appear. Files changed by shell commands during the session do. New untracked files, and sessions outside git, use the counts from the edit's own input.
+- glowup runs git without taking locks, so it never blocks Claude's own git commands.
 - The compact form lists edited files only.
 - With nothing touched, the tab says `Nothing changed yet.`
 
 ### Agents
 
-Each subagent in this session.
+Each subagent in this session. The tab stays live while background subagents run after the main turn ends.
 
 - Name, elapsed time, token count, and a spinner while it runs or a check mark when it is done.
 - Its task description.
