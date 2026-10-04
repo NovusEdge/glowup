@@ -65,6 +65,9 @@ func Preview(p packs.Pack, c claude.Choice) string {
 		}
 		spin = append(spin, b.String())
 	}
+	for len(spin) < spinnerRows() {
+		spin = append(spin, "")
+	}
 	word := fg(p.Spinner.Color).Render(p.Spinner.Word + "…")
 	spinner := lipgloss.JoinHorizontal(lipgloss.Center, strings.Join(spin, "\n"), gap, word)
 
@@ -83,6 +86,17 @@ func Preview(p packs.Pack, c claude.Choice) string {
 		BorderForeground(lipgloss.Color(p.BorderColor)).
 		BorderBackground(bg).
 		Render(body)
+}
+
+// spinnerRows is the tallest spinner of any pack. Every preview is padded to it
+// because bubbletea's inline renderer leaves a stale line behind each time the
+// view gets shorter (classic's spinner is one row, the others two).
+func spinnerRows() int {
+	n := 0
+	for _, p := range packs.All() {
+		n = max(n, len(p.Spinner.Frame))
+	}
+	return n
 }
 
 func motion(reduced bool) string {

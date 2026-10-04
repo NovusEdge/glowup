@@ -104,3 +104,22 @@ func TestPickerShowsEveryPackOnARealTerminal(t *testing.T) {
 		}
 	}
 }
+
+// The inline renderer strands a line each time the view shrinks, so cycling the
+// pack list must never change the view's height.
+func TestPickerViewHeightIsConstantAcrossPacks(t *testing.T) {
+	for _, width := range []int{120, 70} {
+		m := send(start(NewModel(claude.Defaults(), false)), tea.WindowSizeMsg{Width: width, Height: 40})
+		want := -1
+		for range packs.Names() {
+			lines := strings.Split(m.View().Content, "\n")
+			if want < 0 {
+				want = len(lines)
+			}
+			if len(lines) != want {
+				t.Errorf("width %d, pack %s: %d lines, want %d", width, m.choice.Pack, len(lines), want)
+			}
+			m = send(m, tea.KeyPressMsg{Code: tea.KeyDown})
+		}
+	}
+}
