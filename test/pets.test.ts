@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { petPose, halfBlock, frameAt, shiny, petPalette, composeFrame, validateSheet, animFor, newPlayer, stepPlayer, type PetSheet, CLAWD_SHEET, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, PET_COLS, PET_ROWS, OUTFIT_PAD } from '../hooks/pets.ts'
+import { petPose, halfBlock, frameAt, shiny, petPalette, composeFrame, validateSheet, animFor, newPlayer, stepPlayer, playerFrame, type PetSheet, CLAWD_SHEET, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, PET_COLS, PET_ROWS, OUTFIT_PAD } from '../hooks/pets.ts'
 import { cellWidth } from '../hooks/cells.ts'
 
 const width = (s: string) => [...s].reduce((n, c) => n + cellWidth(c.codePointAt(0)!), 0)
@@ -24,8 +24,21 @@ test('poses follow the table', async () => {
   const pass = { ...base, working: true, lastTest: { passed: true, at: 1000 } }
   expect(petPose(pass, 2100)).toBe('hop')
   expect(petPose(pass, 2300)).toBe('walk')
-  expect(petPose({ ...base, doneAt: 1000, doneOk: true }, 2400)).toBe('done')
+  expect(petPose({ ...base, doneAt: 1000, doneOk: true }, 4900)).toBe('done')
+  expect(petPose({ ...base, doneAt: 1000, doneOk: true }, 5100)).toBe('idle')
   expect(petPose({ ...base, doneAt: 1000, doneOk: false }, 1100)).toBe('idle')
+})
+
+test('done keeps dancing through its window, then returns to idle', async () => {
+  const p = newPlayer(), seen = new Set<unknown>()
+  stepPlayer(p, CLAWD_SHEET, 'idle', 0, 20)
+  for (let t = 0; t <= 4000; t += 40) {
+    stepPlayer(p, CLAWD_SHEET, 'done', t, 20)
+    if (t >= 2500 && t <= 3500) seen.add(playerFrame(p, t))
+  }
+  expect(seen.size).toBeGreaterThan(1)
+  for (let t = 4040; t <= 6000; t += 40) stepPlayer(p, CLAWD_SHEET, 'idle', t, 20)
+  expect(p.seg!.pose).toBe('idle')
 })
 
 test('editing and shell commands type; everything else while working walks', async () => {
