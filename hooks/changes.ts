@@ -45,6 +45,12 @@ export async function gitBase(host: Host, cwd: string): Promise<{ root: string; 
   return { root, base: (await worktreeCommit(host, root, index)) ?? head.trim() }
 }
 
+// symbolic-ref fails on a detached HEAD, which then shows no branch
+export async function branchOf(host: Host, dir: string): Promise<string | undefined> {
+  const r = await git(host, dir, ['symbolic-ref', '--short', '-q', 'HEAD'])
+  return r && r.exitCode === 0 && r.stdout.trim() ? r.stdout.trim() : undefined
+}
+
 // `stash create` refreshes the index it reads, under its .lock, even with
 // --no-optional-locks: on the real index that clashes with Claude's own git
 // commit. A throwaway copy takes that lock instead.

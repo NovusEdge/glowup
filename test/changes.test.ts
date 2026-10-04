@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { parseNumstat, gitBase, refreshCounts, serial } from '../hooks/changes.ts'
+import { parseNumstat, gitBase, branchOf, refreshCounts, serial } from '../hooks/changes.ts'
 import { fakeHost } from './kit.ts'
 
 const REV = 'git --no-optional-locks -C /r rev-parse --show-toplevel --show-prefix --git-path index HEAD'
@@ -31,6 +31,13 @@ test('a rejecting git (not installed) is treated as no repo or unchanged counts'
 test('gitBase is undefined outside a repo', async () => {
   const { host } = fakeHost()
   expect(await gitBase(host, '/r')).toBeUndefined()
+})
+
+test('branchOf names the branch, and nothing when detached or outside git', async () => {
+  const argv = 'git --no-optional-locks -C /w symbolic-ref --short -q HEAD'
+  expect(await branchOf(fakeHost({ runs: { [argv]: { exitCode: 0, stdout: 'main\n' } } }).host, '/w')).toBe('main')
+  expect(await branchOf(fakeHost({ runs: { [argv]: { exitCode: 1, stdout: '' } } }).host, '/w')).toBeUndefined()
+  expect(await branchOf(fakeHost().host, '/w')).toBeUndefined()
 })
 
 test('every git call skips optional locks so Claude\'s own git commit never meets index.lock', async () => {

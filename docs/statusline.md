@@ -40,9 +40,45 @@ glowup shows an entry such as:
 ◆ editing · ctx 48%
 ```
 
-It has a state word and the context used. The word is one of `thinking`, `reading`, `searching`, `editing`, `running`, `delegating`, `failing`, `passing` or `waiting`. The entry shows only while Claude or a subagent is working, including background subagents that keep running after the main turn ends (the word is then `delegating`). glowup clears it when everything is idle, and never shows it while the takeover is on, because the takeover line says the same thing.
+By default it has a state word and the context used, then your 5-hour and weekly usage when Claude Code reports them. You can [choose the fields](#choosing-the-fields). The word is one of `thinking`, `reading`, `searching`, `editing`, `running`, `delegating`, `failing`, `passing` or `waiting`. The entry shows only while Claude or a subagent is working, including background subagents that keep running after the main turn ends (the word is then `delegating`). glowup clears it when everything is idle, and never shows it while the takeover is on, because the takeover line says the same thing.
 
 Claude Code draws the entry with a `⚠ glowup:` prefix. That is Claude Code's own styling for mod status entries. It is not a warning.
+
+## Choosing the fields
+
+The line is a list of fields, joined with a dim ` · `, in the order you pick. The default is `activity ctx 5h week`. The same list drives the default entry and the takeover line.
+
+| Id | Shows |
+| --- | --- |
+| `activity` | what Claude is doing: `◆ editing` |
+| `ctx` | context used: `ctx 48%` |
+| `5h` | 5-hour usage and reset: `5h 23% ↻2h10m` |
+| `week` | weekly usage and reset: `wk 61% ↻Thu` |
+| `cost` | session cost: `$1.24` |
+| `model` | the model, as `/model` names it |
+| `agents` | running subagents: `2 agents` |
+| `plan` | plan progress: `plan 3/7` |
+| `branch` | git branch |
+| `changes` | lines added and removed: `+42 −7` |
+| `cwd` | the project folder name |
+
+Set them with a command:
+
+```text title="claude code"
+/glowup statusline fields
+/glowup statusline fields activity 5h week branch
+/glowup statusline fields default
+```
+
+- `fields` alone shows the current list.
+- `fields <id> <id> …` sets the list in the order you type it. An unknown id refuses the whole command and lists the valid ids. A repeated id keeps its first place.
+- `fields default` goes back to the `statusline` setting's value, which is `activity ctx 5h week` unless you changed that setting.
+
+`/glowup config` asks "Status line fields?" after its other questions, with Keep, Default and Pick. Pick asks three multi-select questions: Session (`activity`, `ctx`, `agents`, `plan`), Account (`5h`, `week`, `cost`, `model`) and Repo (`branch`, `changes`, `cwd`). The `statusline` setting in Claude Code's `/plugin` menu takes the starting list as comma-separated ids.
+
+A field with no data is left out, not shown as zero. `5h` and `week` appear only on a subscription that reports those windows. The usage figures are this session's last reading from Claude Code, so another session on the same account moves the real numbers and this line catches up on your next response here. A window whose reset time has passed is hidden.
+
+Colors come from your theme. The percentages in `ctx`, `5h` and `week` use the pass color below 50%, the edit color from 50% and the fail color from 80%. glowup writes 24-bit color when `COLORTERM` is `truecolor` or `24bit`, and 256 colors otherwise. Without the takeover, the entry under the prompt is plain text and shows only while Claude works.
 
 ## The takeover
 

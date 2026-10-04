@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Pick the status line's fields and their order with `/glowup statusline fields <ids>`, the `/glowup config` "Status line fields?" question, or the `statusline` setting. New fields show your 5-hour and weekly usage with reset times, cost, model, running subagents, plan progress, branch, changes and folder. The status line glowup draws now uses your theme's colors; the entry under the prompt stays plain.
+
+### Changed
+
+- `/glowup config` ends at Extras when you press Esc there, as on every other question.
+
 ## [0.3.4] - 2026-10-05
 
 ### Fixed

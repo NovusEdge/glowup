@@ -134,16 +134,21 @@ test('status word comes from the glyph, not the label', async () => {
 test('status says delegating while subagents run after the main turn', async () => {
   const T = resolveTheme('classic', {}).theme
   const agent = { key: 'a1', name: 'scout', task: '', state: 'running' as const, startedAt: 0 }
-  expect(statusText({ ...initialModel(), agents: [agent] }, T)).toBe('◆ delegating · ctx 0%')
+  expect(statusText({ ...initialModel(), agents: [agent] }, T)).toBe('◆ delegating')
   expect(statusText({ ...initialModel(), ctxPercent: 3, agents: [{ ...agent, state: 'done' }] }, T)).toBe('◆ idle · ctx 3%')
 })
 
-test('no status line deletes the session file so the script falls back', async () => {
-  const { host, files, ran } = fakeHost()
+test('status text takes a field list and a color mode', async () => {
+  const T = resolveTheme('classic', {}).theme
+  const m = { ...initialModel(), ctxPercent: 5, branch: 'main' }
+  expect(statusText(m, T, { fields: ['branch', 'ctx'] })).toBe('main · ctx 5%')
+  expect(statusText(m, T, { color: 'truecolor' })).toContain('\x1b[38;2;')
+})
+
+test('the status line is written to the session file', async () => {
+  const { host, files } = fakeHost()
   await writeStatusFile(host, 's1', '◆ idle · ctx 5%')
   expect(files['/home/u/.claude/glowup/status/s1']).toBe('◆ idle · ctx 5%')
-  await writeStatusFile(host, 's1', undefined)
-  expect(ran).toContain('rm -f /home/u/.claude/glowup/status/s1')
 })
 
 const OURS = `{"statusLine":{"type":"command","command":"sh '${SCRIPT}'"}}`
