@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Restyled tool rows draw again. Claude Code refused them because of a box setting around its own row, so every tool row fell back to the stock look.
+- The pane and band no longer fail to draw after an update or reload when the saved state comes from an older glowup.
+- Updating glowup no longer shows the "glowup is loaded twice" toast or turns the new version off.
+
 ## [0.3.1] - 2026-10-04
 
 ### Added

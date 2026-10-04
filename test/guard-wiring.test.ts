@@ -9,7 +9,7 @@ const DIR = '/fake/.claude/glowup/instances'
 const CACHE = '/fake/.claude/plugins/cache/glowup/glowup/0.2.2'
 
 function boot(on: Parameters<typeof fakeFs>[0], files: Record<string, string>, id = 's1') {
-  const fs = fakeFs(on, { '/fake/.claude/settings.json': '{}', ...files })
+  const fs = fakeFs(on, { '/fake/.claude/settings.json': '{}', '/elsewhere/glowup/.claude-plugin/plugin.json': '{}', [`${CACHE}/.claude-plugin/plugin.json`]: '{}', ...files })
   mock.store(on)
   const toasts: string[] = []
   const registered: string[] = []
@@ -45,6 +45,15 @@ test('a second copy registered first makes this one pass through and say so once
   expect(Object.keys(files).filter(f => f.includes('/glowup/status/'))).toEqual([])
   expect(files['/fake/.claude/settings.json']).toBe('{}')
   expect(writes.filter(p => !p.startsWith(DIR))).toEqual([])
+})
+
+test('an entry left by a copy whose folder is gone does not turn this one off', async ($, on) => {
+  const { toasts, registered } = boot(on, { [`${DIR}/s1.aa.json`]: entry('/elsewhere/removed-checkout', Date.now() - 1000) })
+  mock.clock(on)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  await new Promise(r => setTimeout(r, 400))
+  expect(toasts).toEqual([])
+  expect(registered).toEqual(['glowup'])
 })
 
 test('an installed copy registered first loses to this dev copy, which keeps drawing', async ($, on) => {

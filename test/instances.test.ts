@@ -1,10 +1,14 @@
 import { test, expect } from 'claude-code/testing'
 import { registerCopy, touchCopy, decide, unregisterCopy, safeId, pruneStatus, INSTANCES_DIR } from '../hooks/instances.ts'
 import { writeStatusFile } from '../hooks/statusline.ts'
-import { fakeHost } from './kit.ts'
+import { fakeHost as bareHost } from './kit.ts'
 
 const CACHE = '/home/u/.claude/plugins/cache/glowup/glowup/0.2.2'
+const NEWER = '/home/u/.claude/plugins/cache/glowup/glowup/0.3.1'
 const DEV = '/home/u/Projects/glowup'
+// An entry whose folder is gone does not count, so the folders these tests name exist.
+const LIVE = [CACHE, NEWER, DEV, '/home/u/.claude/plugins/cache/glowup2/glowup/0.2.2', '/home/u/.claude/plugins/cache/x/glowup/1', '/home/u/other-dev']
+const fakeHost = (o: Parameters<typeof bareHost>[0] = {}) => bareHost({ ...o, files: { ...Object.fromEntries(LIVE.map(r => [`${r}/.claude-plugin/plugin.json`, '{}'])), ...o.files } })
 const NOW = 1_000_000_000_000
 const DIR = INSTANCES_DIR('/home/u/.claude')
 
@@ -111,13 +115,47 @@ test('a config dir with a trailing or doubled slash still tells installed from d
   }
 })
 
+test('an updated installed copy replaces the old version instead of counting as a second copy', async () => {
+  const { host, files } = fakeHost()
+  await registerCopy(host, 's1', CACHE, NOW)
+  await registerCopy(host, 's1', NEWER, NOW + 5_000)
+  expect(Object.keys(files).filter(f => f.startsWith(DIR))).toHaveLength(1)
+  expect(await decide(host, 's1', NEWER, NOW + 6_000)).toEqual({ active: true, winner: NEWER })
+})
+
+test('a fresh entry the old version wrote under its own file name does not count against the new version', async () => {
+  const { host, files, ran } = fakeHost()
+  files[`${DIR}/s1.9.json`] = JSON.stringify({ root: CACHE, at: NOW - 30_000, seen: NOW - 30_000 })
+  await registerCopy(host, 's1', NEWER, NOW)
+  expect(ran).toContain(`rm -f ${DIR}/s1.9.json`)
+  files[`${DIR}/s1.9.json`] = JSON.stringify({ root: CACHE, at: NOW - 30_000, seen: NOW - 30_000 })
+  expect(await decide(host, 's1', NEWER, NOW)).toEqual({ active: true, winner: NEWER })
+})
+
+test('an entry whose folder no longer exists is ignored, even a fresh one', async () => {
+  const { host, files } = fakeHost()
+  const gone = '/home/u/.claude/plugins/cache/other/glowup/0.1.0'
+  files[`${DIR}/s1.7.json`] = JSON.stringify({ root: gone, at: NOW - 1000, seen: NOW - 1000 })
+  await registerCopy(host, 's1', CACHE, NOW)
+  expect(await decide(host, 's1', CACHE, NOW)).toEqual({ active: true, winner: CACHE })
+})
+
+test('a dev copy still wins over the updated installed copy', async () => {
+  const { host } = fakeHost()
+  await registerCopy(host, 's1', CACHE, NOW)
+  await registerCopy(host, 's1', NEWER, NOW + 5)
+  await registerCopy(host, 's1', DEV, NOW + 9)
+  expect(await decide(host, 's1', DEV, NOW + 10)).toEqual({ active: true, winner: DEV })
+  expect((await decide(host, 's1', NEWER, NOW + 10)).active).toBe(false)
+})
+
 test('session ids keep only letters, digits and dashes', () => {
   expect(safeId('ab-12')).toBe('ab-12')
   expect(safeId('../../etc/x y;`')).toBe('etcxy')
 })
 
 test('the status file name is the cleaned id, and an id with nothing left writes nothing', async () => {
-  const { host, files } = fakeHost()
+  const { host, files } = bareHost()
   await writeStatusFile(host, '../../evil', 'x')
   await writeStatusFile(host, '///', 'y')
   expect(Object.keys(files)).toEqual(['/home/u/.claude/glowup/status/evil'])

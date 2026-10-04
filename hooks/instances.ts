@@ -23,11 +23,20 @@ const tidy = (p: string) => p.replace(/\/+/g, '/').replace(/\/$/, '')
 // Installed copies live under the plugin cache; anything else came from --plugin-dir.
 const isDev = (configDir: string, root: string) => !`${tidy(root)}/`.startsWith(`${tidy(configDir)}/plugins/cache/`)
 
+// What makes two roots the same copy. An installed copy lives in
+// plugins/cache/<marketplace>/<plugin>/<version> and the version changes on every update, so
+// the version is left out: after `plugin update` the new version takes over the old one's
+// entry, as one copy. A dev copy is its own folder.
+function identity(configDir: string, root: string) {
+  const r = tidy(root), cache = `${tidy(configDir)}/plugins/cache/`
+  return `${r}/`.startsWith(cache) ? cache + r.slice(cache.length).split('/').slice(0, 2).join('/') : r
+}
+
 // One file per copy, never one shared file: two copies starting together would
 // read-modify-write the same file and one entry would be lost, leaving both active.
 function fileOf(configDir: string, sid: string, root: string) {
   let h = 5381
-  for (const c of root) h = ((h * 33) ^ c.codePointAt(0)!) >>> 0
+  for (const c of identity(configDir, root)) h = ((h * 33) ^ c.codePointAt(0)!) >>> 0
   return `${INSTANCES_DIR(configDir)}/${sid}.${h.toString(16)}.json`
 }
 
@@ -47,10 +56,13 @@ async function readAll(host: Host): Promise<{ path: string; entry?: Entry }[]> {
 }
 
 export async function registerCopy(host: Host, sid: string, root: string, now: number) {
+  const path = fileOf(host.configDir, sid, root), me = identity(host.configDir, root)
   for (const f of await readAll(host)) {
-    if (!f.entry || lastSeen(f.entry) < now - DAY) await host.run(['rm', '-f', f.path]).catch(() => {})
+    // an older version of this copy wrote its entry under a name of its own
+    const oldSelf = f.path !== path && f.path.startsWith(`${INSTANCES_DIR(host.configDir)}/${sid}.`) && f.entry && identity(host.configDir, f.entry.root) === me
+    if (!f.entry || lastSeen(f.entry) < now - DAY || oldSelf) await host.run(['rm', '-f', f.path]).catch(() => {})
   }
-  await host.writeFile(fileOf(host.configDir, sid, root), JSON.stringify({ root, at: now, seen: now }))
+  await host.writeFile(path, JSON.stringify({ root, at: now, seen: now }))
 }
 
 export async function touchCopy(host: Host, sid: string, root: string, now: number) {
@@ -64,14 +76,24 @@ export async function touchCopy(host: Host, sid: string, root: string, now: numb
 // Same answer in every copy that reads the same files: dev copy first, then the
 // earliest registration, then the path. Entries not refreshed for STALE are dead
 // sessions and do not count. This copy's own entry always counts, so a missing or
-// unreadable file can never leave zero active copies.
+// unreadable file can never leave zero active copies. Another copy whose folder is gone (an
+// old version or a deleted checkout) is not running, whatever its entry says.
 export async function decide(host: Host, sid: string, root: string, now: number): Promise<{ active: boolean; winner: string }> {
-  const mine = `${INSTANCES_DIR(host.configDir)}/${sid}.`
-  const seen = (await readAll(host)).filter(f => f.entry && f.path.startsWith(mine) && (f.entry.root === root || lastSeen(f.entry) >= now - STALE)).map(f => f.entry!)
-  if (!seen.some(e => e.root === root)) seen.push({ root, at: now })
+  const prefix = `${INSTANCES_DIR(host.configDir)}/${sid}.`, me = identity(host.configDir, root)
+  const isMe = (e: Entry) => identity(host.configDir, e.root) === me
+  const seen: Entry[] = []
+  let at = now
+  for (const f of await readAll(host)) {
+    const e = f.entry
+    if (!e || !f.path.startsWith(prefix)) continue
+    if (f.path === fileOf(host.configDir, sid, root)) at = e.at
+    if (isMe(e) || lastSeen(e) < now - STALE) continue
+    if (await host.exists(e.root).catch(() => true)) seen.push(e)
+  }
+  seen.push({ root, at })
   const key = (e: Entry) => [isDev(host.configDir, e.root) ? 0 : 1, e.at] as const
   seen.sort((a, b) => key(a)[0] - key(b)[0] || key(a)[1] - key(b)[1] || (a.root < b.root ? -1 : a.root > b.root ? 1 : 0))
-  return { active: seen[0]!.root === root, winner: seen[0]!.root }
+  return { active: isMe(seen[0]!), winner: seen[0]!.root }
 }
 
 export async function unregisterCopy(host: Host, sid: string, root: string) {
