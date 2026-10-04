@@ -1,0 +1,298 @@
+[
+  {
+    "name": "classic",
+    "description": "stock Claude Code",
+    "bg": "#1f1f24",
+    "rows": "classic",
+    "border": "round",
+    "borderColor": "#3a3a42",
+    "gradient": null,
+    "colors": {
+      "accent": "#d77757",
+      "text": "#e4e4e7",
+      "dim": "#8b8b94",
+      "faint": "#3a3a42",
+      "read": "#7dc4e4",
+      "edit": "#e5b567",
+      "shell": "#4eba65",
+      "agent": "#b39ddb",
+      "pass": "#4eba65",
+      "fail": "#ff6b80",
+      "panel": "#1f1f24",
+      "addBg": "#1f3a26",
+      "delBg": "#4a2228",
+      "sel": "#2a2a33"
+    },
+    "spinner": {
+      "id": "stock",
+      "word": "Thinking",
+      "color": "#d77757",
+      "frame": [
+        [
+          {
+            "ch": "✽",
+            "fg": "#d77757"
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "name": "crt",
+    "description": "green phosphor",
+    "bg": "#040a05",
+    "rows": "retro",
+    "border": "bold",
+    "borderColor": "#1f9944",
+    "gradient": null,
+    "colors": {
+      "accent": "#8dffb0",
+      "text": "#33ff66",
+      "dim": "#1f9944",
+      "faint": "#14501f",
+      "read": "#8dffb0",
+      "edit": "#d8ff66",
+      "shell": "#33ff66",
+      "agent": "#66ffcc",
+      "pass": "#33ff66",
+      "fail": "#ff6a3d",
+      "panel": "#0a1a0c",
+      "addBg": "#0b3a14",
+      "delBg": "#3a1a0a",
+      "sel": "#0f2a14"
+    },
+    "spinner": {
+      "id": "comet",
+      "word": "Thinking",
+      "color": "#8dffb0",
+      "frame": [
+        [
+          {
+            "ch": "⡔",
+            "fg": "#26462f"
+          },
+          {
+            "ch": "⠉",
+            "fg": "#26462f"
+          },
+          {
+            "ch": "⢢",
+            "fg": "#26462f"
+          }
+        ],
+        [
+          {
+            "ch": "⠣",
+            "fg": "#8dffb0"
+          },
+          {
+            "ch": "⣀",
+            "fg": "#48845a"
+          },
+          {
+            "ch": "⡜",
+            "fg": "#376545"
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "name": "cozy",
+    "description": "warm pastels",
+    "bg": "#2a2220",
+    "rows": "cards",
+    "border": "round",
+    "borderColor": "#8a6f64",
+    "gradient": [
+      "#f4a6b8",
+      "#ffd9a0"
+    ],
+    "colors": {
+      "accent": "#f4a6b8",
+      "text": "#f5e6d3",
+      "dim": "#b0997f",
+      "faint": "#5a4a42",
+      "read": "#9ccfe0",
+      "edit": "#ffd9a0",
+      "shell": "#a8d5a2",
+      "agent": "#d7b4f3",
+      "pass": "#a8d5a2",
+      "fail": "#f28b82",
+      "panel": "#38302c",
+      "addBg": "#34503a",
+      "delBg": "#5a3438",
+      "sel": "#463a35"
+    },
+    "spinner": {
+      "id": "eyes",
+      "word": "Thinking",
+      "color": "#ffd9a0",
+      "frame": [
+        [
+          {
+            "ch": "▀",
+            "fg": "#2a2220",
+            "bg": "#f5e6d3"
+          },
+          {
+            "ch": "▀",
+            "fg": "#f5e6d3",
+            "bg": "#f5e6d3"
+          },
+          {
+            "ch": "▀",
+            "fg": "#f5e6d3",
+            "bg": "#f5e6d3"
+          },
+          {
+            "ch": "▀",
+            "fg": "#2a2220",
+            "bg": "#f5e6d3"
+          },
+          {
+            "ch": " ",
+            "fg": "#f5e6d3"
+          },
+          {
+            "ch": "▀",
+            "fg": "#2a2220",
+            "bg": "#f5e6d3"
+          },
+          {
+            "ch": "▀",
+            "fg": "#f5e6d3",
+            "bg": "#f5e6d3"
+          },
+          {
+            "ch": "▀",
+            "fg": "#f5e6d3",
+            "bg": "#f5e6d3"
+          },
+          {
+            "ch": "▀",
+            "fg": "#2a2220",
+            "bg": "#f5e6d3"
+          }
+        ],
+        [
+          {
+            "ch": "▀",
+            "fg": "#f5e6d3",
+            "bg": "#2a2220"
+          },
+          {
+            "ch": "▀",
+            "fg": "#2a2220",
+            "bg": "#f5e6d3"
+          },
+          {
+            "ch": "▀",
+            "fg": "#f5e6d3",
+            "bg": "#f5e6d3"
+          },
+          {
+            "ch": "▀",
+            "fg": "#f5e6d3",
+            "bg": "#2a2220"
+          },
+          {
+            "ch": " ",
+            "fg": "#f5e6d3"
+          },
+          {
+            "ch": "▀",
+            "fg": "#f5e6d3",
+            "bg": "#2a2220"
+          },
+          {
+            "ch": "▀",
+            "fg": "#2a2220",
+            "bg": "#f5e6d3"
+          },
+          {
+            "ch": "▀",
+            "fg": "#f5e6d3",
+            "bg": "#f5e6d3"
+          },
+          {
+            "ch": "▀",
+            "fg": "#f5e6d3",
+            "bg": "#2a2220"
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "name": "arcade",
+    "description": "neon on deep purple",
+    "bg": "#1a0b33",
+    "rows": "cards",
+    "border": "bold",
+    "borderColor": "#ff3ec8",
+    "gradient": [
+      "#ff3ec8",
+      "#38e8ff"
+    ],
+    "colors": {
+      "accent": "#ff3ec8",
+      "text": "#f0e6ff",
+      "dim": "#9b86c9",
+      "faint": "#4a2a85",
+      "read": "#38e8ff",
+      "edit": "#ffd23e",
+      "shell": "#39ff88",
+      "agent": "#b388ff",
+      "pass": "#39ff88",
+      "fail": "#ff4d6d",
+      "panel": "#2a1450",
+      "addBg": "#0f4a3a",
+      "delBg": "#5a1030",
+      "sel": "#3a1d6b"
+    },
+    "spinner": {
+      "id": "orb-states",
+      "word": "Thinking",
+      "color": "#38e8ff",
+      "frame": [
+        [
+          {
+            "ch": "⢠",
+            "fg": "#255d7f"
+          },
+          {
+            "ch": "⣲",
+            "fg": "#297998"
+          },
+          {
+            "ch": "⢔",
+            "fg": "#34cce5"
+          },
+          {
+            "ch": "⠆",
+            "fg": "#255d7f"
+          }
+        ],
+        [
+          {
+            "ch": "⠰",
+            "fg": "#255d7f"
+          },
+          {
+            "ch": "⠯",
+            "fg": "#30b0cc"
+          },
+          {
+            "ch": "⡗",
+            "fg": "#2d95b2"
+          },
+          {
+            "ch": "⠃",
+            "fg": "#255d7f"
+          }
+        ]
+      ]
+    }
+  }
+]

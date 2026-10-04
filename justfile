@@ -19,7 +19,7 @@ test:
 
 # everything CI runs, in CI's order
 [group('dev')]
-ci: check test
+ci: check test packs-check installer-check
 
 # open Claude Code with this checkout loaded as the mod
 [group('dev')]
@@ -51,6 +51,31 @@ release VERSION:
     git commit -sam "chore(release): v{{VERSION}}"
     git tag -a "v{{VERSION}}" -m "glowup v{{VERSION}}"
     echo "tagged v{{VERSION}}; publish with: git push --follow-tags"
+
+# regenerate the installer's pack colors from hooks/packpresets.ts
+[group('installer')]
+packs:
+    node installer/gen/packs.ts
+
+# fail when the installer's pack colors are older than hooks/packpresets.ts
+[group('installer')]
+packs-check:
+    node installer/gen/packs.ts --check
+
+# gofmt, vet and test the installer
+[group('installer')]
+installer-check:
+    cd installer && gofmt -l . | (! grep .) && go vet ./... && go test ./...
+
+# build the installer for this machine as installer/glowup-installer
+[group('installer')]
+installer-build:
+    cd installer && go build -ldflags "-s -w -X main.version=$(git describe --tags --always)" -o glowup-installer .
+
+# run the installer from source against your real Claude Code, e.g. just installer-run --dry-run
+[group('installer')]
+installer-run *args:
+    cd installer && go run . {{args}}
 
 # remove node_modules and the types Claude Code generates
 [group('dev')]
