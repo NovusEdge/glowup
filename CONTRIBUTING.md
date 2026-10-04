@@ -10,7 +10,7 @@ pnpm check   # just check: `claude plugin validate` and tsc
 pnpm test    # just test: `claude plugin test .`
 ```
 
-You need Node 24, pnpm, just, and Claude Code 2.1.288 or later. To run the mod in a live session from your clone:
+You need Node 24, pnpm, just, and Claude Code 2.1.289 or later. To run the mod in a live session from your clone:
 
 ```sh
 claude --plugin-dir .   # just dev

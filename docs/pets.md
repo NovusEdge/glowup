@@ -32,20 +32,23 @@ glowup cannot hide Claude Code's own task list. The Plan & context tab shows the
 | When | Clawd |
 | --- | --- |
 | Nothing is happening | Stands and blinks. |
-| Claude is working | Walks back and forth. |
+| Claude edits files or runs commands | Types at his keyboard. |
+| Claude reads, searches or plans | Walks back and forth. |
 | A test passes | Hops. |
-| A test fails | Startles. |
+| A test fails | Sags and sweats. |
 | Claude needs you, for example to approve a tool | Startles, with a `!` beside him. |
-| A turn ends with an answer | Confetti. |
+| A turn ends | Does a little dance. |
 | Ten minutes with nothing happening | Falls asleep. |
 
-Movement frames change no faster than every 80 ms, and a color flash lasts at least 400 ms. glowup never flashes more than 2.5 times a second. Between turns nothing ticks.
+On a Friday after 15:00, when Claude runs a deploy command, Clawd puts on a sweat outfit.
+
+Movement frames change no faster than every 80 ms, and a color flash lasts at least 400 ms. glowup never flashes more than 2.5 times a second. Under reduced motion or in the narrow drawer nothing ticks.
 
 ## Speech bubbles
 
 With bubbles on, Clawd says a short line when a turn ends, when a test fails and when Claude needs you. The bubble sits beside him for 3 seconds. Lines come from a small set of templates per mood and do not repeat twice in a row. Some use what happened, such as the failure count or the command. A line is at most 40 characters.
 
-The one-row Clawd in a narrow drawer shows no bubble.
+In a narrow drawer the bubble line shows beside the one-row Clawd.
 
 ```text title="claude code"
 /glowup bubbles off

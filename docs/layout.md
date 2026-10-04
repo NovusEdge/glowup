@@ -26,7 +26,7 @@ In fullscreen, glowup asks Claude Code to open its pane once. Claude Code docks 
 Clawd, the [pet](pets.md), lives only at the bottom of the glowup pane. The band never shows him.
 
 - Wide: the full Clawd, about 24 columns by 6 rows, at the bottom of the docked pane, with his speech bubble.
-- Medium: the full Clawd at the bottom of the drawer, once you open it with `/glowup pane`.
+- Medium: the full Clawd at the bottom of the drawer, once you open it with `/glowup pane`. The pane's width decides, not the terminal's: the full Clawd shows in a drawer 80 columns wide or more.
 - Compact: a one-row Clawd, `▐▛█▜▌`, at the bottom of the drawer.
 
 Without the pane, you do not see him. Reduced motion or `/glowup pet off` hides him in every tier.

@@ -2,6 +2,7 @@ import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { PACKS } from '../../../../hooks/packpresets.ts'
 import { COLOR_KEYS } from '../../../../hooks/themes.ts'
 import { gradient } from '../../../../hooks/color.ts'
+import { MARKS, retroTag } from '../../../../hooks/rows-text.ts'
 import type { Border, Look } from '../../../../hooks/packs.ts'
 import { MotionToggle, PACK_NAMES, Spans, SpinnerView, Term, lookOf, useClock } from '../lab'
 import type { Route } from './+types/gallery'
@@ -19,59 +20,88 @@ const BORDER: Record<Border, CSSProperties> = {
   classic: { borderStyle: 'dashed', borderWidth: 1, borderRadius: 4 },
 }
 
-type Row = { tone: 'read' | 'edit' | 'shell' | 'pass'; glyph: string; verb: string; target: string }
+type Row = { tool: string; target: string; tone: 'read' | 'edit' | 'shell'; glyph: string }
 
-// A row is drawn by its style the way the mod's rows.tsx draws it in the terminal.
-function ToolRow({ look, row }: { look: Look; row: Row }) {
-  const c = look.theme.colors
-  const tone = c[row.tone]
-  if (look.rows === 'cards') {
-    return (
-      <div className="mock-row" style={{ background: c.panel, borderLeft: `3px solid ${tone}`, borderRadius: 4, padding: '2px 8px' }}>
-        <span style={{ color: tone }}>{row.glyph} {row.verb}</span> <span style={{ color: c.dim }}>{row.target}</span>
-      </div>
-    )
+// rows.tsx draws labels with a gradient only up to 48 characters.
+function Label({ look, text, color, bold }: { look: Look; text: string; color: string; bold?: boolean }) {
+  if (look.gradient && [...text].length <= 48) {
+    const spans = gradient(text, look.gradient[0], look.gradient[1])
+    return <span style={{ whiteSpace: 'pre' }}><Spans spans={bold ? spans.map(s => ({ ...s, bold: true })) : spans} /></span>
   }
-  if (look.rows === 'retro') {
-    return (
-      <div className="mock-row">
-        <span style={{ color: tone }}>[{row.verb.toUpperCase()}]</span> <span style={{ color: c.text }}>{row.target}</span>
-      </div>
-    )
-  }
-  if (look.rows === 'minimal') {
-    return <div className="mock-row" style={{ color: c.dim }}>{row.verb} {row.target}</div>
-  }
-  return (
-    <div className="mock-row">
-      <span style={{ color: tone }}>{row.glyph}</span> <span style={{ color: c.text }}>{row.verb}</span> <span style={{ color: c.dim }}>{row.target}</span>
-    </div>
-  )
+  return <span style={{ whiteSpace: 'pre', color, ...(bold ? { fontWeight: 700 } : {}) }}>{text}</span>
 }
 
+const cardBox = (look: Look): CSSProperties => ({ ...BORDER[look.border], borderColor: look.borderColor, padding: '0 8px' })
+
+// The same text and structure rows.tsx draws in the terminal. The page cannot import that file, which needs Ink elements.
 function Mock({ look }: { look: Look }) {
   const c = look.theme.colors
   const g = look.theme.glyphs
+  const user = 'fix the failing test in auth.ts'
   const reply = 'The test failed on a missing await. Fixed it.'
   const rows: Row[] = [
-    { tone: 'read', glyph: g.read, verb: 'Read', target: 'src/auth.ts' },
-    { tone: 'edit', glyph: g.edit, verb: 'Edit', target: 'src/auth.ts' },
-    { tone: 'pass', glyph: g.shell, verb: 'Ran', target: 'pnpm test · 12 passed' },
+    { tool: 'Read', target: 'src/auth.ts', tone: 'read', glyph: g.read },
+    { tool: 'Edit', target: 'src/auth.ts', tone: 'edit', glyph: g.edit },
+    { tool: 'Bash', target: 'pnpm test · 12 passed', tone: 'shell', glyph: g.shell },
   ]
-  return (
-    <div className="mock" style={{ ...BORDER[look.border], borderColor: look.borderColor, background: look.bg, color: c.text }}>
-      <div className="mock-row"><span style={{ color: c.accent }}>❯</span> fix the failing test in auth.ts</div>
-      {rows.map(r => <ToolRow key={r.verb} look={look} row={r} />)}
-      <div className="mock-row mock-reply">
-        {look.gradient ? <Spans spans={gradient(reply, look.gradient[0], look.gradient[1])} /> : reply}
-      </div>
-      {look.extras.hp || look.extras.combo ? (
-        <div className="mock-row" style={{ color: c.dim }}>
-          {look.extras.hp && <span style={{ color: c.fail }}>HP ♥♥♥<span style={{ color: c.dim }}>♡</span></span>}
-          {look.extras.hp && look.extras.combo && ' · '}
-          {look.extras.combo && <span style={{ color: c.edit }}>combo x3</span>}
+  let body: ReactNode
+  if (look.rows === 'cards') {
+    body = <>
+      <div className="mock-row" style={cardBox(look)}><Label look={look} text="you" color={c.accent} /><div>{user}</div></div>
+      {rows.map(r => (
+        <div key={r.tool} className="mock-row" style={{ ...cardBox(look), display: 'flex', gap: 8 }}>
+          <span style={{ flex: 1, color: c.text }}>{r.tool}({r.target})</span>
+          <span style={{ color: c.pass }}>{MARKS.cards.done}</span>
         </div>
-      ) : null}
+      ))}
+      <div className="mock-row" style={cardBox(look)}><Label look={look} text="claude" color={c.accent} /><div>{reply}</div></div>
+    </>
+  } else if (look.rows === 'retro') {
+    body = <>
+      <div className="mock-row"><Label look={look} text="[YOU] " color={c.accent} bold />{user}</div>
+      {rows.map(r => (
+        <div key={r.tool} className="mock-row" style={{ display: 'flex' }}>
+          <Label look={look} text={retroTag(r.tool)} color={c.accent} />
+          <span style={{ flex: 1, whiteSpace: 'pre', color: c.text }}>{r.target}</span>
+          <span style={{ whiteSpace: 'pre', color: c.pass }}>{' ' + MARKS.retro.done}</span>
+        </div>
+      ))}
+      <div className="mock-row"><Label look={look} text="[CLAUDE]" color={c.accent} bold /></div>
+      <div className="mock-row" style={{ paddingLeft: '9ch' }}>{reply}</div>
+    </>
+  } else if (look.rows === 'minimal') {
+    body = <>
+      <div className="mock-row"><span style={{ color: c.accent }}>{'› '}</span>{user}</div>
+      {rows.map(r => <div key={r.tool} className="mock-row" style={{ color: c.dim }}>{'· ' + r.tool + ' ' + r.target}</div>)}
+      <div className="mock-row">{reply}</div>
+    </>
+  } else {
+    body = <>
+      <div className="mock-row"><span style={{ color: c.accent }}>❯</span> {user}</div>
+      {rows.map(r => (
+        <div key={r.tool} className="mock-row">
+          <span style={{ color: c.text }}>{r.tool}({r.target})</span><span style={{ whiteSpace: 'pre', color: c[r.tone] }}>{'  ' + r.glyph}</span>
+        </div>
+      ))}
+      <div className="mock-row">{reply}</div>
+    </>
+  }
+  const filled = 8
+  const [a, b] = look.gradient ?? [c.accent, c.pass]
+  return (
+    <div className="mock" style={{ borderStyle: 'solid', borderWidth: 1, borderRadius: 6, borderColor: c.faint, background: look.bg, color: c.text }}>
+      {body}
+      {look.extras.hp && (
+        <div className="mock-row">
+          <span style={{ color: c.accent, fontWeight: 700 }}>HP </span>
+          <Spans spans={gradient('█'.repeat(filled), c.fail, c.pass)} />
+          <span style={{ color: c.faint }}>{'░'.repeat(10 - filled)}</span>
+          <span style={{ whiteSpace: 'pre', color: c.dim }}>{'  80% context left'}</span>
+        </div>
+      )}
+      {look.extras.combo && (
+        <div className="mock-row"><Spans spans={gradient(' COMBO x3 ', a, b).map(s => ({ ...s, bold: true }))} /></div>
+      )}
     </div>
   )
 }
@@ -87,6 +117,7 @@ function CopyCommand({ text }: { text: string }) {
     <div className="codeblock cmd">
       <pre><code>{text}</code></pre>
       <button type="button" onClick={copy} aria-label={`Copy ${text}`}>{copied ? 'copied' : 'copy'}</button>
+      <span className="sr-only" aria-live="polite">{copied ? 'copied' : ''}</span>
     </div>
   )
 }

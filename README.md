@@ -7,7 +7,7 @@
 [![CI](https://github.com/NovusEdge/glowup/actions/workflows/ci.yml/badge.svg)](https://github.com/NovusEdge/glowup/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/NovusEdge/glowup?include_prereleases)](https://github.com/NovusEdge/glowup/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Claude Code](https://img.shields.io/badge/Claude%20Code-2.1.288%2B-d77757)](docs/install.md)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-2.1.289%2B-d77757)](docs/install.md)
 
 [Docs site](https://novusedge.github.io/glowup/) &nbsp;|&nbsp; [Latest release](https://github.com/NovusEdge/glowup/releases/latest)
 
@@ -80,7 +80,7 @@ While Claude or a subagent is working, glowup adds one entry under the prompt (`
 
 ## Install
 
-You need Claude Code 2.1.288 or later. In Claude Code:
+You need Claude Code 2.1.289 or later. In Claude Code:
 
 ```text
 /plugin marketplace add NovusEdge/glowup
@@ -171,7 +171,7 @@ A pack sets a whole look with one name: colors and row styles in one layer, moti
 
 ## Pets
 
-Clawd is a small pixel pet at the bottom of the glowup pane. He walks while Claude works, hops when a test passes, startles when one fails or Claude needs you, and says a short line in a speech bubble. Keep your tests green and see what happens.
+Clawd is a small pixel pet at the bottom of the glowup pane. He types at his keyboard while Claude edits files or runs commands, walks while it reads, searches and plans, hops when a test passes, sags and sweats when one fails, startles only when Claude needs you, does a little dance when a turn finishes, sleeps after 10 idle minutes, sweats in a special outfit on a Friday deploy, and says a short line in a speech bubble. Keep your tests green and see what happens.
 
 ```text
 /glowup pet off
