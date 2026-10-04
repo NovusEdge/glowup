@@ -91,8 +91,8 @@ export class Picker {
         width={21 * CW}
         textAlign="left"
         offset={[-1, -1]}
-        x={CW}
-        y={LH * 0.45}
+        x={-12 * CW + CW}
+        y={-2 * LH + LH * 0.45}
         lineHeight={LH * 0.85}
       />,
     );
@@ -148,7 +148,10 @@ export class Picker {
     this.optionTxts = [];
     const T = this.term;
     T.txt(title, FORM, TOP, 'accent', {bold: true, parent: this.form});
-    T.txt(desc, FORM, TOP + 1, 'dim', {parent: this.form, size: 22});
+    // The form is 32 cells wide; a longer description wraps onto a second line as huh does.
+    const cut = desc.length > 38 ? desc.lastIndexOf(' ', 38) : -1;
+    T.txt(cut < 0 ? desc : desc.slice(0, cut), FORM, TOP + 1, 'dim', {parent: this.form, size: 22});
+    if (cut >= 0) T.txt(desc.slice(cut + 1), FORM, TOP + 2, 'dim', {parent: this.form, size: 22});
     options.forEach((o, i) => this.optionTxts.push(T.txt(o, FORM + 2, TOP + 3 + i, 'dim', {parent: this.form})));
     this.marker.y((TOP + 3) * LH);
     this.pick(0);

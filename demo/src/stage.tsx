@@ -38,28 +38,36 @@ export class Stage {
     binders.length = 0;
   }
 
-  // Scale that fits region in the frame with a margin; `max` keeps tiny regions from zooming into mush.
-  fit(r: Region, margin = 0.92, max = 3) {
-    const s = Math.min((this.size.x * margin) / r.w, (this.size.y * margin) / r.h);
-    return Math.min(s, max);
+  // Strip at the bottom that captions use; regions are framed in the space above it.
+  static readonly CAPTION = 170;
+
+  // Scale that fits region, rotated by rot, in the frame minus the caption strip, with a
+  // margin. Rotation grows the bounding box, so it is part of the fit.
+  fit(r: Region, rot = 0, margin = 0.95) {
+    const a = (Math.abs(rot) * Math.PI) / 180;
+    const w = r.w * Math.cos(a) + r.h * Math.sin(a);
+    const h = r.w * Math.sin(a) + r.h * Math.cos(a);
+    return Math.min((this.size.x * margin) / w, ((this.size.y - Stage.CAPTION) * margin) / h);
   }
 
   private pose(r: Region, s: number, rot: number) {
     const cx = r.x + r.w / 2;
     const cy = r.y + r.h / 2;
     const a = (rot * Math.PI) / 180;
-    // Screen point = s * R(rot) * p + pos; put the region's centre at the frame centre.
-    const pos = new Vector2(-s * (Math.cos(a) * cx - Math.sin(a) * cy), -s * (Math.sin(a) * cx + Math.cos(a) * cy));
+    // Screen point = s * R(rot) * p + pos; put the region's centre at the middle of the
+    // space above the caption strip.
+    const mid = -Stage.CAPTION / 2;
+    const pos = new Vector2(-s * (Math.cos(a) * cx - Math.sin(a) * cy), mid - s * (Math.sin(a) * cx + Math.cos(a) * cy));
     return {pos, s, rot};
   }
 
   jump(r: Region, o: {scale?: number; rot?: number} = {}) {
-    const p = this.pose(r, o.scale ?? this.fit(r), o.rot ?? 0);
+    const p = this.pose(r, o.scale ?? this.fit(r, o.rot ?? 0), o.rot ?? 0);
     this.world.position(p.pos).scale(p.s).rotation(p.rot);
   }
 
   *focus(r: Region, seconds: number, o: {scale?: number; rot?: number; ease?: (t: number) => number} = {}) {
-    const p = this.pose(r, o.scale ?? this.fit(r), o.rot ?? 0);
+    const p = this.pose(r, o.scale ?? this.fit(r, o.rot ?? 0), o.rot ?? 0);
     const ease = o.ease ?? easeInOutCubic;
     yield* all(this.world.position(p.pos, seconds, ease, Vector2.lerp), this.world.scale(p.s, seconds, ease), this.world.rotation(p.rot, seconds, ease));
   }

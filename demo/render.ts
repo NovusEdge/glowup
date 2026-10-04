@@ -1,4 +1,5 @@
-import {existsSync, mkdirSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
+import {existsSync, mkdirSync, renameSync} from 'node:fs';
 import {renderVideo} from '@revideo/renderer';
 
 const chromium = ['/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome'].find(existsSync);
@@ -32,5 +33,9 @@ for (const o of outputs) {
   // On a fresh node_modules vite re-optimizes its dependencies during the first render,
   // reloads the page, and the render fails once; the second attempt is clean.
   const file = await render().catch(() => render());
+  // The encoder leaves sample_aspect_ratio unset; say 1:1 so no player guesses. A remux, no re-encode.
+  const tmp = `${file}.sar.mp4`;
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', file, '-c', 'copy', '-bsf:v', 'h264_metadata=sample_aspect_ratio=1/1', tmp]);
+  renameSync(tmp, file);
   console.log('wrote', file);
 }

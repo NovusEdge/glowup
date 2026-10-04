@@ -141,7 +141,7 @@ export class SpinnerView {
 
 export type Entry =
   | {k: 'user'; text: string}
-  | {k: 'asst'; text: string; first?: boolean}
+  | {k: 'asst'; text: string; first?: boolean; xp?: number}
   | {k: 'tool'; tool: string; arg: string; res?: string; ok?: boolean}
   | {k: 'diff'; del: string; add: string};
 
@@ -191,33 +191,62 @@ export class Convo {
     let rows = 1;
     let resTxt: Txt | undefined;
 
+    const flags = look.rowFlags;
+    const grad = (t: Txt, n: number) => look.gradient && t.fill(T.gradientFill(look.gradient, n));
     if (e.k === 'user') {
       if (style === 'classic') {
         put('>', 0, 0, 'accent', {bold: true});
         put(e.text, 2, 0, 'text');
+      } else if (style === 'cards') {
+        // rows.tsx: a glyph marker (arcade) or the accent bar, with a label only when labels is on.
+        const m = flags.markers ? '▶ ' : '▎ ';
+        put(m, 0, 0, 'accent', {bold: true});
+        if (flags.labels) {
+          grad(put('you', 2, 0, 'accent', {bold: true}), 3);
+          put(e.text, 2, 1, 'text');
+          if (!flags.markers) put('▎', 0, 1, 'accent');
+          rows = 2;
+        } else {
+          put(e.text, 2, 0, 'text');
+        }
       } else {
-        const label = style === 'retro' ? '[YOU]' : 'you';
-        const bar = style === 'cards' ? '▎ ' : '';
-        const lab = put(bar + label, 0, 0, 'accent', {bold: true});
-        if (look.gradient) lab.fill(T.gradientFill(look.gradient, bar.length + label.length));
-        put((style === 'cards' ? '▎ ' : '') + e.text, 0, 1, 'text');
-        if (style === 'cards') put('▎', 0, 1, 'accent');
-        rows = 2;
+        if (flags.labels) {
+          grad(put('[YOU]', 0, 0, 'accent', {bold: true}), 5);
+          put(e.text, 0, 1, 'text');
+          rows = 2;
+        } else {
+          put(e.text, 0, 0, 'text');
+        }
       }
     } else if (e.k === 'asst') {
-      const indent = style === 'retro' ? 3 : 2;
+      const first = e.first !== false;
       if (style === 'classic') {
         put('● ' + e.text, 0, 0, 'text');
-      } else {
-        const label = style === 'retro' ? '[CLAUDE]' : 'claude';
+      } else if (style === 'cards') {
         let r = 0;
-        if (e.first !== false) {
-          const lab = put((style === 'cards' ? '▎ ' : '') + label, 0, 0, 'accent', {bold: true});
-          if (look.gradient) lab.fill(T.gradientFill(look.gradient, label.length + 2));
+        if (flags.xp && first && e.xp) {
+          const tag = `+${e.xp} XP`;
+          put(tag, T.cols - 1 - tag.length, 0, 'edit');
           r = 1;
         }
-        put(e.text, indent, r, 'text');
-        if (style === 'cards') put('▎', 0, r, 'faint');
+        if (flags.markers) {
+          put(first ? '◆ ' : '  ', 0, r, 'read', {bold: true});
+        } else {
+          put('▎', 0, r, 'faint');
+        }
+        if (flags.labels && first) {
+          grad(put('claude', 2, r, 'accent', {bold: true}), 6);
+          r++;
+        }
+        put(e.text, 2, r, 'text');
+        rows = r + 1;
+      } else {
+        let r = 0;
+        if (flags.labels && first) {
+          grad(put('[CLAUDE]', 0, 0, 'accent', {bold: true}), 8);
+          r = 1;
+        }
+        put(e.text, 3, r, 'text');
         rows = r + 1;
       }
     } else if (e.k === 'tool') {

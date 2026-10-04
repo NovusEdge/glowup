@@ -1,5 +1,7 @@
 import packsJson from '../../installer/internal/packs/packs.json';
 import {CLAWD_SHEET as sheet} from '../../hooks/sprites/clawd.ts';
+import {CLAWD_SAY, fill, type Mood} from '../../hooks/bubbles.ts';
+import {PACKS as PRESETS} from '../../hooks/packpresets.ts';
 
 export type Colors = (typeof packsJson.packs)[number]['colors'];
 export type PackData = (typeof packsJson.packs)[number];
@@ -11,6 +13,22 @@ export const THEMES = packsJson.themes;
 export const SPINNERS = packsJson.spinners as SpinnerAnim[];
 export const CLAWD_SHEET = sheet;
 
+// Clawd's line for a mood, filled the way the mod fills it. The mod picks a template at
+// random; the demo pins one by index so the video is the same every render.
+export function say(mood: Mood, index: number, vars: Parameters<typeof fill>[1] = {}): string {
+  const template = CLAWD_SAY[mood][index];
+  if (template === undefined) throw new Error(`hooks/bubbles.ts has no ${mood} line ${index}`);
+  return fill(template, vars);
+}
+
+export type RowFlags = {labels: boolean; markers: boolean; xp: boolean};
+// Same defaults as hooks/packs.ts: labels on, markers and xp off unless the pack says so.
+export const rowFlagsOf = (name: string): RowFlags => {
+  const c = PRESETS[name]?.colors;
+  const f = typeof c === 'object' ? c.rowFlags : undefined;
+  return {labels: f?.labels ?? true, markers: f?.markers ?? false, xp: f?.xp ?? false};
+};
+
 export const pack = (n: string) => PACKS.find(p => p.name === n) ?? PACKS[0];
 export const spinner = (id: string) => SPINNERS.find(s => s.id === id) ?? SPINNERS[0];
 
@@ -18,6 +36,7 @@ export type Look = {
   name: string;
   description: string;
   rows: string;
+  rowFlags: RowFlags;
   border: string;
   gradient: string[] | null;
   bg: string;
@@ -43,6 +62,7 @@ export function lookOf(packName: string, theme = 'classic', spin = 'pack'): Look
     name: p.name,
     description: p.description,
     rows: p.rows,
+    rowFlags: rowFlagsOf(p.name),
     border: p.border,
     gradient: p.gradient,
     bg: ownColors ? p.bg : t!.colors.panel,

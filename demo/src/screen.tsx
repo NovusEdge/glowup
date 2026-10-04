@@ -5,7 +5,8 @@ import {Pet} from './pixels';
 import {Stage, Region} from './stage';
 import {CW, Convo, FONT, LH, SpinnerView, Term} from './term';
 
-export const COLS = 88;
+// A square frame gets a narrower window so it fills the frame instead of sitting in a strip.
+const colsFor = (s: {x: number; y: number}) => (s.x / s.y > 1.3 ? 88 : 64);
 export const ROWS = 24;
 const BAND_ROW = 14;
 const PROMPT_ROW = 20;
@@ -16,6 +17,7 @@ export class Claude {
   readonly convo: Convo;
   readonly spin: SpinnerView;
   readonly pet: Pet;
+  readonly cols: number;
   readonly prompt: Txt;
   private box!: Rect;
   private cursor!: Rect;
@@ -25,6 +27,7 @@ export class Claude {
   private escLabel: Txt;
 
   constructor(readonly look: LookSig, readonly stage: Stage) {
+    const COLS = (this.cols = colsFor(stage.size));
     const T = (this.term = new Term(look, COLS, ROWS));
     T.txt('✻ Claude Code', 0, 0, 'accent', {bold: true});
     T.txt('/help for help', 15, 0, 'dim');
@@ -59,7 +62,8 @@ export class Claude {
       this.spin.update(t);
       this.cursor.opacity(Math.floor(t * 2) % 2 === 0 ? 1 : 0.15);
       this.cursor.x(3 * CW + this.prompt.text().length * CW);
-      this.bubble.x(this.pet.x + 18 * CW + this.bubble.width() / 2);
+      const w = this.bubble.width();
+      this.bubble.x(Math.min(this.pet.x + 18 * CW + w / 2, COLS * CW - w / 2));
     });
   }
 

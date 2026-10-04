@@ -19,7 +19,11 @@ Render one file with `pnpm render launch.mp4`. The render runs headless Chromium
 - Clawd: `hooks/sprites/clawd.ts`. Its pixel rows are drawn as canvas rectangles, one
   sprite pixel per terminal cell wide and half a cell tall, and animated from the sheet's
   own frame timings (idle, walk, hop, working, done, fail).
-- Row styles (classic, cards, retro) follow `hooks/rows.tsx` and `hooks/rows-text.ts`.
+- Row styles (classic, cards, retro) follow `hooks/rows.tsx` and `hooks/rows-text.ts`; the
+  `labels`, `markers` and `xp` flags come from `hooks/packpresets.ts` (arcade: ▶ you, ◆ Claude,
+  "+N XP" above the reply; cozy: bars, no labels).
+- Clawd's speech bubbles: `say(mood, index)` in `src/data.ts` fills a template from
+  `CLAWD_SAY` in `hooks/bubbles.ts` and throws if the line does not exist.
 - The picker follows `installer/internal/tui` (step line, form, Clawd and bubble, preview).
 - Font: JetBrains Mono from `@fontsource/jetbrains-mono`, bundled in the render.
 
@@ -43,8 +47,9 @@ updated from one loop in `Stage.run`, driven by the scene clock, so any frame re
 the same regardless of where playback started.
 
 The camera is `Stage.focus(region, seconds)`: Revideo's 2D package has no camera node, so
-it scales, rotates and moves a world node so a region of the terminal (in cell units,
-via `Claude.region(col, row, w, h)`) lands centered. Captions and wipes sit outside the
+it scales, rotates and moves a world node so a region lands centered in the frame above the
+caption strip. Every scene frames its whole window (the fit includes the rotation), so
+nothing is cropped in either aspect; a square frame gets a 64-column Claude window. Captions and wipes sit outside the
 camera. Both outputs come from the same scene; the size is a render setting and the
 camera fits regions to whatever frame it is given.
 
@@ -61,4 +66,5 @@ camera fits regions to whatever frame it is given.
   (`PUPPETEER_SKIP_DOWNLOAD=1 pnpm install`).
 - On a fresh `node_modules` the first render fails once while vite re-optimizes its
   dependencies; `render.ts` retries.
+- `render.ts` remuxes each output to set sample_aspect_ratio 1:1 (the encoder leaves it unset).
 - The pane (Changes, Agents, Plan tabs) is not in the video yet.

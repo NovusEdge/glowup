@@ -1,6 +1,6 @@
 import {Gradient, Rect, Txt, makeScene2D} from '@revideo/2d';
 import {all, delay, easeOutCubic, linear, waitFor, ThreadGenerator} from '@revideo/core';
-import {SPINNERS, lookOf, pack} from '../data';
+import {CLAWD_SHEET, SPINNERS, lookOf, pack, say} from '../data';
 import {LookSig} from '../look';
 import {Picker, SPINNER_IDS, THEME_NAMES} from '../picker';
 import {Pet} from '../pixels';
@@ -14,6 +14,7 @@ const EDIT_DEMO: Entry[] = [
   {k: 'user', text: 'add a dark mode toggle'},
   {k: 'tool', tool: 'Read', arg: 'theme.css'},
   {k: 'tool', tool: 'Edit', arg: 'theme.css', res: 'Added 12 lines, removed 3'},
+  {k: 'asst', text: 'Dark mode toggle added.', xp: 40},
 ];
 
 const accentOf = (name: string) => pack(name).colors.accent;
@@ -69,7 +70,7 @@ function* clawd(stage: Stage, c: Claude): ThreadGenerator {
   yield delay(0.5, stage.caption('Clawd reacts to your tests', accentOf('classic'), 5.6));
   yield stage.focus(c.whole, 0.01);
   c.pet.play('idle');
-  yield* all(c.type('run the tests', 0.5), stage.focus(c.region(0, 0, 60, 14), 0.8));
+  yield* all(c.type('run the tests', 0.5), stage.focus(c.whole, 0.8, {rot: 0.5}));
   c.prompt.text('');
   const u = c.convo.add({k: 'user', text: 'run the tests'}, 'ok', false);
   yield* c.convo.show(u, 0.2);
@@ -77,13 +78,12 @@ function* clawd(stage: Stage, c: Claude): ThreadGenerator {
   yield* c.convo.show(t1, 0.2);
   c.showSpinner(true);
   c.pet.play('working');
-  yield* stage.focus(c.petRegion, 0.8);
-  yield* waitFor(0.5);
+  yield* waitFor(0.8);
 
   yield* finish(t1, true);
   c.showSpinner(false);
   c.pet.play('hop');
-  yield* all(c.say('all green', 0.9), waitFor(c.pet.duration('hop')));
+  yield* all(c.say(say('done', 0), 0.9), waitFor(c.pet.duration('hop')));
   c.pet.play('done');
   yield* waitFor(0.6);
   c.pet.play('walk');
@@ -91,20 +91,22 @@ function* clawd(stage: Stage, c: Claude): ThreadGenerator {
   c.pet.play('idle');
 
   const t2 = c.convo.add({k: 'tool', tool: 'Bash', arg: 'just test', res: '1 failed: theme.test.ts', ok: false}, 'run', false);
-  yield* all(c.convo.show(t2, 0.2), stage.focus(c.petRegion, 0.5));
+  yield* c.convo.show(t2, 0.2);
   c.showSpinner(true);
   c.pet.play('working');
   yield* waitFor(0.7);
   yield* finish(t2, false);
   c.showSpinner(false);
   c.pet.play('fail');
-  yield* all(c.say('uh oh', 1.4), waitFor(c.pet.duration('fail')));
+  yield* all(c.say(say('fail', 0, {n: 1}), 1.4), waitFor(c.pet.duration('fail')));
+  const reply = c.convo.add({k: 'asst', text: 'theme.test.ts fails on the toggle. Fixing it.', xp: 15}, 'ok', false);
+  yield* c.convo.show(reply, 0.3);
+  yield* waitFor(0.5);
 }
 
 const TOUR = ['classic', 'crt', 'cozy', 'arcade'];
 
 function* tour(stage: Stage, c: Claude): ThreadGenerator {
-  stage.jump(c.whole);
   c.showSpinner(true);
   for (const [i, name] of TOUR.entries()) {
     const p = pack(name);
@@ -112,10 +114,10 @@ function* tour(stage: Stage, c: Claude): ThreadGenerator {
     yield* c.type(`/glowup pack ${name}`, 0.4);
     c.prompt.text('');
     const regions = [
-      stage.focus(c.whole, 0.9, {rot: -1}),
-      stage.focus(c.region(0, 0, 62, 9), 0.9, {rot: 0.8}),
-      stage.focus(c.region(0, 0, 66, 12), 0.9, {rot: -0.8}),
-      stage.focus(c.whole, 0.9, {rot: 1.2}),
+      stage.focus(c.whole, 0.9, {rot: -0.8}),
+      stage.focus(c.whole, 0.9, {rot: 0.6}),
+      stage.focus(c.whole, 0.9, {rot: -0.6}),
+      stage.focus(c.whole, 0.9, {rot: 0.8}),
     ];
     if (i === 0) {
       yield* all(waitFor(0.5), regions[i]);
@@ -128,12 +130,11 @@ function* tour(stage: Stage, c: Claude): ThreadGenerator {
 
 function* installer(stage: Stage, p: Picker): ThreadGenerator {
   yield delay(0.3, stage.caption('pick a look before you start', '#38e8ff', 6.3));
-  stage.jump(p.whole);
   const say = (text: string) => p.caption(text);
 
   // Pack: walk the list so the preview recolors.
   p.ask(0, 'Pick a pack', 'Change later: /glowup pack', TOUR);
-  yield* all(waitFor(0.5), stage.focus(p.formAndPreview, 0.7));
+  yield* all(waitFor(0.5), stage.focus(p.whole, 0.7, {rot: 0.4}));
   for (const [i, name] of TOUR.entries()) {
     if (i === 0) continue;
     p.pack = name;
@@ -147,7 +148,7 @@ function* installer(stage: Stage, p: Picker): ThreadGenerator {
   yield* p.move(1);
   yield* waitFor(0.3);
 
-  yield* stage.focus(p.preview, 0.7);
+  yield* stage.focus(p.whole, 0.7, {rot: -0.4});
   p.ask(1, 'Pick the colors', 'The pack\'s own, or a theme.', THEME_NAMES);
   say('arcade — its own colors');
   for (const i of [2, 3, 4]) {
@@ -172,7 +173,7 @@ function* installer(stage: Stage, p: Picker): ThreadGenerator {
   p.ask(4, 'Speech bubbles', '', ['On', 'Off']);
   say('bubbles on, motion full');
   yield* waitFor(0.3);
-  yield* stage.focus(p.whole, 0.8, {rot: -0.6});
+  yield* stage.focus(p.whole, 0.8, {rot: 0.3});
 }
 
 function* endCard(stage: Stage, bg: Rect, pet: Pet, cmd: Txt): ThreadGenerator {
@@ -194,8 +195,8 @@ export default makeScene2D('launch', function* (view) {
   const c = new Claude(look, stage);
   fill(c, EDIT_DEMO);
   stage.setWorld(c.term.root);
-  stage.jump(c.whole, {scale: stage.fit(c.whole) * 0.8});
-  stage.world.y(stage.world.y() + stage.size.y * 0.1);
+  stage.jump(c.whole, {scale: stage.fit(c.whole) * 0.68});
+  stage.world.y(stage.world.y() + 60);
   c.pet.play('idle');
   yield* hook(stage, c);
 
@@ -216,6 +217,7 @@ export default makeScene2D('launch', function* (view) {
     c3 = new Claude(LookSig.of('classic'), stage);
     fill(c3, EDIT_DEMO);
     stage.setWorld(c3.term.root);
+    stage.jump(c3.whole);
   });
   yield* tour(stage, c3);
 
@@ -225,6 +227,7 @@ export default makeScene2D('launch', function* (view) {
     stage.reset();
     p = new Picker(stage);
     stage.setWorld(p.term.root);
+    stage.jump(p.whole);
   });
   yield* installer(stage, p);
 
@@ -249,17 +252,17 @@ export default makeScene2D('launch', function* (view) {
       />,
     );
     world.add(<Txt text="a look for Claude Code" fontFamily={FONT} fontSize={Math.min(38, W * 0.03)} y={-H * 0.27 + big * 0.85} fill="#9b86c9" />);
-    const fs = Math.min(34, (W * 0.8) / ((INSTALL.length + 2) * 0.6));
-    const boxW = (INSTALL.length + 4) * fs * 0.6;
+    const fs = Math.min(34, (W * 0.9) / ((INSTALL.length + 6) * 0.6));
+    const boxW = (INSTALL.length + 6) * fs * 0.6;
     const box = (<Rect width={boxW} height={fs * 2.6} y={H * 0.02} radius={16} fill="#0a1a0c" stroke="#33ff66" lineWidth={3} />) as Rect;
     cmd = (<Txt text="" fontFamily={FONT} fontSize={fs} fill="#33ff66" offset={[-1, 0]} x={-boxW / 2 + fs * 1.2} />) as Txt;
     box.add(cmd);
     world.add(box);
     world.add(<Txt text="github.com/NovusEdge/glowup" fontFamily={FONT} fontSize={Math.min(36, W * 0.03)} y={H * 0.02 + fs * 3.4} fill="#f4a6b8" />);
     const pw = Math.min(CW * 1.2, (W * 0.3) / 24);
-    pet = new Pet(pw, pw * 1.15, -W * 0.38 + 0, -W * 0.5, W * 0.5);
-    pet.sprite.position([-W * 0.4, H / 2 - 12 * pw * 1.15 - 36]);
-    pet.x = -W * 0.4;
+    const sw = CLAWD_SHEET.w * pw;
+    pet = new Pet(pw, pw * 1.15, -W / 2 + 30, -W / 2 + 30, W / 2 - 30 - sw);
+    pet.sprite.y(H / 2 - CLAWD_SHEET.h * pw * 1.15 - 30);
     world.add(pet.sprite);
     stage.tickers.push(t => pet.update(t));
     stage.setWorld(world);
