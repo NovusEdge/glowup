@@ -4,7 +4,7 @@ import { defineConfig } from 'vite'
 import { readMetas } from './pages.ts'
 
 export default defineConfig({
-  base: '/glowup/',
+  base: '/',
   plugins: [tailwindcss(), reactRouter()],
   // The landing page reads the theme presets straight from the mod's source.
   server: { fs: { allow: ['../..'] } },

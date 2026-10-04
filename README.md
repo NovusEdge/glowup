@@ -9,7 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-2.1.289%2B-d77757)](docs/install.md)
 
-[Docs site](https://novusedge.github.io/glowup/) &nbsp;|&nbsp; [Latest release](https://github.com/NovusEdge/glowup/releases/latest)
+[Docs site](https://glowup.khimani.dev/) &nbsp;|&nbsp; [Latest release](https://github.com/NovusEdge/glowup/releases/latest)
 
 </div>
 

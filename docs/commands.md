@@ -18,7 +18,7 @@ glowup
   /glowup pane                         open or close the side pane
   /glowup motion reduced               calm everything down
 
-more: /glowup help all   docs: https://novusedge.github.io/glowup/
+more: /glowup help all   docs: https://glowup.khimani.dev/
 ```
 
 `/glowup help all` lists every command in groups: Start here, Look, Pet, Comfort, Make your own and Status line.

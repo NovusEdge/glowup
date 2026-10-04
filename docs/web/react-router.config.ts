@@ -3,6 +3,6 @@ import { allPaths } from './pages.ts'
 
 export default {
   ssr: false,
-  basename: '/glowup/',
+  basename: '/',
   prerender: allPaths(),
 } satisfies Config

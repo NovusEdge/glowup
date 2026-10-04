@@ -3,8 +3,6 @@ import { join, posix } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { allPaths } from '../pages.ts'
 
-const BASE = '/glowup/'
-
 const root = fileURLToPath(new URL('../build/client/', import.meta.url))
 const problems: string[] = []
 
@@ -43,8 +41,6 @@ for (const file of htmlFiles(root)) {
   const here = '/' + file.slice(root.length).replace(/(^|\/)index\.html$/, '')
   for (const [, raw] of readFileSync(file, 'utf8').matchAll(/<a\s[^>]*?href="([^"]*)"/g)) {
     let href = raw!.replaceAll('&amp;', '&')
-    if (href.startsWith(BASE)) href = '/' + href.slice(BASE.length)
-    else if (href.startsWith('/')) { problems.push(`${here}: link to ${href} is outside ${BASE}`); continue }
     if (/^[a-z][a-z0-9+.-]*:|^\/\//i.test(href)) continue
     const [target, hash] = href.split('#') as [string, string | undefined]
     const route = target ? posix.resolve(here.endsWith('/') ? here : here + '/', target) : here

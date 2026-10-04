@@ -14,8 +14,7 @@ const types: Record<string, string> = {
 
 createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://localhost')
-  if (!url.pathname.startsWith('/glowup/')) { res.writeHead(url.pathname === '/glowup' ? 301 : 302, { Location: '/glowup/' }).end(); return }
-  const pathname = url.pathname.slice('/glowup'.length)
+  const pathname = url.pathname
   const file = normalize(join(root, decodeURIComponent(pathname)))
   const dir = existsSync(file) && statSync(file).isDirectory()
   if (!file.startsWith(root)) { res.writeHead(403).end(); return }
@@ -26,4 +25,4 @@ createServer((req, res) => {
   } else {
     res.writeHead(404, { 'Content-Type': types['.html']! }).end(readFileSync(join(root, '404.html')))
   }
-}).listen(port, '127.0.0.1', () => console.log(`http://127.0.0.1:${port}/glowup/`))
+}).listen(port, '127.0.0.1', () => console.log(`http://127.0.0.1:${port}/`))

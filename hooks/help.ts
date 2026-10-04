@@ -1,6 +1,6 @@
 import { PACKS } from './packpresets.ts'
 
-export const DOCS_URL = 'https://novusedge.github.io/glowup/'
+export const DOCS_URL = 'https://glowup.khimani.dev/'
 export type HelpRow = readonly [command: string, what: string]
 
 // The column the command text is padded to, in both the plain text and the drawn card.
