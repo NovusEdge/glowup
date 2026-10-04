@@ -24,6 +24,9 @@ export const SECTIONS: readonly (readonly [title: string, rows: HelpRow[]])[] = 
     ['/glowup pack list', 'packs you have'],
     ['/glowup spinner <name|list|default>', 'just the spinner'],
     ['/glowup theme <name|list>', 'just the colors'],
+    ['/glowup color <role> <#hex>', 'override one color, kept across packs'],
+    ['/glowup color list', 'every role, with overrides marked'],
+    ['/glowup color reset [role]', 'clear one override, or all'],
   ]],
   ['Pet', [
     ['/glowup pet clawd|off', 'Clawd, or no pet'],

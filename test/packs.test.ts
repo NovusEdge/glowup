@@ -60,6 +60,17 @@ test('row flags default to labels on, and a user pack can set them over an exten
   expect(look(pack('mine'), user).look.rowFlags).toEqual({ labels: false, markers: false, xp: true })
 })
 
+test('mix.overrides sit on top of the pack, a theme override, and the classic fallback', async () => {
+  const overrides = { accent: '#010203', panel: '#040506' }
+  const a = look({ ...pack('cozy'), overrides }).look
+  expect([a.theme.colors.accent, a.theme.colors.text, a.motion.color]).toEqual(['#010203', '#f5e6d3', '#ffd9a0'])
+  const t = look({ ...pack('classic'), theme: 'dusk', overrides }).look
+  expect([t.theme.colors.accent, t.bg, t.theme.colors.read]).toEqual(['#010203', '#040506', resolveTheme('dusk', {}).theme.colors.read])
+  const fallback = look({ ...pack('ghost'), overrides }).look
+  expect(fallback.theme.colors.accent).toBe('#010203')
+  expect(look({ ...pack('cozy'), overrides: { accent: 'nope', bogus: '#ffffff' } as never }).look.theme.colors.accent).toBe('#f4a6b8')
+})
+
 test('a bad layer falls back alone, with its reason', async () => {
   const user = { half: { format: 1, name: 'half', colors: { rows: 'fancy' }, motion: { spinner: 'comet' } } }
   const r = look(pack('half'), user)

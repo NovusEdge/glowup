@@ -13,7 +13,8 @@ export type ColorsLayer = { theme?: string; palette?: Partial<Colors>; bg?: stri
 // spinner is any well-formed id: a pack made for a later glowup may name one this build lacks
 export type MotionLayer = { spinner?: string; shimmer?: 0 | 1 | 2; color?: string }
 export type PackFile = { format: 1; name: string; extends?: string; description?: string; colors?: ColorsLayer | string; motion?: MotionLayer | string }
-export type Mix = { colors: string; motion: string; theme?: string; spinner?: string }
+// overrides sit on top of whatever pack and theme resolve, so a pack switch keeps them
+export type Mix = { colors: string; motion: string; theme?: string; spinner?: string; overrides?: Partial<Colors> }
 export type Look = {
   colorsFrom: string; motionFrom: string; theme: Theme; bg: string; rows: RowStyle; border: Border; borderColor: string
   gradient?: [string, string]; extras: { hp: boolean; combo: boolean }; rowFlags: RowFlags; motion: { spinner: SpinnerId; shimmer: 0 | 1 | 2; color: string }
@@ -29,6 +30,25 @@ export const EXTRAS_KEYS = ['hp', 'combo']
 export const ROW_FLAG_KEYS = ['labels', 'markers', 'xp']
 export const isNewerSpinner = (e: string) => /^spinner ".*" needs a newer glowup/.test(e)
 const HEX = /^#[0-9a-fA-F]{6}$/
+const SHORT_HEX = /^#[0-9a-fA-F]{3}$/
+
+// #rgb becomes #rrggbb; anything else that is not #rrggbb is undefined.
+export function normalizeHex(s: string): string | undefined {
+  if (SHORT_HEX.test(s)) return '#' + [...s.slice(1)].map(c => c + c).join('').toLowerCase()
+  return HEX.test(s) ? s.toLowerCase() : undefined
+}
+
+// Stored overrides are read back from disk: keep only known roles with valid colors.
+export function cleanOverrides(raw: unknown): Partial<Colors> | undefined {
+  if (!isPlain(raw)) return undefined
+  const out: Partial<Colors> = {}
+  for (const k of COLOR_KEYS) {
+    const v = typeof raw[k] === 'string' ? normalizeHex(raw[k]) : undefined
+    if (v) out[k] = v
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
 const SPINNER_SHAPE = /^[a-z][a-z0-9-]{0,23}$/
 
 type Layer = Record<string, unknown>
@@ -118,10 +138,10 @@ function collect(name: string, kind: 'colors' | 'motion', user: Record<string, u
 
 type ColorsOut = Pick<Look, 'theme' | 'bg' | 'rows' | 'border' | 'borderColor' | 'gradient' | 'extras' | 'rowFlags'>
 
-function colorsOf(layer: ColorsLayer, override: string | undefined, userThemes: Record<string, unknown>): ColorsOut {
+function colorsOf(layer: ColorsLayer, override: string | undefined, userThemes: Record<string, unknown>, overrides?: Partial<Colors>): ColorsOut {
   const { theme: base, error } = resolveTheme(override ?? layer.theme ?? 'classic', userThemes)
   if (error) throw new Error(error)
-  const colors = override ? base.colors : { ...base.colors, ...layer.palette }
+  const colors = { ...(override ? base.colors : { ...base.colors, ...layer.palette }), ...cleanOverrides(overrides) }
   return {
     theme: { ...base, colors },
     bg: (!override && layer.bg) || colors.panel,
@@ -142,15 +162,15 @@ export function resolveLook(mix: Mix, userPacks: Record<string, unknown>, userTh
   let c: ColorsOut
   try {
     const layer = collect(mix.colors, 'colors', userPacks, []) as ColorsLayer
-    try { c = colorsOf(layer, mix.theme, userThemes) } catch (err) {
+    try { c = colorsOf(layer, mix.theme, userThemes, mix.overrides) } catch (err) {
       if (mix.theme === undefined) throw err
       errors.push((err as Error).message)
-      c = colorsOf(layer, undefined, userThemes)
+      c = colorsOf(layer, undefined, userThemes, mix.overrides)
     }
   } catch (err) {
     errors.push(reason(mix.colors, 'colors', err))
     colorsFrom = 'classic'
-    c = colorsOf(collect('classic', 'colors', {}, []) as ColorsLayer, undefined, {})
+    c = colorsOf(collect('classic', 'colors', {}, []) as ColorsLayer, undefined, {}, mix.overrides)
   }
 
   let motionFrom = mix.motion

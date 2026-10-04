@@ -45,6 +45,7 @@ The two layers are independent. You can have the colors of one pack and the moti
 
 - `/glowup pack <name>` sets both layers to that pack and clears any theme or spinner you set on top.
 - `/glowup theme <name>` swaps the colors layer's palette, background and border color for the theme's. It keeps the pack's row style, border shape and extras, and recolors the gradient from the theme's accent.
+- `/glowup color <role> <#hex>` overrides one palette color on top of all of it. Overrides survive a pack or theme switch. See [Commands](commands.md#color).
 - `/glowup config` asks which pack to apply, which sets both layers. See [Commands](commands.md#config).
 
 If one layer fails to load, glowup uses `classic`'s for that layer only and shows one notice with the reason. A broken motion layer never costs you your colors.

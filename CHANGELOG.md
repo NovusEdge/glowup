@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Packs can set `colors.rowFlags`: `labels`, `markers` and `xp`, so any pack can drop the `you` and `claude` labels, mark rows with `▶` and `◆`, and show a `+N XP` tag above a reply.
 
+- `/glowup color`: list every color role with its hex, set one with `/glowup color <role> <#hex>`, or clear with `/glowup color reset [role]`. Overrides are saved and stay on top of any pack or theme, and `/glowup export konsole` and `/glowup pack save` use them.
+- `/glowup config` has a "Tweak colors" extra that asks for a role and a hex.
+
 ### Changed
 
 - `arcade` marks your prompt with a pink `▶` and Claude's reply with a cyan `◆`, with no labels or bars, and shows `+N XP` above a reply after tool calls succeed.
