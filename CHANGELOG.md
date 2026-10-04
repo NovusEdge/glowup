@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-10-04
+
 ### Added
 
 - Packs can set `colors.rowFlags`: `labels`, `markers` and `xp`, so any pack can drop the `you` and `claude` labels, mark rows with `▶` and `◆`, and show a `+N XP` tag above a reply.
