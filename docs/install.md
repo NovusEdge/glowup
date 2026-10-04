@@ -38,7 +38,7 @@ curl -fsSL https://glowup.khimani.dev/install.sh | sh -s -- --yes --pack crt
 | `--theme NAME` | A theme on top of the pack: `classic`, `glowup`, `aurora`, `dusk`, `cyberpunk`, `vaporwave` or `high-contrast`. `classic` keeps the pack's own colors. Default: not set. |
 | `--spinner NAME` | `stock`, `comet`, `eyes`, `orb-states`, `clawd`, `shimmer`, or `pack` for the pack's own. Default `pack`. |
 | `--pet clawd\|off` | Default `clawd`. |
-| `--bubbles on\|off` | Speech bubbles. Default `on`. |
+| `--bubbles on\|off\|haiku` | Speech bubbles. `haiku` lets Claude Haiku write some lines, as small calls on your account. Default `on`. |
 | `--reduced-motion` | Turn off glowup's animation. |
 | `--dry-run` | Print the commands a fresh install runs, and run nothing. |
 | `--version` | Print the installer's version. |
@@ -70,7 +70,7 @@ The mod has six settings. The installer sets them. You can change them later wit
 | --- | --- | --- | --- |
 | `pack` | A pack name | `classic` | The pack at session start. |
 | `pet` | `clawd` or `off` | `clawd` | Shows Clawd, or no pet. |
-| `bubbles` | `on` or `off` | `on` | Turns speech bubbles on or off. |
+| `bubbles` | `on`, `off` or `haiku` | `on` | Speech bubbles from templates, none, or lines written by Haiku. |
 | `theme` | A theme name | `classic` | A theme on top of the pack. `classic` keeps the pack's own colors. |
 | `spinner` | A spinner name | `pack` | A spinner on top of the pack: `stock`, `comet`, `eyes`, `orb-states`, `clawd` or `shimmer`. `pack` keeps the pack's own spinner. |
 | `reducedMotion` | `true` or `false` | `false` | Turns off glowup's animation. |

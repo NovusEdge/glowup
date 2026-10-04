@@ -71,11 +71,19 @@ func PlanKeys(c Choice, s State, keys []string) []Step {
 	})
 }
 
+// ValueGated lists option values an older glowup accepts as text but ignores. They
+// count as declared only through a "key=value" entry in Declared's result.
+var ValueGated = map[string]string{"bubbles": "haiku"}
+
 // Declared asks the installed glowup which userConfig options it has: the keys of
-// `plugin configure --json`'s "schema".
+// `plugin configure --json`'s "schema", plus "key=value" for each ValueGated value
+// the option's description names. A schema that carries no description for the
+// option is given the benefit of the doubt.
 func Declared(ctx context.Context, r Runner) ([]string, error) {
 	var out struct {
-		Schema map[string]json.RawMessage `json:"schema"`
+		Schema map[string]struct {
+			Description *string `json:"description"`
+		} `json:"schema"`
 	}
 	if err := runJSON(ctx, r, &out, "claude", "plugin", "configure", PluginID, "--json"); err != nil {
 		return nil, err
@@ -84,8 +92,11 @@ func Declared(ctx context.Context, r Runner) ([]string, error) {
 		return nil, errors.New("it listed no options")
 	}
 	keys := make([]string, 0, len(out.Schema))
-	for k := range out.Schema {
+	for k, o := range out.Schema {
 		keys = append(keys, k)
+		if v, ok := ValueGated[k]; ok && (o.Description == nil || strings.Contains(strings.ToLower(*o.Description), v)) {
+			keys = append(keys, k+"="+v)
+		}
 	}
 	slices.Sort(keys)
 	return keys, nil
@@ -100,7 +111,8 @@ func Restrict(st Step, declared []string) (Step, []Dropped) {
 	_ = json.Unmarshal([]byte(st.Stdin), &m)
 	var dropped []Dropped
 	for _, k := range slices.Sorted(maps.Keys(m)) {
-		if !slices.Contains(declared, k) {
+		gated := ValueGated[k] != "" && ValueGated[k] == m[k]
+		if !slices.Contains(declared, k) || (gated && !slices.Contains(declared, k+"="+m[k])) {
 			dropped = append(dropped, Dropped{k, m[k]})
 			delete(m, k)
 		}

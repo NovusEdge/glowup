@@ -52,7 +52,7 @@ func TestParseRejects(t *testing.T) {
 		{[]string{"--pet", "cat"}, "--pet takes clawd or off"},
 		{[]string{"--theme", "neon"}, "no theme called \"neon\". Pick one of: classic, glowup"},
 		{[]string{"--spinner", "spin"}, "no spinner called \"spin\". Pick one of: stock, comet"},
-		{[]string{"--bubbles", "yes"}, "--bubbles takes on or off"},
+		{[]string{"--bubbles", "yes"}, "--bubbles takes on, off or haiku"},
 		{[]string{"install"}, "unexpected argument \"install\""},
 		{[]string{"--colour"}, "flag provided but not defined"},
 	} {
