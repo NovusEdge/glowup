@@ -4,7 +4,7 @@
 .landing a{color:inherit;text-decoration:none}
 .landing .wrap{max-width:1240px;margin:0 auto;padding:0 20px;position:relative;z-index:1}
 
-.landing nav.float{position:fixed;z-index:40;top:14px;left:50%;transform:translateX(-50%);width:min(720px,calc(100% - 24px));display:flex;align-items:center;gap:22px;padding:8px 8px 8px 18px;font-size:14px;color:var(--dim);border-radius:14px;border:1px solid color-mix(in srgb,var(--faint) 80%,transparent);background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(14px) saturate(1.4);box-shadow:0 10px 30px -12px #0009;transition:background .4s}
+.landing nav.float{position:fixed;z-index:40;top:14px;left:50%;transform:translateX(-50%);width:min(720px,calc(100% - 24px));display:flex;align-items:center;gap:22px;padding:8px 8px 8px 18px;font-size:14px;color:var(--dim);border-radius:14px;border:1px solid color-mix(in srgb,var(--faint) 80%,transparent);background:color-mix(in srgb,var(--bg) 72%,transparent);-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);box-shadow:0 10px 30px -12px #0009;transition:background .4s}
 .landing nav .logo{margin-right:auto;color:var(--text);font:700 21px 'Pixelify Sans',monospace}
 .landing nav .logo span{color:var(--accent)}
 .landing nav a:hover{color:var(--text)}
@@ -29,7 +29,7 @@
 .landing .sec .lede{color:var(--dim);font-size:17px;margin:12px 0 30px;max-width:640px;line-height:1.5}
 .landing .sec .lede.small{font-size:15px;margin-top:18px}
 .landing .sec code{font:13.5px 'JetBrains Mono',monospace;color:var(--accent);background:var(--panel);padding:2px 6px;border-radius:5px}
-.landing .card{background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(3px);border:1px solid var(--faint);border-radius:14px;transition:border-color .2s,background .4s}
+.landing .card{background:color-mix(in srgb,var(--bg) 82%,transparent);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);border:1px solid var(--faint);border-radius:14px;transition:border-color .2s,background .4s}
 
 .landing .moods{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
 .landing .mood{padding:18px 16px 14px;display:flex;flex-direction:column;align-items:center;gap:12px}
@@ -102,11 +102,13 @@
 .landing :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 @media (max-width:800px){
+  .landing nav .hide-sm{display:none}
+}
+@media (max-width:900px){
   .landing .maker{grid-template-columns:1fr}
   .landing .seg2{flex-wrap:wrap}
   .landing .sec{padding-top:80px}
   .landing nav.float{gap:14px;font-size:13px}
-  .landing nav .hide-sm{display:none}
   .landing section.hero{padding-top:92px}
   .landing .install code{font-size:11.5px;white-space:normal;overflow-wrap:anywhere}
   .landing .moods,.landing .spins{grid-template-columns:repeat(2,1fr);gap:10px}

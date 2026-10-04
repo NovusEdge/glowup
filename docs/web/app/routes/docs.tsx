@@ -24,7 +24,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export const meta: Route.MetaFunction = ({ loaderData }) =>
   loaderData
-    ? pageMeta({ title: `${loaderData.title} · glowup`, description: loaderData.description ?? SUMMARY, path: `/${loaderData.slug}` })
+    ? pageMeta({ title: `${loaderData.title} · glowup`, description: loaderData.description ?? SUMMARY, path: `/${loaderData.slug}/` })
     : [{ title: 'glowup' }]
 
 const content = browserCollections.docs.createClientLoader({

@@ -11,7 +11,7 @@ const put = (root: string, file: string, body: string) => {
   writeFileSync(p, body)
 }
 
-const head = '<title>t</title><meta name="description" content="d"><link rel="canonical" href="https://x/">'
+const head = '<title>t</title><meta name="description" content="d"><link rel="canonical" href="https://x/a/">'
 const page = (body = '', h1 = '<h1>t</h1>') => head + h1 + body
 const site = (dir: string) => {
   for (const f of ['sitemap.xml', 'robots.txt', 'llms.txt', 'llms-full.txt', 'og.png']) put(dir, f, 'x')

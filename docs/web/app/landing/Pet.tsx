@@ -3,7 +3,7 @@ import { CLAWD_SHEET, OUTFIT_PAD, composeFrame, mirrored, newPlayer, petPalette,
 import { petTick, type PetMode } from './petTick.ts'
 import { useReducedMotion, useVisible } from './motion.ts'
 
-export { petTick, type PetMode }
+export type { PetMode }
 
 const HOP_MS = 1200
 

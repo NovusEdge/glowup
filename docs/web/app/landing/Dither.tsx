@@ -3,8 +3,6 @@ import type { Look } from './data.ts'
 import { ditherColors } from './dither-colors.ts'
 import { useReducedMotion, useVisible } from './motion.ts'
 
-export { ditherColors }
-
 // The canvas renders at 1/DITHER_PX resolution and scales up pixelated, so each dither dot is DITHER_PX css px.
 export const DITHER_PX = 3
 

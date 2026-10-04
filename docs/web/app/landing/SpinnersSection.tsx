@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { SPINNERS, type OrbState, type SpinnerId } from './data.ts'
 import { PACK_NAMES, packLook } from './look.ts'
-import { useReducedMotion } from './motion.ts'
+import { useReducedMotion, useVisible } from './motion.ts'
 import { usePack } from './PackContext.tsx'
 import { SpinnerCanvas } from './SpinnerCanvas.tsx'
 
@@ -13,6 +13,7 @@ export function SpinnersSection() {
   const [small, setSmall] = useState(false)
   const [state, setState] = useState(0)
   const reduced = useReducedMotion()
+  const visible = useVisible()
   const owner = useMemo(() => {
     const m = new Map<string, string>()
     for (const p of PACK_NAMES) { const id = packLook(p).motion.spinner; if (!m.has(id)) m.set(id, p) }
@@ -27,10 +28,10 @@ export function SpinnersSection() {
     return () => mq.removeEventListener('change', on)
   }, [])
   useEffect(() => {
-    if (reduced) return
+    if (reduced || !visible) return
     const t = setInterval(() => setState(s => (s + 1) % STATES.length), 2200)
     return () => clearInterval(t)
-  }, [reduced])
+  }, [reduced, visible])
 
   const st = STATES[state]!
   return (

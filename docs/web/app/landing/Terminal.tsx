@@ -68,8 +68,8 @@ export function Terminal() {
   const prevBubble = useRef<TermState['bubble']>(null)
 
   useEffect(() => {
-    // runScript starts before the reduced-motion effect has corrected `reduced`, leaving the first frame behind.
-    if (reduced) { setState(finalState()); return }
+    // `reduced` is still false on the first pass; reading the query here keeps runScript's empty first frame from flashing.
+    if (reduced || matchMedia('(prefers-reduced-motion: reduce)').matches) { setState(finalState()); return }
     if (!visible) return
     const r = runScript(s => {
       if (s.bubble && s.bubble !== prevBubble.current) setBub(b => ({ kind: s.bubble!, n: b.n + 1 }))
@@ -85,6 +85,7 @@ export function Terminal() {
   const showWord = state.bandOn && band !== null && band.kind !== 'pass'
   const gw = glowupWord(state)
 
+  // role="img": screen readers get one label instead of a looping transcript; crawlers still read the DOM text.
   return (
     <div className="term" data-pack={pack} data-rows={look.rows} data-border={look.border} role="img"
       aria-label="A Claude Code session with glowup: Claude edits src/auth.ts, a test fails, the fix passes.">

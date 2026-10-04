@@ -30,8 +30,8 @@ export default function Landing() {
         <SpinnersSection />
         <PacksSection />
         <MakerSection />
-        <Footer />
       </main>
+      <div className="wrap"><Footer /></div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd()) }} />
     </PackProvider>
   )
