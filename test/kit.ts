@@ -8,8 +8,10 @@ export const runGlowup = ($: Engine, args = '', columns = 120, isFullscreen = fa
 export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<string, { exitCode: number; stdout: string }>; fetches?: Record<string, string>; projectStatusLine?: boolean } = {}) {
   const files = { ...(opts.files ?? {}) }
   const store: Record<string, unknown> = {}
+  const ran: string[] = []
   const host: Host = {
     run: async argv => {
+      ran.push(argv.join(' '))
       const hit = opts.runs?.[argv.join(' ')]
       if (!hit) return { exitCode: 127, stdout: '', stderr: 'not found' }
       return { ...hit, stderr: '' }
@@ -25,5 +27,5 @@ export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<s
     projectStatusLine: async () => opts.projectStatusLine === true,
     configDir: '/home/u/.claude',
   }
-  return { host, files, store }
+  return { host, files, store, ran }
 }
