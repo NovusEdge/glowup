@@ -87,7 +87,7 @@ func crt() cli.Options {
 
 func TestYesFreshMachine(t *testing.T) {
 	got := runApp(crt(), machine(`[]`, `[]`), nil)
-	want := []string{version, marketList, pluginList, addMarket, installCrt}
+	want := []string{version, marketList, pluginList, addMarket, installCrt, schemaCmd, configure}
 	if got.code != 0 || !slices.Equal(got.calls, want) {
 		t.Fatalf("code %d calls %q\n%s%s", got.code, got.calls, got.out, got.err)
 	}
@@ -260,6 +260,29 @@ func TestFreshInstallSetsTheSpinnerAfterInstalling(t *testing.T) {
 	}
 	if got.code != 0 || !(i >= 0 && i < s && s < c) || strings.Contains(got.calls[i], "spinner") || got.stdins[configure] != `{"spinner":"eyes"}` {
 		t.Fatalf("code %d calls %q stdin %s\n%s%s", got.code, got.calls, got.stdins[configure], got.out, got.err)
+	}
+}
+
+func TestFreshInstallWithNoSpinnerSetsPack(t *testing.T) {
+	a := machine(`[]`, `[]`)
+	a[schemaCmd] = claude.Result{Stdout: newSchema}
+	got := runApp(crt(), a, nil)
+	if got.code != 0 || got.stdins[configure] != `{"spinner":"pack"}` {
+		t.Fatalf("code %d stdin %s\n%s%s", got.code, got.stdins[configure], got.out, got.err)
+	}
+}
+
+func TestOldGlowupDroppingTheDefaultSaysNothing(t *testing.T) {
+	a := machine(`[]`, `[]`)
+	a[schemaCmd] = claude.Result{Stdout: oldSchema}
+	got := runApp(crt(), a, nil)
+	if got.code != 0 || slices.Contains(got.calls, configure) || strings.Contains(got.out, "can't set") {
+		t.Fatalf("code %d calls %q\n%s%s", got.code, got.calls, got.out, got.err)
+	}
+	inst := installed(claude.Result{Stdout: oldSchema})
+	o := cli.Options{Choice: claude.Choice{Pack: "crt", Pet: "clawd", Bubbles: "on", Theme: "classic", Spinner: "pack"}, Yes: true, Given: []string{"theme", "spinner"}}
+	if got := runApp(o, inst, nil); strings.Contains(got.out, "can't set") {
+		t.Fatalf("output:\n%s", got.out)
 	}
 }
 

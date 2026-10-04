@@ -150,6 +150,10 @@ func Run(ctx context.Context, o cli.Options, d Deps) int {
 			var dropped []claude.Dropped
 			st, dropped = claude.Restrict(st, declared)
 			for _, dr := range dropped {
+				// an older glowup already behaves as if it had its option's default
+				if (dr.Key == "spinner" && dr.Value == "pack") || (dr.Key == "theme" && dr.Value == "classic") {
+					continue
+				}
 				fmt.Fprintln(d.Out, dropNote(dr))
 			}
 			if st.Stdin == "{}" {

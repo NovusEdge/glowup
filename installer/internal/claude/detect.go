@@ -51,6 +51,8 @@ func Detect(ctx context.Context, r Runner) (State, error) {
 	}
 	var plugins []struct {
 		ID string `json:"id"`
+		// nil when an older claude does not print it: counted as enabled
+		Enabled *bool `json:"enabled"`
 	}
 	if err := runJSON(ctx, r, &plugins, "claude", "plugin", "list", "--json"); err != nil {
 		return State{}, err
@@ -61,7 +63,7 @@ func Detect(ctx context.Context, r Runner) (State, error) {
 	}
 	for _, p := range plugins {
 		s.Installed = s.Installed || p.ID == PluginID
-		if p.ID != PluginID && strings.HasPrefix(p.ID, "glowup@") {
+		if p.ID != PluginID && strings.HasPrefix(p.ID, "glowup@") && (p.Enabled == nil || *p.Enabled) {
 			s.Other = append(s.Other, p.ID)
 		}
 	}

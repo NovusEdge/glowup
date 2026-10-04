@@ -9,10 +9,12 @@ import assert from 'node:assert/strict'
 import { script, SCRIPT_PATH } from '../hooks/statusline.ts'
 
 const TIMEOUT = 5000
-const MAX_PROCS = 8
+// A good run lasts about 20 ms, shorter than the 25 ms sampler tick, so the sampler mostly sees
+// nothing. It only catches a loop that has already run for a while; the timeout is the real test.
+const MAX_SAMPLED_PROCS = 8
 
-// Runs `sh <path>` as its own process group. Resolves with its stdout, how long it took, and
-// the most processes the group ever held (sampled), killing the whole group at the timeout.
+// Runs `sh <path>` as its own process group. Resolves with its stdout and the most processes
+// the group held at any sample, killing the whole group at the timeout.
 function run(path: string) {
   return new Promise<{ out: string; timedOut: boolean; peak: number }>(resolve => {
     const child = spawn('sh', [path], { detached: true, stdio: ['pipe', 'pipe', 'ignore'] })
@@ -47,7 +49,7 @@ test('a fallback that calls the script itself stops at once and forks only a han
   assert.ok(text.includes('GLOWUP_STATUSLINE'))
   const r = await run(path)
   assert.equal(r.timedOut, false, 'the script was still running at the timeout')
-  assert.ok(r.peak <= MAX_PROCS, `the process group peaked at ${r.peak}`)
+  assert.ok(r.peak <= MAX_SAMPLED_PROCS, `the process group peaked at ${r.peak}`)
 })
 
 test('script() itself drops a self-referencing fallback', async () => {

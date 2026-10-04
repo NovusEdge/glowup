@@ -35,7 +35,7 @@ func Plan(c Choice, s State) []Step { return PlanKeys(c, s, nil) }
 // PlanKeys is Plan, except an installed glowup gets only the named userConfig keys
 // (all of pack, pet, bubbles and reducedMotion when keys is nil, plus theme and
 // spinner when the choice has them). A fresh install sends the BaseKeys, then a
-// configure step for the spinner if one was picked.
+// configure step for the spinner ("pack" when none was picked).
 func PlanKeys(c Choice, s State, keys []string) []Step {
 	var steps []Step
 	if !s.MarketplaceAdded {
@@ -60,16 +60,15 @@ func PlanKeys(c Choice, s State, keys []string) []Step {
 	}
 	steps = append(steps, Step{Title: "Installing glowup", Argv: argv})
 	// The spinner arrived after 0.2, so it goes in once the installed version can say
-	// whether it takes it. Left unpicked, the mod treats an unset spinner as "pack".
-	if c.Spinner != "" {
-		steps = append(steps, Step{
-			Title:     "Setting glowup's spinner",
-			Argv:      []string{"claude", "plugin", "configure", PluginID, "--values-stdin"},
-			Stdin:     valuesJSON(c, []string{"spinner"}),
-			Configure: true,
-		})
-	}
-	return steps
+	// whether it takes it. Always sent, "pack" when unpicked: a spinner left unset
+	// makes Claude Code report "1 userConfig option not yet set" after the install.
+	stdin, _ := json.Marshal(map[string]string{"spinner": cmp.Or(c.Spinner, "pack")})
+	return append(steps, Step{
+		Title:     "Setting glowup's spinner",
+		Argv:      []string{"claude", "plugin", "configure", PluginID, "--values-stdin"},
+		Stdin:     string(stdin),
+		Configure: true,
+	})
 }
 
 // Declared asks the installed glowup which userConfig options it has: the keys of

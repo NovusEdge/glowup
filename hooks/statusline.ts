@@ -28,6 +28,8 @@ const command = (configDir: string) => `sh ${sq(SCRIPT_PATH(configDir))}`
 // has its own store, so a second copy can see the first one's line in
 // settings.json and would otherwise back it up as "the user's" command; the
 // script would then call itself and fork shells until the machine died.
+// The STATUS_DIR test alone catches both paths: ".../glowup/status" is a string
+// prefix of ".../glowup/statusline.sh". The other two tests name the intent.
 const isOurs = (configDir: string, cmd: unknown) =>
   typeof cmd === 'string' && (cmd === command(configDir) || cmd.includes(SCRIPT_PATH(configDir)) || cmd.includes(STATUS_DIR(configDir)))
 
@@ -52,7 +54,7 @@ async function readSettings(host: Host): Promise<Record<string, unknown> | undef
 const originalOf = (backup: unknown) =>
   backup !== NONE && typeof backup === 'object' && backup && typeof (backup as { command?: unknown }).command === 'string' ? (backup as { command: string }).command : ''
 
-const OVERRIDE =' A project or local settings file sets its own statusLine, which wins over this one, so glowup will not show there.'
+const OVERRIDE = ' A project or local settings file sets its own statusLine, which wins over this one, so glowup will not show there.'
 
 export async function drawsStatusLine(host: Host): Promise<boolean> {
   const settings = await readSettings(host)

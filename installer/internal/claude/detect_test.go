@@ -43,6 +43,14 @@ func TestDetectOtherCopies(t *testing.T) {
 	}
 }
 
+func TestDetectIgnoresDisabledCopies(t *testing.T) {
+	r := &fakeRunner{answers: map[string]Result{marketList: {Stdout: `[]`}, pluginList: {Stdout: `[{"id":"glowup@off","enabled":false},{"id":"glowup@on","enabled":true}]`}}}
+	got, err := Detect(context.Background(), r)
+	if err != nil || !reflect.DeepEqual(got.Other, []string{"glowup@on"}) {
+		t.Fatalf("got %+v, %v", got, err)
+	}
+}
+
 func TestPluginDirCopies(t *testing.T) {
 	root := t.TempDir()
 	mk := func(name, plugin string) string {
