@@ -3,17 +3,23 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/novusedge/glowup/installer/internal/claude"
 	"github.com/novusedge/glowup/installer/internal/cli"
 )
 
 const DocsURL = "https://glowup.khimani.dev/"
+
+// CheckTimeout is how long the installer waits for claude to answer the version
+// check and detection, which take a few seconds on a quiet machine.
+const CheckTimeout = 60 * time.Second
 
 // StepFunc runs fn under title and returns fn's result line.
 type StepFunc func(ctx context.Context, title string, fn func(context.Context) (string, error)) (string, error)
@@ -30,6 +36,8 @@ type Deps struct {
 	Step   StepFunc
 	// PluginDirs is $CLAUDE_CODE_PLUGIN_DIRS, a path list of plugins Claude Code loads in place.
 	PluginDirs string
+	// CheckTimeout bounds the version check and detection together. Zero means CheckTimeout.
+	CheckTimeout time.Duration
 }
 
 // refuseSecondCopy says what already loads glowup and how to turn it off. An empty
@@ -81,7 +89,23 @@ func Run(ctx context.Context, o cli.Options, d Deps) int {
 		return 0
 	}
 
-	if _, err := claude.CheckVersion(ctx, d.Runner); err != nil {
+	// The version check and detection run claude three times, about four seconds in
+	// all, before the picker can draw. Without this line that wait is a blank screen.
+	fmt.Fprintln(d.Out, "Checking Claude Code...")
+	checkCtx, stopCheck := context.WithTimeout(ctx, cmp.Or(d.CheckTimeout, CheckTimeout))
+	defer stopCheck()
+	stuck := func() bool {
+		if !errors.Is(checkCtx.Err(), context.DeadlineExceeded) {
+			return false
+		}
+		fmt.Fprintf(d.Err, "Claude Code did not answer within %s. Run `claude --version` and `claude plugin list` to see which one hangs, then run this installer again.\n", cmp.Or(d.CheckTimeout, CheckTimeout))
+		return true
+	}
+
+	if _, err := claude.CheckVersion(checkCtx, d.Runner); err != nil {
+		if stuck() {
+			return 1
+		}
 		var tooOld *claude.TooOldError
 		switch {
 		case errors.Is(err, claude.ErrNotInstalled):
@@ -97,8 +121,12 @@ func Run(ctx context.Context, o cli.Options, d Deps) int {
 		return 1
 	}
 
-	state, err := claude.Detect(ctx, d.Runner)
+	state, err := claude.Detect(checkCtx, d.Runner)
+	stopCheck()
 	if err != nil {
+		if stuck() {
+			return 1
+		}
 		fmt.Fprintln(d.Err, "Could not ask Claude Code what it has installed:", err)
 		return 1
 	}

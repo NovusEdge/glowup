@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - A long Changes, Agents or Plan & context tab no longer pushes Clawd and the status box off the bottom of the pane. The tab now scrolls inside the rows left over, with `↑ N more` and `↓ N more` buttons (hotkeys `k` and `j`).
+- The installer prints `Checking Claude Code...` while it asks `claude` about its version and plugins, which takes a few seconds, instead of showing a blank terminal. If `claude` has not answered after 60 seconds, the installer stops and says so.
+- The installer's pack list no longer disappears in xterm: unselected packs were drawn in a fixed light gray that matched xterm's white background. They now use the terminal's own text color.
+- The installer no longer drops to 16 colors under `TERM=xterm`, which turned the preview pure blue, red and magenta. It uses 256 colors, or 24-bit when xterm says it has them.
 
 ## [0.3.3] - 2026-10-04
 
