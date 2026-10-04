@@ -7,7 +7,45 @@ section: Start
 
 ## Install
 
-glowup is a Claude Code mod. You need Claude Code 2.1.289 or later. In Claude Code, run:
+glowup is a Claude Code mod. You need Claude Code 2.1.289 or later. In a terminal, run:
+
+```sh title="shell"
+curl -fsSL https://glowup.khimani.dev/install.sh | sh
+```
+
+The script downloads the glowup installer for your machine from the latest GitHub release, checks it against the release's `checksums.txt`, and runs it once from a temp folder. Nothing goes on your PATH and nothing needs sudo. To read the script first:
+
+```sh title="shell"
+curl -fsSL https://glowup.khimani.dev/install.sh | less
+```
+
+The installer shows a preview while you pick a pack, a pet, speech bubbles and reduced motion. Then it runs `claude plugin marketplace add NovusEdge/glowup` and `claude plugin install glowup@glowup` with your choices. If glowup is already installed, it offers to update the settings instead. Restart Claude Code if it is running, then type `/glowup`.
+
+The script runs on Linux and macOS, on x86-64 and ARM. On Windows, download `glowup-installer_<version>_windows_amd64.zip` from the [latest release](https://github.com/NovusEdge/glowup/releases/latest), or install by hand.
+
+### Installer options
+
+Pass options after `sh -s --`:
+
+```sh title="shell"
+curl -fsSL https://glowup.khimani.dev/install.sh | sh -s -- --yes --pack crt
+```
+
+| Option | What it does |
+| --- | --- |
+| `--yes` | Install without the picker, with the defaults or the options below. The script adds it when there is no terminal. |
+| `--pack NAME` | `classic`, `crt`, `cozy` or `arcade`. Default `classic`. |
+| `--pet clawd\|off` | Default `clawd`. |
+| `--bubbles on\|off` | Speech bubbles. Default `on`. |
+| `--reduced-motion` | Turn off glowup's animation. |
+| `--dry-run` | Print the commands a fresh install runs, and run nothing. |
+| `--version` | Print the installer's version. |
+
+Set `GLOWUP_VERSION=v0.3.0` to use that release's installer instead of the latest.
+
+### Install by hand
+
+In Claude Code, run:
 
 ```text title="claude code"
 /plugin marketplace add NovusEdge/glowup
@@ -24,11 +62,14 @@ If you see neither, read [Layout](layout.md) for the width rules.
 
 ## Settings
 
-The mod has two settings. You can change them when you enable the mod, or in your Claude Code settings.
+The mod has five settings. The installer sets them. You can change them later with `claude plugin configure glowup@glowup`, or in your Claude Code settings.
 
 | Setting | Values | Default | What it does |
 | --- | --- | --- | --- |
-| `theme` | A theme name | `classic` | The theme at session start. |
+| `pack` | A pack name | `classic` | The pack at session start. |
+| `pet` | `clawd` or `off` | `clawd` | Shows Clawd, or no pet. |
+| `bubbles` | `on` or `off` | `on` | Turns speech bubbles on or off. |
+| `theme` | A theme name | `classic` | A theme on top of the pack. `classic` keeps the pack's own colors. |
 | `reducedMotion` | `true` or `false` | `false` | Turns off glowup's animation. |
 
 `/glowup theme <name>` and `/glowup motion` save your choice in the mod's store. A saved choice wins over the setting. See [Commands](commands.md).
