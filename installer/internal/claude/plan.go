@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -20,7 +21,12 @@ type Step struct {
 // Plan returns the commands that take Claude Code from s to glowup installed with c.
 // A marketplace that is already added is skipped. An installed glowup gets its
 // settings updated through `plugin configure --values-stdin` instead of a reinstall.
-func Plan(c Choice, s State) []Step {
+func Plan(c Choice, s State) []Step { return PlanKeys(c, s, nil) }
+
+// PlanKeys is Plan, except an installed glowup gets only the named userConfig keys
+// (all of pack, pet, bubbles and reducedMotion when keys is nil). A fresh install
+// always sends every value.
+func PlanKeys(c Choice, s State, keys []string) []Step {
 	var steps []Step
 	if !s.MarketplaceAdded {
 		steps = append(steps, Step{
@@ -32,7 +38,7 @@ func Plan(c Choice, s State) []Step {
 		return append(steps, Step{
 			Title: "Updating glowup's settings",
 			Argv:  []string{"claude", "plugin", "configure", PluginID, "--values-stdin"},
-			Stdin: valuesJSON(c),
+			Stdin: valuesJSON(c, keys),
 		})
 	}
 	argv := []string{"claude", "plugin", "install", PluginID}
@@ -57,11 +63,14 @@ func values(c Choice) [][2]string {
 }
 
 // valuesJSON is the stdin for `plugin configure --values-stdin`, which takes a JSON
-// object of single-line strings, so the boolean goes as "true" or "false".
-func valuesJSON(c Choice) string {
+// object of single-line strings, so the boolean goes as "true" or "false". It keeps
+// keys left out of the object, so theme is never sent: the person's theme survives.
+func valuesJSON(c Choice, keys []string) string {
 	m := map[string]string{}
 	for _, kv := range values(c) {
-		m[kv[0]] = kv[1]
+		if kv[0] != "theme" && (keys == nil || slices.Contains(keys, kv[0])) {
+			m[kv[0]] = kv[1]
+		}
 	}
 	b, _ := json.Marshal(m) // map keys marshal sorted, so the output is stable
 	return string(b)

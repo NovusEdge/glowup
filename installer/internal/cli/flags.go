@@ -18,6 +18,7 @@ import (
 // starts from it, and --yes installs it as is.
 type Options struct {
 	Choice  claude.Choice
+	Given   []string // userConfig keys whose flags were on the command line, in a fixed order
 	Yes     bool
 	DryRun  bool
 	Version bool
@@ -43,6 +44,13 @@ func Parse(args []string, out io.Writer) (Options, error) {
 	fs.BoolVar(&o.Version, "version", false, "print the installer's version")
 	if err := fs.Parse(args); err != nil {
 		return o, err
+	}
+	set := map[string]bool{}
+	fs.Visit(func(f *flag.Flag) { set[f.Name] = true })
+	for _, g := range [][2]string{{"pack", "pack"}, {"pet", "pet"}, {"bubbles", "bubbles"}, {"reduced-motion", "reducedMotion"}} {
+		if set[g[0]] {
+			o.Given = append(o.Given, g[1])
+		}
 	}
 	if fs.NArg() > 0 {
 		return o, usageErr(out, "unexpected argument %q", fs.Arg(0))
@@ -75,5 +83,5 @@ func CheckTerminal(o Options, interactive bool) error {
 	if o.Yes || o.DryRun || o.Version || interactive {
 		return nil
 	}
-	return errors.New("there is no terminal to show the picker in. Run again with --yes to install with the defaults, or add --pack, --pet, --bubbles or --reduced-motion to choose")
+	return errors.New("there is no terminal to show the picker in. Run again with --yes to install with the defaults, adding --pack, --pet, --bubbles or --reduced-motion to choose")
 }

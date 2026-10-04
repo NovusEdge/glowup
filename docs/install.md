@@ -19,7 +19,7 @@ The script downloads the glowup installer for your machine from the latest GitHu
 curl -fsSL https://glowup.khimani.dev/install.sh | less
 ```
 
-The installer shows a preview while you pick a pack, a pet, speech bubbles and reduced motion. Then it runs `claude plugin marketplace add NovusEdge/glowup` and `claude plugin install glowup@glowup` with your choices. If glowup is already installed, it offers to update the settings instead. Restart Claude Code if it is running, then type `/glowup`.
+The installer shows a preview while you pick a pack, a pet, speech bubbles and reduced motion. Then it runs `claude plugin marketplace add NovusEdge/glowup` and `claude plugin install glowup@glowup` with your choices. If glowup is already installed, it updates the settings you pick instead, and leaves your theme alone. With `--yes` on an installed glowup, only the options you pass change; with none, nothing changes. Restart Claude Code if it is running, then type `/glowup`.
 
 The script runs on Linux and macOS, on x86-64 and ARM. On Windows, download `glowup-installer_<version>_windows_amd64.zip` from the [latest release](https://github.com/NovusEdge/glowup/releases/latest), or install by hand.
 

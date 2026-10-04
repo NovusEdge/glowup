@@ -87,9 +87,31 @@ func TestYesMarketplaceAlreadyAdded(t *testing.T) {
 	}
 }
 
-func TestYesAlreadyInstalledUpdatesSettings(t *testing.T) {
+func TestYesAlreadyInstalledNoFlagsLeavesSettings(t *testing.T) {
 	got := runApp(crt(), machine(`[{"name":"glowup"}]`, `[{"id":"glowup@glowup"}]`), nil)
-	if got.code != 0 || got.calls[len(got.calls)-1] != configure || slices.Contains(got.calls, installCrt) {
+	if got.code != 0 || slices.Contains(got.calls, configure) || slices.Contains(got.calls, installCrt) {
+		t.Fatalf("code %d calls %q", got.code, got.calls)
+	}
+	if !strings.Contains(got.out, "already installed") || !strings.Contains(got.out, "--pack") {
+		t.Fatalf("output:\n%s", got.out)
+	}
+}
+
+func TestYesAlreadyInstalledSendsOnlyGivenFlags(t *testing.T) {
+	o := crt()
+	o.Given = []string{"pack"}
+	r := &fakeRunner{answers: machine(`[{"name":"glowup"}]`, `[{"id":"glowup@glowup"}]`)}
+	var out, errb strings.Builder
+	code := Run(context.Background(), o, Deps{Runner: r, Out: &out, Err: &errb, Step: PlainStep(&out)})
+	if code != 0 || r.calls[len(r.calls)-1] != configure || slices.Contains(r.calls, installCrt) {
+		t.Fatalf("code %d calls %q", code, r.calls)
+	}
+}
+
+func TestPickerAlreadyInstalledUpdatesSettings(t *testing.T) {
+	pick := func(in claude.Choice, _ bool) (claude.Choice, bool, error) { return in, true, nil }
+	got := runApp(cli.Options{Choice: claude.Defaults()}, machine(`[{"name":"glowup"}]`, `[{"id":"glowup@glowup"}]`), pick)
+	if got.code != 0 || got.calls[len(got.calls)-1] != configure {
 		t.Fatalf("code %d calls %q", got.code, got.calls)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -12,15 +13,16 @@ import (
 
 func TestParseDefaults(t *testing.T) {
 	o, err := Parse(nil, io.Discard)
-	if err != nil || o != (Options{Choice: claude.Defaults()}) {
+	if err != nil || !reflect.DeepEqual(o, Options{Choice: claude.Defaults()}) {
 		t.Fatalf("got %+v, %v", o, err)
 	}
 }
 
 func TestParseEveryFlag(t *testing.T) {
 	o, err := Parse([]string{"--yes", "--pack", "CRT", "--pet=off", "--bubbles", "off", "--reduced-motion", "--dry-run"}, io.Discard)
-	want := Options{Choice: claude.Choice{Pack: "crt", Pet: "off", Bubbles: "off", ReducedMotion: true}, Yes: true, DryRun: true}
-	if err != nil || o != want {
+	want := Options{Choice: claude.Choice{Pack: "crt", Pet: "off", Bubbles: "off", ReducedMotion: true}, Yes: true, DryRun: true,
+		Given: []string{"pack", "pet", "bubbles", "reducedMotion"}}
+	if err != nil || !reflect.DeepEqual(o, want) {
 		t.Fatalf("got %+v, %v; want %+v", o, err, want)
 	}
 	if o, _ := Parse([]string{"--version"}, io.Discard); !o.Version {
@@ -57,7 +59,7 @@ func TestParseHelp(t *testing.T) {
 }
 
 func TestCheckTerminal(t *testing.T) {
-	if err := CheckTerminal(Options{}, false); err == nil || !strings.Contains(err.Error(), "--yes") {
+	if err := CheckTerminal(Options{}, false); err == nil || !strings.Contains(err.Error(), "Run again with --yes to install with the defaults, adding --pack") {
 		t.Fatalf("no terminal, no --yes: %v", err)
 	}
 	for _, o := range []Options{{Yes: true}, {DryRun: true}, {Version: true}} {

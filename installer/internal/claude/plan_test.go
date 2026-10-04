@@ -59,8 +59,19 @@ func TestPlanInstalledUpdatesSettingsOnly(t *testing.T) {
 	if got := strings.Join(steps[0].Argv, " "); got != "claude plugin configure glowup@glowup --values-stdin" {
 		t.Fatalf("argv = %q", got)
 	}
-	if want := `{"bubbles":"off","pack":"arcade","pet":"off","reducedMotion":"true","theme":"classic"}`; steps[0].Stdin != want {
+	if want := `{"bubbles":"off","pack":"arcade","pet":"off","reducedMotion":"true"}`; steps[0].Stdin != want {
 		t.Fatalf("stdin = %s, want %s", steps[0].Stdin, want)
+	}
+}
+
+func TestPlanKeysSendsOnlyTheNamedKeys(t *testing.T) {
+	c := Choice{Pack: "crt", Pet: "clawd", Bubbles: "on"}
+	steps := PlanKeys(c, State{MarketplaceAdded: true, Installed: true}, []string{"pack"})
+	if len(steps) != 1 || steps[0].Stdin != `{"pack":"crt"}` {
+		t.Fatalf("got %+v", steps)
+	}
+	if got := argvs(PlanKeys(c, State{MarketplaceAdded: true}, []string{"pack"})); len(got) != 1 || !strings.Contains(got[0], "theme=classic") {
+		t.Fatalf("fresh install ignores keys: %q", got)
 	}
 }
 
@@ -72,7 +83,7 @@ func TestScript(t *testing.T) {
 		t.Fatalf("got\n%s\nwant\n%s", got, want)
 	}
 	got = Script(Plan(Defaults(), State{MarketplaceAdded: true, Installed: true}))
-	want = `printf '%s\n' '{"bubbles":"on","pack":"classic","pet":"clawd","reducedMotion":"false","theme":"classic"}' | claude plugin configure glowup@glowup --values-stdin` + "\n"
+	want = `printf '%s\n' '{"bubbles":"on","pack":"classic","pet":"clawd","reducedMotion":"false"}' | claude plugin configure glowup@glowup --values-stdin` + "\n"
 	if got != want {
 		t.Fatalf("got\n%s\nwant\n%s", got, want)
 	}

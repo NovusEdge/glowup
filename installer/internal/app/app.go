@@ -81,7 +81,18 @@ func Run(ctx context.Context, o cli.Options, d Deps) int {
 		choice = c
 	}
 
-	for _, st := range claude.Plan(choice, state) {
+	// Without the picker nobody was asked about an installed glowup, so only what
+	// they typed as flags changes.
+	var keys []string
+	if state.Installed && d.Pick == nil {
+		if len(o.Given) == 0 {
+			fmt.Fprintln(d.Out, "glowup is already installed, and its settings were left as they are. To change them, run again with --yes and --pack, --pet, --bubbles or --reduced-motion.")
+			return 0
+		}
+		keys = o.Given
+	}
+
+	for _, st := range claude.PlanKeys(choice, state, keys) {
 		line, err := d.Step(ctx, st.Title, func(ctx context.Context) (string, error) {
 			return claude.RunStep(ctx, d.Runner, st)
 		})
