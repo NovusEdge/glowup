@@ -1,0 +1,24 @@
+name: Bug
+description: glowup did something wrong
+labels: [bug]
+body:
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Output of `claude --version`, and the glowup version from `/plugin`
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you saw. Say which part was affected (pane tab, activity band, theme, status line).
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Debug log
+      description: Lines starting with `glowup:` from a session run with `claude --debug`. Remove anything private first.
+      render: text

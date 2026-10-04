@@ -1,0 +1,32 @@
+name: Theme submission
+description: Share a glowup theme
+labels: [theme]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Theme name
+    validations:
+      required: true
+  - type: textarea
+    id: json
+    attributes:
+      label: Theme JSON
+      description: The whole theme file. It must be data only, with every color written as `#rrggbb`.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot
+      description: Drag an image of the theme in a live session into this box.
+    validations:
+      required: true
+  - type: checkboxes
+    id: license
+    attributes:
+      label: License
+      options:
+        - label: I agree to release this theme under the MIT license
+          required: true
