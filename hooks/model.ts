@@ -34,7 +34,16 @@ const answered = (m: Model, toolUseId: string): Model =>
 // it started; those keep their own counts.
 export function mergeCounts(m: Model, refreshed: FileTouch[]): Model {
   const byPath = new Map(refreshed.map(f => [f.path, f]))
-  return { ...m, files: m.files.map(f => { const r = byPath.get(f.path); return r ? { ...f, add: r.add, del: r.del } : f }) }
+  return {
+    ...m,
+    files: m.files.map(f => {
+      const r = byPath.get(f.path)
+      if (!r) return f
+      // a shell command can edit a file Claude only read; git's counts prove it
+      const how = f.how === 'read' && r.add + r.del > 0 ? 'edit' : f.how
+      return { ...f, how, add: r.add, del: r.del }
+    }),
+  }
 }
 
 function touch(files: FileTouch[], path: string, at: number, how: FileTouch['how'], add = 0, del = 0): FileTouch[] {
@@ -83,7 +92,12 @@ export function applyEvent(m: Model, ev: Ev): Model {
         const how: FileTouch['how'] = ev.tool === 'Write' && ev.writeType === 'create' ? 'new' : counts ? 'edit' : 'read'
         next = { ...next, files: touch(next.files, d.file, ev.at, how, counts?.add, counts?.del) }
       }
-      const plan = ev.isError ? undefined : planFrom(ev.tool, ev.input, next.plan, ev.resultTaskId)
+      // a failed spawn never gets an agent-done
+      if (ev.tool === 'Agent' && !ev.agentId && ev.isError) {
+        next = { ...next, agents: next.agents.map(a => a.key === ev.toolUseId && a.state === 'running' ? { ...a, state: 'done' as const, endedAt: ev.at, now: undefined } : a) }
+      }
+      // a subagent's own todo list is not Claude's plan
+      const plan = ev.isError || ev.agentId ? undefined : planFrom(ev.tool, ev.input, next.plan, ev.resultTaskId)
       if (plan) next = { ...next, plan }
       if (!ev.agentId && d.isTest) {
         const o = testOutcome(ev.text, ev.isError)

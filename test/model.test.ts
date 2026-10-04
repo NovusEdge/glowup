@@ -146,3 +146,37 @@ test('plan follows TaskCreate and uses the result id', async () => {
   ])
   expect(m.plan).toEqual([{ id: '7', title: 'Patch it', status: 'in_progress' }])
 })
+
+test('a subagent todo list leaves the main plan alone', async () => {
+  const m = run([
+    { type: 'tool-end', at: 1, tool: 'TodoWrite', toolUseId: 'p1', input: { todos: [{ content: 'Main', status: 'pending' }] }, isError: false, text: '' },
+    { type: 'tool-end', at: 2, tool: 'TodoWrite', toolUseId: 'p2', agentId: 'ag-1', input: { todos: [{ content: 'Sub', status: 'pending' }] }, isError: false, text: '' },
+  ])
+  expect(m.plan).toEqual([{ id: '0', title: 'Main', status: 'pending' }])
+})
+
+test('mergeCounts promotes a read file that git shows changed', async () => {
+  const snap = run([
+    { type: 'tool-end', at: 1, tool: 'Read', toolUseId: 'r1', input: { file_path: '/r/a.ts' }, isError: false, text: '' },
+    { type: 'tool-end', at: 2, tool: 'Read', toolUseId: 'r2', input: { file_path: '/r/b.ts' }, isError: false, text: '' },
+  ])
+  const m = mergeCounts(snap, [
+    { path: '/r/a.ts', add: 3, del: 1, how: 'edit', at: 0 },
+    { path: '/r/b.ts', add: 0, del: 0, how: 'edit', at: 0 },
+  ])
+  expect(m.files.map(f => [f.path, f.how, f.add, f.del])).toEqual([['/r/b.ts', 'read', 0, 0], ['/r/a.ts', 'edit', 3, 1]])
+})
+
+test('mergeCounts keeps a new file new', async () => {
+  const snap = run([{ type: 'tool-end', at: 1, tool: 'Write', toolUseId: 'w', input: { file_path: '/r/n.ts', content: 'a' }, isError: false, text: '', writeType: 'create' }])
+  expect(mergeCounts(snap, [{ path: '/r/n.ts', add: 4, del: 0, how: 'new', at: 0 }]).files[0]).toMatchObject({ how: 'new', add: 4 })
+})
+
+test('a failed Agent call ends that agent', async () => {
+  const m = run([
+    { type: 'tool-start', at: 1, tool: 'Agent', toolUseId: 'a1', input: { description: 'one' } },
+    { type: 'tool-start', at: 1, tool: 'Agent', toolUseId: 'a2', input: { description: 'two' } },
+    { type: 'tool-end', at: 5, tool: 'Agent', toolUseId: 'a1', input: {}, isError: true, text: 'denied' },
+  ])
+  expect(m.agents.map(a => [a.name, a.state, a.endedAt])).toEqual([['one', 'done', 5], ['two', 'running', undefined]])
+})
