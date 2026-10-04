@@ -21,3 +21,6 @@ art/clawd/viewer.html
 
 # `just installer-build` output
 installer/glowup-installer
+
+# `just demo-render` output
+demo/out/

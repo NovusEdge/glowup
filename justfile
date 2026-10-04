@@ -120,3 +120,15 @@ docs-check:
 [group('docs')]
 docs-preview:
     node docs/web/scripts/preview.ts
+
+# open the demo video's live editor (Revideo) with hot reload
+[group('demo')]
+demo-editor:
+    pnpm -C demo install --ignore-workspace
+    pnpm -C demo editor
+
+# render demo/out/launch.mp4 and launch-square.mp4, one at a time and capped at 6G
+[group('demo')]
+demo-render:
+    pnpm -C demo install --ignore-workspace
+    cd demo && systemd-run --user --scope -p MemoryMax=6G -p TasksMax=512 pnpm render
