@@ -19,7 +19,7 @@ With reduced motion on:
 
 Colors and row styles from your pack still apply.
 
-glowup does not flash. Nothing changes faster than every 80 ms, a color flash lasts at least 400 ms, and nothing flashes more than 2.5 times a second. Elapsed times still count up each second, because they are text that changes in place.
+glowup does not flash. Clawd's frames change no faster than every 80 ms; spinners move continuously. A color flash lasts at least 400 ms, and nothing flashes more than 2.5 times a second. Elapsed times still count up each second, because they are text that changes in place.
 
 The choice is saved and wins over the setting. You can also toggle it in `/glowup config`.
 

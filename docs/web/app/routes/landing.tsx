@@ -137,7 +137,7 @@ export default function Landing() {
 
       <section className="mx-auto max-w-[1100px] px-4 py-10 sm:px-6" aria-labelledby="gallery">
         <h2 id="gallery" className="section-h">Built-in themes</h2>
-        <p className="section-p">Four themes ship with glowup. <Link to="/theme-reference">The theme reference</Link> lists every value.</p>
+        <p className="section-p">Seven themes ship with glowup. <Link to="/theme-reference">The theme reference</Link> lists every value.</p>
         <div className="gallery">
           {Object.keys(PRESETS).map(n => <Preset key={n} name={n} />)}
         </div>

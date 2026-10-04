@@ -7,7 +7,7 @@ section: Start
 
 ## Install
 
-glowup is a Claude Code mod. You need Claude Code 2.1.288 or later. In Claude Code, run:
+glowup is a Claude Code mod. You need Claude Code 2.1.289 or later. In Claude Code, run:
 
 ```text title="claude code"
 /plugin marketplace add NovusEdge/glowup
