@@ -149,3 +149,49 @@ a { color: inherit; text-decoration: none; }
 .preset-meta { margin: 1rem 0 0; font-size: .8rem; }
 .swatches { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; margin: 0; padding: 0; list-style: none; }
 .swatches li { aspect-ratio: 1; border: 1px solid; border-radius: 4px; }
+
+.lab-h1 { font-family: var(--font-display); font-size: clamp(2.25rem, 6vw, 3.5rem); font-weight: 900; line-height: 1.05; letter-spacing: -.03em; margin: 0 0 .4em; }
+.lab-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1rem; margin: 0 0 2rem; }
+.lab-sec { margin: 0 0 3rem; }
+.lab-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.lab-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); }
+.lab-card { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; background: var(--card); overflow: hidden; }
+.lab-card h3 { margin: 1rem 1rem .25rem; font-family: var(--font-mono); font-size: .9rem; font-weight: 600; }
+.lab-card p { margin: 0 1rem 1rem; font-size: .85rem; line-height: 1.5; color: var(--muted); }
+.lab-term { display: grid; min-height: 7.5rem; place-items: center; border-radius: 0; border-width: 0 0 1px; }
+
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { cursor: pointer; border: 0; border-right: 1px solid var(--line); background: transparent; padding: .5rem .9rem; font: inherit; font-family: var(--font-mono); font-size: .85rem; color: var(--muted); }
+.seg button:last-child { border-right: 0; }
+.seg button:hover { color: var(--fg); }
+.seg button[aria-checked='true'] { background: color-mix(in oklab, var(--accent) 16%, transparent); color: var(--accent); }
+.chip { cursor: pointer; border: 1px solid var(--line); border-radius: 6px; background: transparent; padding: .5rem .9rem; font-family: var(--font-mono); font-size: .85rem; color: var(--muted); }
+.chip:hover:not(:disabled) { color: var(--fg); }
+.chip[aria-pressed='true'] { color: var(--accent); border-color: var(--accent); }
+.chip:disabled { cursor: default; opacity: .7; }
+
+/* Terminal cells: fixed pixel boxes so rows of block characters meet without gaps. */
+.term { border: 1px solid; border-radius: 8px; padding: .75rem 1rem; font-family: var(--font-mono); }
+.cells { display: inline-block; vertical-align: top; }
+.cells-sm { --cw: 7px; --ch: 14px; font-size: 12px; }
+.cells-md { --cw: 9px; --ch: 18px; font-size: 15px; }
+.cells-lg { --cw: 12px; --ch: 24px; font-size: 20px; }
+.crow { display: flex; height: var(--ch); white-space: pre; }
+.cc { display: block; flex: none; width: var(--cw); height: var(--ch); line-height: var(--ch); text-align: center; overflow: hidden; }
+.spin { display: inline-flex; align-items: center; gap: .75rem; max-width: 100%; }
+.spin-word { font-size: 15px; min-width: 0; overflow-wrap: anywhere; }
+
+.packs { display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+.pack { display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem; border: 1px solid var(--line); border-radius: 8px; background: var(--card); min-width: 0; }
+.pack h2 { margin: 0; font-family: var(--font-mono); font-size: 1.15rem; }
+.pack header p { margin: .25rem 0 0; color: var(--muted); }
+.pack-meta { margin: 0; font-size: .8rem; color: var(--muted); }
+.pack-spin { display: flex; align-items: center; min-height: 4rem; }
+.swatches-14 { grid-template-columns: repeat(14, 1fr); }
+.mock { padding: .75rem 1rem; font-family: var(--font-mono); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.mock-row + .mock-row { margin-top: 2px; }
+.mock-reply { margin-top: .6rem !important; }
+.codeblock.cmd { position: relative; margin: 0; }
+.cmd pre { padding-right: 5rem; }
+.cmd button { position: absolute; right: .75rem; top: 50%; transform: translateY(-50%); cursor: pointer; border: 0; background: none; font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.cmd button:hover { color: var(--fg); }

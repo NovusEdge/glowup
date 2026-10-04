@@ -16,7 +16,7 @@ export const slugs = (): string[] =>
     .sort()
 
 export const pathOf = (slug: string) => `/${slug}`
-export const allPaths = () => ['/', ...slugs().map(pathOf)]
+export const allPaths = () => ['/', '/spinners', '/gallery', ...slugs().map(pathOf)]
 
 export type Meta = { title: string; description: string; order: number; section: string }
 

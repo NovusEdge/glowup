@@ -128,6 +128,13 @@ export default function Landing() {
         </div>
       </section>
 
+      <section className="mx-auto max-w-[1100px] px-4 py-10 sm:px-6" aria-labelledby="packs">
+        <h2 id="packs" className="section-h">Packs</h2>
+        <p className="section-p">
+          A pack bundles colors, row style, border and spinner. <Link to="/gallery">See the four built-in packs</Link> or <Link to="/spinners">try every spinner and Clawd</Link>.
+        </p>
+      </section>
+
       <section className="mx-auto max-w-[1100px] px-4 py-10 sm:px-6" aria-labelledby="gallery">
         <h2 id="gallery" className="section-h">Built-in themes</h2>
         <p className="section-p">Four themes ship with glowup. <Link to="/theme-reference">The theme reference</Link> lists every value.</p>
