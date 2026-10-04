@@ -6,7 +6,7 @@ import type { Theme } from './themes.ts'
 import { resolveLook, cleanOverrides, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { loadUserPacks } from './userpacks.ts'
 import { PET_ROWS, type PetSetting, type PetId, type PetInput, type PetKind } from './pets.ts'
-import { bubbleFor, BUBBLE_SETTINGS, daypart, haikuLimit, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
+import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
 import { recordPass, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, refreshCounts, serial } from './changes.ts'
 import { loadTasks, taskListId } from './tasks.ts'
@@ -228,11 +228,15 @@ async function askHaiku($: Engine, mine: Bubble, ctx: HaikuContext) {
   const limit = ctx.limit ?? bubbleCap
   try {
     const { system, prompt } = haikuPrompt(ctx)
+    const maxTokens = haikuMaxTokens(limit)
     const aborted = new Promise<undefined>(r => stop.signal.addEventListener('abort', () => r(undefined)))
-    const r = await Promise.race([$.model.complete({ model: HAIKU_MODEL, system, prompt, maxTokens: 40, effort: 'low', timeoutMs: HAIKU_TIMEOUT_MS }, { signal: stop.signal }), aborted])
+    const r = await Promise.race([$.model.complete({ model: HAIKU_MODEL, system, prompt, maxTokens, effort: 'low', timeoutMs: HAIKU_TIMEOUT_MS }, { signal: stop.signal }), aborted])
     if (!r) { $.ui.log('haiku bubble: timed out or cancelled', { to: 'debug' }); return }
     if (!r.isAnswered) { $.ui.log(`haiku bubble: ${r.reason}`, { to: 'debug' }); return }
-    const text = sanitizeLine(r.text, limit)
+    // the result has no stop reason; output tokens at the cap mean the reply was cut off
+    if (r.usage?.output_tokens >= maxTokens) { $.ui.log('haiku bubble: hit the token cap, template kept', { to: 'debug' }); return }
+    const text = sanitizeLine(r.text)
+    if (text && !fitsBubble(text, limit)) { $.ui.log('haiku bubble: over the limit, template kept', { to: 'debug' }); return }
     if (!text || off || bubbles !== 'haiku' || !petOn() || bubble !== mine) return
     mine.text = text
     armBubble($, mine)

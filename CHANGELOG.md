@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - The Changes tab lists only files Claude edited or created. Files it only read no longer appear there, and the "done" speech bubble names an edited file.
+- Haiku speech bubbles are no longer cut off mid-word or mid-sentence. A Haiku line that is too long or hit its token cap is dropped and the template line stays.
 
 ## [0.3.4] - 2026-10-05
 
