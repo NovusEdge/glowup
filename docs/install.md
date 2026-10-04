@@ -19,7 +19,7 @@ The script downloads the glowup installer for your machine from the latest GitHu
 curl -fsSL https://glowup.khimani.dev/install.sh | less
 ```
 
-The installer shows a preview while you pick a pack, a pet, speech bubbles and reduced motion. Then it runs `claude plugin marketplace add NovusEdge/glowup` and `claude plugin install glowup@glowup` with your choices. If glowup is already installed, it updates the settings you pick instead, and leaves your theme alone. With `--yes` on an installed glowup, only the options you pass change; with none, nothing changes. Restart Claude Code if it is running, then type `/glowup`.
+The installer shows a preview while you pick a pack, then asks whether to use the pack as is or customize it. Customize lets you pick the colors (the pack's own, or any theme) and the spinner (the pack's own, or any spinner) on their own. After that you pick a pet, speech bubbles and reduced motion. On a terminal 102 columns wide or more, Clawd stands beside the form and names your current pick in a speech bubble. Then the installer runs `claude plugin marketplace add NovusEdge/glowup` and `claude plugin install glowup@glowup` with your choices. If glowup is already installed, it updates the settings you pick instead. It changes your theme and spinner only if you chose them with Customize or passed `--theme` or `--spinner`. With `--yes` on an installed glowup, only the options you pass change; with none, nothing changes. Restart Claude Code if it is running, then type `/glowup`.
 
 The script runs on Linux and macOS, on x86-64 and ARM. On Windows, download `glowup-installer_<version>_windows_amd64.zip` from the [latest release](https://github.com/NovusEdge/glowup/releases/latest), or install by hand.
 
@@ -35,6 +35,8 @@ curl -fsSL https://glowup.khimani.dev/install.sh | sh -s -- --yes --pack crt
 | --- | --- |
 | `--yes` | Install without the picker, with the defaults or the options below. The script adds it when there is no terminal. |
 | `--pack NAME` | `classic`, `crt`, `cozy` or `arcade`. Default `classic`. |
+| `--theme NAME` | A theme on top of the pack: `classic`, `glowup`, `aurora`, `dusk`, `cyberpunk`, `vaporwave` or `high-contrast`. `classic` keeps the pack's own colors. Default: not set. |
+| `--spinner NAME` | `stock`, `comet`, `eyes`, `orb-states`, `clawd`, `shimmer`, or `pack` for the pack's own. Default: not set. |
 | `--pet clawd\|off` | Default `clawd`. |
 | `--bubbles on\|off` | Speech bubbles. Default `on`. |
 | `--reduced-motion` | Turn off glowup's animation. |
@@ -62,7 +64,7 @@ If you see neither, read [Layout](layout.md) for the width rules.
 
 ## Settings
 
-The mod has five settings. The installer sets them. You can change them later with `claude plugin configure glowup@glowup`, or in your Claude Code settings.
+The mod has six settings. The installer sets them. You can change them later with `claude plugin configure glowup@glowup`, or in your Claude Code settings.
 
 | Setting | Values | Default | What it does |
 | --- | --- | --- | --- |
@@ -70,9 +72,10 @@ The mod has five settings. The installer sets them. You can change them later wi
 | `pet` | `clawd` or `off` | `clawd` | Shows Clawd, or no pet. |
 | `bubbles` | `on` or `off` | `on` | Turns speech bubbles on or off. |
 | `theme` | A theme name | `classic` | A theme on top of the pack. `classic` keeps the pack's own colors. |
+| `spinner` | A spinner name | `pack` | A spinner on top of the pack: `stock`, `comet`, `eyes`, `orb-states`, `clawd` or `shimmer`. `pack` keeps the pack's own spinner. |
 | `reducedMotion` | `true` or `false` | `false` | Turns off glowup's animation. |
 
-`/glowup theme <name>` and `/glowup motion` save your choice in the mod's store. A saved choice wins over the setting. See [Commands](commands.md).
+`/glowup theme <name>`, `/glowup spinner <name>` and `/glowup motion` save your choice in the mod's store. A saved choice wins over the setting. See [Commands](commands.md).
 
 ## Run from a clone
 
