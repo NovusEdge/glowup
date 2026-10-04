@@ -2,8 +2,12 @@ import type { EngineInterface, Register, Timer } from 'claude-code'
 import type { Host } from './host.ts'
 import { initialModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
 import { approvalLabel } from './events.ts'
-import { resolveTheme, type Theme } from './themes.ts'
-import { DEFAULT_THEME } from './presets.ts'
+import type { Theme } from './themes.ts'
+import { resolveLook, DEFAULT_MIX, type Mix, type Look } from './packs.ts'
+import { loadUserPacks } from './userpacks.ts'
+import type { PetSetting } from './pets.ts'
+import type { BubbleSetting } from './bubbles.ts'
+import { recordPass, type EggStore } from './eggs.ts'
 import { gitBase, refreshCounts, serial } from './changes.ts'
 import { tierFor } from './layout.tsx'
 import { renderBand } from './band.tsx'
@@ -25,7 +29,11 @@ const CONFIG = { plugin: 'glowup', key: 'config' } as const
 // Module state: one session per process. A hot reload starts it over, which only
 // loses the in-flight session's view (settings and takeover state live in $.store).
 let model: Model = initialModel()
-let theme: Theme = resolveTheme(DEFAULT_THEME, {}).theme
+let mix: Mix = DEFAULT_MIX
+let look: Look = resolveLook(DEFAULT_MIX, {}, {}).look
+let theme: Theme = look.theme
+let pet: PetSetting = 'clawd'
+let bubbles: BubbleSetting = 'on'
 let view: PaneView = { tab: 'changes' }
 let git: { root: string; base: string } | undefined
 let cwd = ''
@@ -103,6 +111,16 @@ function redraw($: Engine) {
 function relook($: Engine) {
   $.ui.invalidate('ui.render')
   publish($)
+}
+// Resolves the mix against the packs and themes on disk. Returns the errors it toasted.
+async function loadLook($: Engine): Promise<string[]> {
+  const host = hostOf($)
+  const r = resolveLook(mix, await loadUserPacks(host), await loadUserThemes(host))
+  look = r.look
+  theme = look.theme
+  if (r.errors.length) $.ui.toast(r.errors.join('\n'))
+  relook($)
+  return r.errors
 }
 // Elapsed times and agent spinners change with no event behind them, and
 // background subagents keep running after the main turn ends.
@@ -186,14 +204,35 @@ async function askFirstRun($: Engine) {
   }
 }
 
+const PETS: readonly PetSetting[] = ['clawd', 'clawd-shiny', 'off']
+const BUBBLES: readonly BubbleSetting[] = ['on', 'off']
+
+// The store wins only once a command or the config view wrote it. Without a stored mix, the
+// 0.1 settings migrate in memory; only a command writes the result back.
+async function initialMix(host: Host, options: Readonly<Record<string, unknown>>): Promise<Mix> {
+  const stored = await host.storeGet('mix') as Partial<Mix> | undefined
+  if (stored && typeof stored.colors === 'string' && typeof stored.motion === 'string') {
+    return { colors: stored.colors, motion: stored.motion, theme: typeof stored.theme === 'string' ? stored.theme : undefined, spinner: typeof stored.spinner === 'string' ? stored.spinner : undefined }
+  }
+  const pack = typeof options.pack === 'string' && options.pack ? options.pack : DEFAULT_MIX.colors
+  const storedTheme = await host.storeGet('theme')
+  const theme = typeof storedTheme === 'string' ? storedTheme : typeof options.theme === 'string' && options.theme !== 'classic' ? options.theme : undefined
+  return { ...DEFAULT_MIX, colors: pack, motion: pack, theme }
+}
+
 function ctlOf($: Engine): Ctl {
   return {
     current: () => theme.name,
-    setTheme: async name => { theme = resolveTheme(name, await loadUserThemes(hostOf($))).theme; relook($) },
+    setTheme: async name => { mix = { ...mix, theme: name }; await loadLook($) },
     togglePane: () => togglePane($),
     setMotion: reduced => { reducedMotion = reduced; relook($) },
     // ask rejects when the person dismisses the dialog; that counts as No
     confirm: async question => (await $.ui.ask(question, ['Yes', 'No']).catch(() => 'No')) === 'Yes',
+    mix: () => mix,
+    setMix: async m => { mix = m; return loadLook($) },
+    pet: () => pet,
+    setPet: p => { pet = p; relook($) },
+    setBubbles: b => { bubbles = b; relook($) },
   }
 }
 
@@ -206,11 +245,13 @@ export const register: Register = (on, options) => {
     home = (await $.env.get('HOME')) ?? ''
     configDir = (await $.env.get('CLAUDE_CONFIG_DIR')) || `${home}/.claude`
     const host = hostOf($)
-    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'theme|pane|motion|statusline ...' })
-    const chosen = String((await host.storeGet('theme')) ?? options.theme ?? DEFAULT_THEME)
-    const r = resolveTheme(chosen, await loadUserThemes(host))
-    theme = r.theme
-    if (r.error) $.ui.toast(r.error)
+    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'theme|pack|import|pet|bubbles|pane|motion|statusline ...' })
+    mix = await initialMix(host, options)
+    const storedPet = await host.storeGet('pet')
+    pet = PETS.includes(storedPet as PetSetting) ? storedPet as PetSetting : PETS.includes(options.pet as PetSetting) ? options.pet as PetSetting : 'clawd'
+    const storedBubbles = await host.storeGet('bubbles')
+    bubbles = BUBBLES.includes(storedBubbles as BubbleSetting) ? storedBubbles as BubbleSetting : BUBBLES.includes(options.bubbles as BubbleSetting) ? options.bubbles as BubbleSetting : 'on'
+    await loadLook($)
     const motion = await host.storeGet('reducedMotion')
     if (typeof motion === 'boolean') reducedMotion = motion
     sessionId = await $.session.id()
@@ -241,13 +282,19 @@ export const register: Register = (on, options) => {
     const ran = await next(e)
     const denied = ran.deny !== undefined
     const result = denied || ran.isError ? undefined : ran.result as unknown as { task?: { id?: unknown }; totalTokens?: unknown; type?: unknown } | undefined
+    const endAt = Date.now()
     feed($, {
-      type: 'tool-end', at: Date.now(), tool: e.tool, toolUseId, agentId: e.agentId, input,
+      type: 'tool-end', at: endAt, tool: e.tool, toolUseId, agentId: e.agentId, input,
       isError: denied || ran.isError === true, text: ran.text ?? ran.deny ?? '',
       resultTaskId: e.tool === 'TaskCreate' && result?.task?.id !== undefined ? String(result.task.id) : undefined,
       agentTokens: e.tool === 'Agent' && typeof result?.totalTokens === 'number' ? result.totalTokens : undefined,
       writeType: e.tool === 'Write' && (result?.type === 'create' || result?.type === 'update') ? result.type : undefined,
     })
+    if (!e.agentId && model.lastTest?.at === endAt && model.lastTest.passed) {
+      const r = recordPass(await hostOf($).storeGet('eggs') as EggStore | undefined, Date.now())
+      await hostOf($).storeSet('eggs', r.next)
+      if (r.unlocked) $.ui.toast('something was left on your track… /glowup pet clawd-shiny')
+    }
     if (!denied && !e.agentId && (e.tool === 'Edit' || e.tool === 'Write' || e.tool === 'NotebookEdit' || e.tool === 'Bash')) refresh($)
     if (!e.agentId) void feedContext($)
     return ran

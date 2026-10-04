@@ -1,6 +1,8 @@
 import { test, expect, mock } from 'claude-code/testing'
 import { runGlowup, fakeHost, fakeFs } from './kit.ts'
 import { runCommand, type Ctl } from '../hooks/command.ts'
+import type { Mix } from '../hooks/packs.ts'
+import type { PetSetting } from '../hooks/pets.ts'
 
 test('/glowup with no args prints usage', async ($, on) => {
   fakeFs(on)
@@ -14,12 +16,19 @@ const SETTINGS = '/home/u/.claude/settings.json'
 const ctl = (answer = true, current = 'classic') => {
   const calls: string[] = []
   const questions: string[] = []
+  let mix: Mix = { colors: 'classic', motion: 'classic' }
+  let pet: PetSetting = 'clawd'
   const c: Ctl = {
     current: () => current,
     setTheme: async name => { calls.push('theme:' + name) },
     togglePane: async () => { calls.push('pane'); return 'glowup pane open' },
     setMotion: reduced => { calls.push('motion:' + reduced) },
     confirm: async q => { calls.push('confirm'); questions.push(q); return answer },
+    mix: () => mix,
+    setMix: async m => { mix = m; calls.push(`mix:${m.colors}/${m.motion}${m.theme ? '/' + m.theme : ''}`); return [] },
+    pet: () => pet,
+    setPet: p => { pet = p; calls.push('pet:' + p) },
+    setBubbles: b => { calls.push('bubbles:' + b) },
   }
   return { calls, questions, ctl: c }
 }
@@ -29,7 +38,7 @@ test('theme switch persists the name and applies it', async () => {
   const { calls, ctl: c } = ctl()
   expect(await runCommand(host, 'theme cyberpunk', c)).toContain('cyberpunk')
   expect(store.theme).toBe('cyberpunk')
-  expect(calls).toEqual(['theme:cyberpunk'])
+  expect(calls).toEqual(['mix:classic/classic/cyberpunk'])
 })
 
 test('a user theme resolves and switches', async () => {
@@ -37,7 +46,7 @@ test('a user theme resolves and switches', async () => {
   const { calls, ctl: c } = ctl()
   expect(await runCommand(host, 'theme mine', c)).toBe('Theme: mine')
   expect(store.theme).toBe('mine')
-  expect(calls).toEqual(['theme:mine'])
+  expect(calls).toEqual(['mix:classic/classic/mine'])
 })
 
 test('unknown theme is refused and nothing changes', async () => {
@@ -108,4 +117,90 @@ test('statusline on warns when project settings set their own', async () => {
 test('theme add without a URL shows usage', async () => {
   const { host } = fakeHost()
   expect(await runCommand(host, 'theme add', ctl().ctl)).toContain('/glowup theme add <url>')
+})
+
+const PACKS_DIR = '/home/u/.claude/glowup/packs'
+
+test('pack <name> stores both layers and applies them', async () => {
+  const { host, store } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'pack arcade', c)).toBe('Pack: arcade')
+  expect(store.mix).toEqual({ colors: 'arcade', motion: 'arcade' })
+  expect(calls).toEqual(['mix:arcade/arcade'])
+})
+
+test('an unknown pack changes nothing', async () => {
+  const { host, store } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'pack ghost', c)).toContain('no pack named "ghost"')
+  expect(store.mix).toBeUndefined()
+  expect(calls).toEqual([])
+})
+
+test('pack list marks the active pack or the custom mix', async () => {
+  const { host } = fakeHost({ files: { [`${PACKS_DIR}/mine.json`]: '{"format":1,"name":"mine"}' } })
+  const { ctl: c } = ctl()
+  const out = await runCommand(host, 'pack list', c)
+  for (const n of ['classic', 'crt', 'cozy', 'arcade', 'mine']) expect(out).toContain(n)
+  expect(out).toContain('● classic')
+  await c.setMix({ colors: 'crt', motion: 'cozy' })
+  expect(await runCommand(host, 'pack list', c)).toContain('custom mix: colors crt, motion cozy')
+})
+
+test('pack save writes the current mix as a self-contained file', async () => {
+  const { host, files } = fakeHost()
+  const { ctl: c } = ctl()
+  await c.setMix({ colors: 'crt', motion: 'cozy' })
+  expect(await runCommand(host, 'pack save mine', c)).toContain('Saved pack "mine"')
+  const file = JSON.parse(files[`${PACKS_DIR}/mine.json`]!)
+  expect([file.format, file.colors.rows, file.motion.spinner]).toEqual([1, 'retro', 'eyes'])
+})
+
+test('pack <url> installs then applies; --force replaces', async () => {
+  const { host, store } = fakeHost({ fetches: { 'https://x.dev/n.json': '{"format":1,"name":"neon","extends":"arcade"}' } })
+  const { ctl: c } = ctl()
+  expect(await runCommand(host, 'pack https://x.dev/n.json', c)).toContain('neon')
+  expect(store.mix).toEqual({ colors: 'neon', motion: 'neon' })
+  expect(await runCommand(host, 'pack https://x.dev/n.json', c)).toContain('--force')
+  expect(await runCommand(host, 'pack https://x.dev/n.json --force', c)).toContain('neon')
+})
+
+test('theme <name> keeps the pack and sets mix.theme', async () => {
+  const { host, store } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  await runCommand(host, 'pack arcade', c)
+  expect(await runCommand(host, 'theme dusk', c)).toBe('Theme: dusk')
+  expect(store.mix).toEqual({ colors: 'arcade', motion: 'arcade', theme: 'dusk' })
+  expect(store.theme).toBe('dusk')
+  expect(calls.at(-1)).toBe('mix:arcade/arcade/dusk')
+})
+
+test('import reads a scheme and applies its colors layer', async () => {
+  const ghostty = ['#21222c', '#ff5555', '#50fa7b', '#f1fa8c', '#bd93f9', '#ff79c6', '#8be9fd', '#f8f8f2'].map((x, i) => `palette = ${i}=${x}`).join('\n') + '\nbackground = #282a36\nforeground = #f8f8f2'
+  const { host, files, store } = fakeHost({ files: { '/home/u/schemes/dracula': ghostty } })
+  const { ctl: c } = ctl()
+  await runCommand(host, 'pack cozy', c)
+  expect(await runCommand(host, 'import ~/schemes/dracula', c)).toContain('dracula')
+  expect(JSON.parse(files[`${PACKS_DIR}/dracula.json`]!).colors.palette.text).toBe('#f8f8f2')
+  expect(store.mix).toEqual({ colors: 'dracula', motion: 'cozy' })
+  expect(await runCommand(host, 'import ~/nope', c)).toContain('Could not read')
+})
+
+test('import refuses a file over 64 KB before reading it', async () => {
+  const { host, ran } = fakeHost({ files: { '/home/u/big': 'x' }, runs: { 'stat -c %s /home/u/big': { exitCode: 0, stdout: '70000\n' } } })
+  expect(await runCommand(host, 'import ~/big', ctl().ctl)).toContain('over 64 KB')
+  expect(ran).toEqual(['stat -c %s /home/u/big'])
+})
+
+test('pet and bubbles; clawd-shiny stays locked until earned', async () => {
+  const { host, store } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'pet off', c)).toBe('Pet: off')
+  expect(await runCommand(host, 'pet clawd-shiny', c)).toContain('not unlocked')
+  store.eggs = { passRuns: 100, shinyAt: 1 }
+  expect(await runCommand(host, 'pet clawd-shiny', c)).toBe('Pet: clawd-shiny')
+  expect(await runCommand(host, 'pet list', c)).toContain('● clawd-shiny')
+  expect(await runCommand(host, 'bubbles off', c)).toBe('Bubbles: off')
+  expect([store.pet, store.bubbles]).toEqual(['clawd-shiny', 'off'])
+  expect(calls).toEqual(['pet:off', 'pet:clawd-shiny', 'bubbles:off'])
 })

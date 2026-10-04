@@ -314,3 +314,44 @@ test('a download over 64 KB is refused before parsing', async ($, on) => {
   const out = await runGlowup($, 'theme add https://x.dev/big.json') as { text?: string }
   expect(String(out.text)).toMatch(/64 KB|65536 bytes/)
 })
+
+test('the stored mix loads at session start; a bad layer toasts once', async ($, on) => {
+  fakeFs(on, { '/fake/.claude/glowup/packs/half.json': '{"format":1,"name":"half","colors":{"rows":"fancy"},"motion":"arcade"}' })
+  mock.clock(on)
+  mock.store(on, { mix: { colors: 'half', motion: 'half' } })
+  bootable(on)
+  const toasts: string[] = []
+  on('ui.toast', async (_$, e) => { toasts.push(e.text); return { value: undefined } as never })
+  on('session.id', async () => ({ value: 's1' }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  expect(toasts.filter(t => t.includes('rows'))).toHaveLength(1)
+  expect((await runGlowup($, 'pack list')).text).toContain('custom mix: colors half, motion half')
+})
+
+test('userConfig seeds the look; the store wins once a command wrote the key', async ($, on) => {
+  fakeFs(on)
+  mock.clock(on)
+  mock.store(on, { theme: 'dusk' })
+  bootable(on)
+  on('session.id', async () => ({ value: 's1' }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  expect((await runGlowup($, 'pack list')).text).toContain('custom mix: colors classic, motion classic, theme dusk')
+  expect((await runGlowup($, 'pet list')).text).toContain('● clawd')
+  await runGlowup($, 'pet off')
+  expect((await runGlowup($, 'pet list')).text).toContain('● off')
+})
+
+test('the 100th passing test run unlocks the shiny pet', async ($, on) => {
+  fakeFs(on)
+  mock.clock(on)
+  mock.store(on, { eggs: { passRuns: 99 } })
+  const toasts: string[] = []
+  on('ui.toast', async (_$, e) => { toasts.push(e.text); return { value: undefined } as never })
+  on('ui.status', async () => ({ value: undefined }) as never)
+  on('session.id', async () => ({ value: 's1' }))
+  on('turn.start', async (_$, e) => ({ turnId: e.turnId }))
+  on('tool.call', async () => ({ result: {}, text: 'Tests: 12 passed' }) as never)
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await $.tool.call({ tool: 'Bash', tool_use_id: 'b1', command: 'npm test' } as never)
+  expect(toasts.some(t => t.includes('something was left on your track'))).toBe(true)
+})
