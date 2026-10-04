@@ -197,11 +197,13 @@ Reduced motion hides him. Full guide: [Pets](docs/pets.md).
 
 ## Config
 
-`/glowup config` asks up to four questions: the pack, the spinner, the pet, and extras such as bubbles and reduced motion. Each answer applies at once, and Esc stops.
+`/glowup config` asks five questions: the pack, the spinner, the pet, extras such as bubbles, reduced motion and color tweaks, and the status line fields. Each answer applies at once, and Esc stops.
 
 ```text
 /glowup config
 ```
+
+glowup's settings also appear under Claude Code's `/plugin` menu. Those are only defaults. Once `/glowup config` or a `/glowup` command has saved a choice, that choice wins, and changing the setting in `/plugin` does nothing until you run the matching `/glowup` command again.
 
 See [Commands](docs/commands.md#config).
 
