@@ -1,7 +1,7 @@
 import type { Host } from './host.ts'
-import { parseJsonc } from './themes.ts'
+import { parseJsonc, isUnsafe } from './themes.ts'
 import { loadUserThemes } from './userthemes.ts'
-import { resolveLook, validatePack, type PackFile } from './packs.ts'
+import { resolveLook, validatePack, isNewerSpinner, type PackFile } from './packs.ts'
 import { PACKS } from './packpresets.ts'
 
 export const PACK_DIR = (configDir: string) => `${configDir}/glowup/packs`
@@ -15,7 +15,7 @@ export async function loadUserPacks(host: Host): Promise<Record<string, unknown>
   for (const f of await host.listDir(dir)) {
     if (!f.endsWith('.json')) continue
     const name = f.slice(0, -5)
-    try { out[name] = parseJsonc(await host.readFile(`${dir}/${f}`)) } catch (err) { out[name] = err instanceof Error ? err : new Error(String(err)) }
+    try { out[name] = parseJsonc(await host.readFile(`${dir}/${f}`)) } catch (err) { out[name] = new Error([...(err instanceof Error ? err.message : String(err))].filter(c => !isUnsafe(c.codePointAt(0)!)).join('')) }
   }
   return out
 }
@@ -42,7 +42,9 @@ export async function addPack(host: Host, url: string, force: boolean): Promise<
   const problem = await nameProblem(host, name, force)
   if (problem) return { message: problem }
   const check = resolveLook({ colors: name, motion: name }, { ...(await loadUserPacks(host)), [name]: file }, await loadUserThemes(host))
-  if (check.errors.length) return { message: check.errors[0]! }
+  // A spinner this build lacks is a warning: the pack was made for a newer glowup and falls back to stock.
+  const fatal = check.errors.filter(e => !isNewerSpinner(e))
+  if (fatal.length) return { message: fatal[0]! }
   await host.writeFile(`${PACK_DIR(host.configDir)}/${name}.json`, r.text)
   return { name, message: `Installed pack "${name}". Apply it with /glowup pack ${name}` }
 }

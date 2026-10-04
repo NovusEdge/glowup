@@ -30,7 +30,7 @@ export function parseJsonc(text: string): unknown {
 
 // Downloaded themes reach the terminal, so anything that moves the cursor, hides text or
 // is not a scalar value is out: C0/C1 controls, zero-width and bidi marks, surrogates.
-const UNSAFE: [number, number][] = [[0x00, 0x1f], [0x7f, 0x9f], [0x200b, 0x200f], [0x2028, 0x202f], [0x2060, 0x206f], [0xfeff, 0xfeff], [0xd800, 0xdfff]]
+const UNSAFE: [number, number][] = [[0x00, 0x1f], [0x7f, 0x9f], [0x061c, 0x061c], [0x200b, 0x200f], [0x2028, 0x202f], [0x2060, 0x206f], [0xfeff, 0xfeff], [0xd800, 0xdfff]]
 export const isUnsafe = (cp: number) => UNSAFE.some(([lo, hi]) => cp >= lo && cp <= hi)
 
 // Below U+FFFF and width 1: the engine refuses glyph cells of any other width.

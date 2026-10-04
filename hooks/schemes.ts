@@ -10,7 +10,7 @@ function blend(a: string, b: string, t: number): string {
   return '#' + [0, 1, 2].map(i => Math.round(ch(a, i) + (ch(b, i) - ch(a, i)) * t).toString(16).padStart(2, '0')).join('')
 }
 
-const hex = (v: string): string | undefined => { const m = HEX.exec(v.trim().replace(/^"|"$/g, '')); return m ? '#' + m[1]!.toLowerCase() : undefined }
+const hex = (v: string): string | undefined => { const m = HEX.exec(v.trim().replace(/^["']|["']$/g, '')); return m ? '#' + m[1]!.toLowerCase() : undefined }
 
 // Names come from downloaded files and reach toasts, so only [a-z0-9-] survives.
 function slug(s: string): string {

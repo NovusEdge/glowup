@@ -117,6 +117,7 @@ export const SPINNERS: Record<SpinnerId, Spec> = {
 }
 
 export function spinnerCells(id: SpinnerId, tMs: number, o: { color: string; bg: string; fg: string }, st: OrbState = 'think'): Cell[][] {
+  tMs = Math.max(0, tMs || 0)
   const s = SPINNERS[id]
   if (s.kind === 'glyph') { const f = [...s.frames]; return [[{ ch: f[Math.floor(tMs / 120) % f.length]!, fg: o.color }]] }
   if (s.kind === 'art') return s.art[Math.floor(tMs / 220) % s.art.length]!.map(r => [...r].map(ch => ({ ch, fg: CLAWD })))
