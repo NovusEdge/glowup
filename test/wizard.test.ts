@@ -40,22 +40,23 @@ const rig = (answers: (string | typeof ESC)[], start: { mix?: Mix; pet?: PetSett
   return { host, kv, ctl, asked, calls, run: () => runCommand(host, 'config', ctl) }
 }
 
-test('asks Pack, Pet, Extras in order with the current pack marked', async () => {
-  const r = rig(['classic (current)', 'Clawd', 'Turn bubbles off'])
+test('asks Pack, Spinner, Pet, Extras in order with the current pack marked', async () => {
+  const r = rig(['classic (current)', 'Pack default', 'Clawd', 'Turn bubbles off'])
   await r.run()
-  expect(r.asked.map(q => q.header)).toEqual(['Pack', 'Pet', 'Extras'])
+  expect(r.asked.map(q => q.header)).toEqual(['Pack', 'Spinner', 'Pet', 'Extras'])
   expect(r.asked[0]!.question).toBe('Which look?')
   expect(r.asked[0]!.options).toEqual(['arcade', 'classic (current)', 'cozy', 'crt'])
-  expect(r.asked[1]!.question).toBe('Who keeps you company?')
-  expect(r.asked[1]!.options).toEqual(['Clawd', 'No pet'])
-  expect(r.asked[2]!.question).toBe('Anything else to change?')
-  expect(r.asked[2]!.multiSelect).toBe(true)
-  expect(r.asked[2]!.options).toEqual(['Turn bubbles off', 'Turn reduced motion on'])
+  expect(r.asked[1]!.question).toBe('Which spinner?')
+  expect(r.asked[2]!.question).toBe('Who keeps you company?')
+  expect(r.asked[2]!.options).toEqual(['Clawd', 'No pet'])
+  expect(r.asked[3]!.question).toBe('Anything else to change?')
+  expect(r.asked[3]!.multiSelect).toBe(true)
+  expect(r.asked[3]!.options).toEqual(['Turn bubbles off', 'Turn reduced motion on'])
   expect(r.asked.every(q => q.options.length >= 2 && q.options.length <= 4 && q.header.length <= 12)).toBe(true)
 })
 
 test('each answer applies right away through the command paths', async () => {
-  const r = rig(['arcade', 'No pet', 'Turn bubbles off,Turn reduced motion on'])
+  const r = rig(['arcade', 'Pack default', 'No pet', 'Turn bubbles off,Turn reduced motion on'])
   const out = await r.run()
   expect(r.kv.mix).toEqual({ colors: 'arcade', motion: 'arcade' })
   expect(r.kv.pet).toBe('off')
@@ -65,6 +66,73 @@ test('each answer applies right away through the command paths', async () => {
   expect(out).toBe('glowup · arcade · no pet · bubbles off · reduced motion')
 })
 
+test('the spinner options are Pack default plus the first three ids that are not the pack\'s own', async () => {
+  const classic = rig(['classic (current)', ESC])
+  await classic.run()
+  expect(classic.asked[1]!.options).toEqual(['Pack default', 'comet', 'eyes', 'orb-states'])
+  const arcade = rig(['arcade', ESC])
+  await arcade.run()
+  expect(arcade.asked[1]!.options).toEqual(['Pack default', 'stock', 'comet', 'eyes'])
+})
+
+test('the active override is marked (current), and picking it applies nothing', async () => {
+  const r = rig(['Keep custom mix', 'comet (current)', ESC], { mix: { colors: 'classic', motion: 'classic', spinner: 'comet' } })
+  await r.run()
+  expect(r.asked[1]!.options).toEqual(['Pack default', 'comet (current)', 'eyes', 'orb-states'])
+  expect(r.calls).toEqual([])
+})
+
+test('Keep leaves the override and the spinner question still follows', async () => {
+  const mix = { colors: 'cozy', motion: 'cozy', spinner: 'clawd' }
+  const r = rig(['Keep custom mix', 'Pack default', ESC], { mix })
+  await r.run()
+  expect(r.asked[1]!.options).toEqual(['Pack default', 'stock', 'comet', 'orb-states'])
+  expect(r.ctl.mix()).toEqual({ colors: 'cozy', motion: 'cozy' })
+})
+
+test('picking a spinner id applies it and the summary names it', async () => {
+  const r = rig(['classic (current)', 'comet', 'Clawd', ''])
+  const out = await r.run()
+  expect(r.kv.mix).toEqual({ colors: 'classic', motion: 'classic', spinner: 'comet' })
+  expect(out).toBe('glowup · classic · spinner comet · Clawd · bubbles on · full motion')
+})
+
+test('Pack default clears an override and does nothing when none is set', async () => {
+  const set = rig(['Keep custom mix', 'Pack default', ESC], { mix: { colors: 'classic', motion: 'classic', spinner: 'eyes' } })
+  const out = await set.run()
+  expect(set.kv.mix).toEqual({ colors: 'classic', motion: 'classic' })
+  expect(out).not.toContain('spinner')
+  const none = rig(['classic (current)', 'Pack default', ESC])
+  await none.run()
+  expect(none.calls).toEqual([])
+})
+
+test('choosing a new pack drops the old override before the spinner question reads the mix', async () => {
+  const r = rig(['crt', 'Pack default', ESC], { mix: { colors: 'cozy', motion: 'cozy', spinner: 'comet' } })
+  await r.run()
+  expect(r.asked[1]!.options).toEqual(['Pack default', 'stock', 'eyes', 'orb-states'])
+  expect(r.calls).toEqual(['mix:crt'])
+})
+
+test('Other with a spinner id is trimmed and applied, and an unknown one stops with an error', async () => {
+  const ok = rig(['classic (current)', '  shimmer ', ESC])
+  await ok.run()
+  expect(ok.kv.mix).toEqual({ colors: 'classic', motion: 'classic', spinner: 'shimmer' })
+  const bad = rig(['classic (current)', 'ghost'])
+  const out = await bad.run()
+  expect(out).toBe('No spinner named "ghost".')
+  expect(bad.asked).toHaveLength(2)
+  expect(bad.calls).toEqual([])
+})
+
+test('Esc on the spinner question stops the wizard and keeps the pack pick', async () => {
+  const r = rig(['cozy', ESC])
+  const out = await r.run()
+  expect(r.asked).toHaveLength(2)
+  expect(r.kv.mix).toEqual({ colors: 'cozy', motion: 'cozy' })
+  expect(out).toContain('cozy')
+})
+
 test('the first pick is applied before the next question is asked', async () => {
   const r = rig(['crt', ESC])
   await r.run()
@@ -72,12 +140,12 @@ test('the first pick is applied before the next question is asked', async () => 
 })
 
 test('the summary line for untouched defaults', async () => {
-  const r = rig(['classic (current)', 'Clawd', ''])
+  const r = rig(['classic (current)', 'Pack default', 'Clawd', ''])
   expect(await r.run()).toBe('glowup · classic · Clawd · bubbles on · full motion')
 })
 
 test('Other with an installed user pack applies it', async () => {
-  const r = rig(['mine', 'Clawd', ESC], {}, { '/home/u/.claude/glowup/packs/mine.json': JSON.stringify({ format: 1, name: 'mine', colors: { theme: 'classic' } }) })
+  const r = rig(['mine', 'Pack default', 'Clawd', ESC], {}, { '/home/u/.claude/glowup/packs/mine.json': JSON.stringify({ format: 1, name: 'mine', colors: { theme: 'classic' } }) })
   const out = await r.run()
   expect(r.kv.mix).toEqual({ colors: 'mine', motion: 'mine' })
   expect(out).toContain('· mine ·')
@@ -86,16 +154,16 @@ test('Other with an installed user pack applies it', async () => {
 const MINE = { '/home/u/.claude/glowup/packs/mine.json': JSON.stringify({ format: 1, name: 'mine', colors: { theme: 'classic' } }) }
 
 test('a user pack start offers Keep first, then classic and the built-ins up to four options', async () => {
-  const r = rig(['Keep mine', 'Clawd', ''], { mix: { colors: 'mine', motion: 'mine' } }, MINE)
+  const r = rig(['Keep mine', 'Pack default', 'Clawd', ''], { mix: { colors: 'mine', motion: 'mine' } }, MINE)
   await r.run()
   expect(r.asked[0]!.options).toEqual(['Keep mine', 'classic', 'arcade', 'cozy'])
   expect(r.calls).toEqual([])
-  expect(r.asked).toHaveLength(3)
+  expect(r.asked).toHaveLength(4)
 })
 
 test('a theme override start offers Keep custom mix and Keep leaves the override alone', async () => {
   const mix = { colors: 'classic', motion: 'classic', theme: 'dracula' }
-  const r = rig(['Keep custom mix', 'Clawd', ''], { mix })
+  const r = rig(['Keep custom mix', 'Pack default', 'Clawd', ''], { mix })
   const out = await r.run()
   expect(r.asked[0]!.options).toEqual(['Keep custom mix', 'classic', 'arcade', 'cozy'])
   expect(r.calls).toEqual([])
@@ -117,7 +185,7 @@ test('a built-in that did not fit stays reachable by typing it', async () => {
 })
 
 test('a plain built-in start keeps four options and picking (current) applies nothing', async () => {
-  const r = rig(['crt (current)', 'Clawd', ''], { mix: { colors: 'crt', motion: 'crt' } })
+  const r = rig(['crt (current)', 'Pack default', 'Clawd', ''], { mix: { colors: 'crt', motion: 'crt' } })
   await r.run()
   expect(r.asked[0]!.options).toEqual(['arcade', 'classic', 'cozy', 'crt (current)'])
   expect(r.calls).toEqual([])
@@ -153,24 +221,24 @@ test('Other text that smuggles a flag is not an installed pack', async () => {
 })
 
 test('the shiny pet is offered only once unlocked, and applies', async () => {
-  const r = rig(['classic (current)', 'Clawd (shiny)', ESC], {}, {}, { eggs: { passRuns: 100, shinyAt: 5 } })
+  const r = rig(['classic (current)', 'Pack default', 'Clawd (shiny)', ESC], {}, {}, { eggs: { passRuns: 100, shinyAt: 5 } })
   const out = await r.run()
-  expect(r.asked[1]!.options).toEqual(['Clawd', 'Clawd (shiny)', 'No pet'])
+  expect(r.asked[2]!.options).toEqual(['Clawd', 'Clawd (shiny)', 'No pet'])
   expect(r.kv.pet).toBe('clawd-shiny')
   expect(out).toContain('Clawd (shiny)')
 })
 
 test('extras toggle relative to the current state, in both directions', async () => {
-  const r = rig(['classic (current)', 'Clawd', 'Turn bubbles on,Turn reduced motion off'], { bubbles: 'off', reduced: true })
+  const r = rig(['classic (current)', 'Pack default', 'Clawd', 'Turn bubbles on,Turn reduced motion off'], { bubbles: 'off', reduced: true })
   const out = await r.run()
-  expect(r.asked[2]!.options).toEqual(['Turn bubbles on', 'Turn reduced motion off'])
+  expect(r.asked[3]!.options).toEqual(['Turn bubbles on', 'Turn reduced motion off'])
   expect(out).toBe('glowup · classic · Clawd · bubbles on · full motion')
   expect(r.kv.bubbles).toBe('on')
   expect(r.kv.reducedMotion).toBe(false)
 })
 
 test('an empty extras selection changes nothing', async () => {
-  const r = rig(['classic (current)', 'Clawd', ''])
+  const r = rig(['classic (current)', 'Pack default', 'Clawd', ''])
   await r.run()
   expect(r.kv.bubbles).toBeUndefined()
   expect(r.kv.reducedMotion).toBeUndefined()

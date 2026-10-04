@@ -33,11 +33,12 @@ const ROW = (text: string, over: object = {}) => ({ command: 'glowup', args: 'co
 const mountRow = ($: any, props: unknown, surface = 'terminal') => $.ui.mount({ plugin: 'glowup', surface, component: 'CommandOutput', props })
 
 test('/glowup config asks through the engine dialog, applies each pick and never opens the pane', async ($, on) => {
-  const s = setup(on, ['arcade', 'No pet', 'Turn bubbles off'])
+  const s = setup(on, ['arcade', 'Pack default', 'No pet', 'Turn bubbles off'])
   const out = await runGlowup($, 'config')
-  expect(s.asked.map(q => q.header)).toEqual(['Pack', 'Pet', 'Extras'])
+  expect(s.asked.map(q => q.header)).toEqual(['Pack', 'Spinner', 'Pet', 'Extras'])
   expect(s.asked[0].options.map((o: any) => o.label)).toEqual(['arcade', 'classic (current)', 'cozy', 'crt'])
-  expect(s.asked[2].multiSelect).toBe(true)
+  expect(s.asked[1].options.map((o: any) => o.label)).toEqual(['Pack default', 'stock', 'comet', 'eyes'])
+  expect(s.asked[3].multiSelect).toBe(true)
   expect(out.text).toBe('glowup · arcade · no pet · bubbles off · full motion')
   expect((await runGlowup($, 'pack list')).text).toContain('● arcade')
   expect((await runGlowup($, 'pet list')).text).toContain('● off')
@@ -63,7 +64,7 @@ test('Esc on the first question in a live session is not usage', async ($, on) =
 })
 
 test('the config row draws a summary with swatches and the spinner word', async ($, on) => {
-  setup(on, ['arcade', 'Clawd', ''])
+  setup(on, ['arcade', 'Pack default', 'Clawd', ''])
   const text = (await runGlowup($, 'config')).text!
   for (const surface of ['terminal', 'desktop']) {
     const ui = await mountRow($, ROW(text), surface)
@@ -78,13 +79,29 @@ test('the config row draws a summary with swatches and the spinner word', async 
 })
 
 test('an old summary row keeps its own pack colors after the look changes', async ($, on) => {
-  setup(on, ['arcade', 'Clawd', ''])
+  setup(on, ['arcade', 'Pack default', 'Clawd', ''])
   const text = (await runGlowup($, 'config')).text!
   await runGlowup($, 'pack crt')
   const ui = await mountRow($, ROW(text))
   const swatches = walk(await ui.drawn()).filter(n => n?.children?.[0] === '██')
   expect(swatches[0].props.color).toBe('#ff3ec8')
   await ui.unmount()
+})
+
+test('a summary with a spinner segment still draws as the card, in the pack\'s colors, live or old', async ($, on) => {
+  setup(on, ['arcade', 'comet', 'Clawd', ''])
+  const text = (await runGlowup($, 'config')).text!
+  expect(text).toBe('glowup · arcade · spinner comet · Clawd · bubbles on · full motion')
+  for (const pack of [undefined, 'crt']) {
+    if (pack) await runGlowup($, `pack ${pack}`)
+    const ui = await mountRow($, ROW(text))
+    const all = walk(await ui.drawn())
+    expect(texts(await ui.drawn())).toContain(text)
+    const swatches = all.filter(n => n?.children?.[0] === '██')
+    expect(swatches).toHaveLength(5)
+    expect(swatches[0].props.color).toBe('#ff3ec8')
+    await ui.unmount()
+  }
 })
 
 test('a summary naming a pack that cannot be resolved passes through', async ($, on) => {

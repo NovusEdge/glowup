@@ -25,7 +25,7 @@ more: /glowup help all   docs: https://novusedge.github.io/glowup/
 
 On the terminal and desktop app the card is drawn in the colors of your current pack, with a header box, swatches and the spinner word. Elsewhere, and for the model, you get the plain text above.
 
-`/glowup config` asks up to three questions. See [config](#config).
+`/glowup config` asks up to four questions. See [config](#config).
 
 An unknown subcommand prints `Unknown: <what you typed>` followed by the short card.
 
@@ -105,15 +105,16 @@ See [Pets](pets.md).
 
 ## config
 
-`/glowup config` asks up to three questions in Claude Code's own question dialog, and each answer applies as soon as you give it:
+`/glowup config` asks up to four questions in Claude Code's own question dialog, and each answer applies as soon as you give it:
 
 1. **Pack**: `arcade`, `classic`, `cozy` or `crt`, with the one in use marked `(current)`. Choose Other and type the name of a pack you installed to use that one. An unknown name prints an error and stops the questions.
-2. **Pet**: Clawd, the shiny Clawd once you have unlocked him, or no pet.
-3. **Extras**: pick any of "Turn bubbles on/off" and "Turn reduced motion on/off". The labels flip the current setting. Picking none changes nothing.
+2. **Spinner**: `Pack default` (clears a spinner you set), then three spinners, leaving out the one your pack already uses. A spinner you set is marked `(current)`. Choose Other and type any spinner name from `/glowup spinner list`; an unknown name prints an error and stops the questions.
+3. **Pet**: Clawd, the shiny Clawd once you have unlocked him, or no pet.
+4. **Extras**: pick any of "Turn bubbles on/off" and "Turn reduced motion on/off". The labels flip the current setting. Picking none changes nothing.
 
-Esc on any question stops there. Answers you already gave stay applied. The command ends with a one-line summary, for example `glowup · arcade · Clawd · bubbles on · full motion`, drawn with the pack's colors.
+Esc on any question stops there. Answers you already gave stay applied. The command ends with a one-line summary, for example `glowup · arcade · spinner comet · Clawd · bubbles on · full motion` (the spinner part appears only when you set one), drawn with the pack's colors.
 
-Each answer does what the matching typed command does (`pack`, `pet`, `bubbles`, `motion`), so the questions add nothing the commands lack. The spinner, the colors and motion layers on their own, and saving a look are not in the questions: use `/glowup pack save <name>` to save the current look. In a `-p` run there is no one to ask, so `/glowup config` prints the command list instead.
+Each answer does what the matching typed command does (`pack`, `spinner`, `pet`, `bubbles`, `motion`), so the questions add nothing the commands lack. The colors and motion layers on their own, and saving a look are not in the questions: use `/glowup pack save <name>` to save the current look. In a `-p` run there is no one to ask, so `/glowup config` prints the command list instead.
 
 ## Settings and the store
 
