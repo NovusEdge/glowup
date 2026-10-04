@@ -109,6 +109,9 @@ test('section: every border style draws its own corners, every row exactly w cel
       expect(rows[0]!.endsWith(b.h + b.tr)).toBe(true)
       expect(rows.at(-1)).toBe(b.bl + b.h.repeat(w - 2) + b.br)
       for (const r of rows.slice(1, -1)) expect(r.startsWith(b.v + ' ') && r.endsWith(' ' + b.v)).toBe(true)
+      const segs = section('PLAN', '1/3', body, w, T, border), edges = [...segs[0]!.filter(x => x.text.includes(b.tl) || x.text.includes(b.tr) || x.text === b.h.repeat(x.text.length)), ...segs.at(-1)!]
+      expect(edges.length).toBeGreaterThanOrEqual(4)
+      for (const x of edges) expect(x.color, `${border} ${w} ${x.text}`).toBe(T.colors.faint)
     }
 })
 
