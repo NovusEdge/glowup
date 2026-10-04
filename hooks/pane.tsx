@@ -10,7 +10,7 @@ import { CLAWD_ROW, PET_ROWS, type PetId } from './pets.ts'
 import { comboSegs, fit, hearts, hpBar, renderSegs, toneColor, visibleLength, type Seg } from './layout.tsx'
 
 export type TabId = 'changes' | 'agents' | 'plan'
-export type PaneView = { tab: TabId; categories?: { name: string; tokens: number; kind: ContextCategoryKind }[]; maxTokens?: number; reduced?: boolean }
+export type PaneView = { tab: TabId; offset?: number; categories?: { name: string; tokens: number; kind: ContextCategoryKind }[]; maxTokens?: number; reduced?: boolean }
 export const TABS: [TabId, string][] = [['changes', 'Changes'], ['agents', 'Agents'], ['plan', 'Plan & context']]
 // The compact drawer sits under a one-row tab strip in a short space.
 export const COMPACT_ROWS = 6
@@ -142,7 +142,7 @@ export function statusRows(model: Model, base: Theme, width: number, look?: Look
 
 // The pet node is the ready Client element register.tsx builds; the pane only places it.
 // rows is the strip height: PET_ROWS, or two more while an outfit needs headroom.
-export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Mood }; friday?: boolean; minRows?: number }
+export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Mood }; friday?: boolean; minRows?: number; bodyRows?: number; onScroll?: (offset: number) => void }
 export const PET_STRIP_COLS = 46
 const BUBBLE_ROOM = 16
 
@@ -200,20 +200,51 @@ function petLine(els: { Box: any; Text: any }, t: Theme, extra: PaneExtra, width
   )
 }
 
+// Rows the docked status box takes: margin, border, status lines, and the pet strip with its bubble or sign.
+function footerRows(m: Model, t: Theme, extra: PaneExtra | undefined, width: number): number {
+  const status = statusRows(m, t, width - 2 - 4, extra?.look).length
+  let pet = 0
+  if (extra?.pet) {
+    const { beside, cols, lines } = bubbleBox(width, false)
+    const say = extra.bubble ? wrapBubble(extra.bubble.text, cols, lines, cellsOf).length + 2 : 0
+    pet = (extra.pet.rows ?? PET_ROWS) + (beside ? 0 : say || (extra.friday ? 1 : 0))
+  }
+  return 1 + 2 + status + pet
+}
+
 export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, base: Theme, v: PaneView, width: number, compact: boolean, now: number, onTab: (id: TabId) => void, extra?: PaneExtra) {
   const { Box, Button } = els
   const look = extra?.look, t = look?.theme ?? base
   const inner = width - 2
   // the drawer shows a tab strip, the tab content and one pet row, all within COMPACT_ROWS
-  const rowsLeft = compact && extra?.pet ? COMPACT_ROWS - 2 : COMPACT_ROWS
+  let rowsLeft = compact && extra?.pet ? COMPACT_ROWS - 2 : COMPACT_ROWS
+  if (compact && extra?.bodyRows) rowsLeft = Math.max(1, Math.min(rowsLeft, extra.bodyRows - 1 - (extra.pet ? 1 : 0)))
+  let rows = tabRows(m, t, v, inner, compact, now, rowsLeft)
+  let hint: any = null
+  if (!compact && extra?.bodyRows) {
+    // tab strip and its margin sit above, the footer below; the tab gets the rest and scrolls on its own
+    const room = Math.max(2, extra.bodyRows - 2 - footerRows(m, t, extra, width))
+    if (rows.length > room) {
+      const win = room - 1, last = rows.length - win, top = Math.max(0, Math.min(v.offset ?? 0, last)), below = last - top
+      const go = (to: number) => extra.onScroll?.(Math.max(0, Math.min(to, last)))
+      hint = (
+        <Box key="scroll" flexDirection="row" gap={1}>
+          {top > 0 && <Button key="up" label={`↑ ${top} more`} hotkey="k" dimColor onPress={() => go(top - win)} />}
+          {below > 0 && <Button key="down" label={`↓ ${below} more`} hotkey="j" dimColor onPress={() => go(top + win)} />}
+        </Box>
+      )
+      rows = rows.slice(top, top + win)
+    }
+  }
   return (
-    // minHeight, not height: the grown tab content pushes the status box down, and a taller tree still scrolls
+    // minHeight, not height: a short tab still pushes the status box to the bottom of the body
     <Box flexDirection="column" width={width} minHeight={compact ? undefined : extra?.minRows}>
       <Box flexDirection="row" gap={1}>
         {TABS.map(([id, label], i) => <Button key={'tab-' + id} label={label} hotkey={String(i + 1)} variant={v.tab === id ? 'primary' : undefined} dimColor={v.tab !== id} onPress={() => onTab(id)} />)}
       </Box>
       <Box flexDirection="column" flexGrow={1} marginTop={compact ? 0 : 1}>
-        {tabRows(m, t, v, inner, compact, now, rowsLeft).map((r, i) => renderSegs(els, r, 'r' + i))}
+        {rows.map((r, i) => renderSegs(els, r, 'r' + i))}
+        {hint}
       </Box>
       {compact && extra?.pet && petLine(els, t, extra, inner)}
       {!compact && (
