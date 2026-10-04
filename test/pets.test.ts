@@ -41,10 +41,10 @@ test('done keeps dancing through its window, then returns to idle', async () => 
   expect(p.seg!.pose).toBe('idle')
 })
 
-test('editing and shell commands type; everything else while working walks', async () => {
+test('editing, shell commands and subagents type; everything else while working walks', async () => {
   const w = { working: true, needsYou: false }
-  for (const kind of ['edit', 'shell'] as const) expect(petPose({ ...w, kind }, 0)).toBe('working')
-  for (const kind of ['read', 'search', 'agent', 'plan', 'think'] as const) expect(petPose({ ...w, kind }, 0)).toBe('walk')
+  for (const kind of ['edit', 'shell', 'agent'] as const) expect(petPose({ ...w, kind }, 0)).toBe('working')
+  for (const kind of ['read', 'search', 'plan', 'think'] as const) expect(petPose({ ...w, kind }, 0)).toBe('walk')
   expect(petPose({ ...w, kind: 'edit', lastTest: { passed: false, at: 0 } }, 100)).toBe('fail')
   expect(petPose({ ...w, kind: 'edit', lastTest: { passed: true, at: 0 } }, 100)).toBe('hop')
   expect(petPose({ working: false, needsYou: false, kind: 'edit' }, 0)).toBe('idle')

@@ -110,7 +110,26 @@ test('pane, motion and unknown subcommands', async () => {
   expect(store.reducedMotion).toBe(false)
   expect(calls).toEqual(['pane', 'motion:true', 'motion:false'])
   expect(await runCommand(host, 'dance', c)).toContain('/glowup help all')
-  expect(await runCommand(host, 'motion', c)).toContain('Unknown: motion')
+})
+
+test('a subcommand with no argument answers with its current value, never Unknown', async () => {
+  const { host } = fakeHost()
+  const { ctl: c } = ctl()
+  const ask = (args: string) => runCommand(host, args, c)
+  const pack = await ask('pack')
+  expect(pack).toContain('● classic')
+  expect(pack).toContain('○ arcade')
+  expect(await ask('pack')).toBe(await ask('pack list'))
+  expect(await ask('theme')).toBe(await ask('theme list'))
+  expect(await ask('pet')).toBe(await ask('pet list'))
+  expect(await ask('bubbles')).toContain('Bubbles: on')
+  expect(await ask('motion')).toContain('Motion: full')
+  expect(await ask('statusline')).toContain('/glowup statusline on')
+  expect(await ask('import')).toContain('/glowup import <file>')
+  expect(await ask('export')).toContain('konsole')
+  for (const sub of ['pack', 'theme', 'pet', 'bubbles', 'motion', 'statusline', 'import', 'export', 'spinner']) {
+    expect(await ask(sub), sub).not.toContain('Unknown')
+  }
 })
 
 test('statusline on asks first; No changes nothing', async () => {
