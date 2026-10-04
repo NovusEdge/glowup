@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-10-05
+
 ### Fixed
 
 - A long Changes, Agents or Plan & context tab no longer pushes Clawd and the status box off the bottom of the pane. The tab now scrolls inside the rows left over, with `↑ N more` and `↓ N more` buttons (hotkeys `k` and `j`).
