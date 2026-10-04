@@ -9,7 +9,7 @@ section: Themes
 
 A theme is one JSON file. It sets colors, a few glyphs, the spinner words and the band hearts. It holds data only; nothing in it runs. Comments are allowed in the file.
 
-glowup ships four themes: `classic`, `cyberpunk`, `vaporwave` and `high-contrast`. `classic` uses Claude Code's own colors. Switch with `/glowup theme <name>`.
+glowup ships seven themes: `glowup`, `aurora`, `dusk`, `classic`, `cyberpunk`, `vaporwave` and `high-contrast`. `classic` is the default and uses Claude Code's own colors. Switch with `/glowup theme <name>`. Themes color glowup's own text and do not change the terminal's background.
 
 ## Make one
 

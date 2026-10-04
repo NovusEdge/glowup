@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Themes: three new presets, `glowup`, `aurora` and `dusk`.
+
 ## [0.1.0] - 2026-10-04
 
 ### Added

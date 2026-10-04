@@ -29,7 +29,7 @@ An unknown subcommand prints `Unknown: <what you typed>` followed by the usage t
 | `/glowup theme list` | List the built-in themes and your own. The active theme has a filled dot, including one chosen in the settings menu. |
 | `/glowup theme add <url>` | Download a theme file, check it, and install it. |
 
-The switch applies at once and is saved, so the next session starts with it. If the theme cannot load, glowup prints the reason and keeps the current theme. The built-in themes are `classic`, `cyberpunk`, `vaporwave` and `high-contrast`. Your own themes come from `~/.claude/glowup/themes`. See [Making a theme](themes.md).
+The switch applies at once and is saved, so the next session starts with it. If the theme cannot load, glowup prints the reason and keeps the current theme. The built-in themes are `glowup`, `aurora`, `dusk`, `classic` (the default), `cyberpunk`, `vaporwave` and `high-contrast`. Your own themes come from `~/.claude/glowup/themes`. See [Making a theme](themes.md).
 
 ### theme add
 

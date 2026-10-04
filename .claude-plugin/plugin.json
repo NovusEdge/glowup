@@ -11,7 +11,7 @@
   "license": "MIT",
   "keywords": ["theme", "skin", "visualizer", "animation", "eye-candy", "mod"],
   "userConfig": {
-    "theme": { "type": "string", "title": "Theme", "description": "Theme name: classic, cyberpunk, vaporwave, high-contrast, or one in ~/.claude/glowup/themes", "default": "classic" },
+    "theme": { "type": "string", "title": "Theme", "description": "Theme name: glowup, aurora, dusk, classic, cyberpunk, vaporwave, high-contrast, or one in ~/.claude/glowup/themes", "default": "classic" },
     "reducedMotion": { "type": "boolean", "title": "Reduced motion", "description": "No shimmer or spinner animation from glowup", "default": false }
   }
 }

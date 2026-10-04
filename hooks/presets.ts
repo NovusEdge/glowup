@@ -1,6 +1,8 @@
 import type { ThemeFile } from './themes.ts'
 
 // classic is Claude Code's own palette; every other preset extends it.
+export const DEFAULT_THEME = 'classic'
+
 export const PRESETS: Record<string, ThemeFile> = {
   classic: {
     name: 'classic',
@@ -12,6 +14,21 @@ export const PRESETS: Record<string, ThemeFile> = {
     spinner: { words: ['Thinking'] },
     glyphs: { read: '▸', search: '⌕', edit: '✎', shell: '$', agent: '◆', plan: '◇' },
     band: { hearts: ['♥', '♡'] },
+  },
+  glowup: {
+    name: 'glowup', extends: 'classic',
+    colors: { accent: '#ffc857', text: '#ece6f2', dim: '#8e86a0', faint: '#2f2a3a', read: '#8ecbff', edit: '#ffa94d', shell: '#7ee0a1', agent: '#c9a7ff', pass: '#7ee0a1', fail: '#ff6f7d', panel: '#1d1924', addBg: '#1d3326', delBg: '#3f1f27', sel: '#2a2433' },
+    spinner: { words: ['Glowing', 'Kindling', 'Polishing'] },
+  },
+  aurora: {
+    name: 'aurora', extends: 'classic',
+    colors: { accent: '#5ef1c6', text: '#e2eef2', dim: '#7f97a3', faint: '#22313b', read: '#7cc7ff', edit: '#ffd479', shell: '#5ef1c6', agent: '#b49cff', pass: '#5ef1c6', fail: '#ff7a8a', panel: '#131c23', addBg: '#123329', delBg: '#3a1d26', sel: '#1c2933' },
+    spinner: { words: ['Drifting', 'Shimmering', 'Charting'] },
+  },
+  dusk: {
+    name: 'dusk', extends: 'classic',
+    colors: { accent: '#b69cff', text: '#e6e6f6', dim: '#8a8cad', faint: '#272a44', read: '#7fd6ff', edit: '#ffcf7a', shell: '#8ef0b0', agent: '#ff9ad5', pass: '#8ef0b0', fail: '#ff7088', panel: '#171a2b', addBg: '#18322a', delBg: '#3b1f2f', sel: '#222640' },
+    spinner: { words: ['Dreaming', 'Musing', 'Wandering'] },
   },
   cyberpunk: {
     name: 'cyberpunk', extends: 'classic',
