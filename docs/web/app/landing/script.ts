@@ -87,9 +87,11 @@ export const stateAt = (ms: number): TermState => run(ms % LOOP_MS)
 
 type Clock = { now(): number; setTimeout: typeof setTimeout; clearTimeout: typeof clearTimeout }
 
-export function runScript(onState: (s: TermState) => void, clock: Clock = { now: () => performance.now(), setTimeout: (...a) => setTimeout(...a), clearTimeout: h => clearTimeout(h) }): { stop(): void } {
+export function runScript(onState: (s: TermState) => void, clock: Clock = { now: () => performance.now(), setTimeout, clearTimeout }): { stop(): void } {
+  // Detached on purpose: window.setTimeout throws "Illegal invocation" when called with the clock as `this`.
+  const { setTimeout: setTimer, clearTimeout: clearTimer } = clock
   let state = initialState(), i = 0, base = clock.now(), handle: ReturnType<typeof setTimeout> | undefined, stopped = false
-  const wait = (due: number, fn: () => void) => { handle = clock.setTimeout(fn, Math.max(0, due - clock.now())) }
+  const wait = (due: number, fn: () => void) => { handle = setTimer(fn, Math.max(0, due - clock.now())) }
   // One timer at a time: stop() has a single handle to clear and a late tick can't emit twice.
   const tick = () => {
     if (stopped) return
@@ -104,5 +106,5 @@ export function runScript(onState: (s: TermState) => void, clock: Clock = { now:
   }
   onState(state)
   wait(base + SCRIPT[0]!.at, tick)
-  return { stop() { stopped = true; if (handle !== undefined) clock.clearTimeout(handle) } }
+  return { stop() { stopped = true; if (handle !== undefined) clearTimer(handle) } }
 }
