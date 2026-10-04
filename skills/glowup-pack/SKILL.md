@@ -1,6 +1,6 @@
 ---
 name: glowup-pack
-description: Use when the user asks for a new glowup pack, theme or look, wants a palette, color scheme, image, screenshot or mood turned into one, or wants to change an existing pack, theme or color, for example "make me a glowup theme", "turn this palette into a glowup pack", "make arcade less pink", "drop the labels in cozy".
+description: Use when the user asks for a new glowup pack, theme or look, wants a palette, color scheme, image, screenshot or mood turned into one, wants to change an existing pack, theme or color, or wants to change what glowup's status line shows, for example "make me a glowup theme", "turn this palette into a glowup pack", "make arcade less pink", "drop the labels in cozy", "show my usage limits in the status line".
 ---
 
 # Make a glowup pack

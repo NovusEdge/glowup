@@ -68,7 +68,7 @@ If you see neither, read [Layout](layout.md) for the width rules.
 
 ## Settings
 
-The mod has six settings. The installer sets them. You can change them later with `claude plugin configure glowup@glowup`, or in your Claude Code settings.
+The mod has seven settings. The installer sets all but `statusline`. You can change them later with `claude plugin configure glowup@glowup`, or in your Claude Code settings.
 
 | Setting | Values | Default | What it does |
 | --- | --- | --- | --- |

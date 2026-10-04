@@ -42,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Pick the status line's fields and their order with `/glowup statusline fields <ids>`, the `/glowup config` "Status line fields?" question, or the `statusline` setting. New fields show your 5-hour and weekly usage with reset times, cost, model, branch, changes and folder, and the line now uses your theme's colors.
+- Pick the status line's fields and their order with `/glowup statusline fields <ids>`, the `/glowup config` "Status line fields?" question, or the `statusline` setting. New fields show your 5-hour and weekly usage with reset times, cost, model, running subagents, plan progress, branch, changes and folder. The status line glowup draws now uses your theme's colors; the entry under the prompt stays plain.
 - Speech bubbles written by Haiku. `/glowup bubbles haiku`, the `bubbles` setting, the config questions and the installer's `--bubbles haiku` turn it on. It is opt-in: each line is a small Haiku call on your account, at most one per turn and one per 90 seconds, built from glowup's own state only, with the template line as the fallback.
 
 ### Fixed

@@ -72,7 +72,7 @@ Set them with a command:
 
 - `fields` alone shows the current list.
 - `fields <id> <id> …` sets the list in the order you type it. An unknown id refuses the whole command and lists the valid ids. A repeated id keeps its first place.
-- `fields default` goes back to the list the installer set, which is `activity ctx 5h week` unless you gave the installer another.
+- `fields default` goes back to the `statusline` setting's value, which is `activity ctx 5h week` unless you changed that setting.
 
 `/glowup config` asks "Status line fields?" after its other questions, with Keep, Default and Pick. Pick asks three multi-select questions: Session (`activity`, `ctx`, `agents`, `plan`), Account (`5h`, `week`, `cost`, `model`) and Repo (`branch`, `changes`, `cwd`). The `statusline` setting in Claude Code's `/plugin` menu takes the starting list as comma-separated ids.
 

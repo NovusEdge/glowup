@@ -161,7 +161,7 @@ The choice is saved. See [Accessibility](accessibility.md) for what changes.
 | `/glowup statusline restore` | Put your own status line back. |
 | `/glowup statusline fields` | Show the status line fields. |
 | `/glowup statusline fields <id> <id> …` | Set the fields in the order typed. An unknown id refuses the whole command and lists the valid ids. |
-| `/glowup statusline fields default` | Go back to the installer's list, `activity ctx 5h week` unless another was set. |
+| `/glowup statusline fields default` | Go back to the `statusline` setting's value, `activity ctx 5h week` unless you changed it. |
 
 The fields are `activity`, `ctx`, `5h`, `week`, `cost`, `model`, `agents`, `plan`, `branch`, `changes` and `cwd`. See [Choosing the fields](statusline.md#choosing-the-fields).
 
