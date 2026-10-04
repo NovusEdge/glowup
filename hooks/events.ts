@@ -1,6 +1,6 @@
 export type Kind = 'read' | 'search' | 'edit' | 'shell' | 'agent' | 'plan' | 'other'
 export type ToolStart = { kind: Kind; label: string; file?: string; command?: string; isTest: boolean }
-export type PlanItem = { id: string; title: string; status: 'pending' | 'in_progress' | 'completed' }
+export type PlanItem = { id: string; title: string; status: 'pending' | 'in_progress' | 'completed'; active?: string }
 
 export const shortPath = (p: string) => p.split('/').filter(Boolean).slice(-2).join('/')
 const str = (v: unknown) => (typeof v === 'string' ? v : '')
@@ -63,16 +63,18 @@ export function dialogCall(flying: ReadonlyMap<string, { tool: string; input: un
   return (exact.length === 1 ? exact : same.length === 1 ? same : [])[0]?.[0]
 }
 
+const active = (v: unknown, keep?: string) => { const s = str(v) || keep; return s ? { active: s } : {} }
+
 export function planFrom(tool: string, input: Record<string, unknown>, prev: PlanItem[], resultId?: string): PlanItem[] | undefined {
   if (tool === 'TodoWrite') {
     const todos = Array.isArray(input.todos) ? input.todos as { content?: unknown; status?: unknown }[] : []
-    return todos.map((t, i) => ({ id: String(i), title: str(t.content), status: (['pending', 'in_progress', 'completed'].includes(str(t.status)) ? t.status : 'pending') as PlanItem['status'] }))
+    return todos.map((t, i) => ({ id: String(i), title: str(t.content), status: (['pending', 'in_progress', 'completed'].includes(str(t.status)) ? t.status : 'pending') as PlanItem['status'], ...active((t as { activeForm?: unknown }).activeForm) }))
   }
-  if (tool === 'TaskCreate') return [...prev, { id: resultId ?? String(prev.reduce((m, p) => Math.max(m, Number(p.id) || 0), 0) + 1), title: str(input.subject), status: 'pending' }]
+  if (tool === 'TaskCreate') return [...prev, { id: resultId ?? String(prev.reduce((m, p) => Math.max(m, Number(p.id) || 0), 0) + 1), title: str(input.subject), status: 'pending', ...active(input.activeForm) }]
   if (tool === 'TaskUpdate') {
     const id = str(input.taskId), status = str(input.status)
     if (status === 'deleted') return prev.filter(p => p.id !== id)
-    return prev.map(p => p.id !== id ? p : { ...p, title: str(input.subject) || p.title, status: (['pending', 'in_progress', 'completed'].includes(status) ? status : p.status) as PlanItem['status'] })
+    return prev.map(p => p.id !== id ? p : { ...p, title: str(input.subject) || p.title, status: (['pending', 'in_progress', 'completed'].includes(status) ? status : p.status) as PlanItem['status'], ...active(input.activeForm, p.active) })
   }
   return undefined
 }

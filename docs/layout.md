@@ -84,11 +84,15 @@ Each subagent in this session. The tab stays live while background subagents run
 
 ### Plan & context
 
-- Claude's task list. `✓` is done, `◉` is in progress, `○` is next. The header shows done over total.
-- A context bar with the percent used. It is blue-toned below 60%, amber from 60% and red from 80%, using your theme's `read`, `edit` and `fail` colors.
-- Up to six bars for the biggest parts of the context, such as messages and tool results. Only parts that use tokens show.
+The tab has two sections, `PLAN` and `CONTEXT`, each with a ruled header, and a divider line between them.
+
+- `PLAN` is Claude's task list. `◉` is in progress (bold, with its active wording when the task has one), `○` is next, `✓` is done. In progress comes first, then next, then the last three done, dimmed, with `+N more done` for the rest. The header shows done over total.
+- The list is Claude Code's saved one, read from `tasks/<list>/*.json` under your config directory when the session starts and again after each `TaskCreate` or `TaskUpdate` Claude makes. `<list>` is `CLAUDE_CODE_TASK_LIST_ID` when that is set, otherwise the working directory with every character outside letters and digits turned into `-` and the leading `-` dropped (`/home/you/Projects` is `home-you-Projects`). Deleted and unreadable tasks are skipped. Subagent task calls do not count. A `TodoWrite` list still shows too.
+- `CONTEXT` has one stacked bar: each part of the context that uses tokens is its own colored segment, biggest first, and free space is faint dots. Segment colors come from your theme's `read`, `agent`, `shell`, `edit` and `accent` colors, so they follow the pack. If the theme gives no usable colors, the segments use the block shades `█▓▒░` instead. The header shows the percent and tokens, such as `62% · 124k / 200k`.
+- Under the bar, a legend names each part with its share (`● messages 31%`) and wraps onto more lines when the pane is narrow. Up to five parts get their own segment and the rest join as `other`.
+- Below that, a sparkline of the context percent, one sample per finished turn, with the peak and how many times the context was compacted. It shows once there is a sample.
 - From 70% used, a warning line names the biggest part.
-- The compact form is the checklist and one context bar.
+- The compact form is the checklist and one line: the stacked bar and the percent.
 - With no task list, the tab says `No task list yet.`
 
 The tabs are read-only. You cannot select a file or open an agent from them. See the [roadmap](roadmap.md).

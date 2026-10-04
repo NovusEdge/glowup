@@ -9,6 +9,7 @@ import { PET_ROWS, type PetSetting, type PetId, type PetInput, type PetKind } fr
 import { bubbleFor, BUBBLE_SETTINGS, daypart, haikuLimit, haikuPrompt, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, type BubbleSetting, type BubbleVars, type Mood } from './bubbles.ts'
 import { recordPass, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { gitBase, refreshCounts, serial } from './changes.ts'
+import { loadTasks, taskListId } from './tasks.ts'
 import { tierFor, renderSegs } from './layout.tsx'
 import { renderBand } from './band.tsx'
 import { renderPane, bubbleBox, petStripCols, type PaneExtra, type PaneView, type TabId } from './pane.tsx'
@@ -330,6 +331,21 @@ async function feedContext($: Engine) {
   } catch {}
 }
 
+// Claude Code's task list outlives the session, so the plan starts from its files and
+// is read again after each main-loop TaskCreate/TaskUpdate (debounced: a burst of calls is one read).
+let planTimer: Timer | undefined
+async function loadPlan($: Engine) {
+  try {
+    const id = taskListId(await $.env.get('CLAUDE_CODE_TASK_LIST_ID'), cwd)
+    const plan = await loadTasks(hostOf($), id)
+    if (plan.length) feed($, { type: 'plan-load', plan })
+  } catch {}
+}
+function schedulePlan($: Engine) {
+  planTimer?.cancel()
+  planTimer = $.clock.after(150, () => { planTimer = undefined; void loadPlan($) })
+}
+
 // A new session id means a new conversation: nothing from the old one carries over.
 async function adoptSession($: Engine, endedId: string) {
   const id = await $.session.id()
@@ -346,6 +362,7 @@ async function adoptSession($: Engine, endedId: string) {
   git = await gitBase(hostOf($), cwd)
   syncTicker($)
   redraw($)
+  void loadPlan($)
 }
 
 // A second session.start (or /clear) while the dialog is open must not stack another.
@@ -492,6 +509,7 @@ export const register: Register = (on, options) => {
     installed = typeof at === 'number' ? at : undefined
     await syncTakeover($)
     git = await gitBase(host, cwd)
+    void loadPlan($)
     // a beat after launch, so the dialog does not open over the startup frame
     if (e.isInteractive) $.clock.after(1500, () => void askFirstRun($))
     // a hot reload restarts this module; the live band and pane must not keep an old snapshot
@@ -550,6 +568,7 @@ export const register: Register = (on, options) => {
     }
     if (!denied && !e.agentId && (e.tool === 'Edit' || e.tool === 'Write' || e.tool === 'NotebookEdit' || e.tool === 'Bash')) refresh($)
     if (!e.agentId) void feedContext($)
+    if (!denied && !e.agentId && (e.tool === 'TaskCreate' || e.tool === 'TaskUpdate')) schedulePlan($)
     return ran
   })
 
@@ -600,6 +619,7 @@ export const register: Register = (on, options) => {
     // /compact would leave the hearts empty; derive it from the result.
     const u = await $.session.usage()
     const percent = u.context.percent ?? (r.tokensAfter !== undefined && u.context.window > 0 ? Math.round(r.tokensAfter / u.context.window * 100) : 0)
+    feed($, { type: 'compact' })
     feed($, { type: 'context', percent })
     return r
   })

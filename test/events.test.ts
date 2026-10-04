@@ -68,7 +68,7 @@ test('a piped run hides the exit code; the summary still decides', async () => {
 
 test('plan from TodoWrite replaces the list', async () => {
   const plan = planFrom('TodoWrite', { todos: [{ content: 'A', status: 'completed', activeForm: 'a' }, { content: 'B', status: 'in_progress', activeForm: 'b' }] }, [])
-  expect(plan).toEqual([{ id: '0', title: 'A', status: 'completed' }, { id: '1', title: 'B', status: 'in_progress' }])
+  expect(plan).toEqual([{ id: '0', title: 'A', status: 'completed', active: 'a' }, { id: '1', title: 'B', status: 'in_progress', active: 'b' }])
 })
 
 test('plan from TaskCreate appends and TaskUpdate changes status', async () => {

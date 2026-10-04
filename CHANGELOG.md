@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "Needs you" no longer shows when nobody is being asked, as in auto mode. glowup used to guess the permission mode from the footer labels, which never name it, so it always guessed "ask". It now alerts only when Claude Code actually opens a permission dialog in a mode that asks you, and stays quiet when unsure.
 - Clawd keeps his working pose while subagents run, including after the main turn has ended and while you view a subagent's transcript.
 - `/glowup pack`, `theme`, `pet`, `bubbles`, `motion`, `statusline` and `import` with no argument now show the current setting or how to use them, instead of "Unknown" and the help card.
+- The Plan & context tab shows Claude Code's saved task list. It loads when the session starts and again after each `TaskCreate` or `TaskUpdate`, so tasks from earlier sessions no longer leave the plan empty.
+
+### Changed
+
+- The context section has a new chart: one stacked bar with a colored segment per part of the context, a wrapping legend, and a sparkline of the percent over the session with the peak and compactions. The plan and context sections now have ruled headers and a divider between them.
 
 ## [0.3.0] - 2026-10-04
 
