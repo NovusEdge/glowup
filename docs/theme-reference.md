@@ -1,8 +1,6 @@
 ---
 title: Theme reference
 description: Every theme field with its type, default, limits and validation rules, plus the values of the built-in themes.
-order: 8
-section: Themes
 ---
 
 ## File format

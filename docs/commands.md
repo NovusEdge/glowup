@@ -1,8 +1,6 @@
 ---
 title: Commands
 description: Every /glowup subcommand, what it prints, and when it fails.
-order: 2
-section: Use
 ---
 
 ## The /glowup command

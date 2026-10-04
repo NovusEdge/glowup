@@ -1,8 +1,6 @@
 ---
 title: Making a theme
 description: Write a theme file, try it, and share it with other people.
-order: 7
-section: Themes
 ---
 
 ## What a theme is

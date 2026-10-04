@@ -1,8 +1,6 @@
 ---
 title: Layout
 description: The three width tiers, where the pane and band appear in each, and what each tab shows.
-order: 3
-section: Use
 ---
 
 ## Three tiers
