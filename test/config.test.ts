@@ -63,6 +63,39 @@ test('typing goes into the draft and survives a redraw', async () => {
   expect(draw(typed).tree.find(n => n.props?.key === 'save-as').props.value).toBe('my-pa')
 })
 
+test('Enter on an empty save-as saves nothing', async () => {
+  const { tree, log } = draw()
+  call(tree.find(n => n.props?.key === 'save-as'), 'onSubmit', '  ', {})
+  expect(log).toEqual([])
+})
+
+test('a mix naming a missing pack still has a matching option in every select', async () => {
+  const { tree } = draw({ ...D, mix: { colors: 'gone', motion: 'gone' } })
+  for (const key of ['pack', 'colors', 'motion']) {
+    const s = tree.find(n => n.props?.key === key)
+    expect(s.props.options.map((o: { value: string }) => o.value)).toContain(s.props.value)
+  }
+})
+
+test('each row style draws its own sample lines', async () => {
+  const rowsOf = (rows: string) => previewRows({ ...look, rows: rows as any }, 80, 0, false).map(r => r.map(s => s.text).join('')).slice(-6)
+  const all = (rows: string) => rowsOf(rows).join('\n')
+  expect(all('classic')).toContain('› fix the failing test')
+  expect(all('minimal')).toContain('› fix the failing test')
+  expect(all('minimal')).toContain('✓')
+  expect(all('cards')).toContain('▎ you')
+  expect(all('cards')).toContain('▎ claude')
+  expect(all('cards')).toContain('✓')
+  expect(all('retro')).toContain('[YOU] ')
+  expect(all('retro')).toContain('[ OK ]')
+  expect(all('retro')).toContain('[CLAUDE]')
+})
+
+test('mobile text rows carry no key on Text', async () => {
+  const tree = walk(renderConfig({ Box: 'Box', Text: 'Text', Button: 'Button' }, D, look, { ...choices, pets: [...choices.pets] }, 60, 0, { change() {}, apply() {}, cancel() {}, save() {} }))
+  expect(tree.filter(n => n.type === 'Text' && n.props?.key !== undefined)).toEqual([])
+})
+
 test('reduced button toggles the draft', async () => {
   const { tree, log } = draw()
   const b = tree.find(n => n.props?.key === 'reduced')
