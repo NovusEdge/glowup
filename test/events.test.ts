@@ -32,6 +32,12 @@ test('test outcome reads error flag and common summaries', async () => {
   expect(testOutcome('', true)).toEqual({ passed: false, summary: 'tests failed' })
 })
 
+test('test outcome counts from the Tests line, not the suite line', async () => {
+  expect(testOutcome('Test Suites: 3 passed, 3 total\nTests:       20 passed, 20 total\n', false)).toEqual({ passed: true, summary: '20/20 tests passing' })
+  expect(testOutcome('Test Suites: 1 failed, 2 passed, 3 total\nTests:       2 failed, 18 passed, 20 total\n', true)).toEqual({ passed: false, summary: '2 tests failed' })
+  expect(testOutcome(' Test Files  3 passed (3)\n      Tests  20 passed (20)\n', false)).toEqual({ passed: true, summary: '20/20 tests passing' })
+})
+
 test('plan from TodoWrite replaces the list', async () => {
   const plan = planFrom('TodoWrite', { todos: [{ content: 'A', status: 'completed', activeForm: 'a' }, { content: 'B', status: 'in_progress', activeForm: 'b' }] }, [])
   expect(plan).toEqual([{ id: '0', title: 'A', status: 'completed' }, { id: '1', title: 'B', status: 'in_progress' }])
