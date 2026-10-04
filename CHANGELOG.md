@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/glowup color`: list every color role with its hex, set one with `/glowup color <role> <#hex>`, or clear with `/glowup color reset [role]`. Overrides are saved and stay on top of any pack or theme, and `/glowup export konsole` and `/glowup pack save` use them.
 - `/glowup config` has a "Tweak colors" extra that asks for a role and a hex.
 
+- The pack-making skill can change an existing pack or theme: it extends a built-in with only your changes, edits your own packs, and suggests `/glowup color` for a small color tweak.
+
 ### Changed
 
 - `arcade` marks your prompt with a pink `▶` and Claude's reply with a cyan `◆`, with no labels or bars, and shows `+N XP` above a reply after tool calls succeed.

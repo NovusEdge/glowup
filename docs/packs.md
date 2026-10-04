@@ -118,6 +118,8 @@ A layer can also be the name of another pack: `"motion": "crt"` uses `crt`'s mot
 
 glowup ships a skill that teaches your agent the pack format. Say what you want, for example "make me a glowup pack from this palette", or show it an image or point it at a terminal color scheme. The agent writes `~/.claude/glowup/packs/<name>.json`, checks that the text and role colors have enough contrast, and tells you to run `/glowup pack <name>`. If that prints an error, the agent fixes the file and you run it again.
 
+The same skill changes a look you already have. Ask it to "make arcade less pink" or "drop the labels in cozy". For a built-in it writes a new pack that `extends` it with only your changes. For one of your packs it edits the file. For a small color change it points you to `/glowup color` instead of writing a file.
+
 ## Import a color scheme
 
 `/glowup import <file>` reads a color scheme from a local path (`~` works) and saves it as a pack with only a colors layer, then applies it. Two formats are supported, detected from the content:

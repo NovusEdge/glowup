@@ -55,6 +55,19 @@ test('the worked example loads through the real loaders with no errors', async (
   assert.equal(look.motionFrom, file.name)
 })
 
+test('the edit example in the skill loads and changes only what it names', () => {
+  const m = /`(\{ "format": 1, "name": "arcade-soft"[^`]*\})`/.exec(skill)
+  assert.ok(m, 'SKILL.md needs the arcade-soft extends example')
+  const file = JSON.parse(m[1]!)
+  validatePack(file)
+  const mine = resolveLook({ colors: 'soft', motion: 'soft' }, { soft: file }, {})
+  const base = resolveLook({ colors: 'arcade', motion: 'arcade' }, {}, {})
+  assert.deepEqual(mine.errors, [])
+  assert.equal(mine.look.theme.colors.accent, (file.colors as { palette: { accent: string } }).palette.accent)
+  assert.equal(mine.look.theme.colors.text, base.look.theme.colors.text)
+  assert.deepEqual(mine.look.rowFlags, base.look.rowFlags)
+})
+
 test('documented pack fields are the fields the pack loader accepts', () => {
   assert.deepEqual(names('Pack file'), [...PACK_KEYS].sort())
   assert.deepEqual(names('Colors layer').filter(n => !n.includes('.')), [...COLORS_KEYS].sort())
