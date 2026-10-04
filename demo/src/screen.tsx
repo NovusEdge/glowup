@@ -154,8 +154,13 @@ export class Claude {
     this.set({act: {glyph, label, tone}});
   }
 
+  // The spinner sits right under the last row, as in Claude Code.
   showSpinner(on: boolean) {
     const o = on ? 1 : 0;
+    const row = this.convo.next;
+    this.spin.node.y(row * LH);
+    this.spinLabel.y(row * LH);
+    this.escLabel.y((row + 1) * LH);
     this.spin.node.opacity(o);
     this.spinLabel.opacity(o);
     this.escLabel.opacity(o);

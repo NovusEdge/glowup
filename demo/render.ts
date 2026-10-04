@@ -4,10 +4,8 @@ import {renderVideo} from '@revideo/renderer';
 
 const chromium = ['/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome'].find(existsSync);
 const outputs = [
-  {outFile: 'launch.mp4', size: {x: 1920, y: 1080}, project: './src/project.ts'},
-  {outFile: 'launch-square.mp4', size: {x: 1080, y: 1080}, project: './src/project.ts'},
-  // Only rendered by name: `pnpm render style-stills`.
-  {outFile: 'style-stills.mp4', size: {x: 1920, y: 1080}, project: './src/stills.ts', byName: true},
+  {outFile: 'launch.mp4', size: {x: 1920, y: 1080}},
+  {outFile: 'launch-square.mp4', size: {x: 1080, y: 1080}},
 ] as const;
 
 const only = process.argv[2];
@@ -15,10 +13,10 @@ mkdirSync('out', {recursive: true});
 
 // One at a time: each render is a headless chromium plus an ffmpeg encode.
 for (const o of outputs) {
-  if (only ? !o.outFile.startsWith(only) : 'byName' in o) continue;
+  if (only && !o.outFile.startsWith(only)) continue;
   const render = () =>
     renderVideo({
-      projectFile: o.project,
+      projectFile: './src/project.ts',
       settings: {
         outFile: o.outFile,
         outDir: './out',

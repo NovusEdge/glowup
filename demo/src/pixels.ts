@@ -53,6 +53,8 @@ export class Pet {
   private t0 = 0;
   private lastIdx = 0;
   x: number;
+  // Walking steps this many sprite pixels per frame; the title screen uses it to cross the frame quickly.
+  speed = 1;
   readonly minX: number;
   readonly maxX: number;
 
@@ -93,7 +95,7 @@ export class Pet {
     if (i !== this.lastIdx) {
       // Walking moves a cell per step; step through every frame skipped since the last call.
       for (let k = this.lastIdx; k !== i; k = (k + 1) % a.frames.length) {
-        this.x = Math.min(this.maxX, Math.max(this.minX, this.x + (a.frames[(k + 1) % a.frames.length].dx ?? 0) * this.sprite.pw));
+        this.x = Math.min(this.maxX, Math.max(this.minX, this.x + (a.frames[(k + 1) % a.frames.length].dx ?? 0) * this.sprite.pw * this.speed));
       }
       this.lastIdx = i;
       this.sprite.x(this.x);
