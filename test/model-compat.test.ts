@@ -16,7 +16,7 @@ test('a v0.3.0 model renders every tab, compact or not, and the band', async () 
   for (const [id] of TABS) for (const compact of [false, true]) for (const width of [30, 54, 100]) {
     expect(() => tabRows(V030, T, { tab: id }, width, compact, 0)).not.toThrow()
   }
-  expect(() => statusRows(V030, T, 60)).not.toThrow()
+  expect(() => statusRows(V030, T, 60, 0)).not.toThrow()
   expect(() => bandSegments(V030, T, 100)).not.toThrow()
 })
 

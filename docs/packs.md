@@ -164,7 +164,7 @@ Three row flags, in `colors.rowFlags`, adjust how message rows look. Each is `tr
 
 The extras are two optional bits of the colors layer:
 
-- `hp` replaces the context hearts with an HP bar: `HP ████████░░ 38% context left`.
+- `hp` replaces the hearts with an HP bar: `HP ████████░░ 38% context left` in the band, `HP ████████░░ 38% weekly limit left` in the pane's status box.
 - `combo` shows `COMBO x3` once three tool calls in a row succeed in one turn. An error, a failed test or a new turn resets it.
 
 ## The spinner library

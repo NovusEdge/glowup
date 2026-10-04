@@ -8,6 +8,7 @@ import type { Look } from './packs.ts'
 import { wrapBubble, type Mood } from './bubbles.ts'
 import { CLAWD_ROW, PET_ROWS, type PetId } from './pets.ts'
 import { comboSegs, fit, hearts, hpBar, renderSegs, toneColor, visibleLength, type Seg } from './layout.tsx'
+import { liveLimit } from './fields.ts'
 
 export type TabId = 'changes' | 'agents' | 'plan'
 export type PaneView = { tab: TabId; offset?: number; categories?: { name: string; tokens: number; kind: ContextCategoryKind }[]; maxTokens?: number; reduced?: boolean }
@@ -127,13 +128,27 @@ export function tabRows(model: Model, t: Theme, v: PaneView, width: number, comp
   return v.tab === 'changes' ? changes(m, t, width, compact, limit) : v.tab === 'agents' ? agents(m, t, v, width, compact, now, limit) : plan(m, t, v, width, compact, limit)
 }
 
-export function statusRows(model: Model, base: Theme, width: number, look?: Look): Seg[][] {
+// The pet's life is the tighter of the 5-hour and weekly windows. API-key sessions report no windows, so they
+// show what the session has spent; context is the last resort because the CONTEXT box already shows it.
+function lifeRow(m: Model, t: Theme, width: number, now: number, look?: Look): Seg[] {
+  const c = t.colors
+  const windows = [['five_hour', '5h limit'], ['seven_day', 'weekly limit']] as const
+  const tight = windows.flatMap(([kind, what]) => {
+    const w = liveLimit(m, kind, now)
+    return w ? [{ used: Math.round(w.percentUsed), what }] : []
+  }).sort((a, b) => b.used - a.used)[0]
+  if (!tight && m.costUsd !== undefined) return [{ text: `$${m.costUsd.toFixed(2)}`, color: c.text }, { text: ' spent this session', color: c.dim }]
+  const { used, what } = tight ?? { used: m.ctxPercent, what: 'context' }
+  return look?.extras.hp ? hpBar(used, t, width, what) : [...hearts(used, t), { text: `  ${what} ${100 - used}% left`, color: c.dim }]
+}
+
+export function statusRows(model: Model, base: Theme, width: number, now: number, look?: Look): Seg[][] {
   const m = normalizeModel(model)
   const t = look?.theme ?? base, c = t.colors
   const live = m.agents.filter(a => a.state === 'running')
   const rows: Seg[][] = [
     [{ text: `${m.act.glyph} ${m.act.label}`, color: toneColor(t, m.act.tone), bold: true }, ...comboSegs(m.combo, look)],
-    look?.extras.hp ? hpBar(m.ctxPercent, t, width) : [...hearts(m.ctxPercent, t), { text: `  context ${100 - m.ctxPercent}% left`, color: c.dim }],
+    lifeRow(m, t, width, now, look),
   ]
   if (live.length) rows.push([{ text: `◆ ${live.map(a => a.name).join(', ')} working`, color: c.agent }])
   return rows.map(r => fit(r, width))
@@ -200,8 +215,8 @@ function petLine(els: { Box: any; Text: any }, t: Theme, extra: PaneExtra, width
 }
 
 // Rows the docked status box takes: margin, border, status lines, and the pet strip with its bubble or sign.
-function footerRows(m: Model, t: Theme, extra: PaneExtra | undefined, width: number): number {
-  const status = statusRows(m, t, width - 2 - 4, extra?.look).length
+function footerRows(m: Model, t: Theme, extra: PaneExtra | undefined, width: number, now: number): number {
+  const status = statusRows(m, t, width - 2 - 4, now, extra?.look).length
   let pet = 0
   if (extra?.pet) {
     const { beside, cols, lines } = bubbleBox(width, false)
@@ -222,7 +237,7 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
   let hint: any = null
   if (!compact && extra?.bodyRows) {
     // tab strip and its margin sit above, the footer below; the tab gets the rest and scrolls on its own
-    const room = Math.max(2, extra.bodyRows - 2 - footerRows(m, t, extra, width))
+    const room = Math.max(2, extra.bodyRows - 2 - footerRows(m, t, extra, width, now))
     if (rows.length > room) {
       const win = room - 1, last = rows.length - win, top = Math.max(0, Math.min(v.offset ?? 0, last)), below = last - top
       const go = (to: number) => extra.onScroll?.(Math.max(0, Math.min(to, last)))
@@ -248,7 +263,7 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
       {compact && extra?.pet && petLine(els, t, extra, inner)}
       {!compact && (
         <Box flexDirection="column" borderStyle={look?.border ?? 'round'} borderColor={look?.borderColor ?? t.colors.faint} marginTop={1} paddingX={1}>
-          {statusRows(m, t, inner - 4, look).map((r, i) => renderSegs(els, r, 's' + i))}
+          {statusRows(m, t, inner - 4, now, look).map((r, i) => renderSegs(els, r, 's' + i))}
           {extra?.pet && petStrip(els, t, extra, width)}
         </Box>
       )}

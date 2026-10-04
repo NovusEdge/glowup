@@ -1,4 +1,4 @@
-import { agentsRunning, type Model } from './model.ts'
+import { agentsRunning, type Model, type RateLimit } from './model.ts'
 import type { Colors, Theme } from './themes.ts'
 import { localTime } from './eggs.ts'
 
@@ -31,11 +31,16 @@ function resetIn(resetsAt: string | undefined, now: number, tzOffset: number): s
   return ` ↻${DAYS[localTime(at, tzOffset).day]}`
 }
 
+// The figure is this session's last reading; once the window resets it no longer holds.
+export function liveLimit(m: Model, kind: string, now: number): RateLimit | undefined {
+  const w = m.limits.find(l => l.kind === kind)
+  return !w || (w.resetsAt !== undefined && Date.parse(w.resetsAt) <= now) ? undefined : w
+}
+
 function field(id: FieldId, m: Model, now: number, tzOffset: number): Span[] | undefined {
   const window = (kind: string, label: string): Span[] | undefined => {
-    const w = m.limits.find(l => l.kind === kind)
-    // the figure is this session's last reading; once the window resets it no longer holds
-    if (!w || (w.resetsAt !== undefined && Date.parse(w.resetsAt) <= now)) return undefined
+    const w = liveLimit(m, kind, now)
+    if (!w) return undefined
     return [{ text: label + ' ', color: 'dim' }, { text: `${w.percentUsed}%`, color: tone(w.percentUsed) }, { text: resetIn(w.resetsAt, now, tzOffset), color: 'dim' }]
   }
   switch (id) {

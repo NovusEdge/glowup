@@ -38,18 +38,19 @@ export function hearts(used: number, t: Theme): Seg[] {
   return [{ text: t.hearts[0].repeat(full), color: t.colors.fail }, { text: t.hearts[1].repeat(5 - full), color: t.colors.dim }].filter(s => s.text)
 }
 
-// The arcade packs' life bar: full at an empty context, drained as it fills. The 22 cells besides the bar are
-// "HP ", the two spaces and "100% context left". At 27 cells the bar is 5 wide; below that it shrinks.
-export function hpBar(used: number, t: Theme, width: number): Seg[] {
+// The arcade packs' life bar: full when nothing of `what` is used, drained as it fills. Besides the bar it
+// takes "HP ", two spaces and "100% <what> left", sized for 100% so the bar keeps its width as the number drops.
+// When that leaves under 5 cells for the bar, the words go and the bare percent stays.
+export function hpBar(used: number, t: Theme, width: number, what = 'context'): Seg[] {
   const c = t.colors, left = Math.max(0, Math.min(100, 100 - used))
-  // under 27 cells the words go and the bare percent stays
-  const short = width < 27
-  const w = short ? Math.max(3, width - 9) : width - 22, n = Math.round((left / 100) * w)
+  const words = 3 + 2 + `100% ${what} left`.length
+  const short = width - words < 5
+  const w = short ? Math.max(3, width - 9) : width - words, n = Math.round((left / 100) * w)
   return [
     { text: 'HP ', color: c.accent, bold: true },
     ...gradient('█'.repeat(n), c.fail, c.pass),
     { text: '░'.repeat(w - n), color: c.faint },
-    { text: short ? `  ${left}%` : `  ${left}% context left`, color: c.dim },
+    { text: short ? `  ${left}%` : `  ${left}% ${what} left`, color: c.dim },
   ].filter(s => s.text)
 }
 

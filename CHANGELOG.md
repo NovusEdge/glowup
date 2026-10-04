@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The hearts beside the pet in the pane's status box show the usage you have left, the 5-hour or weekly limit, whichever is tighter. On an API key, where there are no limits, they give way to what the session has spent. The band's hearts still track context.
+
 ## [0.3.5] - 2026-10-05
 
 ### Added

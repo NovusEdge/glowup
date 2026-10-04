@@ -22,6 +22,13 @@ test('hpBar drops the words under 27 cells and still fits', async () => {
   expect(hpBar(62, T, 27).map(s => s.text).join('')).toContain('context left')
 })
 
+test('hpBar sizes its words to the label', async () => {
+  // "HP " + two spaces + "100% weekly limit left" is 27 cells, so the bar needs 32 to keep its words
+  expect(hpBar(20, T, 32, 'weekly limit').map(s => s.text).join('')).toContain('80% weekly limit left')
+  expect(hpBar(20, T, 31, 'weekly limit').map(s => s.text).join('')).not.toContain('weekly')
+  expect(visibleLength(hpBar(20, T, 40, 'weekly limit'))).toBeLessThanOrEqual(40)
+})
+
 test('comboSegs is empty under three or without the pack extra', async () => {
   const arcade = resolveLook({ colors: 'arcade', motion: 'arcade' }, {}, {}).look
   const classic = resolveLook({ colors: 'classic', motion: 'classic' }, {}, {}).look
