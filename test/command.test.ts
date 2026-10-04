@@ -159,7 +159,7 @@ test('pack save writes the current mix as a self-contained file', async () => {
 test('pack <url> installs then applies; --force replaces', async () => {
   const { host, store } = fakeHost({ fetches: { 'https://x.dev/n.json': '{"format":1,"name":"neon","extends":"arcade"}' } })
   const { ctl: c } = ctl()
-  expect(await runCommand(host, 'pack https://x.dev/n.json', c)).toContain('neon')
+  expect(await runCommand(host, 'pack https://x.dev/n.json', c)).toBe('Pack: neon')
   expect(store.mix).toEqual({ colors: 'neon', motion: 'neon' })
   expect(await runCommand(host, 'pack https://x.dev/n.json', c)).toContain('--force')
   expect(await runCommand(host, 'pack https://x.dev/n.json --force', c)).toContain('neon')
@@ -177,7 +177,7 @@ test('theme <name> keeps the pack and sets mix.theme', async () => {
 
 test('import reads a scheme and applies its colors layer', async () => {
   const ghostty = ['#21222c', '#ff5555', '#50fa7b', '#f1fa8c', '#bd93f9', '#ff79c6', '#8be9fd', '#f8f8f2'].map((x, i) => `palette = ${i}=${x}`).join('\n') + '\nbackground = #282a36\nforeground = #f8f8f2'
-  const { host, files, store } = fakeHost({ files: { '/home/u/schemes/dracula': ghostty } })
+  const { host, files, store } = fakeHost({ runs: { 'head -c 65537 /home/u/schemes/dracula': { exitCode: 0, stdout: ghostty } } })
   const { ctl: c } = ctl()
   await runCommand(host, 'pack cozy', c)
   expect(await runCommand(host, 'import ~/schemes/dracula', c)).toContain('dracula')
@@ -187,9 +187,9 @@ test('import reads a scheme and applies its colors layer', async () => {
 })
 
 test('import refuses a file over 64 KB before reading it', async () => {
-  const { host, ran } = fakeHost({ files: { '/home/u/big': 'x' }, runs: { 'stat -c %s /home/u/big': { exitCode: 0, stdout: '70000\n' } } })
+  const { host, ran } = fakeHost({ runs: { 'head -c 65537 /home/u/big': { exitCode: 0, stdout: 'x'.repeat(65537) } } })
   expect(await runCommand(host, 'import ~/big', ctl().ctl)).toContain('over 64 KB')
-  expect(ran).toEqual(['stat -c %s /home/u/big'])
+  expect(ran).toEqual(['head -c 65537 /home/u/big'])
 })
 
 test('pet and bubbles; clawd-shiny stays locked until earned', async () => {

@@ -248,7 +248,9 @@ export const register: Register = (on, options) => {
     await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'theme|pack|import|pet|bubbles|pane|motion|statusline ...' })
     mix = await initialMix(host, options)
     const storedPet = await host.storeGet('pet')
-    pet = PETS.includes(storedPet as PetSetting) ? storedPet as PetSetting : PETS.includes(options.pet as PetSetting) ? options.pet as PetSetting : 'clawd'
+    const wantPet = PETS.includes(storedPet as PetSetting) ? storedPet as PetSetting : PETS.includes(options.pet as PetSetting) ? options.pet as PetSetting : 'clawd'
+    const eggs = await host.storeGet('eggs') as EggStore | undefined
+    pet = wantPet === 'clawd-shiny' && eggs?.shinyAt === undefined ? 'clawd' : wantPet
     const storedBubbles = await host.storeGet('bubbles')
     bubbles = BUBBLES.includes(storedBubbles as BubbleSetting) ? storedBubbles as BubbleSetting : BUBBLES.includes(options.bubbles as BubbleSetting) ? options.bubbles as BubbleSetting : 'on'
     await loadLook($)
@@ -291,9 +293,13 @@ export const register: Register = (on, options) => {
       writeType: e.tool === 'Write' && (result?.type === 'create' || result?.type === 'update') ? result.type : undefined,
     })
     if (!e.agentId && model.lastTest?.at === endAt && model.lastTest.passed) {
-      const r = recordPass(await hostOf($).storeGet('eggs') as EggStore | undefined, Date.now())
-      await hostOf($).storeSet('eggs', r.next)
-      if (r.unlocked) $.ui.toast('something was left on your track… /glowup pet clawd-shiny')
+      try {
+        const r = recordPass(await hostOf($).storeGet('eggs') as EggStore | undefined, Date.now())
+        await hostOf($).storeSet('eggs', r.next)
+        if (r.unlocked) $.ui.toast('something was left on your track… /glowup pet clawd-shiny')
+      } catch (err) {
+        $.ui.log(`pass counter failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
+      }
     }
     if (!denied && !e.agentId && (e.tool === 'Edit' || e.tool === 'Write' || e.tool === 'NotebookEdit' || e.tool === 'Bash')) refresh($)
     if (!e.agentId) void feedContext($)

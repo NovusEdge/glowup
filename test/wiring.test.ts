@@ -328,17 +328,26 @@ test('the stored mix loads at session start; a bad layer toasts once', async ($,
   expect((await runGlowup($, 'pack list')).text).toContain('custom mix: colors half, motion half')
 })
 
-test('userConfig seeds the look; the store wins once a command wrote the key', async ($, on) => {
+test('userConfig seeds the look', { options: { pack: 'crt', theme: 'dusk', pet: 'off', bubbles: 'off' } }, async ($, on) => {
   fakeFs(on)
   mock.clock(on)
-  mock.store(on, { theme: 'dusk' })
+  mock.store(on, {})
   bootable(on)
   on('session.id', async () => ({ value: 's1' }))
   await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
-  expect((await runGlowup($, 'pack list')).text).toContain('custom mix: colors classic, motion classic, theme dusk')
-  expect((await runGlowup($, 'pet list')).text).toContain('● clawd')
-  await runGlowup($, 'pet off')
+  expect((await runGlowup($, 'pack list')).text).toContain('custom mix: colors crt, motion crt, theme dusk')
   expect((await runGlowup($, 'pet list')).text).toContain('● off')
+})
+
+test('a stored mix and pet win over userConfig', { options: { pack: 'crt', pet: 'off' } }, async ($, on) => {
+  fakeFs(on)
+  mock.clock(on)
+  mock.store(on, { mix: { colors: 'cozy', motion: 'cozy' }, pet: 'clawd' })
+  bootable(on)
+  on('session.id', async () => ({ value: 's1' }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  expect((await runGlowup($, 'pack list')).text).toContain('● cozy')
+  expect((await runGlowup($, 'pet list')).text).toContain('● clawd\n')
 })
 
 test('the 100th passing test run unlocks the shiny pet', async ($, on) => {
@@ -354,4 +363,32 @@ test('the 100th passing test run unlocks the shiny pet', async ($, on) => {
   await $.turn.start({ text: 'hi', turnId: 't1' })
   await $.tool.call({ tool: 'Bash', tool_use_id: 'b1', command: 'npm test' } as never)
   expect(toasts.some(t => t.includes('something was left on your track'))).toBe(true)
+  // the command reads the stored shinyAt, so this proves the write landed
+  expect((await runGlowup($, 'pet clawd-shiny')).text).toBe('Pet: clawd-shiny')
+})
+
+test('a subagent test run does not count toward the shiny pet', async ($, on) => {
+  fakeFs(on)
+  mock.clock(on)
+  mock.store(on, { eggs: { passRuns: 99 } })
+  on('ui.toast', async () => ({ value: undefined }) as never)
+  on('ui.status', async () => ({ value: undefined }) as never)
+  on('session.id', async () => ({ value: 's1' }))
+  on('turn.start', async (_$, e) => ({ turnId: e.turnId }))
+  on('tool.call', async () => ({ result: {}, text: 'Tests: 12 passed' }) as never)
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await $.tool.call({ tool: 'Bash', tool_use_id: 'b1', command: 'npm test', agentId: 'a1' } as never)
+  await $.tool.call({ tool: 'Bash', tool_use_id: 'b2', command: 'npm test' } as never)
+  // the subagent run did not count, so only this one is the 100th
+  expect((await runGlowup($, 'pet clawd-shiny')).text).toBe('Pet: clawd-shiny')
+})
+
+test('shiny from userConfig or the store applies only once earned', { options: { pet: 'clawd-shiny' } }, async ($, on) => {
+  fakeFs(on)
+  mock.clock(on)
+  mock.store(on, {})
+  bootable(on)
+  on('session.id', async () => ({ value: 's1' }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  expect((await runGlowup($, 'pet list')).text).toContain('● clawd\n')
 })

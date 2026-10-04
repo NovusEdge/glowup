@@ -4,7 +4,7 @@ import { loadUserThemes, addTheme } from './userthemes.ts'
 import { takeOver, restore } from './statusline.ts'
 import { resolveLook, exportMix, type Mix } from './packs.ts'
 import { PACKS } from './packpresets.ts'
-import { loadUserPacks, addPack, savePack } from './userpacks.ts'
+import { loadUserPacks, addPack, savePack, SAFE_NAME } from './userpacks.ts'
 import { parseScheme } from './schemes.ts'
 import type { PetSetting } from './pets.ts'
 import type { BubbleSetting } from './bubbles.ts'
@@ -52,7 +52,7 @@ const shinyUnlocked = async (host: Host) => ((await host.storeGet('eggs')) as Eg
 
 async function packList(host: Host, ctl: Ctl): Promise<string> {
   const user = await loadUserPacks(host)
-  const names = [...new Set([...Object.keys(PACKS), ...Object.keys(user)])]
+  const names = [...new Set([...Object.keys(PACKS), ...Object.keys(user).filter(n => SAFE_NAME.test(n))])]
   const m = ctl.mix()
   // a layer that failed to resolve fell back to classic, so the pack is not what is showing
   const { look } = resolveLook(m, user, await loadUserThemes(host))
@@ -72,11 +72,11 @@ async function usePack(host: Host, ctl: Ctl, name: string): Promise<string> {
 
 async function importScheme(host: Host, ctl: Ctl, rawPath: string, force: boolean): Promise<string> {
   const path = rawPath.startsWith('~/') ? `${host.home}${rawPath.slice(1)}` : rawPath
-  // A failed stat (no stat binary, odd platform) falls through: parseScheme caps the text too.
-  const stat = await host.run(['stat', '-c', '%s', path]).catch(() => undefined)
-  if (stat?.exitCode === 0 && Number(stat.stdout.trim()) > MAX_SCHEME_BYTES) return `${path} is over 64 KB.`
-  let text: string
-  try { text = await host.readFile(path) } catch { return `Could not read ${path}.` }
+  // head is portable and bounded, so a FIFO or device cannot hang or flood the read.
+  const head = await host.run(['head', '-c', String(MAX_SCHEME_BYTES + 1), path]).catch(() => undefined)
+  if (!head || head.exitCode !== 0) return `Could not read ${path}.`
+  if (new TextEncoder().encode(head.stdout).length > MAX_SCHEME_BYTES) return `${path} is over 64 KB.`
+  const text = head.stdout
   let scheme: ReturnType<typeof parseScheme>
   try { scheme = parseScheme(text, path) } catch (err) { return err instanceof Error ? err.message : String(err) }
   const msg = await savePack(host, {
@@ -114,7 +114,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     const r = await addPack(host, a1, a2 === '--force')
     if (!r.name) return r.message
     await applyMix(host, ctl, { colors: r.name, motion: r.name })
-    return r.message
+    return `Pack: ${r.name}`
   }
   if (sub === 'pack' && a1) return usePack(host, ctl, a1)
   if (sub === 'import' && a1) return importScheme(host, ctl, a1, a2 === '--force')
