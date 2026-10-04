@@ -69,7 +69,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 say "Downloading the glowup installer $tag for $os/$arch..."
-fetch "$base/download/$tag/$archive" "$tmp/$archive" || die "could not download $archive from $base/download/$tag/"
+fetch "$base/download/$tag/$archive" "$tmp/$archive" || die "could not download $archive from $base/download/$tag/. That release may predate the installer. Set GLOWUP_VERSION to v0.3.0 or newer."
 fetch "$base/download/$tag/checksums.txt" "$tmp/checksums.txt" || die "could not download checksums.txt for $tag"
 
 # Check only our archive's line: checksums.txt also lists the other platforms'.

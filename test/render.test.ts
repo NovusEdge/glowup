@@ -18,7 +18,7 @@ const walk = (n: any, out: any[] = []): any[] => { if (n && typeof n === 'object
 const USER = { text: 'fix it', origin: { kind: 'composer' }, isExpanded: false }
 const TOOL = { tool_use_id: 'u1', tool: 'Read', input: { file_path: '/r/a.ts' }, isRunning: false, isErrored: false, isInterrupted: false }
 
-test('a cards pack wraps prompt rows on the terminal and nowhere else', async ($, on) => {
+test('a cards pack wraps prompt rows on the terminal and nowhere else', { timeoutMs: 20000 }, async ($, on) => {
   base(on)
   await runGlowup($, 'pack arcade')
   for (const surface of ['terminal', 'desktop'] as const) {

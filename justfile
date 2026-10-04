@@ -57,7 +57,7 @@ release VERSION:
 packs:
     node installer/gen/packs.ts
 
-# fail when the installer's pack colors are older than hooks/packpresets.ts
+# fail when the installer's pack colors differ from hooks/packpresets.ts
 [group('installer')]
 packs-check:
     node installer/gen/packs.ts --check
