@@ -8,7 +8,7 @@ import { loadUserPacks } from './userpacks.ts'
 import { PET_ROWS, type PetSetting, type PetId, type PetInput, type PetKind } from './pets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, haikuLimit, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
 import { recordPass, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
-import { gitBase, refreshCounts, serial } from './changes.ts'
+import { branchOf, gitBase, refreshCounts, serial } from './changes.ts'
 import { loadTasks, taskListId } from './tasks.ts'
 import { tierFor, renderSegs } from './layout.tsx'
 import { renderBand } from './band.tsx'
@@ -356,7 +356,21 @@ function refresh($: Engine) {
     if (seq !== refreshSeq) return
     model = mergeCounts(model, files)
     redraw($)
+    void readBranch($)
   })
+}
+
+async function readBranch($: Engine) {
+  if (!fields.includes('branch') || !cwd) return
+  feed($, { type: 'branch', branch: await branchOf(hostOf($), cwd) })
+}
+
+async function readSessionInfo($: Engine) {
+  const [modelName, root] = await Promise.all([
+    $.session.model().catch(() => undefined),
+    $.session.root().catch(() => undefined),
+  ])
+  feed($, { type: 'session-info', modelName: modelName || undefined, root: root || undefined })
 }
 
 // usage() has no percent before the first response of a session, hence the guard.
@@ -365,6 +379,7 @@ function refresh($: Engine) {
 async function feedContext($: Engine) {
   try {
     const u = await $.session.usage({ breakdown: 'summary' })
+    feed($, { type: 'usage', limits: u.rateLimits ?? [], costUsd: u.cost?.usd })
     const b = u.context.breakdown
     view = { ...view, categories: b?.categories.map(c => ({ name: c.name, tokens: c.tokens, kind: c.kind })), maxTokens: b?.maxTokens }
     if (u.context.percent !== undefined) feed($, { type: 'context', percent: u.context.percent })
@@ -402,6 +417,8 @@ async function adoptSession($: Engine, endedId: string) {
   // at session.end the id may still be the ending one; turn.start re-checks
   sessionId = id === endedId ? '' : id
   git = await gitBase(hostOf($), cwd)
+  void readBranch($)
+  void readSessionInfo($)
   syncTicker($)
   redraw($)
   void loadPlan($)
@@ -557,7 +574,9 @@ export const register: Register = (on, options) => {
     const colorterm = await $.env.get('COLORTERM')
     colorMode = colorterm === 'truecolor' || colorterm === '24bit' ? 'truecolor' : '256'
     await syncTakeover($)
-    git =await gitBase(host, cwd)
+    git = await gitBase(host, cwd)
+    void readBranch($)
+    void readSessionInfo($)
     void loadPlan($)
     // a beat after launch, so the dialog does not open over the startup frame
     if (e.isInteractive) $.clock.after(1500, () => void askFirstRun($))
@@ -658,6 +677,7 @@ export const register: Register = (on, options) => {
     feed($, { type: 'turn-done', at: Date.now(), reason: e.reason })
     refresh($)
     await feedContext($)
+    void readSessionInfo($)
     // one more redraw after the linger so the band folds away
     $.clock.after(1600, () => publish($))
     return r
@@ -674,6 +694,12 @@ export const register: Register = (on, options) => {
     feed($, { type: 'compact' })
     feed($, { type: 'context', percent })
     return r
+  })
+
+  on('session.measure', async ($, e, next) => {
+    if (off) return next(e)
+    feed($, { type: 'usage', limits: e.rateLimits, costUsd: e.cost?.usd })
+    return next(e)
   })
 
   // /clear and resume continue the process under a new session id with no session.start.

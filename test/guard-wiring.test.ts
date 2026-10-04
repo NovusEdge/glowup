@@ -56,6 +56,19 @@ test('an entry left by a copy whose folder is gone does not turn this one off', 
   expect(registered).toEqual(['glowup'])
 })
 
+test('a losing copy ignores session.measure', async ($, on) => {
+  const { files, writes } = boot(on, { [`${DIR}/s1.aa.json`]: entry('/elsewhere/glowup', Date.now() - 1000) })
+  const clock = mock.clock(on)
+  on('session.measure', async (_$, e) => ({ changed: e.changed }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  const before = writes.length
+  await $.session.measure({ context: { window: 1000, percent: 10 }, rateLimits: [{ kind: 'five_hour', percentUsed: 42 }], changed: ['rateLimits'] } as never)
+  await clock.advance(10)
+  expect(writes.length).toBe(before)
+  expect(Object.keys(files).filter(f => f.includes('/glowup/status/'))).toEqual([])
+})
+
 test('an installed copy registered first loses to this dev copy, which keeps drawing', async ($, on) => {
   const { toasts, registered } = boot(on, { [`${DIR}/s1.aa.json`]: entry(CACHE, Date.now() - 1000) })
   mock.clock(on)

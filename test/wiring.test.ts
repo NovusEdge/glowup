@@ -192,6 +192,51 @@ test('without a takeover the entry under the prompt uses the fields and has no e
   expect(shown.every(s => !s.includes('\x1b'))).toBe(true)
 })
 
+test('session.measure puts usage limits in the status file', async ($, on) => {
+  const { files } = fakeFs(on)
+  const clock = mock.clock(on)
+  mock.store(on, { 'statusline-backup': '__none__', statusline: ['5h'] })
+  on('ui.status', async () => ({ value: undefined }) as never)
+  on('ui.panes', async () => ({ value: [] }))
+  on('session.id', async () => ({ value: 's1' }))
+  on('turn.start', async (_$, e) => ({ turnId: e.turnId }))
+  on('session.start', async (_$, e) => ({ cwd: e.cwd }) as never)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.measure', async (_$, e) => ({ changed: e.changed }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await $.session.measure({ context: { window: 1000, percent: 10 }, rateLimits: [{ kind: 'five_hour', percentUsed: 42 }], changed: ['rateLimits'] } as never)
+  await clock.advance(10)
+  expect(files['/fake/.claude/glowup/status/s1']).toContain('42%')
+})
+
+function branchRun(on: Parameters<typeof fakeFs>[0], picked: string[]) {
+  const ran: string[] = []
+  fakeFs(on, {}, argv => { ran.push(argv.join(' ')); if (argv.includes('symbolic-ref')) return { exitCode: 0, stdout: 'main\n' } })
+  mock.clock(on)
+  mock.store(on, { statusline: picked })
+  on('ui.status', async () => ({ value: undefined }) as never)
+  on('ui.panes', async () => ({ value: [] }))
+  on('session.id', async () => ({ value: 's1' }))
+  on('turn.start', async (_$, e) => ({ turnId: e.turnId }))
+  on('session.start', async (_$, e) => ({ cwd: e.cwd }) as never)
+  on('command.register', async () => ({ value: undefined }) as never)
+  return ran
+}
+
+test('the branch is read only when the branch field is picked', async ($, on) => {
+  const ran = branchRun(on, ['activity'])
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  expect(ran.some(r => r.includes('symbolic-ref'))).toBe(false)
+})
+
+test('the branch is read at session start when the branch field is picked', async ($, on) => {
+  const ran = branchRun(on, ['branch'])
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  expect(ran.some(r => r.includes('symbolic-ref'))).toBe(true)
+})
+
 test('the Plan tab reads the breakdown once, not on every redraw', async ($, on) => {
   fakeFs(on)
   const clock = mock.clock(on)
