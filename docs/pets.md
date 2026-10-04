@@ -40,7 +40,7 @@ glowup cannot hide Claude Code's own task list. The Plan & context tab shows the
 | A turn ends | Does a little dance. |
 | One minute with nothing happening | Falls asleep. |
 
-On a Friday after 15:00, when Claude runs a deploy command, Clawd puts on a sweat outfit.
+On a Friday after 15:00, when Claude runs a deploy command, Clawd puts on a sweat outfit. A failed test run also puts the sweat drop on, until your next prompt.
 
 Movement frames change no faster than every 80 ms, and a color flash lasts at least 400 ms. glowup never flashes more than 2.5 times a second. Under reduced motion or in the narrow drawer nothing ticks.
 
@@ -83,6 +83,6 @@ Clawd dresses for some days and hours, by your computer's local time:
 - A Santa hat from 20 to 31 December.
 - A pumpkin from 25 to 31 October.
 - A party hat on the anniversary of the day you installed glowup.
-- A nightcap between 02:00 and 04:59.
+- A nightcap between 23:00 and 04:59.
 
 The outfits are cosmetic and need no setting. There are a few more surprises that this guide does not list.

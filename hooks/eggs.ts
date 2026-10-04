@@ -44,12 +44,13 @@ export function localTime(ms: number, offsetMin: number): LocalTime {
   return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, date: d.getUTCDate(), day: d.getUTCDay(), hour: d.getUTCHours() }
 }
 
-export function overlays(t: LocalTime, installed: LocalTime | undefined, friday: boolean): Overlay[] {
+export function overlays(t: LocalTime, installed: LocalTime | undefined, friday: boolean, failed = false): Overlay[] {
   const out: Overlay[] = []
   if (t.month === 12 && t.date >= 20) out.push('santa')
   else if (t.month === 10 && t.date >= 25) out.push('pumpkin')
   else if (installed && t.month === installed.month && t.date === installed.date && t.year > installed.year) out.push('party')
-  if (t.hour >= 2 && t.hour <= 4) out.push('nightcap')
-  if (friday) out.push('sweat', 'friday')
+  if (t.hour >= 23 || t.hour <= 4) out.push('nightcap')
+  if (friday || failed) out.push('sweat')
+  if (friday) out.push('friday')
   return out
 }

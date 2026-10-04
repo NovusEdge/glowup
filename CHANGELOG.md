@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Clawd's nightcap now shows from 23:00 to 04:59, and a failed test run gives him the sweat drop until your next prompt.
 - The `cards` row style now puts your prompts and Claude's replies on a side bar instead of a box, and draws tool calls in a dim box.
 - Clawd's done dance now lasts 4 seconds instead of 1.5.
 - Chat rows in every row style except `classic` now keep a one-column margin on the left.
