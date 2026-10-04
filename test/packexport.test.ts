@@ -34,7 +34,7 @@ test('every color in the export is #rrggbb', async () => {
 
 test('packsJson ends with one newline and round-trips', async () => {
   const s = packsJson()
-  expect(s.endsWith('}\n]\n')).toBe(true)
+  expect(s.endsWith('}\n}\n')).toBe(true)
   expect(JSON.parse(s)).toEqual(exportAll())
 })
 
