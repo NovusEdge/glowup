@@ -72,7 +72,7 @@ A theme is one JSON file: colors, a few glyphs, spinner words and band hearts. F
 
 ### The status line
 
-By default glowup adds one quiet entry under the prompt (`◆ editing · ctx 48%`) and leaves your status line alone. If you want glowup to draw the whole line, opt in with `/glowup statusline on`. `/glowup statusline restore` puts yours back.
+While Claude or a subagent is working, glowup adds one entry under the prompt (`◆ editing · ctx 48%`) and clears it when the work is done. Your status line is left alone. If you want glowup to draw the whole line, opt in with `/glowup statusline on`. `/glowup statusline restore` puts yours back.
 
 </td>
 </tr>
