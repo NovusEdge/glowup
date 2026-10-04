@@ -1,6 +1,6 @@
 import type { EngineInterface, Register, Timer } from 'claude-code'
 import type { Host } from './host.ts'
-import { initialModel, applyEvent, mergeCounts, isBusy, type Model, type Ev } from './model.ts'
+import { initialModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
 import { approvalLabel } from './events.ts'
 import { resolveTheme, type Theme } from './themes.ts'
 import { gitBase, refreshCounts, serial } from './changes.ts'
@@ -80,8 +80,20 @@ function redraw($: Engine) {
 // Elapsed times and agent spinners change with no event behind them, and
 // background subagents keep running after the main turn ends.
 function syncTicker($: Engine) {
-  if (isBusy(model)) ticker ??= $.clock.every(1000, () => redraw($))
+  if (isBusy(model)) ticker ??= $.clock.every(1000, () => { redraw($); void settleTeammates($) })
   else { ticker?.cancel(); ticker = undefined }
+}
+// A named Agent call starts an in-process teammate, whose loop raises no
+// turn.complete of its own: agent.list() going idle is the only sign it is done.
+async function settleTeammates($: Engine) {
+  if (!agentsRunning(model)) return
+  try {
+    const status = new Map((await $.agent.list()).map(a => [a.id, a.status]))
+    for (const a of model.agents) {
+      const s = a.agentId === undefined ? undefined : status.get(a.agentId)
+      if (a.state === 'running' && s !== undefined && s !== 'running') feed($, { type: 'agent-done', at: Date.now(), agentId: a.agentId! })
+    }
+  } catch {}
 }
 function feed($: Engine, ev: Ev) { model = applyEvent(model, ev); syncTicker($); redraw($) }
 

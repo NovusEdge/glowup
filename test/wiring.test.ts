@@ -103,6 +103,32 @@ test('the status entry shows only while Claude or a subagent works', async ($, o
   expect(statuses.length).toBe(idle)
 })
 
+test('a named teammate that goes idle stops counting as running', async ($, on) => {
+  const clock = mock.clock(on)
+  const statuses: (string | undefined)[] = []
+  let status = 'running'
+  on('ui.status', async (_$, e) => { statuses.push(e.text); return { value: undefined } as never })
+  on('ui.panes', async () => ({ value: [] }))
+  on('session.id', async () => ({ value: 's1' }))
+  on('session.usage', async () => ({ value: { context: { window: 1000, percent: 10 } } as never }))
+  on('turn.start', async (_$, e) => ({ turnId: e.turnId }))
+  on('turn.complete', async () => ({ text: '' }))
+  on('tool.call', async () => ({ result: { status: 'teammate_spawned' }, text: 'Spawned' }) as never)
+  on('agent.spawn', async () => ({ model: 'm', agentId: 'sleeper@s1' }))
+  on('agent.list', async () => ({ value: [{ id: 'sleeper@s1', description: 'nap', type: 'general-purpose', status, name: 'sleeper' }] }))
+
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await $.tool.call({ ...AGENT_CALL, name: 'sleeper' } as never)
+  await $.agent.spawn({ tool_use_id: 'a1', prompt: 'look', description: 'nap', subagentType: 'general-purpose', background: true, name: 'sleeper' } as never)
+  await $.turn.complete({ ...END, reason: 'answer' })
+  await clock.advance(2000)
+  expect(statuses.at(-1)).toBe('◆ delegating · ctx 10%')
+  // a teammate's loop raises no turn.complete; agent.list is where it shows as idle
+  status = 'idle'
+  await clock.advance(2000)
+  expect(statuses.at(-1)).toBeUndefined()
+})
+
 test('the takeover keeps the status entry cleared', async ($, on) => {
   mock.clock(on)
   mock.store(on, { 'statusline-backup': '__none__' })
