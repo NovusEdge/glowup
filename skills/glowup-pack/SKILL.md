@@ -29,6 +29,28 @@ Built-in packs (`classic`, `crt`, `cozy`, `arcade`) and built-in themes live in 
 5. **Glyphs and spinner words** are not pack fields. Write a theme file `~/.claude/glowup/themes/<name>.json` with `"extends": "<built-in or their theme>"` and only the `glyphs` or `spinner.words` you change, then set `colors.theme` to its name in the pack. Each glyph is one character, one cell wide.
 6. **Check contrast** again for any palette color you changed, then have the user apply it.
 
+## Status line fields
+
+The status line fields are a personal setting, not part of a pack. They are an ordered list of ids, and the built-in default is `activity ctx 5h week`. A field with no data is left out.
+
+| Id | Shows |
+| --- | --- |
+| `activity` | what Claude is doing: `◆ editing` |
+| `ctx` | context used: `ctx 48%` |
+| `5h` | 5-hour usage and reset: `5h 23% ↻2h10m` |
+| `week` | weekly usage and reset: `wk 61% ↻Thu` |
+| `cost` | session cost: `$1.24` |
+| `model` | the model, as `/model` names it |
+| `agents` | running subagents: `2 agents` |
+| `plan` | plan progress: `plan 3/7` |
+| `branch` | git branch |
+| `changes` | lines added and removed: `+42 −7` |
+| `cwd` | the project folder name |
+
+When the person describes what they want on the line, tell them to run `/glowup statusline fields <ids>` with the ids they describe, in the order they name them. "Show my usage limits and branch" becomes `/glowup statusline fields activity 5h week branch`. `/glowup statusline fields default` goes back to the default. An unknown id refuses the whole command and lists the valid ids.
+
+glowup draws the whole line only after `/glowup statusline on`. Without it, the fields show in the entry under the prompt while Claude works.
+
 ## Contrast
 
 Check against `bg`, and against `panel` when `rows` is `cards`.
