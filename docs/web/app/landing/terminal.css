@@ -1,8 +1,8 @@
-.term{--k:var(--text);background:var(--bg);color:var(--text);border-radius:12px;overflow:hidden;font:13px/1.55 'JetBrains Mono',monospace;border:1px solid color-mix(in srgb,var(--faint) 80%,#fff 8%);box-shadow:0 40px 120px -30px #000a,0 0 0 1px #0006;position:relative;transition:background .35s,color .35s;text-align:left}
+.term{--k:var(--text);background:var(--bg);color:var(--text);border-radius:12px;overflow:hidden;font:13px/1.55 'JetBrains Mono',monospace;border:1px solid color-mix(in srgb,var(--faint) 80%,#fff 8%);box-shadow:0 30px 80px -24px #000c,0 0 0 1px #0006;position:relative;transition:background .35s,color .35s;text-align:left}
 .term .tbar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--faint);background:color-mix(in srgb,var(--panel) 70%,var(--bg))}
 .term .tbar i{width:11px;height:11px;border-radius:50%;background:var(--faint)}
 .term .tbar .ttl{margin-left:8px;color:var(--dim);font-size:12px}
-.term .tbody{display:flex;height:var(--th,380px)}
+.term .tbody{display:flex;height:var(--th,440px)}
 .term .tx{flex:1;min-width:0;padding:14px 18px 0;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;gap:2px}
 .term .tx>*{flex:none}
 .term .pane{width:300px;flex:none;border-left:1px solid var(--faint);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
@@ -81,7 +81,8 @@
 /* Phones: the pane drops under the transcript. */
 @media (max-width:900px){
   .term .tbody{flex-direction:column;height:auto}
-  .term .tx{height:var(--th,380px);flex:none;padding:12px 12px 0;font-size:12px}
+  .term{--th:340px}
+  .term .tx{height:var(--th,340px);flex:none;padding:12px 12px 0;font-size:12px}
   .term .pane{width:auto;border-left:0;border-top:1px solid var(--faint)}
   .term .plist{display:none}
   .term .ptabs{font-size:11px}

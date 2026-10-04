@@ -15,6 +15,13 @@ test('final frame is the done state with the passing result', () => {
   assert.deepEqual(f.files.map(x => x.name), ['src/auth.ts', 'src/routes.ts', 'test/auth.test.ts'])
 })
 
+test('Clawd fails on the red test, then goes back to working on the fix', () => {
+  const pose = (ms: number) => { const p = stateAt(ms).pet; return p.kind === 'pose' ? p.pose : p.kind }
+  const failAt = SCRIPT.find(st => { const p = st.apply(initialState()).pet; return p.kind === 'pose' && p.pose === 'fail' })!.at
+  assert.equal(pose(failAt), 'fail')
+  assert.equal(pose(failAt + 1900), 'working')
+})
+
 test('stateAt is periodic', () => {
   assert.deepEqual(stateAt(1234), stateAt(1234 + LOOP_MS))
   assert.deepEqual(stateAt(0), initialState())

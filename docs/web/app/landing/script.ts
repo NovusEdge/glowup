@@ -63,7 +63,7 @@ at(T5, s => ({
 }))
 at(T5 + BUBBLE_MS, s => ({ ...s, bubble: null }))
 at(T6, s => file({ ...push(band(s, 'edit', 'Editing src/auth.ts', 1), tool('edit', 'Update', 'src/auth.ts', '+2 −1'),
-  { t: 'diff', lines: [['add', 'if (next.startsWith("//")) return null']] }), combo: s.combo + 1 }, { name: 'src/auth.ts', kind: 'edit', add: 11, del: 3 }))
+  { t: 'diff', lines: [['add', 'if (next.startsWith("//")) return null']] }), combo: s.combo + 1, pet: pose('working') }, { name: 'src/auth.ts', kind: 'edit', add: 11, del: 3 }))
 at(T7, s => file({ ...push(band(s, 'edit', 'Editing test/auth.test.ts', 1), tool('edit', 'Update', 'test/auth.test.ts', '+6 −0')), combo: s.combo + 1 },
   { name: 'test/auth.test.ts', kind: 'edit', add: 6, del: 0 }))
 at(T8, s => push({ ...band(s, 'shell', 'Running pnpm test'), ctx: 15 }, tool('shell', 'Bash', 'pnpm test')))
