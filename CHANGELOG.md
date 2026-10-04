@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - "Needs you" no longer shows when nobody is being asked, as in auto mode. glowup used to guess the permission mode from the footer labels, which never name it, so it always guessed "ask". It now alerts only when Claude Code actually opens a permission dialog in a mode that asks you, and stays quiet when unsure.
+- In auto mode glowup does not alert, even when the auto-mode check hands a call to you. It alerts only for a dialog Claude Code opens, and not when another hook has already decided the request.
+- Speech bubbles wrap onto a second line in the pane instead of running past the edge. A Haiku line that arrives late now shows for the full 3 seconds instead of a blink, and Haiku is told only the kind of work, never a command, path or search pattern.
+- The plan tab reads the newest 200 task files, so a long-running list no longer hides the task in progress.
 - Clawd keeps his working pose while subagents run, including after the main turn has ended and while you view a subagent's transcript.
 - `/glowup pack`, `theme`, `pet`, `bubbles`, `motion`, `statusline` and `import` with no argument now show the current setting or how to use them, instead of "Unknown" and the help card.
 - The Plan & context tab shows Claude Code's saved task list. It loads when the session starts and again after each `TaskCreate` or `TaskUpdate`, so tasks from earlier sessions no longer leave the plan empty.

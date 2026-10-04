@@ -38,6 +38,8 @@ glowup cannot hide Claude Code's own task list. The Plan & context tab shows the
 | A turn ends | Does a little dance. |
 | One minute with nothing happening | Falls asleep. |
 
+glowup alerts only when Claude Code opens a permission dialog in a mode that asks you. In auto mode it never alerts, even when the auto-mode check hands a call to you.
+
 On a Friday after 15:00, when Claude runs a deploy command, Clawd puts on a sweat outfit. A failed test run also puts the sweat drop on, until your next prompt.
 
 Movement frames change no faster than every 80 ms, and a color flash lasts at least 400 ms. glowup never flashes more than 2.5 times a second. Under reduced motion or in the narrow drawer nothing ticks.
