@@ -22,9 +22,12 @@ export function testOutcome(text: string, isError: boolean): { passed: boolean; 
   // first "N passed" in the text can be the suite count.
   const scope = /^[ \t]*Tests:?[ \t]+.*$/m.exec(text)?.[0] ?? text
   const last = (re: RegExp) => Number([...scope.matchAll(re)].at(-1)?.[1] ?? NaN)
-  const failed = last(/(\d+)\s+failed/g)
-  const passedN = last(/(\d+)\s+passed/g)
-  if (isError || failed > 0) return { passed: false, summary: failed > 0 ? `${failed} test${failed === 1 ? '' : 's'} failed` : 'tests failed' }
+  // jest/pytest/vitest "N failed", mocha "N failing", node's runner "# fail N" / "ℹ fail N"
+  const failed = [last(/(\d+)\s+(?:failed|failing)/g), last(/^[ \t]*[#ℹ][ \t]*fail[ \t]+(\d+)/gm)].find(n => !Number.isNaN(n)) ?? NaN
+  const passedN = [last(/(\d+)\s+(?:passed|passing)/g), last(/^[ \t]*[#ℹ][ \t]*pass[ \t]+(\d+)/gm)].find(n => !Number.isNaN(n)) ?? NaN
+  // A piped run (`npm test | tail`) hides the exit code, so failure text counts too.
+  const failText = /^[ \t]*(?:not ok\b|FAIL\b)/m.test(text)
+  if (isError || failed > 0 || failText) return { passed: false, summary: failed > 0 ? `${failed} test${failed === 1 ? '' : 's'} failed` : 'tests failed' }
   return { passed: true, summary: passedN > 0 ? `${passedN}/${passedN} tests passing` : 'tests passing' }
 }
 

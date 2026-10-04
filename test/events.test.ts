@@ -38,6 +38,15 @@ test('test outcome counts from the Tests line, not the suite line', async () => 
   expect(testOutcome(' Test Files  3 passed (3)\n      Tests  20 passed (20)\n', false)).toEqual({ passed: true, summary: '20/20 tests passing' })
 })
 
+test('a piped run hides the exit code; the summary still decides', async () => {
+  expect(testOutcome('ℹ tests 5\nℹ pass 3\nℹ fail 2\n', false)).toEqual({ passed: false, summary: '2 tests failed' })
+  expect(testOutcome('# tests 5\n# pass 5\n# fail 0\n', false)).toEqual({ passed: true, summary: '5/5 tests passing' })
+  expect(testOutcome('  3 passing (12ms)\n  1 failing\n', false)).toEqual({ passed: false, summary: '1 test failed' })
+  expect(testOutcome('  4 passing (9ms)\n', false)).toEqual({ passed: true, summary: '4/4 tests passing' })
+  expect(testOutcome('not ok 1 - adds\n', false).passed).toBe(false)
+  expect(testOutcome('FAIL: add(2,3) expected 5, got -1\n', false).passed).toBe(false)
+})
+
 test('plan from TodoWrite replaces the list', async () => {
   const plan = planFrom('TodoWrite', { todos: [{ content: 'A', status: 'completed', activeForm: 'a' }, { content: 'B', status: 'in_progress', activeForm: 'b' }] }, [])
   expect(plan).toEqual([{ id: '0', title: 'A', status: 'completed' }, { id: '1', title: 'B', status: 'in_progress' }])

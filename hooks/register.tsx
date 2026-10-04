@@ -54,7 +54,7 @@ function hostOf($: Engine): Host {
 // 10 minutes old, so a quiet session still rewrites it every minute.
 function writeStatus($: Engine, force: boolean) {
   const line = statusText(model, theme) ?? ''
-  if (!takenOver || (!force && line === lastStatusLine)) return
+  if (!takenOver || !sessionId || (!force && line === lastStatusLine)) return
   lastStatusLine = line
   void writeStatusFile(hostOf($), sessionId, line).catch(() => {})
 }
@@ -79,11 +79,43 @@ async function togglePane($: Engine): Promise<string> {
   return r.isPlaced ? 'glowup pane open (Esc closes it)' : `glowup pane waits: ${r.reason}`
 }
 
+// Not awaited by callers: git must not hold up a tool result. Only the newest
+// refresh lands, so a slow older one can't overwrite newer counts.
+function refresh($: Engine) {
+  const seq = ++refreshSeq
+  void refreshCounts(hostOf($), model.files, git).then(files => {
+    if (seq !== refreshSeq) return
+    model = mergeCounts(model, files)
+    redraw($)
+  }).catch(() => {})
+}
+
+// usage() has no percent before the first response of a session, hence the guard.
+async function feedContext($: Engine) {
+  try {
+    const u = await $.session.usage()
+    if (u.context.percent !== undefined) feed($, { type: 'context', percent: u.context.percent })
+  } catch {}
+}
+
+// A new session id means a new conversation: nothing from the old one carries over.
+async function adoptSession($: Engine, endedId: string) {
+  const id = await $.session.id()
+  model = initialModel()
+  view = { tab: 'changes' }
+  lastStatusLine = undefined
+  refreshSeq++
+  // at session.end the id may still be the ending one; turn.start re-checks
+  sessionId = id === endedId ? '' : id
+  git = await gitBase(hostOf($), cwd)
+  redraw($)
+}
+
 function ctlOf($: Engine): Ctl {
   return {
     setTheme: async name => { theme = resolveTheme(name, await loadUserThemes(hostOf($))).theme; redraw($) },
     togglePane: () => togglePane($),
-    setMotion: reduced => { reducedMotion = reduced },
+    setMotion: reduced => { reducedMotion = reduced; redraw($) },
     // ask rejects when the person dismisses the dialog; that counts as No
     confirm: async question => (await $.ui.ask(question, ['Yes', 'No']).catch(() => 'No')) === 'Yes',
   }
@@ -111,6 +143,9 @@ export const register: Register = (on, options) => {
   })
 
   on('turn.start', async ($, e, next) => {
+    // belt and braces: session.end may have run before the new id was visible
+    const id = await $.session.id()
+    if (id !== sessionId) await adoptSession($, sessionId)
     newTurnWord()
     feed($, { type: 'turn-start', at: Date.now() })
     // elapsed times and agent spinners change with no event behind them
@@ -120,8 +155,10 @@ export const register: Register = (on, options) => {
   })
 
   on('tool.call', async ($, e, next) => {
+    // without an id the call cannot be matched to its end (an Agent row would never close)
+    if (!e.tool_use_id) return next(e)
     const input = e as unknown as Record<string, unknown>
-    const toolUseId = e.tool_use_id ?? ''
+    const toolUseId = e.tool_use_id
     feed($, { type: 'tool-start', at: Date.now(), tool: e.tool, toolUseId, agentId: e.agentId, input })
     const ran = await next(e)
     const denied = ran.deny !== undefined
@@ -133,16 +170,8 @@ export const register: Register = (on, options) => {
       agentTokens: e.tool === 'Agent' && typeof result?.totalTokens === 'number' ? result.totalTokens : undefined,
       writeType: e.tool === 'Write' && (result?.type === 'create' || result?.type === 'update') ? result.type : undefined,
     })
-    if (!denied && !e.agentId && (e.tool === 'Edit' || e.tool === 'Write' || e.tool === 'Bash')) {
-      // Not awaited: git must not hold up the tool result. Only the newest refresh
-      // lands, so a slow older one can't overwrite newer counts.
-      const seq = ++refreshSeq
-      void refreshCounts(hostOf($), model.files, git).then(files => {
-        if (seq !== refreshSeq) return
-        model = mergeCounts(model, files)
-        redraw($)
-      })
-    }
+    if (!denied && !e.agentId && (e.tool === 'Edit' || e.tool === 'Write' || e.tool === 'NotebookEdit' || e.tool === 'Bash')) refresh($)
+    if (!e.agentId) void feedContext($)
     return ran
   })
 
@@ -163,13 +192,13 @@ export const register: Register = (on, options) => {
   })
 
   on('turn.complete', async ($, e, next) => {
+    // the ticker would redraw through the whole wait for next()
+    if (!e.agentId) { ticker?.cancel(); ticker = undefined }
     const r = await next(e)
-    if (e.agentId) { feed($, { type: 'agent-done', at: Date.now(), agentId: e.agentId }); return r }
-    ticker?.cancel()
-    ticker = undefined
+    if (e.agentId) { feed($, { type: 'agent-done', at: Date.now(), agentId: e.agentId }); refresh($); return r }
     feed($, { type: 'turn-done', at: Date.now() })
-    const usage = await $.session.usage()
-    if (usage.context.percent !== undefined) feed($, { type: 'context', percent: usage.context.percent })
+    refresh($)
+    await feedContext($)
     // one more redraw after the linger so the band folds away
     $.clock.after(1600, () => redraw($))
     return r
@@ -177,16 +206,26 @@ export const register: Register = (on, options) => {
 
   on('session.compact', async ($, e, next) => {
     const r = await next(e)
+    if (e.agentId || e.trigger === 'precompute' || 'skip' in r) return r
+    // usage().context.percent is absent until the next response, so a manual
+    // /compact would leave the hearts empty; derive it from the result.
     const u = await $.session.usage()
-    if (u.context.percent !== undefined) feed($, { type: 'context', percent: u.context.percent })
+    const percent = u.context.percent ?? (r.tokensAfter !== undefined && u.context.window > 0 ? Math.round(r.tokensAfter / u.context.window * 100) : 0)
+    feed($, { type: 'context', percent })
     return r
+  })
+
+  // /clear and resume continue the process under a new session id with no session.start.
+  on('session.end', async ($, e, next) => {
+    if (e.reason === 'clear' || e.reason === 'resume') await adoptSession($, e.sessionId)
+    return next(e)
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey || e.props.view.agentId) return next(e)
     // Asked once. Claude Code places it unasked only from 144 columns (110 once the
     // person has opened it); narrower, it waits and the band shows instead.
-    if (e.viewport?.isFullscreen === true && !docked) { docked = true; void $.ui.open({ id: 'glowup', title: 'glowup' }) }
+    if (e.viewport?.isFullscreen === true && !docked) { docked = true; void $.ui.open({ id: 'glowup', title: 'glowup' }).catch(() => {}) }
     const panes = await $.ui.panes()
     const paneShown = panes.some(p => p.id === 'glowup' && p.isShown && p.isPlaced)
     // Only a docked pane shows the status the band would repeat; an inline one is a short drawer.
