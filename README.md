@@ -27,11 +27,13 @@ glowup is a Claude Code mod. It adds to the terminal UI and leaves your transcri
 
 ### The cockpit pane
 
-Three tabs. Press the number key or click.
+Three tabs, each drawn as a box in your pack's border shape. Press the number key or click.
 
-- **Changes** answers "what did Claude touch?" Files with `+added −removed` counts from git.
+- **Changes** answers "what did Claude touch?" Files Claude edited or created, with `+added −removed` counts from git.
 - **Agents** answers "what are the subagents doing?" Name, time, tokens, and the tool each is running now.
-- **Plan & context** answers "how far along are we, and how full is the window?" The task list and a context bar.
+- **Plan & context** answers "how far along are we, and how full is the window?" The task list in one box. In a second box, a context bar split by what fills the window, and the context over the session.
+
+The status box under the tabs shows the current action, the running subagents, and a row of hearts for the usage you have left: the 5-hour or weekly limit, whichever is tighter. On an API key, it shows what the session has spent instead.
 
 </td>
 <td width="50%" valign="top">
@@ -175,7 +177,7 @@ Full guide: [Making a theme](docs/themes.md) and the [theme reference](docs/them
 
 ## Packs
 
-A pack sets a whole look with one name: colors and row styles in one layer, motion (the spinner and its shimmer) in another. Four ship: `classic` (the default, Claude Code as it is), `crt`, `cozy` and `arcade`.
+A pack sets a whole look with one name: colors, row styles and the border shape of the pane's boxes in one layer, motion (the spinner and its shimmer) in another. Four ship: `classic` (the default, Claude Code as it is), `crt`, `cozy` and `arcade`.
 
 ```text
 /glowup pack arcade
@@ -185,7 +187,7 @@ A pack sets a whole look with one name: colors and row styles in one layer, moti
 
 ## Pets
 
-Clawd is a small pixel pet at the bottom of the glowup pane. He types at his keyboard while Claude edits files or runs commands, walks while it reads, searches and plans, hops when a test passes, sags and sweats when one fails (and keeps the sweat drop until your next prompt), startles only when Claude needs you, does a little dance when a turn finishes, sleeps after one idle minute, sweats in a special outfit on a Friday deploy, and says a short line in a speech bubble. Keep your tests green and see what happens.
+Clawd is a small pixel pet at the bottom of the glowup pane. He types at his keyboard while Claude edits files or runs commands, walks while it reads, searches and plans, juggles while three or more subagents run, hops when a test passes, sags and sweats when one fails (and keeps the sweat drop until your next prompt), startles and then waits with a `?` when Claude needs you, crumples up a sheet of paper when the context is compacted, pants once the context window is 80% full, does a little dance when a turn finishes, sleeps after one idle minute and stretches when he wakes, sweats in a special outfit on a Friday deploy, and says a short line in a speech bubble. Keep your tests green and see what happens.
 
 ```text
 /glowup pet off
