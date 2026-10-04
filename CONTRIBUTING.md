@@ -50,6 +50,17 @@ To submit one, open a theme submission issue with the JSON file and a screenshot
 
 CI runs `pnpm check` and `pnpm test` on every PR.
 
+## Releasing
+
+Add entries under `## [Unreleased]` in `CHANGELOG.md` as you merge changes. To cut a release:
+
+```sh
+just release 0.1.0
+git push --follow-tags
+```
+
+`just release` bumps `plugin.json` and `package.json`, dates the changelog section, then commits and tags. The pushed tag starts the release workflow, which checks the versions, runs `pnpm check` and `pnpm test`, and publishes the changelog section with the archives.
+
 ## Design changes
 
 A new tab, a change to the theme file format, or anything that reads new data from the user's machine starts as an issue that states the design.

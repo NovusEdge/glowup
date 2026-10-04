@@ -1,0 +1,46 @@
+name: release
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag matches both manifests
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          test "$(jq -r .version .claude-plugin/plugin.json)" = "$version"
+          test "$(jq -r .version package.json)" = "$version"
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      # Same version as types/vendor/claude-code.d.ts; bump both together.
+      # npm, not pnpm: pnpm skips the postinstall that fetches the native binary.
+      - run: npm i -g @anthropic-ai/claude-code@2.1.288 && claude --version
+      - run: pnpm check
+      - run: pnpm test
+      - name: Release notes from CHANGELOG
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '
+            index($0, "## [" v "] - ") == 1 { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          test -n "$(tr -d '[:space:]' < notes.md)"
+      - name: Archives
+        run: |
+          git archive --format=tar.gz --prefix=glowup/ -o "glowup-${GITHUB_REF_NAME}.tar.gz" HEAD
+          git archive --format=zip --prefix=glowup/ -o "glowup-${GITHUB_REF_NAME}.zip" HEAD
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --title "glowup $GITHUB_REF_NAME" \
+            --notes-file notes.md "glowup-${GITHUB_REF_NAME}.tar.gz" "glowup-${GITHUB_REF_NAME}.zip"
