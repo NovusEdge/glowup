@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Clawd now falls asleep after one minute with nothing happening, not ten.
+- `/glowup config` now asks up to three questions (pack, pet, extras) instead of opening a settings view in the pane. Each answer applies at once, Esc stops, and the command ends with a one-line summary. The spinner and per-layer pickers and the save-as-pack field are gone from it; `/glowup pack save <name>` still saves a look.
 
 ## [0.2.1] - 2026-10-04
 

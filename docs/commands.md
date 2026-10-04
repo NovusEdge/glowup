@@ -17,7 +17,7 @@ glowup
   /glowup pack <name|url>    apply a pack (--force replaces an installed one)
   /glowup pack list          list packs
   /glowup pack save <name>   save the current look as a pack file
-  /glowup config             change the look in a dialog
+  /glowup config             pick a pack, pet and extras by answering questions
   /glowup import <file>      turn a Ghostty or base16 scheme into a pack
   /glowup pet clawd|off      choose the pet, or none
   /glowup bubbles on|off     speech bubbles
@@ -26,7 +26,7 @@ glowup
   /glowup statusline on|restore
 ```
 
-`/glowup config` opens the settings view in the pane. See [config](#config).
+`/glowup config` asks up to three questions. See [config](#config).
 
 An unknown subcommand prints `Unknown: <what you typed>` followed by the usage text.
 
@@ -96,13 +96,19 @@ See [Pets](pets.md).
 
 ## config
 
-`/glowup config` opens an interactive view in the glowup pane. Pick a pack, the colors or motion layer on its own, a spinner, the pet and bubbles, and reduced motion, and watch a preview change as you go. Apply stores the choices. Cancel and Esc drop them. The view can also save the look you are drafting as a pack.
+`/glowup config` asks up to three questions in Claude Code's own question dialog, and each answer applies as soon as you give it:
 
-The view needs menus and text input, which mobile does not have. There it shows the current look and the typed commands instead. Every setting stays available as a typed command.
+1. **Pack**: `arcade`, `classic`, `cozy` or `crt`, with the one in use marked `(current)`. Choose Other and type the name of a pack you installed to use that one. An unknown name prints an error and stops the questions.
+2. **Pet**: Clawd, the shiny Clawd once you have unlocked him, or no pet.
+3. **Extras**: pick any of "Turn bubbles on/off" and "Turn reduced motion on/off". The labels flip the current setting. Picking none changes nothing.
+
+Esc on any question stops there. Answers you already gave stay applied. The command ends with a one-line summary, for example `glowup · arcade · Clawd · bubbles on · full motion`, drawn with the pack's colors.
+
+Each answer does what the matching typed command does (`pack`, `pet`, `bubbles`, `motion`), so the questions add nothing the commands lack. The spinner, the colors and motion layers on their own, and saving a look are not in the questions: use `/glowup pack save <name>` to save the current look. In a `-p` run there is no one to ask, so `/glowup config` prints the command list instead.
 
 ## Settings and the store
 
-The mod's settings in Claude Code's `/plugin` menu (`theme`, `pack`, `pet`, `bubbles` and `reducedMotion`) are defaults. glowup's own saved choice wins over a setting only after a `/glowup` command or the config view has written that choice. After that, changing the value in `/plugin` has no effect until you use the matching `/glowup` command again. There is no command that clears a saved choice.
+The mod's settings in Claude Code's `/plugin` menu (`theme`, `pack`, `pet`, `bubbles` and `reducedMotion`) are defaults. glowup's own saved choice wins over a setting only after a `/glowup` command or the config questions have written that choice. After that, changing the value in `/plugin` has no effect until you use the matching `/glowup` command again. There is no command that clears a saved choice.
 
 ## pane
 

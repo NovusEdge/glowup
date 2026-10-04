@@ -1,0 +1,150 @@
+import { test, expect } from 'claude-code/testing'
+import { fakeHost } from './kit.ts'
+import { runCommand, USAGE, type Ctl } from '../hooks/command.ts'
+import type { Mix } from '../hooks/packs.ts'
+import type { PetSetting } from '../hooks/pets.ts'
+import type { BubbleSetting } from '../hooks/bubbles.ts'
+
+type Q = { question: string; header: string; options: string[]; multiSelect?: true }
+const ESC = Symbol('esc')
+
+// answers are consumed one per question; ESC rejects like a dismissed dialog
+const rig = (answers: (string | typeof ESC)[], start: { mix?: Mix; pet?: PetSetting; bubbles?: BubbleSetting; reduced?: boolean; headless?: boolean } = {}, files: Record<string, string> = {}, store: Record<string, unknown> = {}) => {
+  const { host, store: kv } = fakeHost({ files })
+  Object.assign(kv, store)
+  const asked: Q[] = []
+  const calls: string[] = []
+  let mix: Mix = start.mix ?? { colors: 'classic', motion: 'classic' }
+  let pet = start.pet ?? 'clawd', bubbles = start.bubbles ?? 'on', reduced = start.reduced ?? false
+  const ctl: Ctl = {
+    current: () => 'classic',
+    setTheme: async () => {},
+    togglePane: async () => 'pane',
+    setMotion: r => { reduced = r; calls.push('motion:' + r) },
+    confirm: async () => true,
+    mix: () => mix,
+    setMix: async m => { mix = m; calls.push(`mix:${m.colors}`); return [] },
+    pet: () => pet,
+    setPet: p => { pet = p; calls.push('pet:' + p) },
+    bubbles: () => bubbles,
+    setBubbles: b => { bubbles = b; calls.push('bubbles:' + b) },
+    reduced: () => reduced,
+    ask: async (question, o) => {
+      asked.push({ question, header: o.header, options: [...o.options], multiSelect: o.multiSelect })
+      const a = answers.shift()
+      if (a === undefined || a === ESC) throw new Error('dismissed')
+      return a
+    },
+    headless: async () => start.headless === true,
+  }
+  return { host, kv, ctl, asked, calls, run: () => runCommand(host, 'config', ctl) }
+}
+
+test('asks Pack, Pet, Extras in order with the current pack marked', async () => {
+  const r = rig(['classic (current)', 'Clawd', 'Turn bubbles off'])
+  await r.run()
+  expect(r.asked.map(q => q.header)).toEqual(['Pack', 'Pet', 'Extras'])
+  expect(r.asked[0]!.question).toBe('Which look?')
+  expect(r.asked[0]!.options).toEqual(['arcade', 'classic (current)', 'cozy', 'crt'])
+  expect(r.asked[1]!.question).toBe('Who keeps you company?')
+  expect(r.asked[1]!.options).toEqual(['Clawd', 'No pet'])
+  expect(r.asked[2]!.question).toBe('Anything else to change?')
+  expect(r.asked[2]!.multiSelect).toBe(true)
+  expect(r.asked[2]!.options).toEqual(['Turn bubbles off', 'Turn reduced motion on'])
+  expect(r.asked.every(q => q.options.length >= 2 && q.options.length <= 4 && q.header.length <= 12)).toBe(true)
+})
+
+test('each answer applies right away through the command paths', async () => {
+  const r = rig(['arcade', 'No pet', 'Turn bubbles off,Turn reduced motion on'])
+  const out = await r.run()
+  expect(r.kv.mix).toEqual({ colors: 'arcade', motion: 'arcade' })
+  expect(r.kv.pet).toBe('off')
+  expect(r.kv.bubbles).toBe('off')
+  expect(r.kv.reducedMotion).toBe(true)
+  expect(r.calls).toEqual(['mix:arcade', 'pet:off', 'bubbles:off', 'motion:true'])
+  expect(out).toBe('glowup · arcade · no pet · bubbles off · reduced motion')
+})
+
+test('the first pick is applied before the next question is asked', async () => {
+  const r = rig(['crt', ESC])
+  await r.run()
+  expect(r.calls).toEqual(['mix:crt'])
+})
+
+test('the summary line for untouched defaults', async () => {
+  const r = rig(['classic (current)', 'Clawd', ''])
+  expect(await r.run()).toBe('glowup · classic · Clawd · bubbles on · full motion')
+})
+
+test('Other with an installed user pack applies it', async () => {
+  const r = rig(['mine', 'Clawd', ESC], {}, { '/home/u/.claude/glowup/packs/mine.json': JSON.stringify({ format: 1, name: 'mine', colors: { theme: 'classic' } }) })
+  const out = await r.run()
+  expect(r.kv.mix).toEqual({ colors: 'mine', motion: 'mine' })
+  expect(out).toContain('· mine ·')
+})
+
+test('Other with an unknown name shows an error and stops', async () => {
+  const r = rig(['ghost'])
+  const out = await r.run()
+  expect(out).toContain('ghost')
+  expect(out).not.toContain('glowup ·')
+  expect(r.asked).toHaveLength(1)
+  expect(r.kv.mix).toBeUndefined()
+})
+
+test('Other text that smuggles a flag is not an installed pack', async () => {
+  const r = rig(['classic --force'])
+  await r.run()
+  expect(r.asked).toHaveLength(1)
+  expect(r.calls).toEqual([])
+})
+
+test('the shiny pet is offered only once unlocked, and applies', async () => {
+  const r = rig(['classic (current)', 'Clawd (shiny)', ESC], {}, {}, { eggs: { passRuns: 100, shinyAt: 5 } })
+  const out = await r.run()
+  expect(r.asked[1]!.options).toEqual(['Clawd', 'Clawd (shiny)', 'No pet'])
+  expect(r.kv.pet).toBe('clawd-shiny')
+  expect(out).toContain('Clawd (shiny)')
+})
+
+test('extras toggle relative to the current state, in both directions', async () => {
+  const r = rig(['classic (current)', 'Clawd', 'Turn bubbles on,Turn reduced motion off'], { bubbles: 'off', reduced: true })
+  const out = await r.run()
+  expect(r.asked[2]!.options).toEqual(['Turn bubbles on', 'Turn reduced motion off'])
+  expect(out).toBe('glowup · classic · Clawd · bubbles on · full motion')
+  expect(r.kv.bubbles).toBe('on')
+  expect(r.kv.reducedMotion).toBe(false)
+})
+
+test('an empty extras selection changes nothing', async () => {
+  const r = rig(['classic (current)', 'Clawd', ''])
+  await r.run()
+  expect(r.kv.bubbles).toBeUndefined()
+  expect(r.kv.reducedMotion).toBeUndefined()
+})
+
+test('Esc stops the wizard and keeps earlier picks', async () => {
+  const r = rig(['cozy', ESC])
+  const out = await r.run()
+  expect(r.asked).toHaveLength(2)
+  expect(r.kv.mix).toEqual({ colors: 'cozy', motion: 'cozy' })
+  expect(out).toContain('cozy')
+})
+
+test('Esc on the first question changes nothing', async () => {
+  const r = rig([ESC])
+  const out = await r.run()
+  expect(r.calls).toEqual([])
+  expect(out).toContain('glowup · classic')
+})
+
+test('a headless run gets the usage text', async () => {
+  const r = rig([ESC], { headless: true })
+  expect(await r.run()).toBe(USAGE)
+  expect(r.asked).toHaveLength(1)
+})
+
+test('usage describes config as a question wizard', () => {
+  expect(USAGE).toContain('/glowup config')
+  expect(USAGE).not.toContain('dialog')
+})

@@ -93,4 +93,4 @@ Each subagent in this session. The tab stays live while background subagents run
 - The compact form is the checklist and one context bar.
 - With no task list, the tab says `No task list yet.`
 
-The tabs are read-only. You cannot select a file or open an agent from them. `/glowup config` replaces the tabs with a settings view until you press Apply or Cancel; see [Commands](commands.md#config). See the [roadmap](roadmap.md).
+The tabs are read-only. You cannot select a file or open an agent from them. See the [roadmap](roadmap.md).

@@ -11,14 +11,6 @@ test('/glowup with no args prints usage', async ($, on) => {
   expect(out.text).toContain('/glowup theme <name>')
 })
 
-test('config opens the config view', async () => {
-  const { host } = fakeHost()
-  const { calls, ctl: c } = ctl()
-  expect(await runCommand(host, 'config', c)).toBe('glowup config open')
-  expect(calls).toEqual(['config'])
-  expect(USAGE).toContain('/glowup config')
-})
-
 const SETTINGS = '/home/u/.claude/settings.json'
 
 const ctl = (answer = true, current = 'classic') => {
@@ -36,8 +28,11 @@ const ctl = (answer = true, current = 'classic') => {
     setMix: async m => { mix = m; calls.push(`mix:${m.colors}/${m.motion}${m.theme ? '/' + m.theme : ''}`); return [] },
     pet: () => pet,
     setPet: p => { pet = p; calls.push('pet:' + p) },
+    bubbles: () => 'on',
     setBubbles: b => { calls.push('bubbles:' + b) },
-    openConfig: async () => { calls.push('config'); return 'glowup config open' },
+    reduced: () => false,
+    ask: async () => { throw new Error('dismissed') },
+    headless: async () => true,
   }
   return { calls, questions, ctl: c }
 }

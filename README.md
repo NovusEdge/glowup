@@ -110,7 +110,7 @@ More in [Install](docs/install.md).
 | `/glowup import <file>` | Turn a Ghostty or base16 color scheme into a pack. |
 | `/glowup pet clawd\|off` | Show Clawd or hide the pet. |
 | `/glowup bubbles on\|off` | Turn speech bubbles on or off. |
-| `/glowup config` | Open the settings view in the pane. |
+| `/glowup config` | Pick a pack, pet and extras by answering questions. |
 | `/glowup pane` | Open or close the glowup pane. |
 | `/glowup motion reduced` | Turn glowup's animation off. |
 | `/glowup motion full` | Turn it back on. |
@@ -181,7 +181,7 @@ Reduced motion hides him. Full guide: [Pets](docs/pets.md).
 
 ## Config
 
-`/glowup config` opens an interactive view in the pane. Choose a pack, a spinner, the pet and bubbles, and see a live preview before you apply.
+`/glowup config` asks up to three questions: the pack, the pet, and extras such as bubbles and reduced motion. Each answer applies at once, and Esc stops.
 
 ```text
 /glowup config

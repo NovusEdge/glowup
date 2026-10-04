@@ -3,15 +3,13 @@ import type { Host } from './host.ts'
 import { initialModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
 import { approvalLabel, personAsked, shortPath } from './events.ts'
 import type { Theme } from './themes.ts'
-import { resolveLook, exportMix, DEFAULT_MIX, type Mix, type Look } from './packs.ts'
-import { loadUserPacks, savePack, SAFE_NAME } from './userpacks.ts'
-import { PACKS } from './packpresets.ts'
-import { renderConfig, type Draft } from './config.tsx'
-import { PET_ROWS, CLAWD_ROW, type PetSetting, type PetId, type PetInput, type PetKind } from './pets.ts'
+import { resolveLook, DEFAULT_MIX, type Mix, type Look } from './packs.ts'
+import { loadUserPacks } from './userpacks.ts'
+import { PET_ROWS, type PetSetting, type PetId, type PetInput, type PetKind } from './pets.ts'
 import { bubbleFor, type BubbleSetting, type BubbleVars, type Mood } from './bubbles.ts'
 import { recordPass, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { gitBase, refreshCounts, serial } from './changes.ts'
-import { tierFor } from './layout.tsx'
+import { tierFor, renderSegs } from './layout.tsx'
 import { renderBand } from './band.tsx'
 import { renderPane, petStripCols, type PaneExtra, type PaneView, type TabId } from './pane.tsx'
 import { spinnerWord, newTurnWord } from './restyle.ts'
@@ -20,7 +18,7 @@ import { orbStateOf, usesOwnSpinner, checkedSpinnerProps } from './spinner.ts'
 import type { PetClientProps } from './client/pet.tsx'
 import type { OrbState } from './motion.ts'
 import { statusText, writeStatusFile, BACKUP_KEY } from './statusline.ts'
-import { runCommand, type Ctl } from './command.ts'
+import { runCommand, SUMMARY_LEAD, type Ctl } from './command.ts'
 import { loadUserThemes } from './userthemes.ts'
 import { firstRun } from './firstrun.ts'
 
@@ -31,7 +29,6 @@ const BAND = { plugin: 'glowup', key: 'band' } as const
 const PANE = { plugin: 'glowup', key: 'pane' } as const
 const SPIN = { plugin: 'glowup', key: 'spinner' } as const
 const PET = { plugin: 'glowup', key: 'pet' } as const
-const CONFIG = { plugin: 'glowup', key: 'config' } as const
 
 // Module state: one session per process. A hot reload starts it over, which only
 // loses the in-flight session's view (settings and takeover state live in $.store).
@@ -68,20 +65,7 @@ let friday = false
 let tzOffset = 0
 let installed: number | undefined
 let lastPet = ''
-// The config view's draft, mirrored in CONFIG state (the render hook reads that copy).
-let draft: Draft | undefined
-let previewTimer: Timer | undefined
-// Disk reads for the view happen in openConfig; a render hook must not read disk.
-let userPacksCache: Awaited<ReturnType<typeof loadUserPacks>> = {}
-let userThemesCache: Awaited<ReturnType<typeof loadUserThemes>> = {}
-let shinyUnlocked = false
-// How the glowup pane was last opened by anything but the config view, so Apply and Cancel can
-// put it back exactly (each open sets every option anew). Undefined while closed.
-let lastOpen: PaneOpenArgs | undefined
-// What the pane was when the config view opened; undefined means it was closed.
-let before: PaneOpenArgs | undefined
-let atOpen: Draft | undefined
-const CONFIG_OPEN: PaneOpenArgs = { id: 'glowup', title: 'glowup', focus: true, closeOnEscape: true }
+const PANE_OPEN: PaneOpenArgs = { id: 'glowup', title: 'glowup', focus: true, closeOnEscape: true }
 const DOCK_OPEN: PaneOpenArgs = { id: 'glowup', title: 'glowup' }
 
 function hostOf($: Engine): Host {
@@ -244,86 +228,10 @@ function feed($: Engine, ev: Ev) {
   }
 }
 
-const configChoices = () => ({
-  packs: [...new Set([...Object.keys(PACKS), ...Object.keys(userPacksCache).filter(n => SAFE_NAME.test(n))])],
-  pets: ['clawd', ...(shinyUnlocked ? ['clawd-shiny' as const] : []), 'off' as const] as PetSetting[],
-})
-function setDraft($: Engine, d: Draft) {
-  draft = d
-  void $.state.set(CONFIG, { draft: d, at: Date.now() }).catch(() => {})
-  if (d.reduced) { previewTimer?.cancel(); previewTimer = undefined }
-  else previewTimer ??= $.clock.every(66, () => { if (draft && !draft.reduced) void $.state.set(CONFIG, { draft, at: Date.now() }).catch(() => {}) })
-}
-function dropDraft($: Engine) {
-  draft = undefined
-  atOpen = undefined
-  previewTimer?.cancel()
-  previewTimer = undefined
-  void $.state.set(CONFIG, { at: Date.now() }).catch(() => {})
-}
-async function openConfig($: Engine): Promise<string> {
-  const ok = 'glowup config open (Esc cancels it)'
-  if (draft) {
-    // already open: only bring it forward
-    try { await $.ui.open(CONFIG_OPEN) } catch {}
-    return ok
-  }
-  const host = hostOf($)
-  userPacksCache = await loadUserPacks(host)
-  userThemesCache = await loadUserThemes(host)
-  shinyUnlocked = ((await host.storeGet('eggs')) as EggStore | undefined)?.shinyAt !== undefined
-  const shown = (await $.ui.panes()).some(p => p.id === 'glowup' && p.isShown)
-  before = shown ? (lastOpen ?? DOCK_OPEN) : undefined
-  const d: Draft = { mix, pet, bubbles, reduced: reducedMotion, saveAs: '' }
-  atOpen = d
-  setDraft($, d)
-  try {
-    const r = await $.ui.open(CONFIG_OPEN)
-    if (!r.isPlaced) { dropDraft($); return `glowup pane waits: ${r.reason}` }
-  } catch (err) {
-    dropDraft($)
-    return `glowup pane failed to open: ${err instanceof Error ? err.message : String(err)}`
-  }
-  return ok
-}
-async function restorePane($: Engine) {
-  if (before) { lastOpen = before; await $.ui.open(before) }
-  else await $.ui.close({ id: 'glowup' })
-}
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
-async function finishConfig($: Engine, apply: boolean) {
-  const d = draft, was = atOpen
-  if (!d || !was) return
-  dropDraft($)
-  if (apply) {
-    const host = hostOf($)
-    mix = d.mix; pet = d.pet; bubbles = d.bubbles; reducedMotion = d.reduced
-    // only what the person changed: a userConfig default must not turn into a stored setting
-    if (!same(d.mix, was.mix)) await host.storeSet('mix', mix)
-    if (d.pet !== was.pet) await host.storeSet('pet', pet)
-    if (d.bubbles !== was.bubbles) await host.storeSet('bubbles', bubbles)
-    if (d.reduced !== was.reduced) await host.storeSet('reducedMotion', reducedMotion)
-    await loadLook($)
-  }
-  await restorePane($)
-  publish($)
-}
-async function saveDraftPack($: Engine, name: string) {
-  if (!draft) return
-  if (!name.trim()) { $.ui.toast('Name the pack first.'); return }
-  const { look: l } = resolveLook(draft.mix, userPacksCache, userThemesCache)
-  const host = hostOf($)
-  const msg = await savePack(host, exportMix(l, name.trim()))
-  userPacksCache = await loadUserPacks(host)
-  $.ui.toast(msg)
-  if (draft) setDraft($, { ...draft, saveAs: '' })
-}
-
 async function togglePane($: Engine): Promise<string> {
   const open = (await $.ui.panes()).find(p => p.id === 'glowup')
   if (open?.isShown) { await $.ui.close({ id: 'glowup' }); return 'glowup pane closed' }
-  const r = await $.ui.open(CONFIG_OPEN)
-  if (r.isPlaced) lastOpen = CONFIG_OPEN
+  const r = await $.ui.open(PANE_OPEN)
   return r.isPlaced ? 'glowup pane open (Esc closes it)' : `glowup pane waits: ${r.reason}`
 }
 
@@ -412,8 +320,12 @@ function ctlOf($: Engine): Ctl {
     setMix: async m => { mix = m; return loadLook($) },
     pet: () => pet,
     setPet: p => { pet = p; relook($) },
+    bubbles: () => bubbles,
     setBubbles: b => { bubbles = b; relook($) },
-    openConfig: () => openConfig($),
+    reduced: () => reducedMotion,
+    ask: (question, o) => $.ui.ask(question, o),
+    // surfaces() is empty only in a plain -p run
+    headless: async () => (await $.session.surfaces().catch(() => ['terminal'])).length === 0,
   }
 }
 
@@ -553,7 +465,7 @@ export const register: Register = (on, options) => {
     if (e.props.hasSurvey || e.props.view.agentId) return next(e)
     // Asked once. Claude Code places it unasked only from 144 columns (110 once the
     // person has opened it); narrower, it waits and the band shows instead.
-    if (e.viewport?.isFullscreen === true && !docked) { docked = true; lastOpen = DOCK_OPEN; void $.ui.open(DOCK_OPEN).catch(() => {}) }
+    if (e.viewport?.isFullscreen === true && !docked) { docked = true; void $.ui.open(DOCK_OPEN).catch(() => {}) }
     const panes = await $.ui.panes()
     const paneShown = panes.some(p => p.id === 'glowup' && p.isShown && p.isPlaced)
     // Only a docked pane shows the status the band would repeat; an inline one is a short drawer.
@@ -583,9 +495,7 @@ export const register: Register = (on, options) => {
     const v: PaneView = { ...(live?.view ?? view), reduced: reducedMotion }
     const els = $.ui.resolve(e)
     // the look always applies; the pet and its words only while he is on
-    const cfg = ((await $.state.get(CONFIG)).value as { draft?: Draft } | undefined)?.draft
-    // the config view shows the pet being picked, not the one in use
-    const pid = cfg?.pet ?? pet, red = cfg ? cfg.reduced : reducedMotion
+    const pid = pet, red = reducedMotion
     let extra: PaneExtra = { look }
     if (pid !== 'off' && !red && (e.surface === 'terminal' || e.surface === 'desktop')) {
       const snap = ((await $.state.get(PET)).value as PetSnap | undefined) ?? petSnap()
@@ -595,25 +505,6 @@ export const register: Register = (on, options) => {
       const node = <Client key="glowup-pet" module="./client/pet.tsx" props={props} width={compact ? undefined : props.width} />
       const bubbleNow = snap.bubble && snap.bubble.until > Date.now() ? snap.bubble : undefined
       extra = { look, pet: { id: pid as PetId, node, rows: snap.overlays.some(o => HEAD_OUTFITS.includes(o)) ? PET_ROWS + 2 : undefined }, bubble: bubbleNow, friday: snap.friday }
-    }
-    if (cfg) {
-      const { Box } = els
-      const previewLook = resolveLook(cfg.mix, userPacksCache, userThemesCache).look
-      const act = {
-        change: (d: Draft) => setDraft($, d),
-        apply: () => void finishConfig($, true).catch(() => {}),
-        cancel: () => void finishConfig($, false).catch(() => {}),
-        save: (name: string) => void saveDraftPack($, name).catch(() => {}),
-      }
-      const form = renderConfig(els, cfg, previewLook, configChoices(), e.props.bodyColumns, Date.now(), act)
-      // Clawd stays visible while a pet is picked; the pane's own tabs give way to the form
-      if (!extra.pet) return form
-      return (
-        <Box flexDirection="column" width={e.props.bodyColumns}>
-          {form}
-          <Box key="config-pet" width={compact ? CLAWD_ROW.length : petStripCols(e.props.bodyColumns)} height={compact ? 1 : extra.pet.rows ?? PET_ROWS}>{extra.pet.node as any}</Box>
-        </Box>
-      )
     }
     if (e.props.placement === 'dock') extra = { ...extra, minRows: e.props.scroll.bodyRows }
     return renderPane(els, live?.model ?? model, theme, v, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
@@ -663,13 +554,16 @@ export const register: Register = (on, options) => {
     return styleRow($.ui.resolve(e), look, { site: 'ToolResult' }, row) as RenderElement
   })
 
-  on('ui.close', async ($, e, next) => {
-    if (e.id !== 'glowup') return next(e)
-    // Esc on the config view is Cancel: the pane stays as it was, so the close is not passed on
-    if (draft && before && e.origin.kind === 'person') { void finishConfig($, false).catch(() => {}); return { value: undefined } as never }
-    if (draft) dropDraft($)
-    lastOpen = undefined
-    return next(e)
+  on('ui.render', { component: 'CommandOutput' }, async ($, e, next) => {
+    const p = e.props
+    if ((e.surface !== 'terminal' && e.surface !== 'desktop') || p.command !== 'glowup' || p.args.trim() !== 'config' || p.isErrored || !p.text.startsWith(SUMMARY_LEAD)) return next(e)
+    const c = theme.colors, swatch = [c.accent, c.read, c.edit, c.shell, c.pass]
+    const word = (theme.spinnerWords[0] ?? 'Thinking') + '…'
+    const els = $.ui.resolve(e), { Box } = els
+    return <Box flexDirection="column">
+      {renderSegs(els, [{ text: p.text, color: c.text }], 'summary')}
+      {renderSegs(els, [...swatch.map(color => ({ text: '██', color })), { text: '  ' + word, color: c.accent }], 'palette')}
+    </Box>
   })
 
   on('command.run', { command: 'glowup' }, async ($, e) => {

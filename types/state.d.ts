@@ -31,8 +31,6 @@ declare module 'claude-code' {
       band: { model: GlowupModel; at: number }
       pane: { model: GlowupModel; view: GlowupPaneView; at: number }
       spinner: { turnAt: number; detail: string; state: string; at: number }
-      pet: { input: GlowupPetInput; overlays: string[]; bubble?: GlowupBubble; friday: boolean; at: number }
-      config: { draft?: unknown; at: number }
-    }
+      pet: { input: GlowupPetInput; overlays: string[]; bubble?: GlowupBubble; friday: boolean; at: number }    }
   }
 }

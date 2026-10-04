@@ -46,7 +46,7 @@ The two layers are independent. You can have the colors of one pack and the moti
 
 - `/glowup pack <name>` sets both layers to that pack and clears any theme or spinner you set on top.
 - `/glowup theme <name>` swaps the colors layer's palette, background and border color for the theme's. It keeps the pack's row style, border shape and extras, and recolors the gradient from the theme's accent.
-- `/glowup config` has a menu for each layer and one for the spinner. See [Commands](commands.md#config).
+- `/glowup config` asks which pack to apply, which sets both layers. See [Commands](commands.md#config).
 
 If one layer fails to load, glowup uses `classic`'s for that layer only and shows one notice with the reason. A broken motion layer never costs you your colors.
 
@@ -161,7 +161,7 @@ The extras are two optional bits of the colors layer:
 
 The shimmer is a wave of color across the spinner word, between the gradient's two colors (or the accent and the text color). Shimmer `1` is soft and `2` is fast.
 
-Switch spinners without a new pack through `/glowup config`.
+A spinner comes with its pack. To use a different one, edit the `motion.spinner` field of a pack file; see [The file format](#the-file-format).
 
 ## Reduced motion
 

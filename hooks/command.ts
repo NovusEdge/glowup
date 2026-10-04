@@ -18,7 +18,7 @@ export const USAGE = [
   '  /glowup pack <name|url>    apply a pack (--force replaces an installed one)',
   '  /glowup pack list          list packs',
   '  /glowup pack save <name>   save the current look as a pack file',
-  '  /glowup config             change the look in a dialog',
+  '  /glowup config             pick a pack, pet and extras by answering questions',
   '  /glowup import <file>      turn a terminal color scheme into a pack',
   '  /glowup pet clawd|off      choose the pet, or none',
   '  /glowup bubbles on|off     speech bubbles',
@@ -39,8 +39,13 @@ export type Ctl = {
   setMix(mix: Mix): Promise<string[]>
   pet(): PetSetting
   setPet(p: PetSetting): void
+  bubbles(): BubbleSetting
   setBubbles(b: BubbleSetting): void
-  openConfig(): Promise<string>
+  reduced(): boolean
+  // rejects when the dialog is dismissed or nobody can answer
+  ask(question: string, o: { options: string[]; header: string; multiSelect?: true }): Promise<string>
+  // a -p run, where ask always rejects: nobody is attached to any surface
+  headless(): Promise<boolean>
 }
 
 const MAX_SCHEME_BYTES = 65536
@@ -90,6 +95,52 @@ async function importScheme(host: Host, ctl: Ctl, rawPath: string, force: boolea
   return msg
 }
 
+const CURRENT = ' (current)'
+const PET_LABELS: [PetSetting, string][] = [['clawd', 'Clawd'], ['clawd-shiny', 'Clawd (shiny)'], ['off', 'No pet']]
+
+// register.tsx's CommandOutput hook recognises this line by its leading "glowup · ".
+export const SUMMARY_LEAD = 'glowup · '
+const summary = (ctl: Ctl) => {
+  const m = ctl.mix(), p = ctl.pet()
+  return [
+    'glowup', m.colors === m.motion ? m.colors : `${m.colors}/${m.motion}`,
+    p === 'off' ? 'no pet' : PET_LABELS.find(([id]) => id === p)![1],
+    `bubbles ${ctl.bubbles()}`, `${ctl.reduced() ? 'reduced' : 'full'} motion`,
+  ].join(' · ')
+}
+
+// Each answer goes through runCommand, so the wizard and the typed commands cannot drift apart.
+async function wizard(host: Host, ctl: Ctl): Promise<string> {
+  const user = await loadUserPacks(host)
+  const installed = new Set([...Object.keys(PACKS), ...Object.keys(user).filter(n => SAFE_NAME.test(n))])
+  const m = ctl.mix()
+  const now = m.colors === m.motion && !m.theme && !m.spinner ? m.colors : undefined
+  const ask = (question: string, header: string, options: string[], multiSelect?: true) => ctl.ask(question, { options, header, multiSelect })
+  const apply = (cmd: string) => runCommand(host, cmd, ctl)
+  try {
+    const pick = await ask('Which look?', 'Pack', Object.keys(PACKS).sort().map(n => n === now ? n + CURRENT : n))
+    const pack = pick.endsWith(CURRENT) ? pick.slice(0, -CURRENT.length) : pick
+    // typed text must be a whole installed name: it is spliced into a command line
+    if (!installed.has(pack)) return `No pack named "${pick}".`
+    if (pack !== now) { const r = await apply(`pack ${pack}`); if (!r.startsWith('Pack: ')) return r }
+  } catch { return (await ctl.headless()) ? USAGE : summary(ctl) }
+  try {
+    const shiny = await shinyUnlocked(host)
+    const labels = PET_LABELS.filter(([p]) => shiny || p !== 'clawd-shiny')
+    const pet = await ask('Who keeps you company?', 'Pet', labels.map(([, l]) => l))
+    const hit = labels.find(([, l]) => l === pet)
+    if (hit) await apply(`pet ${hit[0]}`)
+    const bubbles = ctl.bubbles() === 'on', reduced = ctl.reduced()
+    const toggles: [string, string][] = [
+      [`Turn bubbles ${bubbles ? 'off' : 'on'}`, `bubbles ${bubbles ? 'off' : 'on'}`],
+      [`Turn reduced motion ${reduced ? 'off' : 'on'}`, `motion ${reduced ? 'full' : 'reduced'}`],
+    ]
+    const picked = (await ask('Anything else to change?', 'Extras', toggles.map(([l]) => l), true)).split(',').map(s => s.trim())
+    for (const [l, cmd] of toggles) if (picked.includes(l)) await apply(cmd)
+  } catch {}
+  return summary(ctl)
+}
+
 export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<string> {
   const [sub, a1, a2] = args.trim().split(/\s+/)
   if (sub === 'theme' && a1 === 'list') {
@@ -136,7 +187,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     return `Bubbles: ${a1}`
   }
   if (sub === 'pane') return ctl.togglePane()
-  if (sub === 'config') return ctl.openConfig()
+  if (sub === 'config') return wizard(host, ctl)
   if (sub === 'motion' && (a1 === 'reduced' || a1 === 'full')) {
     await host.storeSet('reducedMotion', a1 === 'reduced')
     ctl.setMotion(a1 === 'reduced')
