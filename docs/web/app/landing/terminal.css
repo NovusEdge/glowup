@@ -1,0 +1,92 @@
+.term{--k:var(--text);background:var(--bg);color:var(--text);border-radius:12px;overflow:hidden;font:13px/1.55 'JetBrains Mono',monospace;border:1px solid color-mix(in srgb,var(--faint) 80%,#fff 8%);box-shadow:0 30px 80px -24px #000c,0 0 0 1px #0006;position:relative;transition:background .35s,color .35s;text-align:left}
+.term .tbar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--faint);background:color-mix(in srgb,var(--panel) 70%,var(--bg))}
+.term .tbar i{width:11px;height:11px;border-radius:50%;background:var(--faint)}
+.term .tbar .ttl{margin-left:8px;color:var(--dim);font-size:12px}
+.term .tbody{display:flex;height:var(--th,440px)}
+.term .tx{flex:1;min-width:0;padding:14px 18px 0;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;gap:2px}
+.term .tx>*{flex:none}
+.term .pane{width:300px;flex:none;border-left:1px solid var(--faint);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.term .ptabs{color:var(--dim);white-space:nowrap;font-size:12px}
+.term .ptabs b{color:var(--read)}
+.term .phead{display:flex;justify-content:space-between;font-weight:700;margin-top:6px}
+.term .phead span{color:var(--dim);font-weight:400}
+.term .plist{display:flex;flex-direction:column;gap:2px}
+.term .pf{display:flex;gap:8px}
+.term .pf .g{color:var(--k)}
+.term .pf .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.term .pf .s{color:var(--dim)}
+.term .pf .s .a{color:var(--pass)}.term .pf .s .d{color:var(--fail)}
+.term .pcard{margin-top:auto;border:1px solid var(--faint);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
+.term .pcard .st{color:var(--pass);font-weight:700}
+.term .pcard .st.wk{color:var(--accent)}
+.term .pcard .st.bad{color:var(--fail)}
+.term .hearts{color:var(--fail)}.term .hearts i{color:var(--faint);font-style:normal}
+.term .pcard .ag{color:var(--agent)}
+
+.term .u{color:var(--dim);background:var(--sel);padding:3px 8px;border-radius:4px;margin-bottom:8px;align-self:flex-start;max-width:100%}
+.term .u::before{content:'> ';color:var(--accent)}
+.term .row{display:flex;gap:7px;align-items:baseline;margin-top:6px;animation:term-in .25s ease-out}
+.term .row .dot{color:var(--k)}
+.term .row .g{color:var(--k);display:none}
+.term .row .verb{font-weight:700}
+.term .row .meta{color:var(--dim);margin-left:auto}
+.term .res{color:var(--dim);padding-left:16px;animation:term-in .25s ease-out}
+.term .res::before{content:'⎿  '}
+.term .res.ok{color:var(--pass)}.term .res.bad{color:var(--fail)}
+.term .say{margin-top:8px;animation:term-in .3s}
+.term .say::before{content:'● ';color:var(--text)}
+.term .diff{margin:2px 0 0 16px;border-radius:3px;overflow:hidden;animation:term-in .25s}
+.term .dl{padding:0 8px;white-space:pre}
+.term .dl.add{background:var(--addBg)}.term .dl.del{background:var(--delBg)}
+.term .k-read{--k:var(--read)}.term .k-edit{--k:var(--edit)}.term .k-shell{--k:var(--shell)}.term .k-agent{--k:var(--agent)}.term .k-pass{--k:var(--pass)}.term .k-fail{--k:var(--fail)}
+.term .row .tgt::before{content:'('}.term .row .tgt::after{content:')'}
+
+.term[data-rows=cards] .row{border:1px solid var(--faint);border-left:3px solid var(--k);border-radius:6px;padding:3px 10px;background:color-mix(in srgb,var(--panel) 60%,transparent)}
+.term[data-rows=cards] .row .dot{display:none}
+.term[data-rows=cards] .row .g{display:inline}
+.term[data-rows=cards] .row .tgt::before,.term[data-rows=cards] .row .tgt::after{content:none}
+.term[data-rows=cards] .row .verb{color:var(--k)}
+.term[data-rows=retro] .row .dot,.term[data-rows=retro] .row .g{display:none}
+.term[data-rows=retro] .row .verb{text-transform:uppercase;color:var(--k)}
+.term[data-rows=retro] .row .verb::before{content:'> '}
+.term[data-rows=retro] .row .tgt::before,.term[data-rows=retro] .row .tgt::after{content:none}
+.term[data-rows=retro] .u::before{content:'$ '}
+.term[data-border=bold] .pcard,.term[data-border=bold] .pane{border-width:2px;border-color:var(--bc,var(--faint))}
+.term[data-pack=crt]::after{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,#0000 0 2px,#0004 2px 3px);mix-blend-mode:multiply}
+.term[data-pack=crt]{text-shadow:0 0 6px color-mix(in srgb,var(--text) 50%,transparent)}
+
+.term .petbox{position:relative;height:52px;margin-top:6px}
+.term .petbox canvas{position:absolute;bottom:0;left:0;image-rendering:pixelated}
+.term .bub{position:absolute;right:0;top:4px;border:1px solid var(--bubc,var(--accent));border-radius:8px;padding:1px 8px;font-size:12px;opacity:0;transition:opacity .25s;white-space:nowrap}
+.term .bub.on{opacity:1}
+.term .band{height:46px;padding:0 18px;display:flex;gap:10px;align-items:center;white-space:nowrap;overflow:hidden;transition:opacity .3s}
+.term .band.off{opacity:0}
+/* Spinner cells are fixed boxes, so a glyph from a fallback font (braille, half blocks) can't change the band's size. */
+.term .band canvas{flex:none}
+.term .band .word{font-weight:700}
+.term .band .act{color:var(--k)}
+.term .band .sep{color:var(--faint)}
+.term .band .ag{color:var(--agent)}
+.term .band .combo{color:var(--edit);font-weight:700}
+.term .prompt{border-top:1px solid var(--faint);border-bottom:1px solid var(--faint);padding:8px 18px;display:flex;gap:8px}
+.term .prompt .c{color:var(--text)}
+.term .cur{display:inline-block;width:8px;background:var(--text);animation:term-blink 1s steps(1) infinite}
+.term .status{padding:8px 18px 12px;font-size:12px;display:flex;flex-direction:column;gap:1px}
+.term .status .gl{color:var(--accent)}
+.term .status .m{color:var(--dim)}
+@keyframes term-in{from{opacity:0;transform:translateY(4px)}}
+@keyframes term-blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.term .row,.term .res,.term .say,.term .diff,.term .cur{animation:none}}
+
+/* Phones: the pane drops under the transcript. */
+@media (max-width:900px){
+  .term .tbody{flex-direction:column;height:auto}
+  .term{--th:340px}
+  .term .tx{height:var(--th,340px);flex:none;padding:12px 12px 0;font-size:12px}
+  .term .pane{width:auto;border-left:0;border-top:1px solid var(--faint)}
+  .term .plist{display:none}
+  .term .ptabs{font-size:11px}
+  .term .tbar .ttl{display:none}
+  .term .band,.term .prompt,.term .status{padding-left:12px;padding-right:12px}
+  .term .band .ag,.term .band .agsep,.term .band .combo{display:none}
+}
