@@ -8,6 +8,7 @@ const look = (n: string) => resolveLook({ colors: n, motion: n }, {}, {}).look
 const walk = (n: any, out: any[] = []): any[] => { if (n && typeof n === 'object') { out.push(n); for (const c of n.children ?? []) walk(c, out) } return out }
 const text = (n: any) => walk(n).flatMap(x => (x.children ?? []).filter((c: unknown) => typeof c === 'string')).join('')
 const hasEngine = (n: any) => walk(n).includes(ENGINE)
+const inner = (n: any) => (n.props?.marginLeft === 1 && n.children?.length === 1 ? n.children[0] : n)
 const tool = (o: Partial<Extract<RowInput, { site: 'ToolUse' }>> = {}): RowInput => ({ site: 'ToolUse', tool: 'Read', input: { file_path: '/r/src/auth.ts' }, isRunning: false, isErrored: false, isInterrupted: false, ...o })
 const user = (o: Partial<Extract<RowInput, { site: 'UserMessage' }>> = {}): RowInput => ({ site: 'UserMessage', text: 'fix the test', isExpanded: false, own: true, ...o })
 
@@ -71,21 +72,21 @@ test('minimal: own one-liner for a finished tool; errors and interruptions stay 
   const done = styleRow(els, l, tool(), ENGINE)
   expect(hasEngine(done)).toBe(false)
   expect(text(done)).toContain('· Reading src/auth.ts')
-  expect(styleRow(els, l, tool({ isErrored: true }), ENGINE)).toBe(ENGINE)
-  expect(styleRow(els, l, tool({ isInterrupted: true }), ENGINE)).toBe(ENGINE)
+  expect(inner(styleRow(els, l, tool({ isErrored: true }), ENGINE))).toBe(ENGINE)
+  expect(inner(styleRow(els, l, tool({ isInterrupted: true }), ENGINE))).toBe(ENGINE)
   expect(text(styleRow(els, l, user(), ENGINE))).toBe('› fix the test')
 })
 
 test("only the person's own, compact prompts are styled", async () => {
   for (const n of ['arcade', 'crt']) {
-    expect(styleRow(els, look(n), user({ own: false }), ENGINE)).toBe(ENGINE)
-    expect(styleRow(els, look(n), user({ isExpanded: true }), ENGINE)).toBe(ENGINE)
+    expect(inner(styleRow(els, look(n), user({ own: false }), ENGINE))).toBe(ENGINE)
+    expect(inner(styleRow(els, look(n), user({ isExpanded: true }), ENGINE))).toBe(ENGINE)
   }
 })
 
 test('a throw inside a style returns the engine element', async () => {
   const broken = { ...look('arcade'), get theme(): never { throw new Error('boom') } } as Look
-  expect(styleRow(els, broken, tool(), ENGINE)).toBe(ENGINE)
+  expect(inner(styleRow(els, broken, tool(), ENGINE))).toBe(ENGINE)
 })
 
 test('retro: bold [YOU] and [CLAUDE] tags, engine indented 9', async () => {
@@ -115,6 +116,19 @@ test('prefixCards leaves message rows as they are without it', async () => {
   const l = look('arcade')
   expect(bar(styleRow(els, l, user(), ENGINE, { prefixCards: true })).props.color).toBe(l.theme.colors.accent)
   expect(bar(styleRow(els, l, asst(), ENGINE, { prefixCards: true })).props.color).toBe(l.theme.colors.faint)
+})
+
+test('non-classic styles indent every row one column, classic does not', async () => {
+  const rows: RowInput[] = [user(), user({ own: false }), asst(), asst(false), tool(), tool({ isErrored: true }), { site: 'ToolResult' }]
+  for (const style of ['cards', 'minimal', 'retro'] as const) {
+    const l: Look = { ...look('arcade'), rows: style }
+    for (const r of rows) {
+      const s = styleRow(els, l, r, ENGINE) as any
+      expect([style, r.site, s.type, s.props.marginLeft]).toEqual([style, r.site, 'Box', 1])
+    }
+  }
+  const cl: Look = { ...look('arcade'), rows: 'classic' }
+  for (const r of rows) expect((styleRow(els, cl, r, ENGINE) as any).props?.marginLeft).toBeUndefined()
 })
 
 test('other styles never draw the side bar or a border on messages', async () => {

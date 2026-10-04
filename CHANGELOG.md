@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The `cards` row style now puts your prompts and Claude's replies on a side bar instead of a box, and draws tool calls in a dim box.
 - Clawd's done dance now lasts 4 seconds instead of 1.5.
+- Chat rows in every pack except `classic` now keep a one-column margin on the left.
 
 ## [0.2.2] - 2026-10-04
 

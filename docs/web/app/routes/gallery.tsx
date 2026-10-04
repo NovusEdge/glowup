@@ -91,7 +91,7 @@ function Mock({ look }: { look: Look }) {
   const [a, b] = look.gradient ?? [c.accent, c.pass]
   return (
     <div className="mock" style={{ borderStyle: 'solid', borderWidth: 1, borderRadius: 6, borderColor: c.faint, background: look.bg, color: c.text }}>
-      {body}
+      <div style={look.rows === 'classic' ? undefined : { paddingLeft: '1ch' }}>{body}</div>
       {look.extras.hp && (
         <div className="mock-row">
           <span style={{ color: c.accent, fontWeight: 700 }}>HP </span>

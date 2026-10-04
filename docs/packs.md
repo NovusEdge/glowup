@@ -141,6 +141,8 @@ A row style changes how your prompts, Claude's replies and tool calls look in th
 | `minimal` | A `› text` line | Claude Code's | A dim one-line `· Read src/auth.ts` once it finishes cleanly |
 | `retro` | A `[YOU]` tag | A `[CLAUDE]` tag on the first block | A `[READ  ]`-style tag, then `[ OK ]`, `[FAIL]`, `[STOP]` or `[....]` |
 
+Every style except `classic` also leaves a one-column margin on the left of each row, so the transcript does not touch the window edge.
+
 Only your own prompts are styled. Notifications and messages from other agents keep Claude Code's drawing, as do prompts you expand with ctrl+o or `--verbose`. The folded "Read 3 files" line and tool progress are left alone. In non-fullscreen mode, rows already printed to scrollback keep the style they had when printed.
 
 The extras are two optional bits of the colors layer:

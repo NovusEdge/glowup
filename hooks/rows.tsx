@@ -37,6 +37,15 @@ function card({ Box, Text }: Els, look: Look, direction: 'row' | 'column', kids:
 }
 
 export function styleRow(els: Els, look: Look, row: RowInput, engine: unknown, opts: { prefixCards?: boolean } = {}): unknown {
+  const out = draw(els, look, row, engine, opts)
+  if (look.rows === 'classic') return out
+  const { Box } = els
+  // Never edit the engine's own element: its props are Claude Code's.
+  if (out !== engine && (out as any)?.type === Box) return { ...(out as any), props: { ...(out as any).props, marginLeft: 1 } }
+  return <Box marginLeft={1}>{out}</Box>
+}
+
+function draw(els: Els, look: Look, row: RowInput, engine: unknown, opts: { prefixCards?: boolean }): unknown {
   try {
     const { Box, Text } = els
     if (row.site === 'UserMessage' && (!row.own || row.isExpanded)) return engine
