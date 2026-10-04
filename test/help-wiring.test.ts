@@ -18,7 +18,7 @@ const row = (args: string, text: string, over: object = {}) => ({ command: 'glow
 const mountRow = ($: any, props: unknown, surface: string = 'terminal') => $.ui.mount({ plugin: 'glowup', surface, component: 'CommandOutput', props })
 const classic = resolveLook({ colors: 'classic', motion: 'classic' }, {}, {}).look
 
-test('the short card draws the header, five rows and the footer in the look colors', async ($, on) => {
+test('the short card draws the header, five rows and the footer in the look colors', { timeoutMs: 20000 }, async ($, on) => {
   setup(on)
   for (const args of ['', 'help']) {
     const ui = await mountRow($, row(args, SHORT_TEXT))

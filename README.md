@@ -112,6 +112,7 @@ More in [Install](docs/install.md).
 | `/glowup pack save <name>` | Save the current look as a pack file. |
 | `/glowup spinner <name\|list\|default>` | Set just the spinner, list them, or go back to the pack's own. |
 | `/glowup import <file>` | Turn a Ghostty or base16 color scheme into a pack. |
+| `/glowup export konsole` | Write your current colors as a Konsole color scheme. |
 | `/glowup pet clawd\|off` | Show Clawd or hide the pet. |
 | `/glowup bubbles on\|off` | Turn speech bubbles on or off. |
 | `/glowup config` | Pick a pack, pet and extras by answering questions. |
@@ -175,7 +176,7 @@ A pack sets a whole look with one name: colors and row styles in one layer, moti
 
 ## Pets
 
-Clawd is a small pixel pet at the bottom of the glowup pane. He types at his keyboard while Claude edits files or runs commands, walks while it reads, searches and plans, hops when a test passes, sags and sweats when one fails, startles only when Claude needs you, does a little dance when a turn finishes, sleeps after 10 idle minutes, sweats in a special outfit on a Friday deploy, and says a short line in a speech bubble. Keep your tests green and see what happens.
+Clawd is a small pixel pet at the bottom of the glowup pane. He types at his keyboard while Claude edits files or runs commands, walks while it reads, searches and plans, hops when a test passes, sags and sweats when one fails, startles only when Claude needs you, does a little dance when a turn finishes, sleeps after one idle minute, sweats in a special outfit on a Friday deploy, and says a short line in a speech bubble. Keep your tests green and see what happens.
 
 ```text
 /glowup pet off
@@ -185,7 +186,7 @@ Reduced motion hides him. Full guide: [Pets](docs/pets.md).
 
 ## Config
 
-`/glowup config` asks up to three questions: the pack, the pet, and extras such as bubbles and reduced motion. Each answer applies at once, and Esc stops.
+`/glowup config` asks up to four questions: the pack, the spinner, the pet, and extras such as bubbles and reduced motion. Each answer applies at once, and Esc stops.
 
 ```text
 /glowup config

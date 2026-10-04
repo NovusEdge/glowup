@@ -35,6 +35,7 @@ A [theme](themes.md) is the palette inside a pack's colors layer. You can keep u
 | `/glowup pack <url>` | Download a pack from an `https://` URL, install it and apply it. |
 | `/glowup pack <url> --force` | Same, and replace an installed pack of that name. |
 | `/glowup import <file>` | Turn a Ghostty or base16 color scheme into a pack. See [Import a color scheme](#import-a-color-scheme). |
+| `/glowup export konsole` | Save the current colors as a Konsole color scheme under `$XDG_DATA_HOME/konsole` (default `~/.local/share/konsole`). |
 
 The choice is saved, so the next session starts with it.
 
@@ -137,9 +138,11 @@ A row style changes how your prompts, Claude's replies and tool calls look in th
 | Style | Your prompt | Claude's reply | Tool call |
 | --- | --- | --- | --- |
 | `classic` | Claude Code's | Claude Code's | Claude Code's, plus the theme's kind glyph |
-| `cards` | A bordered card labeled `you` | A bordered card labeled `claude` on the first block of a reply | A bordered card with a mark: `✓`, `✗`, `■` for interrupted, `…` while running |
+| `cards` | An accent side bar `▎` and a `you` label | A dim side bar, and a `claude` label on the first block of a reply | A dim bordered card with a mark: `✓`, `✗`, `■` for interrupted, `…` while running |
 | `minimal` | A `› text` line | Claude Code's | A dim one-line `· Read src/auth.ts` once it finishes cleanly |
-| `retro` | A `[YOU]` tag | A `[CLAUDE]` tag on the first block | A `[READ  ]`-style tag, then `[ OK ]`, `[FAIL]`, `[STOP]` or `[....]` |
+| `retro` | A `[YOU]` tag on its own line above your prompt | A `[CLAUDE]` tag on the first block | A `[READ  ]`-style tag, then `[ OK ]`, `[FAIL]`, `[STOP]` or `[....]` |
+
+Every style except `classic` also leaves a one-column margin on the left of each row, so the transcript does not touch the window edge.
 
 Only your own prompts are styled. Notifications and messages from other agents keep Claude Code's drawing, as do prompts you expand with ctrl+o or `--verbose`. The folded "Read 3 files" line and tool progress are left alone. In non-fullscreen mode, rows already printed to scrollback keep the style they had when printed.
 

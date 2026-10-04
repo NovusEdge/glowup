@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `/glowup export konsole` saves your current colors as a Konsole color scheme you can pick in your profile.
+
 ### Changed
 
+- The `cards` row style now puts your prompts and Claude's replies on a side bar instead of a box, and draws tool calls in a dim box.
+- Clawd's done dance now lasts 4 seconds instead of 1.5.
+- Chat rows in every row style except `classic` now keep a one-column margin on the left.
+- In the `retro` row style, the `[YOU]` tag now sits on its own line above your prompt, and bodies are indented 3 columns instead of 9.
+- `/glowup config` now asks which spinner you want, right after the pack, and the summary line names a spinner you set.
+- glowup's own spinner now sits 2 columns in from the left edge instead of touching it.
 - The docs site moved to https://glowup.khimani.dev.
+
+### Fixed
+
+- Tool results no longer clip at the right edge, and the `[ OK ]` mark no longer wraps, because rows now take less width around Claude Code's own output.
 
 ## [0.2.2] - 2026-10-04
 
