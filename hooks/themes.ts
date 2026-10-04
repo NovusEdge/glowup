@@ -3,7 +3,7 @@ import { cellWidth } from './cells.ts'
 export { PRESETS }
 
 export const MAX_THEME_BYTES = 65536
-const COLOR_KEYS = ['accent', 'text', 'dim', 'faint', 'read', 'edit', 'shell', 'agent', 'pass', 'fail', 'panel', 'addBg', 'delBg', 'sel'] as const
+export const COLOR_KEYS = ['accent', 'text', 'dim', 'faint', 'read', 'edit', 'shell', 'agent', 'pass', 'fail', 'panel', 'addBg', 'delBg', 'sel'] as const
 const GLYPH_KEYS = ['read', 'search', 'edit', 'shell', 'agent', 'plan'] as const
 export type Colors = Record<(typeof COLOR_KEYS)[number], string>
 export type Theme = { name: string; colors: Colors; spinnerWords: string[]; glyphs: Record<(typeof GLYPH_KEYS)[number], string>; hearts: [string, string] }
@@ -31,10 +31,10 @@ export function parseJsonc(text: string): unknown {
 // Downloaded themes reach the terminal, so anything that moves the cursor, hides text or
 // is not a scalar value is out: C0/C1 controls, zero-width and bidi marks, surrogates.
 const UNSAFE: [number, number][] = [[0x00, 0x1f], [0x7f, 0x9f], [0x200b, 0x200f], [0x2028, 0x202f], [0x2060, 0x206f], [0xfeff, 0xfeff], [0xd800, 0xdfff]]
-const isUnsafe = (cp: number) => UNSAFE.some(([lo, hi]) => cp >= lo && cp <= hi)
+export const isUnsafe = (cp: number) => UNSAFE.some(([lo, hi]) => cp >= lo && cp <= hi)
 
 // Below U+FFFF and width 1: the engine refuses glyph cells of any other width.
-function isGlyph(s: unknown): boolean {
+export function isGlyph(s: unknown): boolean {
   if (typeof s !== 'string' || [...s].length !== 1) return false
   const cp = s.codePointAt(0)!
   return cp <= 0xffff && cellWidth(cp) === 1 && !isUnsafe(cp)
@@ -43,9 +43,9 @@ const isWord = (w: unknown) => typeof w === 'string' && w.length <= 24 && [...w]
 
 // Keys and theme names come from downloaded files and end up in toasts and
 // command output, so they are echoed without control characters and capped.
-const shown = (s: string) => [...s].filter(c => !isUnsafe(c.codePointAt(0)!)).join('').slice(0, 40)
+export const shown = (s: string) => [...s].filter(c => !isUnsafe(c.codePointAt(0)!)).join('').slice(0, 40)
 
-const isPlain = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
+export const isPlain = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
 function validate(file: unknown): asserts file is ThemeFile {
   if (typeof file !== 'object' || file === null || Array.isArray(file)) throw new Error('a theme must be a JSON object')
