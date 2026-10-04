@@ -1,14 +1,36 @@
 import { test, expect, mock } from 'claude-code/testing'
 import { runGlowup, fakeHost, fakeFs } from './kit.ts'
 import { runCommand, USAGE, type Ctl } from '../hooks/command.ts'
+import { SHORT_TEXT, FULL_TEXT, SECTIONS, DOCS_URL } from '../hooks/help.ts'
 import type { Mix } from '../hooks/packs.ts'
 import type { PetSetting } from '../hooks/pets.ts'
 
-test('/glowup with no args prints usage', async ($, on) => {
+test('/glowup and /glowup help print the short card', async ($, on) => {
   fakeFs(on)
   mock.store(on)
-  const out = await runGlowup($)
-  expect(out.text).toContain('/glowup theme <name>')
+  for (const args of ['', 'help']) {
+    const out = (await runGlowup($, args)).text!
+    expect(out).toBe(SHORT_TEXT)
+    for (const c of ['/glowup config', '/glowup pack <name>', '/glowup pet clawd|off', '/glowup pane', '/glowup motion reduced', '/glowup help all', DOCS_URL]) expect(out).toContain(c)
+    expect(out).toContain('arcade classic cozy crt')
+    expect(out).not.toContain('theme add')
+  }
+})
+
+test('/glowup help all prints every command in groups', async ($, on) => {
+  fakeFs(on)
+  mock.store(on)
+  const out = (await runGlowup($, 'help all')).text!
+  expect(out).toBe(FULL_TEXT)
+  for (const s of ['Start here', 'Look', 'Pet', 'Comfort', 'Make your own', 'Status line']) expect(out).toContain(s)
+  for (const [, rows] of SECTIONS) for (const [c] of rows) expect(out).toContain(c)
+  expect(out).toBe(USAGE)
+})
+
+test('an unknown subcommand keeps its error line above the short card', async ($, on) => {
+  fakeFs(on)
+  mock.store(on)
+  expect((await runGlowup($, 'bogus')).text).toBe(`Unknown: bogus\n\n${SHORT_TEXT}`)
 })
 
 const SETTINGS = '/home/u/.claude/settings.json'
@@ -87,7 +109,7 @@ test('pane, motion and unknown subcommands', async () => {
   expect(await runCommand(host, 'motion full', c)).toBe('Motion: full.')
   expect(store.reducedMotion).toBe(false)
   expect(calls).toEqual(['pane', 'motion:true', 'motion:false'])
-  expect(await runCommand(host, 'dance', c)).toContain('/glowup theme <name>')
+  expect(await runCommand(host, 'dance', c)).toContain('/glowup help all')
   expect(await runCommand(host, 'motion', c)).toContain('Unknown: motion')
 })
 

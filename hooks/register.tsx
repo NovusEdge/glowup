@@ -19,6 +19,8 @@ import type { PetClientProps } from './client/pet.tsx'
 import type { OrbState } from './motion.ts'
 import { statusText, writeStatusFile, BACKUP_KEY } from './statusline.ts'
 import { runCommand, SUMMARY_LEAD, type Ctl } from './command.ts'
+import { SHORT_TEXT, FULL_TEXT } from './help.ts'
+import { renderHelp } from './helpcard.tsx'
 import { loadUserThemes } from './userthemes.ts'
 import { firstRun } from './firstrun.ts'
 
@@ -556,7 +558,12 @@ export const register: Register = (on, options) => {
 
   on('ui.render', { component: 'CommandOutput' }, async ($, e, next) => {
     const p = e.props
-    if ((e.surface !== 'terminal' && e.surface !== 'desktop') || p.command !== 'glowup' || p.args.trim() !== 'config' || p.isErrored || !p.text.startsWith(SUMMARY_LEAD)) return next(e)
+    if ((e.surface !== 'terminal' && e.surface !== 'desktop') || p.command !== 'glowup' || p.isErrored) return next(e)
+    // Matched on the exact text the command printed, so an error or a changed answer stays the engine's row.
+    const args = p.args.trim()
+    if ((args === '' || args === 'help') && p.text === SHORT_TEXT) return renderHelp($.ui.resolve(e), look, false)
+    if (args === 'help all' && p.text === FULL_TEXT) return renderHelp($.ui.resolve(e), look, true)
+    if (args !== 'config' || !p.text.startsWith(SUMMARY_LEAD)) return next(e)
     // The row is history: draw the pack it names, not whatever look is on now. A render hook must not
     // read disk, so a user pack resolves only while it is the live one.
     const [colors = '', motion = colors] = p.text.slice(SUMMARY_LEAD.length).split(' · ')[0]!.split('/')

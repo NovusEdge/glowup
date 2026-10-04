@@ -7,29 +7,27 @@ section: Use
 
 ## The /glowup command
 
-You control glowup with `/glowup`. Run it with no arguments to print the usage text:
+You control glowup with `/glowup`. Run it with no arguments, or with `help`, for a short card of the five commands most people need:
 
 ```text title="claude code"
 glowup
-  /glowup theme <name>       switch theme
-  /glowup theme list         list installed themes
-  /glowup theme add <url>    install a theme file from an https URL
-  /glowup pack <name|url>    apply a pack (--force replaces an installed one)
-  /glowup pack list          list packs
-  /glowup pack save <name>   save the current look as a pack file
-  /glowup spinner <name|list|default>  set just the spinner
-  /glowup config             pick a pack, pet and extras by answering questions
-  /glowup import <file>      turn a Ghostty or base16 scheme into a pack
-  /glowup pet clawd|off      choose the pet, or none
-  /glowup bubbles on|off     speech bubbles
-  /glowup pane               open or close the glowup pane
-  /glowup motion reduced|full
-  /glowup statusline on|restore
+
+  /glowup config                       pick a look, pet and extras
+  /glowup pack <name>                  switch look: arcade classic cozy crt
+  /glowup pet clawd|off                Clawd, or no pet
+  /glowup pane                         open or close the side pane
+  /glowup motion reduced               calm everything down
+
+more: /glowup help all   docs: https://novusedge.github.io/glowup/
 ```
+
+`/glowup help all` lists every command in groups: Start here, Look, Pet, Comfort, Make your own and Status line.
+
+On the terminal and desktop app the card is drawn in the colors of your current pack, with a header box, swatches and the spinner word. Elsewhere, and for the model, you get the plain text above.
 
 `/glowup config` asks up to three questions. See [config](#config).
 
-An unknown subcommand prints `Unknown: <what you typed>` followed by the usage text.
+An unknown subcommand prints `Unknown: <what you typed>` followed by the short card.
 
 ## theme
 

@@ -99,8 +99,11 @@ More in [Install](docs/install.md).
 
 ## Commands
 
+`/glowup` alone shows a short card with the commands most people need, and `/glowup help all` lists them all.
+
 | Command | What it does |
 | --- | --- |
+| `/glowup help all` | Every command, in groups. |
 | `/glowup theme <name>` | Switch theme. Saved for the next session. |
 | `/glowup theme list` | List built-in and installed themes. A filled dot marks the current one. |
 | `/glowup theme add <url>` | Install a theme file from an `https://` URL. |

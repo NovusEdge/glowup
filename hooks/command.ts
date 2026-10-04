@@ -9,24 +9,10 @@ import { parseScheme } from './schemes.ts'
 import type { PetSetting } from './pets.ts'
 import type { BubbleSetting } from './bubbles.ts'
 import type { EggStore } from './eggs.ts'
+import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 
-export const USAGE = [
-  'glowup',
-  '  /glowup theme <name>       switch theme',
-  '  /glowup theme list         list installed themes',
-  '  /glowup theme add <url>    install a theme file from an https URL',
-  '  /glowup pack <name|url>    apply a pack (--force replaces an installed one)',
-  '  /glowup pack list          list packs',
-  '  /glowup pack save <name>   save the current look as a pack file',
-  '  /glowup spinner <name|list|default>  set just the spinner',
-  '  /glowup config           pick a pack, pet and extras by answering questions',
-  '  /glowup import <file>      turn a terminal color scheme into a pack',
-  '  /glowup pet clawd|off      choose the pet, or none',
-  '  /glowup bubbles on|off     speech bubbles',
-  '  /glowup pane               open or close the glowup pane',
-  '  /glowup motion reduced|full',
-  '  /glowup statusline on|restore',
-].join('\n')
+// What a command that needs more input falls back to, and what a headless config run prints.
+export const USAGE = FULL_TEXT
 
 export type Ctl = {
   // the theme in use, which may come from userConfig rather than the store
@@ -227,5 +213,6 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   }
   if (sub === 'statusline' && a1 === 'on') return takeOver(host, q => ctl.confirm(q))
   if (sub === 'statusline' && a1 === 'restore') return restore(host)
-  return sub ? `Unknown: ${args.trim()}\n\n${USAGE}` : USAGE
+  if (sub === 'help' && a1 === 'all') return FULL_TEXT
+  return sub && sub !== 'help' ? `Unknown: ${args.trim()}\n\n${SHORT_TEXT}` : SHORT_TEXT
 }
