@@ -295,7 +295,7 @@ async function askFirstRun($: Engine) {
 const PETS: readonly PetSetting[] = ['clawd', 'clawd-shiny', 'off']
 const BUBBLES: readonly BubbleSetting[] = ['on', 'off']
 
-// The store wins only once a command or the config view wrote it. Without a stored mix, the
+// The store wins only once a command wrote it. Without a stored mix, the
 // 0.1 settings migrate in memory; only a command writes the result back.
 async function initialMix(host: Host, options: Readonly<Record<string, unknown>>): Promise<Mix> {
   const stored = await host.storeGet('mix') as Partial<Mix> | undefined
@@ -557,8 +557,15 @@ export const register: Register = (on, options) => {
   on('ui.render', { component: 'CommandOutput' }, async ($, e, next) => {
     const p = e.props
     if ((e.surface !== 'terminal' && e.surface !== 'desktop') || p.command !== 'glowup' || p.args.trim() !== 'config' || p.isErrored || !p.text.startsWith(SUMMARY_LEAD)) return next(e)
-    const c = theme.colors, swatch = [c.accent, c.read, c.edit, c.shell, c.pass]
-    const word = (theme.spinnerWords[0] ?? 'Thinking') + '…'
+    // The row is history: draw the pack it names, not whatever look is on now. A render hook must not
+    // read disk, so a user pack resolves only while it is the live one.
+    const [colors = '', motion = colors] = p.text.slice(SUMMARY_LEAD.length).split(' · ')[0]!.split('/')
+    const live = !mix.theme && !mix.spinner && mix.colors === colors && mix.motion === motion
+    const r = live ? { look, errors: [] } : resolveLook({ colors, motion }, {}, {})
+    if (r.errors.length) return next(e)
+    const l = r.look
+    const c = l.theme.colors, swatch = [c.accent, c.read, c.edit, c.shell, c.pass]
+    const word = (l.theme.spinnerWords[0] ?? 'Thinking') + '…'
     const els = $.ui.resolve(e), { Box } = els
     return <Box flexDirection="column">
       {renderSegs(els, [{ text: p.text, color: c.text }], 'summary')}

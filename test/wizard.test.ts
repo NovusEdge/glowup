@@ -83,6 +83,59 @@ test('Other with an installed user pack applies it', async () => {
   expect(out).toContain('· mine ·')
 })
 
+const MINE = { '/home/u/.claude/glowup/packs/mine.json': JSON.stringify({ format: 1, name: 'mine', colors: { theme: 'classic' } }) }
+
+test('a user pack start offers Keep first, then classic and the built-ins up to four options', async () => {
+  const r = rig(['Keep mine', 'Clawd', ''], { mix: { colors: 'mine', motion: 'mine' } }, MINE)
+  await r.run()
+  expect(r.asked[0]!.options).toEqual(['Keep mine', 'classic', 'arcade', 'cozy'])
+  expect(r.calls).toEqual([])
+  expect(r.asked).toHaveLength(3)
+})
+
+test('a theme override start offers Keep custom mix and Keep leaves the override alone', async () => {
+  const mix = { colors: 'classic', motion: 'classic', theme: 'dracula' }
+  const r = rig(['Keep custom mix', 'Clawd', ''], { mix })
+  const out = await r.run()
+  expect(r.asked[0]!.options).toEqual(['Keep custom mix', 'classic', 'arcade', 'cozy'])
+  expect(r.calls).toEqual([])
+  expect(r.ctl.mix()).toEqual(mix)
+  expect(out).toContain('classic')
+})
+
+test('a spinner override start also counts as a custom mix', async () => {
+  const r = rig(['Keep custom mix', ESC], { mix: { colors: 'cozy', motion: 'cozy', spinner: 'comet' } })
+  await r.run()
+  expect(r.asked[0]!.options[0]).toBe('Keep custom mix')
+})
+
+test('a built-in that did not fit stays reachable by typing it', async () => {
+  const r = rig([' crt ', ESC], { mix: { colors: 'mine', motion: 'mine' } }, MINE)
+  await r.run()
+  expect(r.asked[0]!.options).not.toContain('crt')
+  expect(r.kv.mix).toEqual({ colors: 'crt', motion: 'crt' })
+})
+
+test('a plain built-in start keeps four options and picking (current) applies nothing', async () => {
+  const r = rig(['crt (current)', 'Clawd', ''], { mix: { colors: 'crt', motion: 'crt' } })
+  await r.run()
+  expect(r.asked[0]!.options).toEqual(['arcade', 'classic', 'cozy', 'crt (current)'])
+  expect(r.calls).toEqual([])
+  expect(r.kv.mix).toBeUndefined()
+})
+
+test('typed pack text is trimmed', async () => {
+  const r = rig(['  cozy  ', ESC])
+  await r.run()
+  expect(r.kv.mix).toEqual({ colors: 'cozy', motion: 'cozy' })
+})
+
+test('a failing apply surfaces as an error, not a success summary', async () => {
+  const r = rig(['arcade'])
+  r.host.storeSet = async () => { throw new Error('disk full') }
+  await expect(r.run()).rejects.toThrow('disk full')
+})
+
 test('Other with an unknown name shows an error and stops', async () => {
   const r = rig(['ghost'])
   const out = await r.run()

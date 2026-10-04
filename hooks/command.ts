@@ -114,30 +114,46 @@ async function wizard(host: Host, ctl: Ctl): Promise<string> {
   const user = await loadUserPacks(host)
   const installed = new Set([...Object.keys(PACKS), ...Object.keys(user).filter(n => SAFE_NAME.test(n))])
   const m = ctl.mix()
-  const now = m.colors === m.motion && !m.theme && !m.spinner ? m.colors : undefined
-  const ask = (question: string, header: string, options: string[], multiSelect?: true) => ctl.ask(question, { options, header, multiSelect })
+  const plain = m.colors === m.motion && !m.theme && !m.spinner
+  const now = plain && m.colors in PACKS ? m.colors : undefined
+  // a dismissed or unanswerable dialog is the only failure swallowed; apply errors surface
+  const ask = (question: string, header: string, options: string[], multiSelect?: true) =>
+    ctl.ask(question, { options, header, multiSelect }).catch(() => undefined)
   const apply = (cmd: string) => runCommand(host, cmd, ctl)
-  try {
-    const pick = await ask('Which look?', 'Pack', Object.keys(PACKS).sort().map(n => n === now ? n + CURRENT : n))
-    const pack = pick.endsWith(CURRENT) ? pick.slice(0, -CURRENT.length) : pick
+
+  const builtins = Object.keys(PACKS).sort()
+  // The dialog takes 4 options at most. Off a plain built-in, Keep takes the first slot so Esc is not the
+  // only way past this question; the built-ins that do not fit are still accepted when typed under Other.
+  const keep = now ? undefined : `Keep ${plain ? m.colors : 'custom mix'}`
+  const offered = keep
+    ? [keep, ...['classic', ...builtins.filter(n => n !== 'classic')].slice(0, 3)]
+    : builtins.map(n => n === now ? n + CURRENT : n)
+  const pick = await ask('Which look?', 'Pack', offered)
+  if (pick === undefined) return (await ctl.headless()) ? USAGE : summary(ctl)
+  const typed = pick.trim()
+  if (typed !== keep) {
+    const pack = typed.endsWith(CURRENT) ? typed.slice(0, -CURRENT.length) : typed
     // typed text must be a whole installed name: it is spliced into a command line
-    if (!installed.has(pack)) return `No pack named "${pick}".`
+    if (!installed.has(pack)) return `No pack named "${typed}".`
     if (pack !== now) { const r = await apply(`pack ${pack}`); if (!r.startsWith('Pack: ')) return r }
-  } catch { return (await ctl.headless()) ? USAGE : summary(ctl) }
-  try {
-    const shiny = await shinyUnlocked(host)
-    const labels = PET_LABELS.filter(([p]) => shiny || p !== 'clawd-shiny')
-    const pet = await ask('Who keeps you company?', 'Pet', labels.map(([, l]) => l))
-    const hit = labels.find(([, l]) => l === pet)
-    if (hit) await apply(`pet ${hit[0]}`)
-    const bubbles = ctl.bubbles() === 'on', reduced = ctl.reduced()
-    const toggles: [string, string][] = [
-      [`Turn bubbles ${bubbles ? 'off' : 'on'}`, `bubbles ${bubbles ? 'off' : 'on'}`],
-      [`Turn reduced motion ${reduced ? 'off' : 'on'}`, `motion ${reduced ? 'full' : 'reduced'}`],
-    ]
-    const picked = (await ask('Anything else to change?', 'Extras', toggles.map(([l]) => l), true)).split(',').map(s => s.trim())
-    for (const [l, cmd] of toggles) if (picked.includes(l)) await apply(cmd)
-  } catch {}
+  }
+
+  const shiny = await shinyUnlocked(host)
+  const labels = PET_LABELS.filter(([p]) => shiny || p !== 'clawd-shiny')
+  const pet = await ask('Who keeps you company?', 'Pet', labels.map(([, l]) => l))
+  if (pet === undefined) return summary(ctl)
+  const hit = labels.find(([, l]) => l === pet)
+  // an unchanged pick must not turn a userConfig default into a stored setting
+  if (hit && hit[0] !== ctl.pet()) await apply(`pet ${hit[0]}`)
+
+  const bubbles = ctl.bubbles() === 'on', reduced = ctl.reduced()
+  const toggles: [string, string][] = [
+    [`Turn bubbles ${bubbles ? 'off' : 'on'}`, `bubbles ${bubbles ? 'off' : 'on'}`],
+    [`Turn reduced motion ${reduced ? 'off' : 'on'}`, `motion ${reduced ? 'full' : 'reduced'}`],
+  ]
+  const extras = await ask('Anything else to change?', 'Extras', toggles.map(([l]) => l), true)
+  const picked = (extras ?? '').split(',').map(s => s.trim())
+  for (const [l, cmd] of toggles) if (picked.includes(l)) await apply(cmd)
   return summary(ctl)
 }
 

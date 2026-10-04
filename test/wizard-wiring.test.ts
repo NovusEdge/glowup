@@ -77,6 +77,23 @@ test('the config row draws a summary with swatches and the spinner word', async 
   }
 })
 
+test('an old summary row keeps its own pack colors after the look changes', async ($, on) => {
+  setup(on, ['arcade', 'Clawd', ''])
+  const text = (await runGlowup($, 'config')).text!
+  await runGlowup($, 'pack crt')
+  const ui = await mountRow($, ROW(text))
+  const swatches = walk(await ui.drawn()).filter(n => n?.children?.[0] === '██')
+  expect(swatches[0].props.color).toBe('#ff3ec8')
+  await ui.unmount()
+})
+
+test('a summary naming a pack that cannot be resolved passes through', async ($, on) => {
+  setup(on, [])
+  const ui = await mountRow($, ROW('glowup · ghost · Clawd · bubbles on · full motion'))
+  expect(texts(await ui.drawn())).toBe('engine')
+  await ui.unmount()
+})
+
 test('every other command row passes through', async ($, on) => {
   setup(on, [])
   for (const props of [ROW('Pack: crt', { args: 'pack crt' }), ROW('glowup · x', { command: 'other' }), ROW('No pack named "x".', { isErrored: true })]) {
