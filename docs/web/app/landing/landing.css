@@ -20,7 +20,7 @@
 .landing .install{display:inline-flex;align-items:center;gap:14px;max-width:100%;font:13px 'JetBrains Mono',monospace;border-radius:10px;padding:10px 10px 10px 16px;text-align:left;background:var(--panel);border:1px solid var(--faint);color:var(--text)}
 .landing .install code{min-width:0;line-height:1.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .landing .install button{font:600 12px Geist,sans-serif;padding:6px 12px;border-radius:7px;background:var(--text);color:var(--bg)}
-.landing .seg{display:inline-flex;gap:4px;padding:4px;border-radius:12px;border:1px solid var(--faint);background:color-mix(in srgb,var(--panel) 80%,transparent);margin-top:28px}
+.landing .seg{display:inline-flex;flex-wrap:wrap;justify-content:center;max-width:100%;gap:4px;padding:4px;border-radius:12px;border:1px solid var(--faint);background:color-mix(in srgb,var(--panel) 80%,transparent);margin-top:28px}
 .landing .seg button{font:600 13px 'JetBrains Mono',monospace;padding:7px 16px;border-radius:9px;color:var(--dim)}
 .landing .seg button[aria-pressed=true]{background:var(--accent);color:var(--bg)}
 
@@ -29,7 +29,7 @@
 .landing .sec .lede{color:var(--dim);font-size:17px;margin:12px 0 30px;max-width:640px;line-height:1.5}
 .landing .sec .lede.small{font-size:15px;margin-top:18px}
 .landing .sec code{font:13.5px 'JetBrains Mono',monospace;color:var(--accent);background:var(--panel);padding:2px 6px;border-radius:5px}
-.landing .card{background:color-mix(in srgb,var(--panel) 85%,transparent);border:1px solid var(--faint);border-radius:14px;transition:border-color .2s,background .4s}
+.landing .card{background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(3px);border:1px solid var(--faint);border-radius:14px;transition:border-color .2s,background .4s}
 
 .landing .moods{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
 .landing .mood{padding:18px 16px 14px;display:flex;flex-direction:column;align-items:center;gap:12px}

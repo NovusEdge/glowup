@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { COLOR_KEYS, type Theme } from './data.ts'
 import { MAKER_START, makerResult } from './maker.ts'
 import { MiniTerminal } from './MiniTerminal.tsx'
@@ -7,11 +7,14 @@ import { usePack } from './PackContext.tsx'
 export function MakerSection() {
   const { look } = usePack()
   const [text, setText] = useState(MAKER_START)
-  const good = useRef<Theme | null>(null)
+  const [theme, setTheme] = useState<Theme>(() => makerResult(MAKER_START).theme)
+  const error = makerResult(text).error
 
-  const r = makerResult(text)
-  if (!r.error) good.current = r.theme
-  const theme = good.current ?? r.theme
+  const edit = (next: string) => {
+    setText(next)
+    const r = makerResult(next)
+    if (!r.error) setTheme(r.theme)
+  }
 
   const vars: Record<string, string> = { '--bg': look.bg }
   for (const k of COLOR_KEYS) vars[`--${k}`] = theme.colors[k]
@@ -28,9 +31,9 @@ export function MakerSection() {
             aria-labelledby="maker-file"
             aria-describedby="maker-err"
             value={text}
-            onChange={e => setText(e.target.value)}
+            onChange={e => edit(e.target.value)}
           />
-          <div className="err" id="maker-err" role="status">{r.error}</div>
+          <div className="err" id="maker-err" role="status">{error}</div>
         </div>
         <MiniTerminal word={theme.spinnerWords[0] ?? 'Thinking'} rows="cards" style={vars as React.CSSProperties} />
       </div>

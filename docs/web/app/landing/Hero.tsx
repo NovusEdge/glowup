@@ -13,7 +13,7 @@ export function Hero() {
   useEffect(() => () => clearTimeout(timer.current), [])
 
   const copy = () => {
-    navigator.clipboard.writeText(INSTALL).then(() => {
+    navigator.clipboard?.writeText(INSTALL).then(() => {
       setCopied(true)
       clearTimeout(timer.current)
       timer.current = setTimeout(() => setCopied(false), 1500)
