@@ -3,6 +3,8 @@ import { bandSegments, renderBand } from '../hooks/band.tsx'
 import { visibleLength } from '../hooks/layout.tsx'
 import { initialModel, applyEvent, LINGER_MS } from '../hooks/model.ts'
 import { resolveTheme } from '../hooks/themes.ts'
+import { resolveLook } from '../hooks/packs.ts'
+import { CLAWD_COLOR } from '../hooks/pets.ts'
 
 const T = resolveTheme('classic', {}).theme
 
@@ -29,6 +31,39 @@ test('band counts CJK path labels in cells', async () => {
 
 // Fake element table: lets renderBand run without the engine.
 const els = { Box: 'Box', Text: 'Text' }
+
+const arcade = resolveLook({ colors: 'arcade', motion: 'arcade' }, {}, {}).look
+const busy = () => applyEvent(applyEvent(initialModel(), { type: 'turn-start', at: 0 }), { type: 'tool-start', at: 1, tool: 'Edit', toolUseId: 'e', input: { file_path: '/r/src/auth.ts' } })
+const walkTree = (n: any, out: any[] = []): any[] => {
+  if (n && typeof n === 'object') {
+    out.push(n)
+    for (const c of n.children ?? []) walkTree(c, out)
+  }
+  return out
+}
+
+test('HP bar replaces hearts; COMBO from three in a row', async () => {
+  const m = { ...busy(), combo: 3, ctxPercent: 62 }
+  const line = bandSegments(m, arcade.theme, 120, { look: arcade }).map(s => s.text).join('')
+  expect(line).toContain('HP ')
+  expect(line).not.toContain('♥')
+  expect(line).toContain('COMBO x3')
+  expect(bandSegments({ ...m, combo: 2 }, arcade.theme, 120, { look: arcade }).map(s => s.text).join('')).not.toContain('COMBO')
+  expect(visibleLength(bandSegments(m, arcade.theme, 120, { look: arcade }))).toBeLessThanOrEqual(120)
+})
+
+test('a narrow band keeps the hearts', async () => {
+  const line = bandSegments({ ...busy(), ctxPercent: 62 }, arcade.theme, 60, { look: arcade }).map(s => s.text).join('')
+  expect(line).not.toContain('HP ')
+})
+
+test('the band never draws the pet', async () => {
+  for (const w of [50, 80, 120]) for (const tier of ['compact', 'medium'] as const) {
+    const tree = renderBand(els, busy(), T, w, tier, 10, { look: arcade, friday: true })
+    expect(walkTree(tree).some(n => n.props?.color === CLAWD_COLOR || n.type === 'Client')).toBe(false)
+    expect(JSON.stringify(tree)).not.toContain("it's friday")
+  }
+})
 
 test('renderBand draws only while working or lingering, and never when docked', async () => {
   const working = applyEvent(initialModel(), { type: 'turn-start', at: 0 })

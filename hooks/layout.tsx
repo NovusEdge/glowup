@@ -1,6 +1,8 @@
 import type { Theme } from './themes.ts'
 import type { Act } from './model.ts'
 import { cellWidth } from './cells.ts'
+import { gradient } from './color.ts'
+import type { Look } from './packs.ts'
 
 export type Tier = 'wide' | 'medium' | 'compact'
 export type Seg = { text: string; color: string; bold?: boolean; bg?: string }
@@ -34,6 +36,28 @@ export function fit(segs: Seg[], width: number): Seg[] {
 export function hearts(used: number, t: Theme): Seg[] {
   const full = Math.max(0, Math.min(5, Math.ceil((100 - used) / 20)))
   return [{ text: t.hearts[0].repeat(full), color: t.colors.fail }, { text: t.hearts[1].repeat(5 - full), color: t.colors.dim }].filter(s => s.text)
+}
+
+// The arcade packs' life bar: full at an empty context, drained as it fills. The 22 cells besides the bar are
+// "HP ", the two spaces and "100% context left". At 27 cells the bar is 5 wide; below that it shrinks.
+export function hpBar(used: number, t: Theme, width: number): Seg[] {
+  const c = t.colors, left = Math.max(0, Math.min(100, 100 - used))
+  // under 27 cells the words go and the bare percent stays
+  const short = width < 27
+  const w = short ? Math.max(3, width - 9) : width - 22, n = Math.round((left / 100) * w)
+  return [
+    { text: 'HP ', color: c.accent, bold: true },
+    ...gradient('█'.repeat(n), c.fail, c.pass),
+    { text: '░'.repeat(w - n), color: c.faint },
+    { text: short ? `  ${left}%` : `  ${left}% context left`, color: c.dim },
+  ].filter(s => s.text)
+}
+
+// Three successes in a row; the pack has to switch the extra on.
+export function comboSegs(n: number, look?: Look): Seg[] {
+  if (!look?.extras.combo || n < 3) return []
+  const c = look.theme.colors, [a, b] = look.gradient ?? [c.accent, c.pass]
+  return gradient(` COMBO x${n} `, a, b).map(s => ({ ...s, bold: true }))
 }
 
 export function bar(fraction: number, width: number, color: string, t: Theme): Seg[] {

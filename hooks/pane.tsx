@@ -2,7 +2,10 @@ import type { ContextCategoryKind } from 'claude-code'
 import type { Model } from './model.ts'
 import type { Theme } from './themes.ts'
 import { shortPath } from './events.ts'
-import { bar, ctxColor, fit, hearts, renderSegs, toneColor, visibleLength, type Seg } from './layout.tsx'
+import type { Look } from './packs.ts'
+import type { Mood } from './bubbles.ts'
+import { CLAWD_ROW, PET_ROWS, type PetId } from './pets.ts'
+import { bar, comboSegs, ctxColor, fit, hearts, hpBar, renderSegs, toneColor, visibleLength, type Seg } from './layout.tsx'
 
 export type TabId = 'changes' | 'agents' | 'plan'
 export type PaneView = { tab: TabId; categories?: { name: string; tokens: number; kind: ContextCategoryKind }[]; maxTokens?: number; reduced?: boolean }
@@ -25,13 +28,13 @@ const spread = (left: Seg[], right: Seg[], w: number, t: Theme): Seg[] => {
 const secs = (ms: number) => `${Math.max(1, Math.round(ms / 1000))}s`
 const k = (n?: number) => (n === undefined ? '…' : `${(n / 1000).toFixed(1)}k`)
 // Keeps `reserve` rows free for what the caller appends after the list.
-const cap = (rows: Seg[][], t: Theme, w: number, reserve = 0): Seg[][] => {
-  const room = COMPACT_ROWS - reserve
+const cap = (rows: Seg[][], t: Theme, w: number, reserve = 0, limit = COMPACT_ROWS): Seg[][] => {
+  const room = limit - reserve
   if (rows.length <= room) return rows
   return [...rows.slice(0, room - 1), fit([{ text: `  … ${rows.length - room + 1} more`, color: t.colors.dim }], w)]
 }
 
-function changes(m: Model, t: Theme, w: number, compact: boolean): Seg[][] {
+function changes(m: Model, t: Theme, w: number, compact: boolean, limit: number): Seg[][] {
   const c = t.colors, edited = m.files.filter(f => f.how !== 'read')
   const add = edited.reduce((n, f) => n + f.add, 0), del = edited.reduce((n, f) => n + f.del, 0)
   const rows: Seg[][] = []
@@ -45,10 +48,10 @@ function changes(m: Model, t: Theme, w: number, compact: boolean): Seg[][] {
     const right: Seg[] = f.how === 'read' ? [{ text: 'read', color: c.dim }] : [{ text: `+${f.add}`, color: c.pass }, { text: ` −${f.del}`, color: c.fail }]
     body.push(spread(left, right, w, t))
   }
-  return [...rows, ...(compact ? cap(body, t, w) : body)].map(r => fit(r, w))
+  return [...rows, ...(compact ? cap(body, t, w, 0, limit) : body)].map(r => fit(r, w))
 }
 
-function agents(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, now: number): Seg[][] {
+function agents(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, now: number, limit: number): Seg[][] {
   const c = t.colors, live = m.agents.filter(a => a.state === 'running').length
   const rows: Seg[][] = []
   if (!compact) rows.push(header('AGENTS', `${live} running · ${m.agents.length - live} done`, w, t), [])
@@ -65,10 +68,10 @@ function agents(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, no
     if (running && a.now) body.push(fit([{ text: '  └ ', color: c.faint }, { text: a.now, color: c.read }], w))
     body.push([])
   }
-  return [...rows, ...(compact ? cap(body, t, w) : body)]
+  return [...rows, ...(compact ? cap(body, t, w, 0, limit) : body)]
 }
 
-function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean): Seg[][] {
+function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, limit: number): Seg[][] {
   const c = t.colors, done = m.plan.filter(p => p.status === 'completed').length
   const used = m.ctxPercent, col = ctxColor(used, t)
   const rows: Seg[][] = []
@@ -82,7 +85,7 @@ function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean): Seg
   }
   if (compact) {
     const ctx = fit([{ text: ' ctx ', color: c.dim }, ...bar(used / 100, Math.max(4, w - 11), col, t), { text: ` ${String(used).padStart(3)}%`, color: c.text }], w)
-    return [...cap(items, t, w, 1), ctx]
+    return [...cap(items, t, w, 1, limit), ctx]
   }
   rows.push(...items, [], header('CONTEXT', `${used}% used`, w, t), [{ text: '  ', color: c.text }, ...bar(used / 100, Math.max(1, w - 4), col, t)], [])
   const usedCats = (v.categories ?? []).filter(x => x.kind === 'used' && x.tokens > 0).sort((a, b) => b.tokens - a.tokens)
@@ -98,35 +101,88 @@ function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean): Seg
   return rows.map(r => fit(r, w))
 }
 
-export function tabRows(m: Model, t: Theme, v: PaneView, width: number, compact: boolean, now: number): Seg[][] {
-  return v.tab === 'changes' ? changes(m, t, width, compact) : v.tab === 'agents' ? agents(m, t, v, width, compact, now) : plan(m, t, v, width, compact)
+export function tabRows(m: Model, t: Theme, v: PaneView, width: number, compact: boolean, now: number, limit = COMPACT_ROWS): Seg[][] {
+  return v.tab === 'changes' ? changes(m, t, width, compact, limit) : v.tab === 'agents' ? agents(m, t, v, width, compact, now, limit) : plan(m, t, v, width, compact, limit)
 }
 
-export function statusRows(m: Model, t: Theme, width: number): Seg[][] {
-  const c = t.colors
+export function statusRows(m: Model, base: Theme, width: number, look?: Look): Seg[][] {
+  const t = look?.theme ?? base, c = t.colors
   const live = m.agents.filter(a => a.state === 'running')
   const rows: Seg[][] = [
-    [{ text: `${m.act.glyph} ${m.act.label}`, color: toneColor(t, m.act.tone), bold: true }],
-    [...hearts(m.ctxPercent, t), { text: `  context ${100 - m.ctxPercent}% left`, color: c.dim }],
+    [{ text: `${m.act.glyph} ${m.act.label}`, color: toneColor(t, m.act.tone), bold: true }, ...comboSegs(m.combo, look)],
+    look?.extras.hp ? hpBar(m.ctxPercent, t, width) : [...hearts(m.ctxPercent, t), { text: `  context ${100 - m.ctxPercent}% left`, color: c.dim }],
   ]
   if (live.length) rows.push([{ text: `◆ ${live.map(a => a.name).join(', ')} working`, color: c.agent }])
   return rows.map(r => fit(r, width))
 }
 
-export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, t: Theme, v: PaneView, width: number, compact: boolean, now: number, onTab: (id: TabId) => void) {
+// The pet node is the ready Client element register.tsx builds; the pane only places it.
+// rows is the strip height: PET_ROWS, or two more while an outfit needs headroom.
+export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Mood }; friday?: boolean }
+export const PET_STRIP_COLS = 46
+const BUBBLE_ROOM = 16
+
+const bubbleColor = (t: Theme, mood: Mood) => (mood === 'fail' ? t.colors.fail : mood === 'done' ? t.colors.pass : t.colors.accent)
+
+// Width of the Box the pet's Client sits in on a docked pane: inside the pane's border and padding (2 + 4).
+export const petStripCols = (paneWidth: number) => Math.max(0, Math.min(PET_STRIP_COLS, paneWidth - 6))
+
+function petStrip(els: { Box: any; Text: any }, t: Theme, extra: PaneExtra, paneWidth: number) {
+  const { Box, Text } = els
+  const width = paneWidth - 6
+  const rows = extra.pet!.rows ?? PET_ROWS, cols = petStripCols(paneWidth)
+  const room = width - cols
+  const beside = room >= BUBBLE_ROOM
+  const say = extra.bubble
+  const bubble = say && (
+    <Box key="bubble" borderStyle="round" borderColor={bubbleColor(t, say.mood)} paddingX={1}>
+      <Text color={t.colors.text} wrap="truncate">{fit([{ text: say.text, color: '' }], (beside ? room : width) - 4).map(s => s.text).join('')}</Text>
+    </Box>
+  )
+  const sign = !say && extra.friday && <Box key="friday"><Text color={t.colors.accent} wrap="truncate">{"it's friday"}</Text></Box>
+  return (
+    <Box flexDirection="column" key="pet">
+      {!beside && bubble}
+      <Box flexDirection="row" height={rows}>
+        <Box width={cols} height={rows}>{extra.pet!.node as any}</Box>
+        {beside && <Box flexDirection="column" width={room}>{bubble || sign}</Box>}
+      </Box>
+      {!beside && !say && sign}
+    </Box>
+  )
+}
+
+function petLine(els: { Box: any; Text: any }, t: Theme, extra: PaneExtra, width: number) {
+  const { Box, Text } = els
+  const say = extra.bubble, text = say?.text ?? (extra.friday ? "it's friday" : '')
+  const color = say ? bubbleColor(t, say.mood) : t.colors.accent
+  return (
+    <Box flexDirection="row" key="pet" height={1}>
+      <Box width={CLAWD_ROW.length} height={1}>{extra.pet!.node as any}</Box>
+      {text && <Text color={color} wrap="truncate">{' ' + fit([{ text, color }], width - CLAWD_ROW.length - 1).map(s => s.text).join('')}</Text>}
+    </Box>
+  )
+}
+
+export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, base: Theme, v: PaneView, width: number, compact: boolean, now: number, onTab: (id: TabId) => void, extra?: PaneExtra) {
   const { Box, Button } = els
+  const look = extra?.look, t = look?.theme ?? base
   const inner = width - 2
+  // the drawer shows a tab strip, the tab content and one pet row, all within COMPACT_ROWS
+  const rowsLeft = compact && extra?.pet ? COMPACT_ROWS - 2 : COMPACT_ROWS
   return (
     <Box flexDirection="column" width={width}>
       <Box flexDirection="row" gap={1}>
         {TABS.map(([id, label], i) => <Button key={'tab-' + id} label={label} hotkey={String(i + 1)} variant={v.tab === id ? 'primary' : undefined} dimColor={v.tab !== id} onPress={() => onTab(id)} />)}
       </Box>
       <Box flexDirection="column" flexGrow={1} marginTop={compact ? 0 : 1}>
-        {tabRows(m, t, v, inner, compact, now).map((r, i) => renderSegs(els, r, 'r' + i))}
+        {tabRows(m, t, v, inner, compact, now, rowsLeft).map((r, i) => renderSegs(els, r, 'r' + i))}
       </Box>
+      {compact && extra?.pet && petLine(els, t, extra, inner)}
       {!compact && (
-        <Box flexDirection="column" borderStyle="round" borderColor={t.colors.faint} marginTop={1} paddingX={1}>
-          {statusRows(m, t, inner - 4).map((r, i) => renderSegs(els, r, 's' + i))}
+        <Box flexDirection="column" borderStyle={look?.border ?? 'round'} borderColor={look?.borderColor ?? t.colors.faint} marginTop={1} paddingX={1}>
+          {statusRows(m, t, inner - 4, look).map((r, i) => renderSegs(els, r, 's' + i))}
+          {extra?.pet && petStrip(els, t, extra, width)}
         </Box>
       )}
     </Box>
