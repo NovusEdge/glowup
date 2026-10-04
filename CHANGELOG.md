@@ -10,10 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Packs can set `colors.rowFlags`: `labels`, `markers` and `xp`, so any pack can drop the `you` and `claude` labels, mark rows with `▶` and `◆`, and show a `+N XP` tag above a reply.
-
 - `/glowup color`: list every color role with its hex, set one with `/glowup color <role> <#hex>`, or clear with `/glowup color reset [role]`. Overrides are saved and stay on top of any pack or theme, and `/glowup export konsole` and `/glowup pack save` use them.
 - `/glowup config` has a "Tweak colors" extra that asks for a role and a hex.
-
 - The pack-making skill can change an existing pack or theme: it extends a built-in with only your changes, edits your own packs, and suggests `/glowup color` for a small color tweak.
 
 ### Changed
