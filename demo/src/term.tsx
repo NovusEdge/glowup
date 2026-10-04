@@ -20,27 +20,31 @@ export class Term {
   readonly width: number;
   readonly height: number;
 
-  constructor(readonly look: LookSig, readonly cols: number, readonly rows: number, title = 'claude  ~/Projects/glowup') {
+  // chrome=false is the bare terminal grid: no title bar, square corners, no shadow.
+  constructor(readonly look: LookSig, readonly cols: number, readonly rows: number, title = 'claude  ~/Projects/glowup', chrome = true) {
+    const bar = chrome ? BAR : 0;
     this.width = cols * CW + 2 * PAD;
-    this.height = rows * LH + BAR + 2 * PAD;
+    this.height = rows * LH + bar + 2 * PAD;
     this.root = (
       <Rect
         width={this.width}
         height={this.height}
         fill={look.sig.bg}
         stroke={look.sig.faint}
-        lineWidth={2}
-        radius={16}
-        shadowBlur={70}
+        lineWidth={chrome ? 2 : 0}
+        radius={chrome ? 16 : 0}
+        shadowBlur={chrome ? 70 : 0}
         shadowColor="#000000cc"
         clip
       />
     ) as Rect;
-    const bar = (<Rect width={this.width} height={BAR} y={-this.height / 2 + BAR / 2} fill={look.sig.panel} />) as Rect;
-    [0, 1, 2].forEach(i => bar.add(<Circle size={14} x={-this.width / 2 + 30 + i * 26} fill={['#ff5f57', '#febc2e', '#28c840'][i]} />));
-    bar.add(<Txt text={title} fontFamily={FONT} fontSize={20} fill={look.sig.dim} />);
-    this.root.add(bar);
-    this.screen = (<Node x={-this.width / 2 + PAD} y={-this.height / 2 + BAR + PAD} />) as Node;
+    if (chrome) {
+      const barNode = (<Rect width={this.width} height={BAR} y={-this.height / 2 + BAR / 2} fill={look.sig.panel} />) as Rect;
+      [0, 1, 2].forEach(i => barNode.add(<Circle size={14} x={-this.width / 2 + 30 + i * 26} fill={['#ff5f57', '#febc2e', '#28c840'][i]} />));
+      barNode.add(<Txt text={title} fontFamily={FONT} fontSize={20} fill={look.sig.dim} />);
+      this.root.add(barNode);
+    }
+    this.screen = (<Node x={-this.width / 2 + PAD} y={-this.height / 2 + bar + PAD} />) as Node;
     this.root.add(this.screen);
   }
 

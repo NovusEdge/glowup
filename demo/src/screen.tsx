@@ -43,10 +43,10 @@ export class Claude {
   private spinLabel: Txt;
   private escLabel: Txt;
 
-  constructor(readonly look: LookSig, readonly stage: Stage) {
+  constructor(readonly look: LookSig, readonly stage: Stage, o: {chrome?: boolean; pix?: {pw: number; ph: number}} = {}) {
     const dock = (this.form = formFor(stage.size)) === 'dock';
     const rows = (this.rows = dock ? 28 : 26);
-    const T = (this.term = new Term(look, dock ? CHAT + GAP + PANE_W : CHAT, rows));
+    const T = (this.term = new Term(look, dock ? CHAT + GAP + PANE_W : CHAT, rows, undefined, o.chrome ?? true));
     T.txt('✻ Claude Code', 0, 0, 'accent', {bold: true});
     T.txt('/help for help', 15, 0, 'dim');
     this.convo = new Convo(T, 1, CHAT);
@@ -73,7 +73,7 @@ export class Claude {
       T.txt(' glowup ', x0 + 0.5, 0, 'accent', {bold: true});
       this.statusBox = T.rect(x0, 13.5, PANE_W - 4, 13, {stroke: look.sig.borderColor, lineWidth: 2, radius: 14}) as Rect;
       const strip = (x0 + 2) * CW;
-      this.pet = new Pet(CW, LH / 2, strip + 8 * CW, strip, strip + (STRIP - PET_COLS) * CW);
+      this.pet = new Pet(o.pix?.pw ?? CW, o.pix?.ph ?? LH / 2, strip + 8 * CW, strip, strip + (STRIP - PET_COLS) * CW);
       this.pet.sprite.y(20 * LH);
       T.screen.add(this.pet.sprite);
       this.bubble = (<Node opacity={0} />) as Node;

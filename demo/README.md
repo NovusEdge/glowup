@@ -32,6 +32,15 @@ Render one file with `pnpm render launch.mp4`. The render runs headless Chromium
   `CLAWD_SAY` in `hooks/bubbles.ts` and throws if the line does not exist.
 - The picker follows `installer/internal/tui` (step line, form, Clawd and bubble, preview).
 - Font: JetBrains Mono from `@fontsource/jetbrains-mono`, bundled in the render.
+- Game-style font: Press Start 2P (CodeMan38, SIL OFL 1.1) in `fonts/`, with its `OFL.txt`. Taken
+  from github.com/google/fonts `ofl/pressstart2p`. Use it at multiples of 8 px so its pixels land on the screen grid.
+
+## Style stills (game direction)
+
+`pnpm render style-stills` renders `out/style-stills.mp4` from `src/scenes/stills.tsx` (title screen,
+a passing run, a failed run with a spotlight on Clawd). Grab frames with `ffmpeg -ss T -i ... -frames:v 1`.
+The real arcade-pack session is drawn bare (no title bar) at 15 px per terminal cell; `src/game.tsx` holds
+the HUD, ordered-dither veil and spotlight, all drawn with `fillRect` on a 4 px grid.
 
 ## How it is built
 
