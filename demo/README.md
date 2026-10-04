@@ -19,6 +19,12 @@ Render one file with `pnpm render launch.mp4`. The render runs headless Chromium
 - Clawd: `hooks/sprites/clawd.ts`. Its pixel rows are drawn as canvas rectangles, one
   sprite pixel per terminal cell wide and half a cell tall, and animated from the sheet's
   own frame timings (idle, walk, hop, working, done, fail).
+- The pane: `hooks/pane.tsx` (tabs, status box, Clawd strip), `hooks/ctxchart.ts` (context bar),
+  `hooks/tasks.ts` (plan order), `hooks/band.tsx`. Clawd lives only in the pane, as in the mod.
+  A wide frame docks it on the right (the band steps aside, as `tierFor` does); a square frame
+  gets the narrow layout: a six-row drawer under the chat, Clawd as his one-row glyph, and the
+  band above the prompt while Claude works. `ctxchart.ts` is re-implemented in `pane.tsx`
+  because importing it drags in `layout.tsx`, which this project's JSX settings cannot type.
 - Row styles (classic, cards, retro) follow `hooks/rows.tsx` and `hooks/rows-text.ts`; the
   `labels`, `markers` and `xp` flags come from `hooks/packpresets.ts` (arcade: ▶ you, ◆ Claude,
   "+N XP" above the reply; cozy: bars, no labels).
@@ -33,7 +39,8 @@ Render one file with `pnpm render launch.mp4`. The render runs headless Chromium
 | --- | --- |
 | `src/scenes/launch.tsx` | the storyboard: hook, Clawd, packs tour, installer, end card |
 | `src/term.tsx` | terminal window, conversation rows per pack style, spinner |
-| `src/screen.tsx` | Claude Code screen: prompt, spinner, Clawd's band, speech bubble |
+| `src/screen.tsx` | Claude Code screen: prompt, spinner, docked pane or drawer, band, Clawd's bubble |
+| `src/pane.tsx` | the glowup pane's tab rows, status box and band, ported from `hooks/pane.tsx`, `hooks/band.tsx` |
 | `src/picker.tsx` | the installer picker |
 | `src/pixels.ts` | Clawd's sprite node and animation player |
 | `src/stage.tsx` | camera, wipes, captions |
@@ -67,4 +74,3 @@ camera fits regions to whatever frame it is given.
 - On a fresh `node_modules` the first render fails once while vite re-optimizes its
   dependencies; `render.ts` retries.
 - `render.ts` remuxes each output to set sample_aspect_ratio 1:1 (the encoder leaves it unset).
-- The pane (Changes, Agents, Plan tabs) is not in the video yet.

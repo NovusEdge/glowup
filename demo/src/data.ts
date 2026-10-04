@@ -29,6 +29,12 @@ export const rowFlagsOf = (name: string): RowFlags => {
   return {labels: f?.labels ?? true, markers: f?.markers ?? false, xp: f?.xp ?? false};
 };
 
+// The arcade packs swap the hearts for a life bar (extras.hp).
+export const hpOf = (name: string): boolean => {
+  const c = PRESETS[name]?.colors;
+  return typeof c === 'object' && c.extras?.hp === true;
+};
+
 export const pack = (n: string) => PACKS.find(p => p.name === n) ?? PACKS[0];
 export const spinner = (id: string) => SPINNERS.find(s => s.id === id) ?? SPINNERS[0];
 
@@ -37,6 +43,7 @@ export type Look = {
   description: string;
   rows: string;
   rowFlags: RowFlags;
+  hp: boolean;
   border: string;
   gradient: string[] | null;
   bg: string;
@@ -63,6 +70,7 @@ export function lookOf(packName: string, theme = 'classic', spin = 'pack'): Look
     description: p.description,
     rows: p.rows,
     rowFlags: rowFlagsOf(p.name),
+    hp: hpOf(p.name),
     border: p.border,
     gradient: p.gradient,
     bg: ownColors ? p.bg : t!.colors.panel,

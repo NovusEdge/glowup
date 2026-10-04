@@ -1,9 +1,10 @@
 import {Gradient, Rect, Txt, makeScene2D} from '@revideo/2d';
 import {all, delay, easeOutCubic, linear, waitFor, ThreadGenerator} from '@revideo/core';
-import {CLAWD_SHEET, SPINNERS, lookOf, pack, say} from '../data';
+import {CLAWD_SHEET, SPINNERS, lookOf, pack} from '../data';
 import {LookSig} from '../look';
 import {Picker, SPINNER_IDS, THEME_NAMES} from '../picker';
 import {Pet} from '../pixels';
+import type {TabId} from '../pane';
 import {Claude} from '../screen';
 import {Stage} from '../stage';
 import {Block, CW, Entry, FONT} from '../term';
@@ -21,10 +22,11 @@ const accentOf = (name: string) => pack(name).colors.accent;
 
 // A pack switch as the person sees it: the command, then every color tweens while the rows
 // are rebuilt in the new pack's style and drop in one after another.
-function* switchPack(c: Claude, name: string, entries: Entry[], seconds = 0.4): ThreadGenerator {
+function* switchPack(c: Claude, name: string, entries: Entry[], seconds = 0.4, tab?: TabId): ThreadGenerator {
   const rebuild = function* (): ThreadGenerator {
     yield* waitFor(seconds * 0.5);
     c.convo.clear();
+    if (tab) c.tab = tab;
     c.restyle();
     const blocks = entries.map(e => c.convo.add(e, 'ok', false));
     for (const b of blocks) yield* all(c.convo.show(b, 0.2), waitFor(0.07));
@@ -76,14 +78,16 @@ function* clawd(stage: Stage, c: Claude): ThreadGenerator {
   yield* c.convo.show(u, 0.2);
   const t1 = c.convo.add({k: 'tool', tool: 'Bash', arg: 'just test', res: '142 passed'}, 'run', false);
   yield* c.convo.show(t1, 0.2);
+  c.act('$', 'Running just test', 'shell');
   c.showSpinner(true);
   c.pet.play('working');
   yield* waitFor(0.8);
 
   yield* finish(t1, true);
   c.showSpinner(false);
+  c.act('✓', '142 passed', 'pass');
   c.pet.play('hop');
-  yield* all(c.say(say('done', 0), 0.9), waitFor(c.pet.duration('hop')));
+  yield* all(c.say('done', 0, {}, 0.9), waitFor(c.pet.duration('hop')));
   c.pet.play('done');
   yield* waitFor(0.6);
   c.pet.play('walk');
@@ -92,21 +96,27 @@ function* clawd(stage: Stage, c: Claude): ThreadGenerator {
 
   const t2 = c.convo.add({k: 'tool', tool: 'Bash', arg: 'just test', res: '1 failed: theme.test.ts', ok: false}, 'run', false);
   yield* c.convo.show(t2, 0.2);
+  c.act('$', 'Running just test', 'shell');
   c.showSpinner(true);
   c.pet.play('working');
   yield* waitFor(0.7);
   yield* finish(t2, false);
   c.showSpinner(false);
+  c.act('✗', '1 failed: theme.test.ts', 'fail');
   c.pet.play('fail');
-  yield* all(c.say(say('fail', 0, {n: 1}), 1.4), waitFor(c.pet.duration('fail')));
+  yield* all(c.say('fail', 0, {n: 1}, 1.4), waitFor(c.pet.duration('fail')));
   const reply = c.convo.add({k: 'asst', text: 'theme.test.ts fails on the toggle. Fixing it.', xp: 15}, 'ok', false);
   yield* c.convo.show(reply, 0.3);
   yield* waitFor(0.5);
 }
 
 const TOUR = ['classic', 'crt', 'cozy', 'arcade'];
+// One tab per pack so Changes, Agents and Plan & context each get their time on screen.
+const TOUR_TABS: TabId[] = ['changes', 'agents', 'plan', 'plan'];
 
 function* tour(stage: Stage, c: Claude): ThreadGenerator {
+  c.set({agents: [{name: 'explorer', task: 'Find where theme tokens live', now: 'Grep "--bg"', state: 'running', secs: 9, tokens: 2100}]});
+  c.act('✎', 'Editing theme.css', 'edit');
   c.showSpinner(true);
   for (const [i, name] of TOUR.entries()) {
     const p = pack(name);
@@ -122,7 +132,7 @@ function* tour(stage: Stage, c: Claude): ThreadGenerator {
     if (i === 0) {
       yield* all(waitFor(0.5), regions[i]);
     } else {
-      yield* all(switchPack(c, name, EDIT_DEMO, 0.4), regions[i]);
+      yield* all(switchPack(c, name, EDIT_DEMO, 0.4, TOUR_TABS[i]), regions[i]);
     }
     yield* waitFor(0.45);
   }

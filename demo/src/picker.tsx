@@ -58,7 +58,7 @@ export class Picker {
     P('●', 0, 4, pv.sig.accent);
     P('On it. Reading the styles first.', 2, 4, pv.sig.dim);
     this.toolBox = T.rect(PREV + 1, TOP + 1 + 6.5, PW - 2, 3, {stroke: pv.sig.dim, lineWidth: 2, radius: 12}) as Rect;
-    T.rect(PREV + 1.5, TOP + 1 + 6, 17, 1, {fill: pv.sig.bg});
+    T.rect(PREV + 1.5, TOP + 1 + 6, 19, 1, {fill: pv.sig.bg});
     P('● Edit', 1, 6, pv.sig.edit, true);
     P('theme.css', 8, 6, pv.sig.text);
     T.rect(PREV + 2 + 28, TOP + 1 + 6, 12, 1, {fill: pv.sig.bg});
@@ -79,7 +79,7 @@ export class Picker {
     this.pet.sprite.y((TOP + 12) * LH);
     T.screen.add(this.pet.sprite);
     const captionRef = createRef<Txt>();
-    const bub = T.rect(0, TOP + 5.5, 24, 4, {stroke: pv.sig.accent, lineWidth: 2, radius: 12, fill: this.chrome.sig.bg});
+    const bub = T.rect(0, TOP + 5.5, 24, 1.75, {stroke: pv.sig.accent, lineWidth: 2, radius: 12, fill: this.chrome.sig.bg});
     bub.add(
       <Txt
         ref={captionRef}
@@ -92,12 +92,32 @@ export class Picker {
         textAlign="left"
         offset={[-1, -1]}
         x={-12 * CW + CW}
-        y={-2 * LH + LH * 0.45}
+        y={0}
         lineHeight={LH * 0.85}
       />,
     );
 
-    binders.push(() => (captionRef().text() !== this.caption() ? captionRef().text(this.caption()) : undefined));
+    // The bubble is as tall as its wrapped text and keeps its bottom edge over Clawd's head.
+    const wrapLines = (text: string) => {
+      let n = 1;
+      let cur = 0;
+      for (const w of text.split(' ')) {
+        if (cur && cur + 1 + w.length > 24) {
+          n++;
+          cur = w.length;
+        } else cur += (cur ? 1 : 0) + w.length;
+      }
+      return n;
+    };
+    const bottom = (TOP + 7.25) * LH;
+    binders.push(() => {
+      const text = this.caption();
+      if (captionRef().text() !== text) captionRef().text(text);
+      const h = (0.9 + 0.85 * wrapLines(text)) * LH;
+      if (Math.abs(bub.height() - h) < 0.01) return;
+      bub.height(h).y(bottom - h);
+      captionRef().y(-h / 2 + LH * 0.45);
+    });
     this.form = (<Node />) as Node;
     T.screen.add(this.form);
     this.marker = T.txt('>', FORM, TOP + 3, 'accent', {bold: true});

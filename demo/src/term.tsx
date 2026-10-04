@@ -84,7 +84,7 @@ export class Term {
 }
 
 // Quadrants lit per block character: bit 0 upper left, 1 upper right, 2 lower left, 3 lower right.
-const QUAD: Record<string, number> = {
+export const QUAD: Record<string, number> = {
   '▘': 1, '▝': 2, '▖': 4, '▗': 8, '▌': 5, '▐': 10, '▀': 3, '▄': 12, '█': 15,
   '▙': 13, '▛': 7, '▜': 11, '▟': 14, '▚': 9, '▞': 6,
 };
@@ -162,7 +162,7 @@ export class Convo {
   private row = 1;
   readonly blocks: Block[] = [];
 
-  constructor(private term: Term, private first = 1, private maxRow = 12) {
+  constructor(private term: Term, private first = 1, private cols = term.cols) {
     this.layer = (<Node />) as Node;
     term.screen.add(this.layer);
     this.row = first;
@@ -226,7 +226,7 @@ export class Convo {
         let r = 0;
         if (flags.xp && first && e.xp) {
           const tag = `+${e.xp} XP`;
-          put(tag, T.cols - 1 - tag.length, 0, 'edit');
+          put(tag, this.cols - 1 - tag.length, 0, 'edit');
           r = 1;
         }
         if (flags.markers) {
