@@ -28,7 +28,7 @@ export const usesOwnSpinner = (look: Look, reduced: boolean, message: string | n
   !reduced && message === null && look.motion.spinner !== 'stock'
 
 export function elapsed(ms: number): string {
-  const s = Math.floor(ms / 1000)
+  const s = Math.floor(Math.max(0, ms) / 1000)
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`
 }
 

@@ -75,6 +75,16 @@ test('the client starts one 33 ms clock, none under reduced motion', async () =>
   expect(again.timers).toEqual([])
 })
 
+test('negative elapsed clamps to 0s', async () => {
+  expect(elapsed(-5000)).toBe('0s')
+})
+
+test('an empty detail draws no child', async () => {
+  const p = spinnerProps(look('arcade'), { ...IN, detail: '' }, true)
+  const out = JSON.stringify(SpinnerClient(p as any, surface().s))
+  expect(out).not.toContain('""')
+})
+
 test('client props carry only what the line reads', async () => {
   const p = spinnerProps(look('arcade'), IN, false)
   expect(JSON.stringify(p).length).toBeLessThan(1000)

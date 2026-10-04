@@ -17,7 +17,7 @@ export default function SpinnerClient(p: SpinnerProps, surface: ClientSurface<nu
       <Box flexDirection="column">{line.badge.map(r => <Box flexDirection="row">{spans(r)}</Box>)}</Box>
       <Box flexDirection="column" marginLeft={1}>
         <Box flexDirection="row">{spans(line.word)}<Text color={p.look.theme.colors.dim}>{' ' + line.tail}</Text></Box>
-        {line.detail && <Text color={p.look.theme.colors.dim} wrap="truncate">{line.detail}</Text>}
+        {line.detail ? <Text color={p.look.theme.colors.dim} wrap="truncate">{line.detail}</Text> : null}
       </Box>
     </Box>
   )
