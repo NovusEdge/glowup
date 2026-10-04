@@ -56,3 +56,16 @@ release VERSION:
 [group('dev')]
 clean:
     rm -rf node_modules .claude-plugin/types
+
+# serve the docs site with hot reload
+[group('docs')]
+docs-dev:
+    pnpm -C docs/web install --ignore-workspace
+    pnpm -C docs/web dev
+
+# build the docs site and check its links
+[group('docs')]
+docs-build:
+    pnpm -C docs/web install --ignore-workspace
+    pnpm -C docs/web build
+    pnpm -C docs/web check
