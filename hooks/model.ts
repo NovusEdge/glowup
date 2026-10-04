@@ -7,6 +7,11 @@ export type FileTouch = { path: string; add: number; del: number; how: 'read' | 
 export type NeedsYou = { toolUseId: string; what: string; before: Act }
 export type Model = {
   working: boolean; doneAt?: number; act: Act; agents: Agent[]; plan: PlanItem[]; files: FileTouch[]; ctxPercent: number; needsYou?: NeedsYou
+  // context percent once per finished turn (the first reading after turn-done replaces the stale one), capped at CTX_SAMPLES
+  ctxHistory: number[]
+  ctxSampledAt?: number
+  ctxPeak: number
+  compactions: number
   turnAt?: number
   // last time something visible happened; the pet sleeps after a long gap
   actAt: number
@@ -23,15 +28,19 @@ export type Ev =
   | { type: 'agent-done'; at: number; agentId: string; tokens?: number }
   | { type: 'turn-done'; at: number; reason: 'answer' | 'aborted' | 'error' | 'refusal' }
   | { type: 'context'; percent: number }
+  | { type: 'compact' }
+  // Claude Code's saved task list; an empty read leaves the plan built from this session's calls
+  | { type: 'plan-load'; plan: PlanItem[] }
 
 export const LINGER_MS = 1500
+export const CTX_SAMPLES = 120
 // Own table: subagent "now" lines are labelled here, without a theme.
 const GLYPH = { read: '▸', search: '⌕', edit: '✎', shell: '$', agent: '◆', plan: '◇', other: '·' } as const
 const TONE: Record<string, Act['tone']> = { read: 'read', search: 'read', edit: 'edit', shell: 'shell', agent: 'agent', plan: 'accent', other: 'text' }
 
 const text = (v: unknown) => (typeof v === 'string' ? v : '')
 
-export const initialModel = (): Model => ({ working: false, act: { glyph: '✻', label: 'Ready', tone: 'text' }, agents: [], plan: [], files: [], ctxPercent: 0, actAt: 0, combo: 0 })
+export const initialModel = (): Model => ({ working: false, act: { glyph: '✻', label: 'Ready', tone: 'text' }, agents: [], plan: [], files: [], ctxPercent: 0, ctxHistory: [], ctxPeak: 0, compactions: 0, actAt: 0, combo: 0 })
 export const agentsRunning = (m: Model) => m.agents.some(a => a.state === 'running')
 // Subagents run in the background, so the main turn usually ends while they work.
 export const isBusy = (m: Model) => m.working || agentsRunning(m)
@@ -74,8 +83,14 @@ function touch(files: FileTouch[], path: string, at: number, how: FileTouch['how
 export function applyEvent(m: Model, ev: Ev): Model {
   switch (ev.type) {
     case 'turn-start': return { ...m, working: true, doneAt: undefined, needsYou: undefined, turnAt: ev.at, actAt: ev.at, combo: 0, lastTest: undefined, act: { glyph: '✻', label: 'Thinking', tone: 'text' } }
-    case 'turn-done': return { ...m, working: false, doneAt: ev.at, actAt: ev.at, needsYou: undefined, act: ENDED[ev.reason] }
-    case 'context': return { ...m, ctxPercent: Math.max(0, Math.min(100, Math.round(ev.percent))) }
+    case 'turn-done': return { ...m, working: false, doneAt: ev.at, actAt: ev.at, needsYou: undefined, act: ENDED[ev.reason], ctxHistory: [...m.ctxHistory, m.ctxPercent].slice(-CTX_SAMPLES), ctxSampledAt: ev.at }
+    case 'context': {
+      const ctxPercent = Math.max(0, Math.min(100, Math.round(ev.percent)))
+      const fresh = !m.working && m.ctxSampledAt !== undefined && m.ctxSampledAt === m.doneAt && m.ctxHistory.length > 0
+      return { ...m, ctxPercent, ctxPeak: Math.max(m.ctxPeak, ctxPercent), ctxHistory: fresh ? [...m.ctxHistory.slice(0, -1), ctxPercent] : m.ctxHistory }
+    }
+    case 'compact': return { ...m, compactions: m.compactions + 1 }
+    case 'plan-load': return ev.plan.length ? { ...m, plan: ev.plan } : m
     case 'needs-you': return { ...m, actAt: ev.at, needsYou: { toolUseId: ev.toolUseId, what: ev.what, before: m.needsYou?.before ?? m.act }, act: { glyph: '!', label: `Needs you: ${ev.what}`, tone: 'fail' } }
     case 'agent-bind': return { ...m, agents: m.agents.map(a => a.key === ev.toolUseId ? { ...a, agentId: ev.agentId } : a) }
     case 'agent-done': return { ...m, agents: m.agents.map(a => a.agentId === ev.agentId && a.state === 'running' ? { ...a, state: 'done' as const, endedAt: ev.at, now: undefined, tokens: ev.tokens ?? a.tokens } : a) }

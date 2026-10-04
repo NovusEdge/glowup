@@ -1,11 +1,13 @@
 import type { ContextCategoryKind } from 'claude-code'
-import type { Model } from './model.ts'
+import type { Model, PlanItem } from './model.ts'
+import { capped, legendRows, sparkline, stackBar, tokensK } from './ctxchart.ts'
+import { planOrder } from './tasks.ts'
 import type { Theme } from './themes.ts'
 import { shortPath } from './events.ts'
 import type { Look } from './packs.ts'
 import type { Mood } from './bubbles.ts'
 import { CLAWD_ROW, PET_ROWS, type PetId } from './pets.ts'
-import { bar, comboSegs, ctxColor, fit, hearts, hpBar, renderSegs, toneColor, visibleLength, type Seg } from './layout.tsx'
+import { comboSegs, fit, hearts, hpBar, renderSegs, toneColor, visibleLength, type Seg } from './layout.tsx'
 
 export type TabId = 'changes' | 'agents' | 'plan'
 export type PaneView = { tab: TabId; categories?: { name: string; tokens: number; kind: ContextCategoryKind }[]; maxTokens?: number; reduced?: boolean }
@@ -71,33 +73,53 @@ function agents(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, no
   return [...rows, ...(compact ? cap(body, t, w, 0, limit) : body)]
 }
 
+const rule = (label: string, right: string, w: number, t: Theme): Seg[] => {
+  const head = ` ${label} `, tail = right ? ` ${right}` : ''
+  return fit([{ text: ' ', color: t.colors.text }, { text: label, color: t.colors.text, bold: true }, { text: ' ' + '─'.repeat(Math.max(1, w - head.length - tail.length - 1)), color: t.colors.faint }, { text: tail, color: t.colors.dim }], w)
+}
+const divider = (w: number, t: Theme): Seg[] => [{ text: w < 2 ? '─' : '├' + '─'.repeat(w - 2) + '┤', color: t.colors.faint }]
+
+function planRow(p: PlanItem, t: Theme, w: number): Seg[] {
+  const c = t.colors, on = p.status === 'in_progress', done = p.status === 'completed'
+  const g = done ? '✓' : on ? '◉' : '○'
+  return fit([{ text: `  ${g} `, color: done ? c.pass : on ? c.accent : c.dim }, { text: on && p.active ? p.active : p.title, color: done ? c.dim : c.text, bold: on }], w)
+}
+
+const PAD = '  over this session  '
+function history(m: Model, w: number, t: Theme): Seg[] | undefined {
+  if (!m.ctxHistory.length && !m.compactions) return undefined
+  const c = t.colors, lead = w >= 52 ? PAD : '  '
+  const peak = `  peak ${Math.max(m.ctxPeak, ...m.ctxHistory)}%`, comp = m.compactions ? ` · compacted ${m.compactions}×` : ''
+  const room = (tail: string) => w - lead.length - tail.length
+  const tail = room(peak + comp) >= 4 ? peak + comp : peak
+  const n = Math.max(0, Math.min(m.ctxHistory.length, room(tail)))
+  return fit([{ text: lead, color: c.dim }, { text: n ? sparkline(m.ctxHistory.slice(-n)) : '', color: c.accent }, { text: tail, color: c.dim }], w)
+}
+
 function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, limit: number): Seg[][] {
   const c = t.colors, done = m.plan.filter(p => p.status === 'completed').length
-  const used = m.ctxPercent, col = ctxColor(used, t)
-  const rows: Seg[][] = []
-  if (!compact) rows.push(header('PLAN', m.plan.length ? `${done}/${m.plan.length}` : '', w, t), [])
-  const items: Seg[][] = []
+  const used = m.ctxPercent
+  const { items: shown, hiddenDone } = planOrder(m.plan)
+  const items: Seg[][] = shown.map(p => planRow(p, t, w))
   if (!m.plan.length) items.push([{ text: '  No task list yet.', color: c.dim }])
-  for (const p of m.plan) {
-    const g = p.status === 'completed' ? '✓' : p.status === 'in_progress' ? '◉' : '○'
-    const gc = p.status === 'completed' ? c.pass : p.status === 'in_progress' ? c.accent : c.dim
-    items.push(fit([{ text: `  ${g} `, color: gc }, { text: p.title, color: p.status === 'completed' ? c.dim : c.text, bold: p.status === 'in_progress' }], w))
-  }
+  const cats = v.categories ?? []
   if (compact) {
-    const ctx = fit([{ text: ' ctx ', color: c.dim }, ...bar(used / 100, Math.max(4, w - 11), col, t), { text: ` ${String(used).padStart(3)}%`, color: c.text }], w)
+    const inner = Math.max(4, w - 12)
+    const ctx = fit([{ text: ' ctx ▕', color: c.dim }, ...stackBar(cats, v.maxTokens, used, inner, t).segs, { text: `▏${String(used).padStart(4)}%`, color: c.text }], w)
     return [...cap(items, t, w, 1, limit), ctx]
   }
-  rows.push(...items, [], header('CONTEXT', `${used}% used`, w, t), [{ text: '  ', color: c.text }, ...bar(used / 100, Math.max(1, w - 4), col, t)], [])
-  const usedCats = (v.categories ?? []).filter(x => x.kind === 'used' && x.tokens > 0).sort((a, b) => b.tokens - a.tokens)
-  if (usedCats.length && v.maxTokens) {
-    const lw = 16, bw = Math.max(4, w - lw - 9)
-    for (const cat of usedCats.slice(0, 6)) {
-      const pct = Math.round((cat.tokens / v.maxTokens) * 100)
-      const name = fit([{ text: cat.name, color: c.dim }], lw - 1)
-      rows.push(fit([{ text: '  ', color: c.dim }, ...name, { text: ' '.repeat(lw - visibleLength(name)), color: c.dim }, ...bar(pct / 100, bw, col, t), { text: ` ${String(pct).padStart(3)}%`, color: c.text }], w))
-    }
+  if (hiddenDone) items.push(fit([{ text: `    +${hiddenDone} more done`, color: c.dim }], w))
+  const rows: Seg[][] = [rule('PLAN', m.plan.length ? `${done}/${m.plan.length}` : '', w, t), ...items, divider(w, t)]
+  const usedTokens = cats.some(x => x.kind === 'used') ? cats.filter(x => x.kind === 'used').reduce((n, x) => n + x.tokens, 0) : v.maxTokens ? used / 100 * v.maxTokens : undefined
+  rows.push(rule('CONTEXT', v.maxTokens && usedTokens !== undefined ? `${used}% · ${tokensK(usedTokens)} / ${tokensK(v.maxTokens)}` : `${used}% used`, w, t))
+  const stack = stackBar(cats, v.maxTokens, used, Math.max(1, w - 3), t)
+  rows.push(capped(stack, t), ...legendRows(stack.slices, w, t))
+  const hist = history(m, w, t)
+  if (hist) rows.push([], hist)
+  if (used >= 70) {
+    const top = stack.slices[0]
+    rows.push(fit([{ text: `  ! ${top && top.label !== 'used' ? `${top.label} is the biggest share` : `context ${used}% used`}`, color: c.edit }], w))
   }
-  if (used >= 70) rows.push([], fit([{ text: `  ! ${usedCats[0] && v.maxTokens ? `${usedCats[0].name} is the biggest share` : `context ${used}% used`}`, color: c.edit }], w))
   return rows.map(r => fit(r, w))
 }
 

@@ -45,11 +45,11 @@ test('agents tab shows status, time, tokens and current tool', async () => {
 
 test('plan tab shows checklist, context bar and breakdown', async () => {
   const rows = text(tabRows(M, T, { tab: 'plan', categories: [{ name: 'Messages', tokens: 60000, kind: 'used' }, { name: 'System tools', tokens: 20000, kind: 'used' }], maxTokens: 200000 }, 54, false, 0))
-  expect(rows[0]).toMatch(/^PLAN\s+1\/3$/)
+  expect(rows[0]).toMatch(/^ PLAN ─+ 1\/3$/)
   expect(rows).toContain('  ✓ Find it')
   expect(rows).toContain('  ◉ Patch it')
-  expect(rows.some(r => r.startsWith('CONTEXT') && r.endsWith('64% used'))).toBe(true)
-  expect(rows.some(r => r.includes('Messages') && r.includes('30%'))).toBe(true)
+  expect(rows.some(r => r.startsWith(' CONTEXT') && r.endsWith('64% · 80k / 200k'))).toBe(true)
+  expect(rows.some(r => r.includes('messages 30%') && r.includes('tools 10%'))).toBe(true)
 })
 
 test('every row fits its width in cells, full and compact, CJK names included', async () => {
@@ -70,14 +70,13 @@ const CATS = [
 test('context breakdown draws only used categories, biggest first', async () => {
   const rows = planView(50, CATS)
   expect(rows.some(r => r.includes('Free space') || r.includes('Autocompact'))).toBe(false)
-  const at = (n: string) => rows.findIndex(r => r.includes(n))
-  expect(at('Messages')).toBeGreaterThan(-1)
-  expect(at('Messages')).toBeLessThan(at('Skills'))
+  const legend = rows.find(r => r.includes('messages'))!
+  expect(legend.indexOf('messages')).toBeLessThan(legend.indexOf('skills'))
 })
 
 test('context warning names the biggest used category, falls back to the percent, and is absent below 70', async () => {
   const withCats = planView(75, CATS)
-  expect(withCats).toContain('  ! Messages is the biggest share')
+  expect(withCats).toContain('  ! messages is the biggest share')
   expect(withCats.join('\n')).not.toContain('Free space')
   expect(planView(75)).toContain('  ! context 75% used')
   expect(planView(75, [{ name: 'Free space', tokens: 9, kind: 'free' }])).toContain('  ! context 75% used')
