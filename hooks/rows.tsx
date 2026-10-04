@@ -28,6 +28,12 @@ function label({ Text }: Els, text: string, look: Look, color: string, bold?: bo
   return <Text color={color} bold={bold}>{text}</Text>
 }
 
+// Built-in renderers size text from the terminal width, not their container, so only a little
+// slack exists beside an engine row. The engine box is the one that gives up width; tags and
+// marks keep theirs, or "[ OK ]" wraps its "]" onto the next line.
+const shrinker = (Box: any, engine: unknown) => <Box flexGrow={1} flexShrink={1} minWidth={0} overflow="hidden">{engine}</Box>
+const fixed = ({ Box, Text }: Els, color: string, s: string) => <Box flexShrink={0}><Text color={color} wrap="truncate">{s}</Text></Box>
+
 // Messages are always a bar; tool rows are boxed unless prefixCards asks for the bar too.
 function card({ Box, Text }: Els, look: Look, direction: 'row' | 'column', kids: unknown[], color: string, prefix?: boolean) {
   if (prefix) {
@@ -64,7 +70,7 @@ function draw(els: Els, look: Look, row: RowInput, engine: unknown, opts: { pref
         if (row.site === 'ToolResult') return <Box paddingLeft={2}>{engine}</Box>
         if (row.site === 'ToolUse') {
           const m = mark(look, row, MARKS.cards)
-          return card(els, look, 'row', [<Box flexGrow={1}>{engine}</Box>, <Text color={m.color}>{' ' + m.mark}</Text>], c.faint, opts.prefixCards)
+          return card(els, look, 'row', [shrinker(Box, engine), fixed(els, m.color, ' ' + m.mark)], c.faint, opts.prefixCards)
         }
         if (row.site === 'UserMessage') return card(els, look, 'column', [label(els, 'you', look, c.accent), engine], c.accent, true)
         return card(els, look, 'column', row.isFirstOfReply ? [label(els, 'claude', look, c.accent), engine] : [engine], c.faint, true)
@@ -79,14 +85,14 @@ function draw(els: Els, look: Look, row: RowInput, engine: unknown, opts: { pref
       }
 
       case 'retro': {
-        if (row.site === 'ToolResult') return <Box paddingLeft={9}>{engine}</Box>
-        if (row.site === 'UserMessage') return <Box flexDirection="row">{label(els, '[YOU] ', look, c.accent, true)}<Box flexGrow={1}>{engine}</Box></Box>
+        if (row.site === 'ToolResult') return <Box paddingLeft={3}>{engine}</Box>
+        if (row.site === 'UserMessage') return <Box flexDirection="column">{label(els, '[YOU]', look, c.accent, true)}{engine}</Box>
         if (row.site === 'AssistantMessage') {
-          const body = <Box paddingLeft={9}>{engine}</Box>
+          const body = <Box paddingLeft={3}>{engine}</Box>
           return row.isFirstOfReply ? <Box flexDirection="column">{label(els, '[CLAUDE]', look, c.accent, true)}{body}</Box> : body
         }
         const m = mark(look, row, MARKS.retro)
-        return <Box flexDirection="row">{label(els, retroTag(row.tool), look, c.accent)}<Box flexGrow={1}>{engine}</Box><Text color={m.color}>{' ' + m.mark}</Text></Box>
+        return <Box flexDirection="row"><Box flexShrink={0}>{label(els, retroTag(row.tool), look, c.accent)}</Box>{shrinker(Box, engine)}{fixed(els, m.color, ' ' + m.mark)}</Box>
       }
     }
     return engine

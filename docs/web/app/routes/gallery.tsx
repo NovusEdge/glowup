@@ -59,7 +59,7 @@ function Mock({ look }: { look: Look }) {
     </>
   } else if (look.rows === 'retro') {
     body = <>
-      <div className="mock-row"><Label look={look} text="[YOU] " color={c.accent} bold />{user}</div>
+      <div className="mock-row"><Label look={look} text="[YOU]" color={c.accent} bold /><div>{user}</div></div>
       {rows.map(r => (
         <div key={r.tool} className="mock-row" style={{ display: 'flex' }}>
           <Label look={look} text={retroTag(r.tool)} color={c.accent} />
@@ -68,7 +68,7 @@ function Mock({ look }: { look: Look }) {
         </div>
       ))}
       <div className="mock-row"><Label look={look} text="[CLAUDE]" color={c.accent} bold /></div>
-      <div className="mock-row" style={{ paddingLeft: '9ch' }}>{reply}</div>
+      <div className="mock-row" style={{ paddingLeft: '3ch' }}>{reply}</div>
     </>
   } else if (look.rows === 'minimal') {
     body = <>

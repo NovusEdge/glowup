@@ -89,18 +89,18 @@ test('a throw inside a style returns the engine element', async () => {
   expect(inner(styleRow(els, broken, tool(), ENGINE))).toBe(ENGINE)
 })
 
-test('retro: bold [YOU] and [CLAUDE] tags, engine indented 9', async () => {
+test('retro: bold [YOU] and [CLAUDE] tags, engine indented 3', async () => {
   const l = look('crt')
   const u = styleRow(els, l, user(), ENGINE)
-  expect(text(u)).toBe('[YOU] ')
+  expect(text(u)).toBe('[YOU]')
   expect(walk(u).find(n => n.type === 'Text')?.props.bold).toBe(true)
   const first = styleRow(els, l, { site: 'AssistantMessage', isFirstOfReply: true }, ENGINE)
   expect(text(first)).toBe('[CLAUDE]')
   expect(walk(first).find(n => n.type === 'Text')?.props.bold).toBe(true)
   const pad = (n: any) => walk(n).find(x => x.props?.paddingLeft)?.props.paddingLeft
-  expect(pad(first)).toBe(9)
-  expect(pad(styleRow(els, l, { site: 'AssistantMessage', isFirstOfReply: false }, ENGINE))).toBe(9)
-  expect(pad(styleRow(els, l, { site: 'ToolResult' }, ENGINE))).toBe(9)
+  expect(pad(first)).toBe(3)
+  expect(pad(styleRow(els, l, { site: 'AssistantMessage', isFirstOfReply: false }, ENGINE))).toBe(3)
+  expect(pad(styleRow(els, l, { site: 'ToolResult' }, ENGINE))).toBe(3)
 })
 
 test('prefixCards: tool rows also use a faint side bar instead of a border', async () => {
@@ -140,4 +140,53 @@ test('other styles never draw the side bar or a border on messages', async () =>
       expect(bordered(s)).toBe(false)
     }
   }
+})
+
+const cols = (n: any): number => walk(n).filter(x => x.type === 'Text').flatMap(x => x.children ?? []).reduce((s: number, c: any) => s + (typeof c === 'string' ? [...c].length : 0), 0)
+// Columns added on the engine's own line: margins, padding, borders, and row-direction siblings.
+function beside(n: any): number {
+  if (n === ENGINE) return 0
+  const p = n.props ?? {}
+  const own = (p.marginLeft ?? 0) + (p.paddingLeft ?? 0) + (p.paddingRight ?? 0) + 2 * (p.paddingX ?? 0) + (p.borderStyle ? 2 : 0)
+  const kids = n.children ?? []
+  const hit = kids.findIndex((k: any) => k === ENGINE || (k && typeof k === 'object' && walk(k).includes(ENGINE)))
+  if (hit < 0) return own
+  const sib = p.flexDirection === 'row' ? kids.reduce((s: number, k: any, i: number) => (i === hit || typeof k !== 'object' ? s : s + cols(k)), 0) : 0
+  return own + sib + beside(kids[hit])
+}
+
+test('width budget: ToolResult and UserMessage rows add at most 4 columns beside the engine', async () => {
+  for (const name of ['cozy', 'arcade', 'crt']) {
+    for (const rows of ['cards', 'retro', 'minimal'] as const) {
+      const l: Look = { ...look(name), rows }
+      for (const r of [user(), { site: 'ToolResult' } as RowInput]) {
+        const s = styleRow(els, l, r, ENGINE)
+        if (hasEngine(s)) expect([name, rows, r.site, beside(s) <= 4]).toEqual([name, rows, r.site, true])
+      }
+    }
+  }
+  expect(beside(styleRow(els, look('crt'), { site: 'ToolResult' }, ENGINE))).toBe(4)
+  expect(beside(styleRow(els, look('crt'), asst(false), ENGINE))).toBe(4)
+})
+
+test('retro: [YOU] sits on its own line above the engine row', async () => {
+  const u = inner(styleRow(els, look('crt'), user(), ENGINE)) as any
+  expect(u.props.flexDirection).toBe('column')
+  expect(text(u)).toBe('[YOU]')
+  expect(u.children.at(-1)).toBe(ENGINE)
+})
+
+test('tool header marks and tags never shrink or wrap; the engine box gives up width', async () => {
+  for (const [name, rows] of [['crt', 'retro'], ['arcade', 'cards']] as const) {
+    for (const prefixCards of [false, true]) {
+      const s = styleRow(els, { ...look(name), rows }, tool(), ENGINE, { prefixCards })
+      const mk = walk(s).find(x => x.type === 'Text' && /✓|\[ OK \]/.test(text(x)))
+      const wrapper = walk(s).find(x => x.type === 'Box' && x.children?.includes(mk))
+      expect([name, prefixCards, wrapper.props.flexShrink, mk.props.wrap]).toEqual([name, prefixCards, 0, 'truncate'])
+      const eng = walk(s).find(x => x.type === 'Box' && x.children?.includes(ENGINE))
+      expect([name, prefixCards, eng.props.flexShrink, eng.props.minWidth, eng.props.overflow]).toEqual([name, prefixCards, 1, 0, 'hidden'])
+    }
+  }
+  const tag = walk(styleRow(els, look('crt'), tool(), ENGINE)).find(x => x.type === 'Box' && x.props?.flexShrink === 0 && text(x).startsWith('[READ'))
+  expect(tag).toBeDefined()
 })

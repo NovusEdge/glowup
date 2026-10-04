@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clawd's done dance now lasts 4 seconds instead of 1.5.
 - Chat rows in every pack except `classic` now keep a one-column margin on the left.
 
+### Fixed
+
+- Tool results no longer clip at the right edge, and the `[ OK ]` mark no longer wraps, because rows now take less width around Claude Code's own output.
+
 ## [0.2.2] - 2026-10-04
 
 ### Added
