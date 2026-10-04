@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "glowup",
-      "description": "A live animated view of what Claude is doing, styled by shareable theme files.",
+      "description": "A glow-up for Claude Code: a cockpit pane for changes, subagents and context, an activity band, and shareable themes.",
       "source": "./",
       "category": "productivity"
     }

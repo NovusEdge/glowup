@@ -1,7 +1,7 @@
 {
   "name": "glowup",
   "version": "0.1.0",
-  "description": "A glow-up for Claude Code: a live animated view of what Claude is doing, styled by shareable theme files.",
+  "description": "A glow-up for Claude Code: a cockpit pane for changes, subagents and context, an activity band, and shareable themes.",
   "author": {
     "name": "Aliasgar Khimani",
     "url": "https://github.com/NovusEdge"

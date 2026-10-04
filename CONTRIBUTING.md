@@ -1,7 +1,5 @@
 # Contributing to glowup
 
-glowup is pre-release. The code is still being built, so some of what is described here may not exist on `main` yet.
-
 ## Setup
 
 Run `just --list` to see the dev commands. Each recipe wraps one of these:
@@ -24,14 +22,14 @@ The session watches the folder and reloads the mod when you save a file.
 
 - Branch off `main`. One change per branch.
 - Every PR is squash merged. The PR title becomes the commit subject, so write it in the commit grammar below.
-- Sign off every commit (`git commit -s`). The DCO check reads the `Signed-off-by` trailer and blocks a merge without it.
+- Sign off every commit (`git commit -s`).
 - No `Co-Authored-By` or tool-attribution trailers.
 
 ## Commit grammar
 
 `type(scope): imperative subject`, under 60 characters.
 
-Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `ci`. Scope is the area: `pane`, `band`, `theme`, `pet`, `statusline`, `release`.
+Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `ci`. Scope is the area: `build`, `themes`, `events`, `model`, `changes`, `layout`, `band`, `pane`, `agents`, `wiring`, `statusline`, `restyle`, `commands`, `release`, `docs`, `docket`, `ci`.
 
 The body says what changed and why. It does not narrate how the answer was found.
 
