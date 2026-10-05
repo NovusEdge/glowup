@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The last change wins between the `/plugin` settings and the `/glowup` commands. A value changed in `/plugin` is applied at the next session start or after `/reload-plugins`, as if you had typed the matching command; before, a saved `/glowup` choice always won.
 - `/glowup config` ends on a card in the pack's look, with what you picked and three commands to try next, in place of the one-line summary.
+- The README shows the Plan & context tab with its new context box.
 
 ## [0.4.1] - 2026-10-05
 

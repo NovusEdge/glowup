@@ -10,6 +10,7 @@ const outputs: Output[] = [
   {outFile: 'launch-square.mp4', size: {x: 1080, y: 1080}, project: './src/project.ts'},
   {outFile: 'stills-dock.mp4', size: STILL_SETS.dock.size, project: './src/stills.ts', stills: STILL_SETS.dock},
   {outFile: 'stills-narrow.mp4', size: STILL_SETS.narrow.size, project: './src/stills.ts', stills: STILL_SETS.narrow},
+  {outFile: 'stills-tall.mp4', size: STILL_SETS.tall.size, project: './src/stills.ts', stills: STILL_SETS.tall},
 ];
 
 const only = process.argv[2];

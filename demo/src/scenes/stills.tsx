@@ -32,7 +32,8 @@ export default makeScene2D('stills', function* (view) {
 
   const look = LookSig.of('classic');
   view.add(<Rect width={W} height={H} fill={look.sig.bg} />);
-  const c = new Claude(look, stage, {chrome: false});
+  const set = Object.values(STILL_SETS).find(s => s.size.x === W && s.size.y === H) ?? STILL_SETS.dock;
+  const c = new Claude(look, stage, {chrome: false, rows: set.rows});
   const T = c.term;
   view.add(T.root);
   // The terminal fills the frame's width; it is pinned to the top edge.
@@ -44,7 +45,7 @@ export default makeScene2D('stills', function* (view) {
     for (const e of entries) c.convo.add(e, 'ok');
   };
   const slot = (i: number) => i * HOLD;
-  const names: readonly string[] = c.form === 'dock' ? STILL_SETS.dock.names : STILL_SETS.narrow.names;
+  const names: readonly string[] = set.names;
 
   for (const [i, name] of names.entries()) {
     if (name === 'pane-wide') {
@@ -68,6 +69,32 @@ export default makeScene2D('stills', function* (view) {
         ],
       });
       c.setTab('agents');
+      c.pet.play('working');
+    } else if (name === 'context') {
+      page([ASK, PLAN, READ, EDIT, FIX, PASS]);
+      c.set({
+        working: true,
+        agents: [],
+        files: FILES,
+        act: {glyph: '✎', label: 'Editing Toggle.tsx', tone: 'edit'},
+        plan: [
+          {title: 'Read the styles', status: 'completed'},
+          {title: 'Add the toggle', status: 'completed'},
+          {title: 'Wire it into the header', active: 'Wiring it into the header', status: 'in_progress'},
+          {title: 'Run the tests', status: 'pending'},
+        ],
+        ctxPct: 58,
+        ctxHistory: [8, 15, 23, 31, 39, 47, 55, 61, 66, 14, 22, 29, 36, 43, 51, 58],
+        compactions: 1,
+        cats: [
+          {name: 'Messages', tokens: 76000, kind: 'used'},
+          {name: 'System tools', tokens: 18000, kind: 'used'},
+          {name: 'MCP tools', tokens: 12000, kind: 'used'},
+          {name: 'Memory files', tokens: 6000, kind: 'used'},
+          {name: 'System prompt', tokens: 4000, kind: 'used'},
+        ],
+      });
+      c.setTab('plan');
       c.pet.play('working');
     } else if (name.startsWith('pack-')) {
       // The pack stays applied for the stills after this one, so stills-plan lists these last.

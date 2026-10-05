@@ -1,6 +1,7 @@
 import type { ContextCategoryKind } from 'claude-code'
 import { normalizeModel, type Model, type PlanItem } from './model.ts'
-import { brailleArea, chartTop, growth, legendRows, markBar, stackBar, tokensK, type Heavy } from './ctxchart.ts'
+import { legendRows, stackBar, type Heavy } from './ctxchart.ts'
+import { brailleArea, chartTop, markBar, outlook, tokensK } from './trend.ts'
 import { planOrder } from './tasks.ts'
 import type { Theme } from './themes.ts'
 import { shortPath } from './events.ts'
@@ -135,16 +136,10 @@ function trend(m: Model, v: PaneView, w: number, t: Theme): Seg[][] {
   const top = chartTop(m.ctxHistory, line)
   const label = w >= 24 ? ` ${Math.round(top)}%`.padStart(5) : ''
   const { rows, data } = brailleArea(m.ctxHistory, w - label.length, line, top)
-  const rate = growth(m.ctxHistory), says: string[] = []
-  if (rate !== undefined && win) says.push(rate > 0 ? `+${tokensK(rate / 100 * win)}/turn` : 'steady')
-  if (v.ctx && !v.ctx.autoCompact) says.push('auto-compact off')
-  else if (line !== undefined) {
-    const left = line - m.ctxPercent, turns = rate ? Math.ceil(left / rate) : 0
-    says.push(left <= 0 ? 'auto-compact next turn' : turns > 0 ? `auto-compact in ~${turns} turn${turns === 1 ? '' : 's'}` : `auto-compact at ${Math.round(line)}%`)
-  }
+  const says = outlook(m.ctxHistory, m.ctxPercent, v.ctx?.autoCompact, line, win)
   const out = rows.map(r => chartRow(r, data, t))
   if (label) out[0]!.push({ text: label, color: t.colors.dim })
-  if (says.length) out.push(fit([{ text: says.join(' · '), color: t.colors.dim }], w))
+  if (says) out.push(fit([{ text: says, color: t.colors.dim }], w))
   return out
 }
 
