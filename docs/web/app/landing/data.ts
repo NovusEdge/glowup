@@ -8,7 +8,7 @@ export {
   SPINNER_IDS, ROW_STYLES, BORDERS, METER_STYLES, FIELD_IDS, FIELD_KNOBS, FIELD_DEFAULTS, DITHERS,
   type Look, type PackFile, type ColorsLayer, type MotionLayer, type Field,
 } from '../../../../hooks/packs.ts'
-export { parseJsonc, resolveTheme, COLOR_KEYS, ROLE_LABELS, GLYPH_KEYS, checkGlyphs, checkHearts, checkWords, type Theme } from '../../../../hooks/themes.ts'
+export { resolveTheme, COLOR_KEYS, ROLE_LABELS, GLYPH_KEYS, checkGlyphs, checkHearts, checkWords, type Theme } from '../../../../hooks/themes.ts'
 export { FIELD_IDS as STATUS_FIELD_IDS, DEFAULT_FIELDS, renderFields, type FieldId as StatusFieldId } from '../../../../hooks/fields.ts'
 export { fieldFrame, fieldTickMs } from '../../../../hooks/effects.ts'
 export type { Model } from '../../../../hooks/model.ts'

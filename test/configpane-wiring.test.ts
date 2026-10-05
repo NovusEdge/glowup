@@ -2,6 +2,7 @@ import { expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
 import { runGlowup, fakeFs, test } from './kit.ts'
 import { USAGE } from '../hooks/command.ts'
+import { decodeLink } from '../hooks/link.ts'
 import { PACKS } from '../hooks/packpresets.ts'
 import { resolveLook, DEFAULT_MIX } from '../hooks/packs.ts'
 
@@ -207,6 +208,16 @@ test('Copy studio link copies the whole link, not a clipped one', async ($, on) 
   expect(s.copies[0]!.length).toBeGreaterThan(1000)
   expect(s.copies[0]).toMatch(/^https:\/\/glowup\.khimani\.dev\/studio#v=1&p=[A-Za-z0-9_-]+&s=[A-Za-z0-9_-]+$/)
   expect(await ui.find({ text: /copied/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('the copied studio link names a built-in pack my-<pack>, since /glowup pack refuses built-in names', async ($, on) => {
+  const s = setup(on)
+  await runGlowup($, 'pack arcade')
+  await runGlowup($, 'config')
+  const ui = await mountConfig($)
+  await ui.press({ key: 'copy-link' })
+  expect((decodeLink(s.copies[0]!).parts.pack as { name: string }).name).toBe('my-arcade')
   await ui.unmount()
 })
 
