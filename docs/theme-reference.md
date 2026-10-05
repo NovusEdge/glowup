@@ -33,7 +33,7 @@ A file in the folder with the name of a built-in theme replaces that theme for y
 
 Every value must match `#rrggbb`: a hash and six hex digits, upper or lower case. Short forms like `#fff` are refused. An unknown key is an error: `unknown color "<key>"`. A bad value is an error: `color "<key>" must be #rrggbb`.
 
-| Key | Used for in 0.1.0 |
+| Key | Used for |
 | --- | --- |
 | `accent` | The current plan item, plan progress pips, plan glyphs |
 | `text` | Main text |
@@ -45,10 +45,10 @@ Every value must match `#rrggbb`: a hash and six hex digits, upper or lower case
 | `agent` | Subagent rows |
 | `pass` | Passing tests, finished subagents, added-line counts |
 | `fail` | Failures, full hearts, high context, removed-line counts |
-| `panel` | Accepted and checked. Not drawn in 0.1.0. |
-| `addBg` | Accepted and checked. Not drawn in 0.1.0. |
-| `delBg` | Accepted and checked. Not drawn in 0.1.0. |
-| `sel` | Accepted and checked. Not drawn in 0.1.0. |
+| `panel` | The background that fades blend toward, when a pack sets no `bg` |
+| `addBg` | Validated, not drawn yet |
+| `delBg` | Validated, not drawn yet |
+| `sel` | Validated, not drawn yet |
 
 The context meter color changes with use: `read` below 60%, `edit` from 60%, `fail` from 80%.
 
@@ -80,7 +80,7 @@ glowup picks one word at random at the start of each turn and uses it for the wh
 2. It follows `extends` to the end of the chain, then applies the files from the root of the chain down to your theme.
 3. Within each file, `colors` and `glyphs` replace only the keys they set. `spinner.words` and `band.hearts` replace the whole value.
 
-A theme with no `extends` still starts from `classic`, so a partial file is always complete.
+A theme with no `extends` still starts from `classic`, so any field the file leaves out takes the `classic` value.
 
 Every file in the chain is validated. Errors:
 

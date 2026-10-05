@@ -1,6 +1,7 @@
 // Writes every Clawd frame as SVG and PNG under docs/assets/clawd/, one
 // sprite-sheet PNG per animation, and (with ffmpeg on PATH) each animation as
-// an MP4 on a dark background and a WebM with transparency, timed by each
+// an MP4 on a dark background, a WebM with transparency, and a transparent GIF
+// for the markdown docs, which cannot play video. All are timed by each
 // frame's ms. Run: node scripts/export-clawd.ts [scale]
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
@@ -58,8 +59,11 @@ function video(dir: string, anim: { loop?: boolean; frames: Frame[] }) {
   const base = ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', 'frames.txt']
   const mp4 = spawnSync('ffmpeg', [...base, '-f', 'lavfi', '-i', 'color=c=0x1e1e1e:s=16x16', '-filter_complex', '[1][0]scale2ref[bg][fg];[bg][fg]overlay=shortest=1,setsar=1,fps=30,format=yuv420p', '-c:v', 'libx264', '-crf', '18', '-movflags', '+faststart', 'clip.mp4'], { cwd: dir })
   const webm = spawnSync('ffmpeg', [...base, '-vf', 'fps=30,format=yuva420p', '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '20', '-auto-alt-ref', '0', 'clip.webm'], { cwd: dir })
+  // GIF delays are in centiseconds, so 50 fps keeps 80 ms frames exact; the GIF loops by itself, so one pass.
+  writeFileSync(`${dir}frames.txt`, list.slice(0, anim.frames.length * 2).concat(list[anim.frames.length * 2 - 2]!).join('\n') + '\n')
+  const gif = spawnSync('ffmpeg', [...base, '-vf', 'fps=50,scale=iw/2:-1:flags=neighbor,split[a][b];[a]palettegen=reserve_transparent=1:stats_mode=single[p];[b][p]paletteuse=dither=none', '-loop', '0', 'clip.gif'], { cwd: dir })
   rmSync(`${dir}frames.txt`)
-  for (const r of [mp4, webm]) if (r.status !== 0) throw new Error(`ffmpeg failed in ${dir}: ${r.stderr}`)
+  for (const r of [mp4, webm, gif]) if (r.status !== 0) throw new Error(`ffmpeg failed in ${dir}: ${r.stderr}`)
 }
 
 rmSync(OUT, { recursive: true, force: true })
@@ -76,4 +80,4 @@ for (const [vdir, pal] of variants) for (const [sdir, anims] of sets) for (const
   writeFileSync(`${dir}sheet.png`, png(anim.frames.map(f => f.px), pal))
   if (hasFfmpeg) video(dir, anim)
 }
-console.log(`wrote ${count} frames to ${OUT} at ${scale}x${hasFfmpeg ? ', with clip.mp4 and clip.webm per animation' : '; no ffmpeg, so no video'}`)
+console.log(`wrote ${count} frames to ${OUT} at ${scale}x${hasFfmpeg ? ', with clip.mp4, clip.webm and clip.gif per animation' : '; no ffmpeg, so no video'}`)

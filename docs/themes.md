@@ -3,26 +3,17 @@ title: Making a theme
 description: Write a theme file, try it, and share it with other people.
 ---
 
-## What a theme is
+A theme is the color part of a [pack](packs.md). Applying a theme with `/glowup theme <name>` recolors the pack you are using and keeps its row style, borders and extras. Besides colors, a theme can set the spinner words, the heart characters and the small glyphs glowup puts on tool rows.
 
-A theme is the palette inside a [pack](packs.md)'s colors layer. Pick a pack for a whole look, or a theme for just the colors: `/glowup theme <name>` puts the theme's palette on top of the pack you use and keeps the pack's row style, border and extras.
+glowup ships seven themes. `classic`, the default, uses Claude Code's own colors; the others are `glowup`, `aurora`, `dusk`, `cyberpunk`, `vaporwave` and `high-contrast`. Themes color glowup's text and leave the terminal background alone.
 
-A theme is one JSON file. It sets colors, a few glyphs, the spinner words and the band hearts. It holds data only; nothing in it runs. Comments are allowed in the file.
+## Making one
 
-glowup ships seven themes: `glowup`, `aurora`, `dusk`, `classic`, `cyberpunk`, `vaporwave` and `high-contrast`. `classic` is the default and uses Claude Code's own colors. Switch with `/glowup theme <name>`. Themes color glowup's own text and do not change the terminal's background.
+A theme is a JSON file (comments allowed) in `~/.claude/glowup/themes`, or `$CLAUDE_CONFIG_DIR/glowup/themes` if you set that variable. The file name is the theme's name, so `sunset.json` is applied with `/glowup theme sunset`.
 
-## Make one
+You only need to write what differs from an existing theme: name it in `extends` and glowup fills in the rest. A theme without `extends` starts from `classic`.
 
-1. Make the folder if it does not exist: `~/.claude/glowup/themes`. If you set `CLAUDE_CONFIG_DIR`, use `$CLAUDE_CONFIG_DIR/glowup/themes`.
-2. Save a file there, for example `sunset.json`. The file name is the theme name.
-3. Run `/glowup theme list`. Your theme is in the list.
-4. Run `/glowup theme sunset`.
-
-You only need to write what differs from another theme. Add `"extends"` and glowup fills in the rest. With no `extends`, a theme starts from `classic`.
-
-## A full example
-
-This theme extends `vaporwave`, changes six colors, sets its own spinner words and hearts, and swaps two glyphs.
+This one starts from `vaporwave`, changes six colors, and sets its own spinner words, hearts and two glyphs:
 
 ```jsonc title="~/.claude/glowup/themes/sunset.json"
 {
@@ -47,30 +38,21 @@ This theme extends `vaporwave`, changes six colors, sets its own spinner words a
 }
 ```
 
-Every field is optional except that a file must be a JSON object. The [theme reference](theme-reference.md) lists each field, its limits and what happens when a value is wrong.
+Every field is optional. The [theme reference](theme-reference.md) lists them all with their limits.
 
-## Check it
+## When it does not load
 
-glowup checks a theme when you switch to it or add it. If a value is wrong, `/glowup theme <name>` prints the reason and keeps your current theme. At session start, a theme that fails to load shows a notice and glowup uses `classic`.
+If something in the file is wrong, `/glowup theme <name>` prints the reason and keeps your current theme; at session start, glowup falls back to `classic` and shows the reason in a notice. The usual causes are a color that is not written as six hex digits (`#d77757`, not `#d77`), a glyph that is an emoji or more than one character, a trailing comma, or a spinner word over 24 characters.
 
-Common mistakes:
+## Sharing
 
-- A color is not six hex digits. Write `#d77757`, not `#d77` or `d77757`.
-- A glyph is more than one character, or is a wide character such as an emoji.
-- A trailing comma. Comments are allowed; trailing commas are not.
-- A spinner word longer than 24 characters.
-
-## Share it
-
-To publish a theme, host the JSON file at an `https://` URL. A raw file in a GitHub repository or gist works. Anyone can then install it:
+Host the file anywhere it can be fetched over `https://`, such as a gist. Anyone can then install it:
 
 ```text title="claude code"
 /glowup theme add https://example.com/sunset.json
 /glowup theme sunset
 ```
 
-`theme add` needs a `"name"` field. The name must be lowercase letters, digits and dashes, and it must not be one of the built-in names. See [Commands](commands.md) for what `theme add` checks.
+For `theme add` the file needs a `"name"` of lowercase letters, digits and dashes that is not one of the built-in names. A theme is plain data limited to 64 KB, so installing one cannot run code, and glowup rejects characters that could move the cursor or hide text.
 
-To get your theme into the project, open a theme submission issue on GitHub with the JSON file and a screenshot, or open a pull request that adds the file.
-
-A theme cannot run code or read your files. glowup limits the file to 64 KB and refuses glyphs that move the cursor or hide text, so a downloaded theme can change how glowup looks and nothing else.
+To get a theme included in glowup itself, open a theme submission issue on GitHub with the file and a screenshot, or a pull request that adds it.

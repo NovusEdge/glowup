@@ -10,6 +10,6 @@ export type StillSet = {size: {x: number; y: number}; names: string[]; crop: {y:
 // of the mp4 the exporter writes. The form (dock or drawer) follows the aspect ratio, so the
 // narrow render is the whole 64-column terminal and `crop` cuts it down to the drawer and band.
 export const STILL_SETS: {dock: StillSet; narrow: StillSet} = {
-  dock: {size: {x: 2560, y: 1408}, names: ['pane-wide', 'agents'], crop: null},
+  dock: {size: {x: 2560, y: 1408}, names: ['pane-wide', 'agents', 'pack-crt', 'pack-cozy', 'pack-arcade'], crop: null},
   narrow: {size: {x: 1312, y: 1212}, names: ['compact'], crop: {y: 620, h: 592}},
 };

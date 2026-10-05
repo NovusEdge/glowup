@@ -1,4 +1,4 @@
 {
   "title": "glowup",
-  "pages": ["---Start---", "install", "---Use---", "commands", "layout", "statusline", "pets", "---Packs---", "packs", "---Themes---", "themes", "theme-reference", "---More---", "accessibility", "roadmap"]
+  "pages": ["---Start---", "install", "---Use---", "commands", "layout", "statusline", "pets", "---Packs---", "packs", "pack-reference", "---Themes---", "themes", "theme-reference", "---More---", "accessibility", "roadmap"]
 }

@@ -5,21 +5,23 @@ description: Install the glowup mod from its marketplace, check that it loads, a
 
 ## Install
 
-glowup is a Claude Code mod. You need Claude Code 2.1.289 or later. In a terminal, run:
+glowup needs Claude Code 2.1.289 or later.
 
 ```sh title="shell"
 curl -fsSL https://glowup.khimani.dev/install.sh | sh
 ```
 
-The script downloads the glowup installer for your machine from the latest GitHub release, checks it against the release's `checksums.txt`, and runs it once from a temp folder. Nothing goes on your PATH and nothing needs sudo. To read the script first:
+The script downloads the installer for your platform from the latest GitHub release, verifies it against the release's `checksums.txt`, and runs it from a temp folder, so it needs no sudo and leaves nothing on your PATH. Replace `sh` with `less` to read the script first.
 
-```sh title="shell"
-curl -fsSL https://glowup.khimani.dev/install.sh | less
-```
+The installer previews each pack as you move through them, then asks whether to take the pack as it is or customize it. Customizing lets you swap in any theme for the pack's colors and any spinner for its own. After that come the pet, speech bubbles and reduced motion. On a terminal at least 102 columns wide, Clawd stands next to the form and comments on the current pick.
 
-The installer shows a preview while you pick a pack, then asks whether to use the pack as is or customize it. Customize lets you pick the colors (the pack's own, or any theme) and the spinner (the pack's own, or any spinner) on their own. After that you pick a pet, speech bubbles and reduced motion. On a terminal 102 columns wide or more, Clawd stands beside the form and names your current pick in a speech bubble. Then the installer runs `claude plugin marketplace add NovusEdge/glowup` and `claude plugin install glowup@glowup` with your choices. If glowup is already installed, it updates the settings you pick instead. It changes your theme and spinner only if you chose them with Customize or passed `--theme` or `--spinner`. With `--yes` on an installed glowup, only the options you pass change; with none, nothing changes. Restart Claude Code if it is running, then type `/glowup`. Choices you make later with `/glowup` commands win over what the installer set. After `claude plugin update`, sessions that are already open keep running the old copy until you run `/reload-plugins`; glowup shows a toast when the installed version is newer than the one a session runs.
+When you finish, the installer runs `claude plugin marketplace add NovusEdge/glowup` and `claude plugin install glowup@glowup` with your choices, and you restart Claude Code if it was already running.
 
-The script runs on Linux and macOS, on x86-64 and ARM. On Windows, download `glowup-installer_<version>_windows_amd64.zip` from the [latest release](https://github.com/NovusEdge/glowup/releases/latest), or install by hand.
+If glowup is already installed, the installer only updates settings. Your theme and spinner change only if you set them under Customize or with `--theme` or `--spinner`, and with `--yes` only the options you pass are changed. A later `/glowup` command replaces what the installer set.
+
+After `claude plugin update`, sessions that were already open keep running the old copy until you run `/reload-plugins`. glowup shows a toast in those sessions when a newer version is installed.
+
+The script supports Linux and macOS on x86-64 and ARM. On Windows, download `glowup-installer_<version>_windows_amd64.zip` from the [latest release](https://github.com/NovusEdge/glowup/releases/latest), or install by hand.
 
 ### Installer options
 
@@ -45,9 +47,9 @@ Set `GLOWUP_VERSION=v0.3.0` to use that release's installer instead of the lates
 
 ### Terminals
 
-The installer's picker was tested in Konsole, kitty, ghostty, alacritty and xterm. It uses 24-bit color where the terminal says it has it, and at least 256 colors under `TERM=xterm`. `NO_COLOR` turns color off.
+The installer has been tested in Konsole, kitty, ghostty, alacritty and xterm. It uses 24-bit color when the terminal advertises it, falls back to 256 colors under `TERM=xterm`, and respects `NO_COLOR`.
 
-xterm draws block characters from its font instead of building them itself, so Clawd shows gaps in it. Use a font with the Block Elements range, such as DejaVu Sans Mono. kitty, ghostty and alacritty draw the blocks themselves.
+xterm takes block characters from the font rather than drawing them itself, so Clawd shows gaps unless the font covers the Block Elements range (DejaVu Sans Mono does). kitty, ghostty and alacritty draw them themselves.
 
 ### Install by hand
 
@@ -58,17 +60,15 @@ In Claude Code, run:
 /plugin install glowup@glowup
 ```
 
-The mod loads in your current session. If it does not, restart Claude Code.
+The mod usually loads into the current session; restart Claude Code if it does not.
 
 ## Check that it works
 
-Run `/glowup` with no arguments. It prints the usage text. Then start a turn. While Claude works you see a one-line band above the prompt. In fullscreen on a wide terminal you also see the glowup pane beside the transcript.
-
-If you see neither, read [Layout](layout.md) for the width rules.
+`/glowup` with no arguments should print a short command card. During a turn you should then see either the band above the prompt or, in fullscreen on a wide terminal, the pane beside the transcript. If neither appears, [Layout](layout.md) explains the width thresholds.
 
 ## Settings
 
-The mod has seven settings. The installer sets all but `statusline`. You can change them later with `claude plugin configure glowup@glowup`, or in your Claude Code settings.
+The installer sets every setting except `statusline`. To change them afterwards, use `claude plugin configure glowup@glowup` or your Claude Code settings.
 
 | Setting | Values | Default | What it does |
 | --- | --- | --- | --- |
@@ -80,11 +80,11 @@ The mod has seven settings. The installer sets all but `statusline`. You can cha
 | `statusline` | Comma-separated field ids | `activity,ctx,5h,week` | The status line fields and their order. Unknown ids are dropped. See [Status line](statusline.md#choosing-the-fields). |
 | `reducedMotion` | `true` or `false` | `false` | Turns off glowup's animation. |
 
-`/glowup theme <name>`, `/glowup spinner <name>` and `/glowup motion` save your choice in the mod's store. A saved choice wins over the setting. See [Commands](commands.md).
+These settings and the `/glowup` commands change the same saved choices, and whichever changed last wins; see [Settings and the store](commands.md#settings-and-the-store).
 
 ## Run from a clone
 
-To try a change to the mod, run it from a checkout:
+To work on the mod, run it from a checkout:
 
 ```sh title="shell"
 git clone https://github.com/NovusEdge/glowup
@@ -92,18 +92,16 @@ cd glowup
 claude --plugin-dir .
 ```
 
-The session watches the folder and reloads the mod when you save a file.
+The session reloads the mod whenever you save a file in the folder.
 
-If glowup is also installed, two copies load in one session. glowup notices: the clone wins, the installed copy turns itself off and shows a toast naming the command to disable one (`claude plugin disable glowup@glowup`). The installer refuses to install while it sees a second copy, whether from another marketplace or from `CLAUDE_CODE_PLUGIN_DIRS`.
+If glowup is also installed, both copies load. The clone takes over, and the installed copy turns itself off and shows a toast with the command to disable it permanently (`claude plugin disable glowup@glowup`). The installer refuses to run while it detects a second copy, whether from another marketplace or from `CLAUDE_CODE_PLUGIN_DIRS`.
 
 ## Remove
 
-If you ran `/glowup statusline on`, run `/glowup statusline restore` first. It puts your own status line back, unless you changed it since. See [Status line](statusline.md).
-
-Then remove the mod:
+If you turned on the status line takeover, run `/glowup statusline restore` before uninstalling so your own status line comes back. (If you forget, it comes back on its own within 10 minutes; see [Status line](statusline.md#if-glowup-is-gone).)
 
 ```text title="claude code"
 /plugin uninstall glowup@glowup
 ```
 
-Theme files you added stay in `~/.claude/glowup/themes`. Delete the folder if you do not want them.
+Uninstalling leaves your themes and packs in `~/.claude/glowup`.

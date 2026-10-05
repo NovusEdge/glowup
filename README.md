@@ -2,7 +2,7 @@
 
 # glowup
 
-**A glow-up for Claude Code.** A live pane for changes, subagents and context, a one-line activity band, packs and themes you write as JSON and share by URL, and a pixel pet named Clawd.
+A Claude Code mod that adds a side pane for changed files, subagents and context use, an activity line above the prompt, packs and themes written as JSON, and a pixel pet named Clawd.
 
 [![CI](https://github.com/NovusEdge/glowup/actions/workflows/ci.yml/badge.svg)](https://github.com/NovusEdge/glowup/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/NovusEdge/glowup?include_prereleases)](https://github.com/NovusEdge/glowup/releases/latest)
@@ -17,7 +17,7 @@
 
 <p align="center"><sub>A cut of the launch video, in the arcade pack with the pane docked: Claude edits a file, a test fails and costs a life, the fix passes, and Clawd hops as the level goes up. The full video also switches packs and shows the Plan &amp; context tab.</sub></p>
 
-glowup is a Claude Code mod. It adds to the terminal UI and leaves your transcript and prompt where they are.
+glowup draws around Claude Code's transcript and prompt without moving them.
 
 ## What you get
 
@@ -25,15 +25,15 @@ glowup is a Claude Code mod. It adds to the terminal UI and leaves your transcri
 <tr>
 <td width="50%" valign="top">
 
-### The cockpit pane
+### The pane
 
-Three tabs, each drawn as a box in your pack's border shape. Press the number key or click.
+The pane has three tabs, each drawn as a box in your pack's border style.
 
-- **Changes** answers "what did Claude touch?" Files Claude edited or created, with `+added −removed` counts from git.
-- **Agents** answers "what are the subagents doing?" Name, time, tokens, and the tool each is running now.
-- **Plan & context** answers "how far along are we, and how full is the window?" The task list in one box. In a second box, a context bar split by what fills the window, and the context over the session.
+- **Changes** lists the files Claude edited or created, with added and removed line counts from git.
+- **Agents** lists the subagents with their elapsed time, token count and the tool each one is running.
+- **Plan & context** shows Claude's task list, and below it a context bar split by what is filling the window, with a sparkline of context use over the session.
 
-The status box under the tabs shows the current action, the running subagents, and a row of hearts for the usage you have left: the 5-hour or weekly limit, whichever is tighter. On an API key, it shows what the session has spent instead.
+Under the tabs, a status box shows the current action, the running subagents, and a row of hearts for the usage you have left on whichever of the 5-hour and weekly limits is tighter. On an API key the row shows what the session has spent instead.
 
 </td>
 <td width="50%" valign="top">
@@ -54,9 +54,9 @@ The status box under the tabs shows the current action, the running subagents, a
 </td>
 <td width="50%" valign="top">
 
-### The activity band
+### The band
 
-One line above the prompt while Claude works. It shows the current action, running subagents, plan progress, and five hearts for the context you have left. Each heart is 20% of the window.
+When the pane is not docked, a single line above the prompt shows the same summary while Claude works: the current action, running subagents, plan progress, and five hearts for the context left, each worth 20% of the window.
 
 <img src="docs/assets/band.png" alt="The band reading: 1 test failed, 1 subagent, five hearts">
 
@@ -65,16 +65,16 @@ One line above the prompt while Claude works. It shows the current action, runni
 <tr>
 <td width="50%" valign="top">
 
-### Themes
+### Packs and themes
 
-A theme is one JSON file: colors, a few glyphs, spinner words and band hearts. Seven presets ship. It is the palette inside a pack. A theme can `extends` another, so you write only what differs. Share one by hosting the file at an `https://` URL.
+A pack sets colors, transcript row styles, border shape and spinner under one name. A theme is just the palette part: colors, a few glyphs, spinner words and the heart characters. Both are JSON files that can `extends` another, so a custom one only lists what it changes, and either can be shared by hosting the file at an `https://` URL.
 
 </td>
 <td width="50%" valign="top">
 
 ### The status line
 
-While Claude or a subagent is working, glowup adds one entry under the prompt and clears it when the work is done. You pick its fields and their order, such as activity, context, 5-hour and weekly usage, branch or cost, with `/glowup statusline fields <ids>`. glowup asks once, at first run, whether it should draw the whole line; answer No and your status line is left alone. If you want glowup to draw the whole line, opt in with `/glowup statusline on`. `/glowup statusline restore` puts yours back.
+While Claude or a subagent is working, glowup adds an entry under the prompt and clears it when the work is done. Its fields and their order are yours to pick, from activity, context, 5-hour and weekly usage, cost, branch and a few more. On first run glowup asks once whether it should draw your whole status line; if you say no, your existing one is left alone.
 
 </td>
 </tr>
@@ -82,22 +82,22 @@ While Claude or a subagent is working, glowup adds one entry under the prompt an
 
 ## Install
 
-You need Claude Code 2.1.289 or later. In a terminal, run:
+glowup needs Claude Code 2.1.289 or later.
 
 ```sh
 curl -fsSL https://glowup.khimani.dev/install.sh | sh
 ```
 
-You pick a pack (and, if you like, its colors and spinner on their own), a pet and two extras while a preview shows each choice, then the installer adds the mod through Claude Code's own `claude plugin` commands. It runs once from a temp folder: nothing goes on your PATH and nothing needs sudo. To read the script first, run `curl -fsSL https://glowup.khimani.dev/install.sh | less`.
+The installer previews each choice while you pick a pack, a pet and a couple of extras, then installs the mod with Claude Code's own `claude plugin` commands. It runs from a temp folder and does not need sudo or leave anything on your PATH. To read the script before running it, pipe it to `less` instead of `sh`.
 
-To install by hand instead, run these in Claude Code:
+To install from inside Claude Code instead:
 
 ```text
 /plugin marketplace add NovusEdge/glowup
 /plugin install glowup@glowup
 ```
 
-Run `/glowup` with no arguments to print the usage. To run from a clone instead:
+To run from a clone:
 
 ```sh
 git clone https://github.com/NovusEdge/glowup
@@ -105,142 +105,59 @@ cd glowup
 claude --plugin-dir .
 ```
 
-glowup runs one copy per session: with an installed copy and `claude --plugin-dir .` together, the clone stays on and the other turns itself off. More in [Install](docs/install.md).
+If a session loads both an installed copy and a clone, the clone wins and the installed copy turns itself off. [Install](docs/install.md) covers installer options, settings and removal.
 
-## Commands
+## Using it
 
-`/glowup` alone shows a short card with the commands most people need, and `/glowup help all` lists them all.
+`/glowup` on its own lists the handful of commands most people need, and `/glowup config` walks you through choosing a pack, spinner, pet and status line fields. Everything else, including installing shared packs and themes, overriding single colors and exporting to Konsole, is in [Commands](docs/commands.md).
 
-| Command | What it does |
-| --- | --- |
-| `/glowup help all` | Every command, in groups. |
-| `/glowup theme <name>` | Switch theme. Saved for the next session. |
-| `/glowup theme list` | List built-in and installed themes. A filled dot marks the current one. |
-| `/glowup theme add <url>` | Install a theme file from an `https://` URL. |
-| `/glowup pack <name\|url>` | Apply a pack, or install one from an `https://` URL first. |
-| `/glowup pack list` | List packs. A filled dot marks the active one. |
-| `/glowup pack save <name>` | Save the current look as a pack file. |
-| `/glowup spinner <name\|list\|default>` | Set just the spinner, list them, or go back to the pack's own. |
-| `/glowup import <file>` | Turn a Ghostty or base16 color scheme into a pack. |
-| `/glowup export konsole` | Write your current colors as a Konsole color scheme. |
-| `/glowup pet clawd\|off` | Show Clawd or hide the pet. |
-| `/glowup bubbles on\|off\|haiku` | Turn speech bubbles on or off, or let Haiku write some lines (small calls on your account). |
-| `/glowup config` | Pick a pack, pet and extras by answering questions. |
-| `/glowup pane` | Open or close the glowup pane. |
-| `/glowup motion reduced` | Turn glowup's animation off. |
-| `/glowup motion full` | Turn it back on. |
-| `/glowup statusline on` | Ask first, then let glowup draw your status line. |
-| `/glowup statusline fields <ids>` | Choose the status line fields and their order. `default` resets them. |
-| `/glowup statusline restore` | Put your own status line back. |
+glowup's settings also appear in Claude Code's `/plugin` menu. A change there and a `/glowup` command set the same saved choice, so whichever you made last is the one in effect. Changes made in `/plugin` apply at the next session start or after `/reload-plugins`.
 
-Details are in [Commands](docs/commands.md).
+## Packs and themes
 
-## Themes
-
-Presets: `classic` is the default and is Claude Code's own palette. The other presets extend it.
-
-| Preset | Accent |
-| --- | --- |
-| `glowup` | `#ffc857` |
-| `aurora` | `#5ef1c6` |
-| `dusk` | `#b69cff` |
-| `classic` | `#d77757` |
-| `cyberpunk` | `#ff2bd6` |
-| `vaporwave` | `#ff71ce` |
-| `high-contrast` | `#ffff00` |
-
-A minimal theme. Save it as `~/.claude/glowup/themes/ember.json`; the file name is the theme name.
-
-```json
-{
-  "name": "ember",
-  "extends": "cyberpunk",
-  "colors": { "accent": "#ff8a4c" },
-  "spinner": { "words": ["Smoldering", "Glowing"] }
-}
-```
-
-Then run `/glowup theme list` and `/glowup theme ember`.
-
-To install someone else's theme, host the JSON at an `https://` URL and run:
-
-```text
-/glowup theme add https://example.com/ember.json
-/glowup theme ember
-```
-
-`theme add` refuses files over 64 KB and names that clash with a preset. A theme holds data only; nothing in it runs.
-
-A theme you pick with `/glowup theme` is stored, and it overrides the theme chosen in the Claude Code settings menu. This is deliberate. There is no command to clear the stored choice.
-
-Full guide: [Making a theme](docs/themes.md) and the [theme reference](docs/theme-reference.md).
-
-## Packs
-
-A pack sets a whole look with one name: colors, row styles and the border shape of the pane's boxes in one layer, motion (the spinner and its shimmer) in another. Four ship: `classic` (the default, Claude Code as it is), `crt`, `cozy` and `arcade`.
+Four packs ship: classic (the default, which keeps Claude Code's own look), crt, cozy and arcade.
 
 ```text
 /glowup pack arcade
 ```
 
-`/glowup pack list` shows what you have, `/glowup pack save <name>` writes your current look to a file, and `/glowup pack <url>` installs someone else's. `/glowup import <file>` turns a Ghostty or base16 color scheme into a pack. Or ask your agent to make one from a mood, palette, image or scheme: glowup ships a skill for it. Full guide: [Packs](docs/packs.md).
+<img src="docs/assets/pack-arcade.png" alt="The arcade pack: neon pink and cyan on deep purple, with bold cards around tool calls and an HP bar in the pane's status box" width="100%">
 
-## Pets
+You can mix parts of different packs, put one of seven color themes on top, or override single colors. To make your own, ask Claude: glowup ships a skill that writes packs from a palette, an image or a description, and adjusts existing ones ("make arcade less pink"). `/glowup import` also converts Ghostty and base16 color schemes.
 
-Clawd is a small pixel pet at the bottom of the glowup pane. He types at his keyboard while Claude edits files or runs commands, walks while it reads, searches and plans, juggles while three or more subagents run, hops when a test passes, sags and sweats when one fails (and keeps the sweat drop until your next prompt), startles and then waits with a `?` when Claude needs you, crumples up a sheet of paper when the context is compacted, pants once the context window is 80% full, does a little dance when a turn finishes, sleeps after one idle minute and stretches when he wakes, sweats in a special outfit on a Friday deploy, and says a short line in a speech bubble. Keep your tests green and see what happens.
+See [Packs](docs/packs.md) and [Making a theme](docs/themes.md).
 
-```text
-/glowup pet off
-```
+## Clawd
 
-Reduced motion hides him. Full guide: [Pets](docs/pets.md).
+<img src="docs/assets/clawd/juggle/clip.gif" alt="Clawd juggling" align="right" width="184">
 
-## Config
+Clawd lives at the bottom of the pane and reacts to the session. He types while Claude edits or runs commands, walks while it reads and searches, juggles when three or more subagents are running, hops on a passing test and sweats on a failing one. He waits with a question mark when Claude needs your approval, pants once context passes 80%, and falls asleep after a minute of nothing. With bubbles on he also says a short line at the end of a turn or when something fails.
 
-`/glowup config` asks five questions: the pack, the spinner, the pet, extras such as bubbles, reduced motion and color tweaks, and the status line fields. Each answer applies at once, and Esc stops.
+Reduced motion hides him, as does `/glowup pet off`. [Pets](docs/pets.md) lists every reaction, the outfits, and what Haiku-written bubbles send.
 
-```text
-/glowup config
-```
+## Layout
 
-glowup's settings also appear under Claude Code's `/plugin` menu. The last change wins, whether you make it there or with a `/glowup` command. A change in `/plugin` applies at the next session start or after `/reload-plugins`.
-
-See [Commands](docs/commands.md#config).
-
-## Layout by terminal width
-
-glowup picks a layout from your terminal width. Your transcript and prompt never move.
-
-| Tier | When | What you see |
-| --- | --- | --- |
-| Wide | The pane is docked beside the transcript | The full pane. No band, since the pane shows the same things. |
-| Medium | 80 columns or more, pane not docked | The one-line band. The pane is a drawer you open with `/glowup pane`. |
-| Compact | Under 80 columns | The band, cut to fit. The drawer is small: a tab strip and at most six rows. |
+In fullscreen on a wide terminal (144 columns, or 110 once you have opened it yourself) the pane docks beside the transcript. On narrower terminals you get the band instead, and `/glowup pane` opens the pane as a drawer above the prompt. Under 80 columns both shrink to fit:
 
 <img src="docs/assets/compact.png" alt="The compact layout in a narrow terminal: a tab strip with two changed files and Clawd's one-row glyph, then the band reading 142 tests passing" width="60%">
 
-The pane docks in fullscreen, at 144 columns or more, or from 110 columns once you have opened it yourself. See [Layout](docs/layout.md).
+See [Layout](docs/layout.md).
 
 ## Accessibility
 
-- `/glowup motion reduced` (or the `reducedMotion` setting) uses the stock spinner, turns off the shimmer and hides the pet. glowup does not flash.
-- The `high-contrast` theme uses pure white text and fully saturated colors.
-- Under 80 columns, every line is cut to fit with an ellipsis. Color is never the only signal: states also have glyphs and words.
+- `/glowup motion reduced` (or the `reducedMotion` setting) switches to the stock spinner, turns off the shimmer and hides Clawd. With motion on, nothing flashes more than 2.5 times a second.
+- The high-contrast theme uses pure white text and fully saturated colors.
+- Every state has a glyph and a word as well as a color.
 
 See [Accessibility](docs/accessibility.md).
 
 ## Roadmap
 
-Coming, in no promised order and with no dates:
-
-- Sound and voice layers for packs.
-- More spinners, and more pets: Kit and Blip.
-
-Also planned: a diff view in the Changes tab and opening an agent from the Agents tab. See [Roadmap](docs/roadmap.md).
+Planned, without dates: sound and voice layers for packs, more spinners, two more pets (Kit and Blip), a diff view in the Changes tab, and opening a subagent from the Agents tab. See [Roadmap](docs/roadmap.md).
 
 ## Contributing
 
-Run `just --list` to see the dev recipes. `just setup` installs dependencies, `just ci` runs what CI runs, and `just dev` opens Claude Code with your checkout loaded. See [CONTRIBUTING.md](CONTRIBUTING.md). Report vulnerabilities as described in [SECURITY.md](SECURITY.md).
+`just setup` installs dependencies, `just ci` runs the same checks as CI, and `just dev` starts Claude Code with your checkout loaded. See [CONTRIBUTING.md](CONTRIBUTING.md), and report vulnerabilities as described in [SECURITY.md](SECURITY.md).
 
 ## License
 
