@@ -1,6 +1,6 @@
 import type { ContextCategoryKind } from 'claude-code'
 import { normalizeModel, type Model, type PlanItem } from './model.ts'
-import { legendRows, sparkline, stackBar, tokensK } from './ctxchart.ts'
+import { brailleArea, chartTop, growth, legendRows, markBar, stackBar, tokensK, type Heavy } from './ctxchart.ts'
 import { planOrder } from './tasks.ts'
 import type { Theme } from './themes.ts'
 import { shortPath } from './events.ts'
@@ -11,7 +11,10 @@ import { comboSegs, fit, hearts, hpBar, renderSegs, toneColor, visibleLength, ty
 import { liveLimit } from './fields.ts'
 
 export type TabId = 'changes' | 'agents' | 'plan'
-export type PaneView = { tab: TabId; offset?: number; categories?: { name: string; tokens: number; kind: ContextCategoryKind }[]; maxTokens?: number; reduced?: boolean }
+// ctx comes from the context breakdown: threshold is the auto-compact point in tokens (absent when it is off),
+// window the model's window that m.ctxPercent and m.ctxHistory are measured against.
+export type CtxDetail = { autoCompact: boolean; threshold?: number; window?: number; heavy: Heavy[]; cacheHit?: number }
+export type PaneView = { tab: TabId; offset?: number; categories?: { name: string; tokens: number; kind: ContextCategoryKind }[]; maxTokens?: number; ctx?: CtxDetail; reduced?: boolean }
 export const TABS: [TabId, string][] = [['changes', 'Changes'], ['agents', 'Agents'], ['plan', 'Plan & context']]
 // The compact drawer sits under a one-row tab strip in a short space.
 export const COMPACT_ROWS = 6
@@ -109,16 +112,53 @@ function planRow(p: PlanItem, t: Theme, w: number, lead: string): Seg[] {
   return fit([{ text: `${lead}${g} `, color: done ? c.pass : on ? c.accent : c.dim }, { text: on && p.active ? p.active : p.title, color: done ? c.dim : c.text, bold: on }], w)
 }
 
-const LABEL = 'over this session '
-function history(m: Model, w: number, t: Theme): Seg[] | undefined {
-  if (!m.ctxHistory.length && !m.compactions) return undefined
-  const c = t.colors, lead = w >= 48 ? LABEL : ''
-  const peak = `peak ${Math.max(m.ctxPeak, ...m.ctxHistory)}%`, comp = m.compactions ? ` · compacted ${m.compactions}×` : ''
-  // two cells keep the sparkline off the right-hand text
-  const room = (tail: string) => w - lead.length - tail.length - 2
-  const tail = room(peak + comp) >= 4 ? peak + comp : peak
-  const n = Math.max(0, Math.min(m.ctxHistory.length, room(tail)))
-  return spread([{ text: lead, color: c.dim }, { text: n ? sparkline(m.ctxHistory.slice(-n)) : '', color: c.accent }], [{ text: tail, color: c.dim }], w, t)
+// The bar measures against the breakdown's window; the history against the model's, which can be larger.
+function markCompact(segs: Seg[], v: PaneView, w: number, t: Theme): Seg[] {
+  const at = v.ctx?.threshold, max = v.maxTokens
+  if (!at || !max) return segs
+  return markBar(segs, Math.min(w - 1, Math.floor(at / max * w)), { text: '┊', color: t.colors.text })
+}
+
+// Cells holding samples in the accent color, the rest (the auto-compact rule alone) dim.
+const chartRow = (row: string, data: boolean[], t: Theme): Seg[] =>
+  [...row].reduce<Seg[]>((out, ch, i) => {
+    const color = data[i] ? t.colors.accent : t.colors.dim, last = out.at(-1)
+    if (last?.color === color) last.text += ch
+    else out.push({ text: ch, color })
+    return out
+  }, [])
+
+function trend(m: Model, v: PaneView, w: number, t: Theme): Seg[][] {
+  if (!m.ctxHistory.length) return []
+  const win = v.ctx?.window, line = v.ctx?.threshold && win ? v.ctx.threshold / win * 100 : undefined
+  // the chart's ceiling sits at the right end of the top row; it is the auto-compact point when the rule shows
+  const top = chartTop(m.ctxHistory, line)
+  const label = w >= 24 ? ` ${Math.round(top)}%`.padStart(5) : ''
+  const { rows, data } = brailleArea(m.ctxHistory, w - label.length, line, top)
+  const rate = growth(m.ctxHistory), says: string[] = []
+  if (rate !== undefined && win) says.push(rate > 0 ? `+${tokensK(rate / 100 * win)}/turn` : 'steady')
+  if (v.ctx && !v.ctx.autoCompact) says.push('auto-compact off')
+  else if (line !== undefined) {
+    const left = line - m.ctxPercent, turns = rate ? Math.ceil(left / rate) : 0
+    says.push(left <= 0 ? 'auto-compact next turn' : turns > 0 ? `auto-compact in ~${turns} turn${turns === 1 ? '' : 's'}` : `auto-compact at ${Math.round(line)}%`)
+  }
+  const out = rows.map(r => chartRow(r, data, t))
+  if (label) out[0]!.push({ text: label, color: t.colors.dim })
+  if (says.length) out.push(fit([{ text: says.join(' · '), color: t.colors.dim }], w))
+  return out
+}
+
+const KIND_COLS = 7
+const heavyRow = (h: Heavy, w: number, t: Theme): Seg[] => spread(
+  [{ text: h.kind.padEnd(KIND_COLS), color: t.colors.dim }, { text: h.name, color: t.colors.text }, ...(h.note ? [{ text: '  ' + h.note, color: t.colors.dim }] : [])],
+  [{ text: tokensK(h.tokens), color: t.colors.text }], w, t)
+
+function stats(m: Model, v: PaneView, w: number, t: Theme): Seg[] | undefined {
+  const says: string[] = []
+  if (v.ctx?.cacheHit !== undefined) says.push(`cache hit ${v.ctx.cacheHit}%`)
+  if (m.ctxHistory.length || m.compactions) says.push(`peak ${Math.max(m.ctxPeak, ...m.ctxHistory)}%`)
+  if (m.compactions) says.push(`compacted ${m.compactions}×`)
+  return says.length ? fit([{ text: says.join(' · '), color: t.colors.dim }], w) : undefined
 }
 
 function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, limit: number, border: Border): Part {
@@ -130,15 +170,19 @@ function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, limi
   if (!m.plan.length) items.push([{ text: lead + 'No task list yet.', color: c.dim }])
   if (compact) {
     const inner = Math.max(4, w - 12)
-    const ctx = fit([{ text: ' ctx ▕', color: c.dim }, ...stackBar(cats, v.maxTokens, used, inner, t).segs, { text: `▏${String(used).padStart(4)}%`, color: c.text }], w)
+    const ctx = fit([{ text: ' ctx ▕', color: c.dim }, ...markCompact(stackBar(cats, v.maxTokens, used, inner, t).segs, v, inner, t), { text: `▏${String(used).padStart(4)}%`, color: c.text }], w)
     return { rows: [...cap(items, t, w, 1, limit), ctx], n: -1 }
   }
   if (hiddenDone) items.push([{ text: `  +${hiddenDone} more done`, color: c.dim }])
   const usedTokens = cats.some(x => x.kind === 'used') ? cats.filter(x => x.kind === 'used').reduce((n, x) => n + x.tokens, 0) : v.maxTokens ? used / 100 * v.maxTokens : undefined
   const stack = stackBar(cats, v.maxTokens, used, iw, t)
-  const ctx: Seg[][] = [stack.segs, ...legendRows(stack.slices, iw, t)]
-  const hist = history(m, iw, t)
-  if (hist) ctx.push([], hist)
+  const ctx: Seg[][] = [markCompact(stack.segs, v, iw, t), ...legendRows(stack.slices, iw, t)]
+  const chart = trend(m, v, iw, t)
+  if (chart.length) ctx.push([], ...chart)
+  const heavy = v.ctx?.heavy ?? []
+  if (heavy.length) ctx.push([], ...heavy.map(h => heavyRow(h, iw, t)))
+  const tail = stats(m, v, iw, t)
+  if (tail) ctx.push(...(chart.length || heavy.length ? [] : [[]]), tail)
   if (used >= 70) {
     const top = stack.slices[0]
     ctx.push([{ text: `! ${top && top.label !== 'used' ? `${top.label} is the biggest share` : `context ${used}% used`}`, color: c.edit }])

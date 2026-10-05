@@ -10,6 +10,7 @@ import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTo
 import { recordPass, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, refreshCounts, serial } from './changes.ts'
 import { loadTasks, taskListId } from './tasks.ts'
+import { cacheHit, heaviest } from './ctxchart.ts'
 import { tierFor, renderSegs } from './layout.tsx'
 import { renderBand } from './band.tsx'
 import { renderPane, bubbleBox, petStripCols, type PaneExtra, type PaneView, type TabId } from './pane.tsx'
@@ -403,7 +404,12 @@ async function feedContext($: Engine) {
     const u = await $.session.usage({ breakdown: 'summary' })
     feed($, { type: 'usage', limits: u.rateLimits ?? [], costUsd: u.cost?.usd })
     const b = u.context.breakdown
-    view = { ...view, categories: b?.categories.map(c => ({ name: c.name, tokens: c.tokens, kind: c.kind })), maxTokens: b?.maxTokens }
+    view = {
+      ...view,
+      categories: b?.categories.map(c => ({ name: c.name, tokens: c.tokens, kind: c.kind })),
+      maxTokens: b?.maxTokens,
+      ctx: b && { autoCompact: b.isAutoCompactEnabled, threshold: b.autoCompactThreshold, window: u.context.window, heavy: heaviest(b), cacheHit: cacheHit(b.apiUsage) },
+    }
     if (u.context.percent !== undefined) feed($, { type: 'context', percent: u.context.percent })
     else publish($)
   } catch {}

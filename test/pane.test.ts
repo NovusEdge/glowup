@@ -96,11 +96,11 @@ test('plan tab is boxed in every border style and every built-in pack fits the p
   }
 })
 
-test('the trend row sits inside CONTEXT with peak and compactions flush right, even with no samples', async () => {
+test('peak and compactions show inside CONTEXT even with no samples', async () => {
   const rows = text(tabRows({ ...M, ctxHistory: [], ctxPeak: 40, compactions: 2 }, T, { tab: 'plan' }, 60, false, 0))
-  const trend = rows.find(r => r.includes('peak'))!
-  expect(trend).toMatch(/peak 40% · compacted 2× │$/)
-  expect(cellsOf(trend)).toBe(60)
+  const stats = rows.find(r => r.includes('peak'))!
+  expect(inside(stats)).toBe('peak 40% · compacted 2×')
+  expect(cellsOf(stats)).toBe(60)
 })
 
 test('every row fits its width in cells, full and compact, CJK names included', async () => {

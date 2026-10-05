@@ -31,7 +31,7 @@ The pane has three tabs, each drawn as a box in your pack's border style.
 
 - **Changes** lists the files Claude edited or created, with added and removed line counts from git.
 - **Agents** lists the subagents with their elapsed time, token count and the tool each one is running.
-- **Plan & context** shows Claude's task list, and below it a context bar split by what is filling the window, with a sparkline of context use over the session.
+- **Plan & context** shows Claude's task list, and below it a context bar split by what is filling the window, a chart of context use over the session, how many turns remain before auto-compact, and the heaviest sources you can trim.
 
 Under the tabs, a status box shows the current action, the running subagents, and a row of hearts for the usage you have left on whichever of the 5-hour and weekly limits is tighter. On an API key the row shows what the session has spent instead.
 
