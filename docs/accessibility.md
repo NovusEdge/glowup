@@ -5,7 +5,7 @@ description: Reduced motion, the high-contrast theme, narrow terminals and termi
 
 ## Reduced motion
 
-`/glowup motion reduced` (or the `reducedMotion` setting, or the extras question in `/glowup config`) stops all of glowup's animation. The spinner goes back to Claude Code's own, with its own words and no shimmer, Clawd is hidden, and running subagents show a still mark instead of a spinner. Your pack's colors and row styles stay. `/glowup motion full` turns animation back on.
+`/glowup motion reduced` (or the `reducedMotion` setting, or the Motion row in `/glowup config`) stops all of glowup's animation. The spinner goes back to Claude Code's own, with its own words and no shimmer, Clawd is hidden, and running subagents show a still mark instead of a spinner. Your pack's colors and row styles stay. `/glowup motion full` turns animation back on.
 
 glowup cannot follow your operating system's reduced-motion setting, because Claude Code does not pass it to mods, so it has to be turned on here.
 

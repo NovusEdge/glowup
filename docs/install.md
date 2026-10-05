@@ -77,7 +77,7 @@ The installer sets every setting except `statusline`. To change them afterwards,
 | `bubbles` | `on`, `off` or `haiku` | `on` | Speech bubbles from templates, none, or lines written by Haiku. |
 | `theme` | A theme name | `classic` | A theme on top of the pack. `classic` keeps the pack's own colors. |
 | `spinner` | A spinner name | `pack` | A spinner on top of the pack: `stock`, `comet`, `eyes`, `orb-states`, `clawd` or `shimmer`. `pack` keeps the pack's own spinner. |
-| `statusline` | Comma-separated field ids | `activity,ctx,5h,week` | The status line fields and their order. Unknown ids are dropped. See [Status line](statusline.md#choosing-the-fields). |
+| `statusline` | Comma-separated field ids | `activity,ctx,effort,5h,week` | The status line fields and their order. Unknown ids are dropped. See [Status line](statusline.md#choosing-the-fields). |
 | `reducedMotion` | `true` or `false` | `false` | Turns off glowup's animation. |
 
 These settings and the `/glowup` commands change the same saved choices, and whichever changed last wins; see [Settings and the store](commands.md#settings-and-the-store).

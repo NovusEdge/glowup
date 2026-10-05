@@ -2,7 +2,7 @@ import { expect } from 'claude-code/testing'
 import { fakeHost, test } from './kit.ts'
 import { changedOptions, syncPlugin, SEEN_KEY } from '../hooks/pluginsync.ts'
 
-const base = { pack: 'classic', theme: 'classic', spinner: 'pack', pet: 'clawd', bubbles: 'on', statusline: 'activity,ctx,5h,week', reducedMotion: false }
+const base = { pack: 'classic', theme: 'classic', spinner: 'pack', pet: 'clawd', bubbles: 'on', statusline: 'activity,ctx,effort,5h,week', reducedMotion: false }
 
 test('no snapshot changes nothing', () => {
   expect(changedOptions(undefined, base)).toEqual([])
@@ -17,9 +17,9 @@ test('one changed value is returned with its new value', () => {
 })
 
 test('whitespace and stray commas do not count, a real reorder does', () => {
-  expect(changedOptions({ ...base }, { ...base, statusline: ' activity , ctx,5h ,week,, ' })).toEqual([])
+  expect(changedOptions({ ...base }, { ...base, statusline: ' activity , ctx,effort,5h ,week,, ' })).toEqual([])
   expect(changedOptions({ ...base }, { ...base, pack: ' classic ' })).toEqual([])
-  expect(changedOptions({ ...base }, { ...base, statusline: 'ctx, activity, 5h, week' })).toEqual([{ key: 'statusline', value: 'ctx,activity,5h,week' }])
+  expect(changedOptions({ ...base }, { ...base, statusline: 'ctx, activity, effort, 5h, week' })).toEqual([{ key: 'statusline', value: 'ctx,activity,effort,5h,week' }])
 })
 
 test('several changes come back in a fixed order', () => {

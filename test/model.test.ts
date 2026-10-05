@@ -268,3 +268,9 @@ test('usage, session info and branch events land in the model', () => {
   m = applyEvent(m, { type: 'branch' })
   expect(m.branch).toBeUndefined()
 })
+
+test('the effort event sets the level and an empty one clears it', () => {
+  const a = applyEvent(initialModel(), { type: 'effort', effort: 'max' })
+  expect(a.effort).toBe('max')
+  expect(applyEvent(a, { type: 'effort', effort: undefined }).effort).toBeUndefined()
+})

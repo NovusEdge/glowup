@@ -31,7 +31,7 @@ Built-in packs (`classic`, `crt`, `cozy`, `arcade`) and built-in themes live in 
 
 ## Status line fields
 
-The status line fields are a personal setting, not part of a pack. They are an ordered list of ids, and the built-in default is `activity ctx 5h week`. A field with no data is left out.
+The status line fields are a personal setting, not part of a pack. They are an ordered list of ids, and the built-in default is `activity ctx effort 5h week`. A field with no data is left out.
 
 | Id | Shows |
 | --- | --- |
@@ -41,6 +41,7 @@ The status line fields are a personal setting, not part of a pack. They are an o
 | `week` | weekly usage and reset: `wk 61% ↻Thu` |
 | `cost` | session cost: `$1.24` |
 | `model` | the model, as `/model` names it |
+| `effort` | the effort level of Claude's last request: `◐ high` |
 | `agents` | running subagents: `2 agents` |
 | `plan` | plan progress: `plan 3/7` |
 | `branch` | git branch |

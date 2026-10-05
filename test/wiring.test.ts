@@ -556,3 +556,29 @@ test('shiny from userConfig or the store applies only once earned', { options: {
   await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
   expect((await runGlowup($, 'pet list')).text).toContain('● clawd\n')
 })
+
+test('a main-loop step sets the effort field; a subagent step leaves it; a numeric effort shows as given; a step without one clears it', async ($, on) => {
+  fakeFs(on)
+  mock.clock(on)
+  const statuses: (string | undefined)[] = []
+  on('ui.status', async (_$, e) => { statuses.push(e.text); return { value: undefined } as never })
+  on('ui.panes', async () => ({ value: [] }))
+  on('session.id', async () => ({ value: 's1' }))
+  on('session.usage', async () => ({ value: { context: { window: 1000, percent: 10 } } as never }))
+  on('turn.start', async (_$, e) => ({ turnId: e.turnId }))
+  on('turn.step', async function* (_$, e) { return { turnId: e.turnId, index: e.index, answer: '', toolUses: [], stopReason: 'end_turn', usage: null } as never })
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  expect(statuses.at(-1)).not.toContain('◐')
+  // a stream does nothing until read
+  const step = async (index: number, extra: object) => {
+    for await (const _ of $.turn.step({ turnId: 't1', index, model: 'claude-opus-5-5', messageCount: index + 1, ...extra } as never)) void _
+  }
+  await step(0, { effort: 'high' })
+  expect(statuses.at(-1)).toContain('◐ high')
+  await step(1, { effort: 'low', agentId: 'a1' })
+  expect(statuses.at(-1)).toContain('◐ high')
+  await step(2, { effort: 8000 })
+  expect(statuses.at(-1)).toContain('◐ 8000')
+  await step(3, {})
+  expect(statuses.at(-1)).not.toContain('◐')
+})

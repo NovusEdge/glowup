@@ -17,12 +17,12 @@ test('each field renders, and is omitted without data', () => {
   const m: Model = {
     ...initialModel(), working: true, ctxPercent: 48, act: { glyph: '✎', label: 'Editing a.ts', tone: 'edit' },
     limits: [lim('five_hour', 23, at(130)), lim('seven_day', 61, at(60 * 24 * 2))], costUsd: 1.234,
-    modelName: 'claude-opus-5-5', root: '/w/glowup', branch: 'main',
+    modelName: 'claude-opus-5-5', effort: 'high', root: '/w/glowup', branch: 'main',
     agents: [{ key: 'a', name: 'x', task: '', state: 'running', startedAt: 0 }, { key: 'b', name: 'y', task: '', state: 'running', startedAt: 0 }],
     plan: [{ id: '1', title: 'a', status: 'completed' }, { id: '2', title: 'b', status: 'pending' }],
     files: [{ path: 'a', add: 40, del: 7, how: 'edit', at: 0 }, { path: 'b', add: 2, del: 0, how: 'edit', at: 0 }],
   }
-  expect(plain(m, FIELD_IDS)).toBe('◆ editing · ctx 48% · 5h 23% ↻2h10m · wk 61% ↻Fri · $1.23 · claude-opus-5-5 · 2 agents · plan 1/2 · main · +42 −7 · glowup')
+  expect(plain(m, FIELD_IDS)).toBe('◆ editing · ctx 48% · 5h 23% ↻2h10m · wk 61% ↻Fri · $1.23 · claude-opus-5-5 · ◐ high · 2 agents · plan 1/2 · main · +42 −7 · glowup')
   const empty: Model = { ...initialModel(), root: '/w/glowup' }
   expect(plain(empty, FIELD_IDS)).toBe('◆ idle · glowup')
   expect(plain({ ...empty, agents: [{ key: 'a', name: 'x', task: '', state: 'running', startedAt: 0 }] }, ['agents'])).toBe('1 agent')
@@ -79,4 +79,13 @@ test('field tones follow the meter', () => {
   expect(tc(60)).not.toBe(tc(10))
   expect(tc(60, { warn: 70, danger: 90 })).toBe(tc(10))
   expect(tc(60, { warn: 30, danger: 55 })).toBe(tc(95))
+})
+
+test('effort shows the level after a half-circle, and nothing before the first request', () => {
+  expect(plain({ ...initialModel(), effort: 'high' }, ['effort'])).toBe('◐ high')
+  expect(plain({ ...initialModel(), effort: undefined }, ['effort'])).toBe('')
+})
+
+test('effort is in the default fields, after ctx', () => {
+  expect(DEFAULT_FIELDS).toEqual(['activity', 'ctx', 'effort', '5h', 'week'])
 })

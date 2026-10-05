@@ -51,7 +51,7 @@ glowup makes one call at a time, at most one per turn, at least 90 seconds apart
 
 ## Choosing a pet
 
-`/glowup pet off` hides Clawd and `/glowup pet clawd` brings him back. `/glowup pet list` shows the pets you can pick, which for now means Clawd and, once you have earned him, the shiny one. `/glowup config` asks about the pet and bubbles as well.
+`/glowup pet off` hides Clawd and `/glowup pet clawd` brings him back. `/glowup pet list` shows the pets you can pick, which for now means Clawd and, once you have earned him, the shiny one. The Pet and Bubbles rows in `/glowup config` change the same settings.
 
 ## The shiny pet
 

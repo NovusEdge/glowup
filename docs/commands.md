@@ -10,7 +10,7 @@ description: Every /glowup subcommand, what it prints, and when it fails.
 ```text title="claude code"
 glowup
 
-  /glowup config                       pick a look, pet and extras
+  /glowup config                       open the config pane: pack, colors, layout
   /glowup pack <name>                  switch look: arcade classic cozy crt
   /glowup pet clawd|off                Clawd, or no pet
   /glowup pane                         open or close the side pane
@@ -129,18 +129,15 @@ Your layout and behavior settings. They are yours alone: installing someone's pa
 
 ## config
 
-`/glowup config` asks five questions, two more if you pick "Tweak colors" and three more if you pick status line fields, in Claude Code's own question dialog. Each answer applies as soon as you give it:
+`/glowup config` opens a pane with a row for each choice, a preview of the look under them, and Done, Copy studio link and Reset at the bottom. Up and down move between rows.
 
-1. **Pack**: `arcade`, `classic`, `cozy` or `crt`, with the one in use marked `(current)`. Choose Other and type the name of a pack you installed to use that one. An unknown name prints an error and stops the questions.
-2. **Spinner**: `Pack default` (clears a spinner you set), then three spinners, leaving out the one your pack already uses. A spinner you set is marked `(current)`. Choose Other and type any spinner name from `/glowup spinner list`; an unknown name prints an error and stops the questions.
-3. **Pet**: Clawd, the shiny Clawd once you have unlocked him, or no pet.
-4. **Extras**: pick any of "Turn bubbles on/off", "Write bubbles with Haiku" (or "Use template bubbles" when Haiku is on) and "Turn reduced motion on/off". The labels flip the current setting. Picking none changes nothing.
-   - **Tweak colors** asks **Color**: `accent`, `text`, `dim` or `panel`, or Other to type any role from `/glowup color list`. Then it asks **Hex**: a few colors from the current palette, or Other to type `#rgb` or `#rrggbb`. It sets the same override as `/glowup color <role> <#hex>`. An unknown role or a bad hex prints the reason and stops.
-5. **Status line fields**: `Keep`, `Default` or `Pick`. Default does what `/glowup statusline fields default` does. Pick asks three more questions, each a multi-select: Session (`activity`, `ctx`, `agents`, `plan`), Account (`5h`, `week`, `cost`, `model`) and Repo (`branch`, `changes`, `cwd`). The fields apply in that order. Picking none, or exactly the current list, changes nothing, and Esc on any of the three applies no field change. If glowup is not drawing your status line, the question says the fields show in the entry under the prompt, and that `/glowup statusline on` draws the whole line.
+The rows are Pack, Spinner, one for each color role, Band, Tabs, Meter, Pet, Sleeps, Bubbles, Bubble, Moods, Motion and Status. A row shown as ‹ value › cycles to its next value when you press Enter and applies it at once. The other rows are fields you type into and submit with Enter. A field you have not edited does nothing on Enter.
 
-Esc on any question stops there, keeping the answers already given. The command ends with a card: the same header box as `/glowup help` in the pack's border and colors, then **You picked** (pack, spinner, pet, extras and status line) and **Try next** (three commands and the docs link). The card keeps the pack it was drawn with when it scrolls into history. Where it cannot draw, such as a `-p` run, the same content prints as plain text, starting with a line like `glowup · arcade · spinner comet · Clawd · bubbles on · full motion`.
+A color field takes a hex such as `#8ecbff` or `8ecbff`, and an empty one clears that role's override. Band, Tabs, Moods and Status take a list separated by commas or spaces, and the order you type is the order glowup draws them. An empty Band or Moods field means none, an empty Status field means the default fields, and Tabs needs at least one. The pane says what it did, or why it refused, on the line under the buttons.
 
-Each answer has the same effect as the matching command (`pack`, `spinner`, `pet`, `bubbles`, `motion`, `color`, `statusline fields`). Mixing layers from different packs and saving a pack are only available as commands. In a `-p` run, `/glowup config` prints the command list instead of asking.
+Done, or Esc, closes the pane. Copy studio link puts a link to the studio on the clipboard, and the pane says so when the copy fails, as on a surface with no clipboard. Reset asks first, then clears your color overrides and your setup.
+
+Each row has the same effect as the matching command (`pack`, `spinner`, `color`, `setup`, `pet`, `bubbles`, `motion`, `statusline fields`). Mixing layers from different packs and saving a pack are only available as commands. In a `-p` run, `/glowup config` prints the command list instead of opening the pane.
 
 ## Settings and the store
 
@@ -171,8 +168,8 @@ See [Accessibility](accessibility.md) for what reduced motion changes.
 | `/glowup statusline restore` | Put your own status line back. |
 | `/glowup statusline fields` | Show the status line fields. |
 | `/glowup statusline fields <id> <id> …` | Set the fields in the order typed. An unknown id refuses the whole command and lists the valid ids. |
-| `/glowup statusline fields default` | Go back to the `statusline` setting's value, `activity ctx 5h week` unless you changed it. |
+| `/glowup statusline fields default` | Go back to the `statusline` setting's value, `activity ctx effort 5h week` unless you changed it. |
 
-The fields are `activity`, `ctx`, `5h`, `week`, `cost`, `model`, `agents`, `plan`, `branch`, `changes` and `cwd`. See [Choosing the fields](statusline.md#choosing-the-fields).
+The fields are `activity`, `ctx`, `5h`, `week`, `cost`, `model`, `effort`, `agents`, `plan`, `branch`, `changes` and `cwd`. See [Choosing the fields](statusline.md#choosing-the-fields).
 
 Without `statusline on`, glowup only adds its own entry under the prompt while Claude works. `restore` puts your line back only if the current one is still glowup's. See [Status line](statusline.md).

@@ -25,7 +25,7 @@ Claude Code puts a `⚠ glowup:` prefix in front of every mod's status entry. It
 
 ## Choosing the fields
 
-The entry and the takeover line both show the same list of fields, in the order you pick. The default is `activity ctx 5h week`.
+The entry and the takeover line both show the same list of fields, in the order you pick. The default is `activity ctx effort 5h week`.
 
 | Id | Shows |
 | --- | --- |
@@ -35,6 +35,7 @@ The entry and the takeover line both show the same list of fields, in the order 
 | `week` | weekly usage and reset: `wk 61% ↻Thu` |
 | `cost` | session cost: `$1.24` |
 | `model` | the model, as `/model` names it |
+| `effort` | the effort level of Claude's last request: `◐ high` |
 | `agents` | running subagents: `2 agents` |
 | `plan` | plan progress: `plan 3/7` |
 | `branch` | git branch |
@@ -48,7 +49,7 @@ List the fields you want in order, or go back to the default:
 /glowup statusline fields default
 ```
 
-An unknown id rejects the whole command and lists the valid ones. `/glowup config` also offers the fields as three groups of checkboxes, and the `statusline` setting in the `/plugin` menu accepts them comma-separated.
+An unknown id rejects the whole command and lists the valid ones. The Status row in `/glowup config` takes the same list, and the `statusline` setting in the `/plugin` menu accepts them comma-separated.
 
 A field with nothing to show is left out; `5h` and `week` only appear on a subscription that reports those limits. The usage numbers are the latest Claude Code gave this session, so usage from another session on the same account shows up here after your next response.
 
