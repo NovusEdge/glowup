@@ -37,6 +37,12 @@ A pack is a JSON file at `~/.claude/glowup/packs/<name>.json` (`$CLAUDE_CONFIG_D
 | `rowFlags.xp` | `true`, `false` | In `cards`, draw `+N XP` right-aligned above a reply, N being the successful tool calls in a row so far this turn. Left out at 0, in `edit` color. Default `false`. |
 | `meters` | `default`, `dither` | The usage rows in the pane's status box. `default` is hearts, or the HP bar with `extras.hp`; `dither` draws a bar per 5-hour and weekly window that ramps from `accent` to `text` and dissolves through `▓▒░` into `faint` dots. Default `default`. |
 | `dividers` | `true`, `false` | Draw a numbered rule, `░▒▓━━ 03 ━━━▓▒░` in `faint` with the number in `accent`, above each of your prompts. Default `false`. |
+| `glyphs` | object | Tool-kind glyphs by key, the keys in Theme glyphs below, each one width-1 character. Keys left out keep the theme's glyph. Ignored while `/glowup theme` overrides the pack's theme. |
+| `hearts` | two strings | Full then empty heart, each one width-1 character. Ignored under a theme override. |
+| `words` | list of strings | Spinner words, each at most 24 characters. An empty list keeps the theme's words. Ignored under a theme override. |
+| `pet` | object | Clawd's colors: `body`, `light` and `shade`, each `#rrggbb`, replacing `#d77757`, `#ee9f7b` and `#a8553b`. Keys left out keep the default. The shiny pet stays gold: the unlock wins over a pack. Survives a theme override. |
+
+`glyphs` merges key by key and `pet` merges per key down `extends`. A glowup that predates `glyphs`, `hearts`, `words` and `pet` refuses a pack that uses them.
 
 ## Motion layer
 

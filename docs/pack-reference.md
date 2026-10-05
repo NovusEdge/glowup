@@ -70,7 +70,7 @@ A glowup that predates these keys refuses the pack's colors layer as an unknown 
 
 ## Clawd's colors
 
-`colors.pet` recolors Clawd with `body`, `light` and `shade`, each `#rrggbb`. They replace his orange body, its highlight and its shadow (`#d77757`, `#ee9f7b`, `#a8553b`); a key you leave out keeps its default, and the eyes and outfits do not change. The shiny pet stays gold: the unlock wins over a pack. `pet` merges per key down an `extends` chain, and a studio link or `/glowup pack save` writes it only when it is set. A glowup that predates it refuses the pack's colors layer as an unknown key.
+`colors.pet` recolors Clawd with `body`, `light` and `shade`, each `#rrggbb`. They replace his orange body, its highlight and its shadow (`#d77757`, `#ee9f7b`, `#a8553b`); a key you leave out keeps its default, and the eyes and outfits do not change. The shiny pet stays gold: the unlock wins over a pack. Unlike glyphs, hearts and words, `colors.pet` survives a `/glowup theme` override. `pet` merges per key down an `extends` chain, and a studio link or `/glowup pack save` writes it only when it is set. A glowup that predates it refuses the pack's colors layer as an unknown key.
 
 ## Row styles
 
