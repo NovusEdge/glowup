@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-05
+
 ### Added
 
 - glowup shows a toast when a session runs an older copy than the one installed, for example after `claude plugin update`, and says to run `/reload-plugins`.
