@@ -6,6 +6,7 @@ import { resolveLook, cleanOverrides, type Mix } from '../hooks/packs.ts'
 import type { PetSetting } from '../hooks/pets.ts'
 import { DEFAULT_FIELDS, type FieldId } from '../hooks/fields.ts'
 import { DEFAULT_SETUP, type Setup } from '../hooks/setup.ts'
+import { encodeLink } from '../hooks/link.ts'
 
 test('/glowup and /glowup help print the short card', { timeoutMs: 20000 }, async ($, on) => {
   fakeFs(on)
@@ -443,4 +444,46 @@ test('setup refuses a bad value and keeps the old setup', async () => {
   expect(await runCommand(host, 'setup tabs none', c)).toBe('tabs must name at least one of: changes, agents, plan')
   expect(await runCommand(host, 'setup band', c)).toBe('Use /glowup setup <key> <value>, /glowup setup, or /glowup setup reset.')
   expect(store.setup).toBeUndefined()
+})
+
+const SUNSET = { format: 1, name: 'sunset', colors: { palette: { accent: '#ff8c42' } } }
+
+test('pack <studio link> installs and applies the pack without fetching', async () => {
+  const { host, files } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  const out = await runCommand(host, `pack ${encodeLink({ pack: SUNSET })}`, c)
+  expect(out).toBe('Pack: sunset')
+  expect(JSON.parse(files['/home/u/.claude/glowup/packs/sunset.json']!)).toEqual(SUNSET)
+  expect(calls).toContain('mix:sunset/sunset')
+})
+
+test('a studio link with a setup asks before applying it', async () => {
+  const { host, store } = fakeHost()
+  const yes = ctl(true)
+  expect(await runCommand(host, `pack ${encodeLink({ pack: SUNSET, setup: { band: ['plan'] } })}`, yes.ctl)).toBe('Pack: sunset\nSetup: applied')
+  expect(yes.questions[0]).toContain('layout setup')
+  expect((store.setup as { band: string[] }).band).toEqual(['plan'])
+  const no = ctl(false)
+  const { host: h2, store: s2 } = fakeHost()
+  expect(await runCommand(h2, `pack ${encodeLink({ setup: { band: ['plan'] } })}`, no.ctl)).toBe('Setup: kept yours')
+  expect(s2.setup).toBeUndefined()
+})
+
+test('a studio link names the installed pack it would replace unless --force', async () => {
+  const { host } = fakeHost({ files: { '/home/u/.claude/glowup/packs/sunset.json': '{"format":1,"name":"sunset"}' } })
+  const { ctl: c } = ctl()
+  const link = encodeLink({ pack: SUNSET })
+  const refused = await runCommand(host, `pack ${link}`, c)
+  expect(refused).not.toBe('Pack: sunset')
+  expect(refused).toContain('sunset')
+  expect(await runCommand(host, `pack ${link} --force`, c)).toBe('Pack: sunset')
+})
+
+test('a cut-off studio link applies the parts that decoded and names the one that did not', async () => {
+  const { host } = fakeHost()
+  const { ctl: c } = ctl()
+  const cut = encodeLink({ pack: SUNSET, setup: { band: ['plan', 'meter', 'agents'] } }).slice(0, -6)
+  const out = await runCommand(host, `pack ${cut}`, c)
+  expect(out.split('\n')[0]).toMatch(/^setup part: /)
+  expect(out).toContain('Pack: sunset')
 })

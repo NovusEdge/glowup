@@ -14068,7 +14068,7 @@ declare module 'claude-code' {
       readonly encoding: string
       decode(input?: ArrayBufferView | ArrayBuffer): string
     }
-    var TextDecoder: { prototype: TextDecoder; new (label?: string): TextDecoder }
+    var TextDecoder: { prototype: TextDecoder; new (label?: string, options?: { fatal?: boolean }): TextDecoder }
     interface URLSearchParams {
       append(name: string, value: string): void
       delete(name: string): void

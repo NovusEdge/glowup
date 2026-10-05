@@ -57,6 +57,8 @@ Host the pack file anywhere it can be fetched over `https://`, such as a gist or
 
 A pack is plain data that glowup validates before installing, so installing one cannot run code.
 
+A studio link carries the whole pack inside it, so you can share a look without hosting a file. Paste it after /glowup pack.
+
 ## Limits
 
 A pack restyles the transcript rows, glowup's own pane and band, and the spinner line. Claude Code's logo, prompt box and status bar stay as they are, and a mod has no way to hide Claude Code's own task list.

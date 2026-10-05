@@ -58,6 +58,7 @@ Each refusal prints a message naming the failed check. Adding a theme whose name
 | `/glowup pack save <name>` | Save the current look as a self-contained pack file in `~/.claude/glowup/packs`. Prints `Saved pack "<name>" to <path>.` |
 | `/glowup pack <url>` | Download, check and install a pack from an `https://` URL, then apply it. |
 | `/glowup pack <url> --force` | The same, replacing an installed pack of that name. |
+| `/glowup pack <studio link>` | Install the look in a link from the [studio](https://glowup.khimani.dev/studio). Nothing is downloaded: the pack is inside the link. If the link also carries a setup, glowup asks before applying it. Add `--force` to replace an installed pack of the same name. |
 
 ## spinner
 
