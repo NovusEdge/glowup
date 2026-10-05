@@ -1,5 +1,6 @@
 import {Rect, makeScene2D} from '@revideo/2d';
 import {useTime, waitFor} from '@revideo/core';
+import {lookOf} from '../data';
 import {LookSig} from '../look';
 import {Claude} from '../screen';
 import {Stage} from '../stage';
@@ -68,6 +69,19 @@ export default makeScene2D('stills', function* (view) {
       });
       c.setTab('agents');
       c.pet.play('working');
+    } else if (name.startsWith('pack-')) {
+      // The pack stays applied for the stills after this one, so stills-plan lists these last.
+      look.set(lookOf(name.slice('pack-'.length)));
+      c.restyle();
+      page([ASK, PLAN, EDIT, FIX, PASS, WIN]);
+      c.set({
+        files: [...FILES, {path: 'Toggle.tsx', add: 24, del: 0, how: 'new' as const}],
+        act: {glyph: '✓', label: 'Done', tone: 'pass'},
+        working: false,
+        agents: [],
+      });
+      c.setTab('changes');
+      c.pet.play('idle');
     } else {
       page([ASK, PLAN, EDIT, FIX, PASS, WIN]);
       c.set({
