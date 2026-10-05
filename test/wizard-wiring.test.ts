@@ -113,10 +113,14 @@ test('a history card keeps its own pack: box border and colors, not the live pac
   await ui.unmount()
 })
 
-test('an old one-line summary row passes through', async ($, on) => {
+test('an old one-line summary row keeps its header box and its text', async ($, on) => {
   setup(on, [])
-  const ui = await mountRow($, ROW(LINE1))
-  expect(texts(await ui.drawn())).toBe('engine')
+  const ui = await mountRow($, ROW('glowup · cozy · spinner comet · Clawd · bubbles on · full motion'))
+  const drawn = await ui.drawn()
+  expect(box(drawn).props.borderStyle).toBe('round')
+  expect(walk(drawn).filter(n => n?.children?.[0] === '██')).toHaveLength(5)
+  expect(texts(drawn)).toContain('glowup · cozy · spinner comet')
+  expect(texts(drawn)).not.toContain('engine')
   await ui.unmount()
 })
 

@@ -65,7 +65,7 @@ export const TRY_TITLE = 'Try next'
 export function configText(first: string, picked: readonly string[]): string {
   return [
     first, '',
-    `  ${PICKED_TITLE}`, ...PICK_LABELS.map((l, i) => `  ${l.padEnd(PICK_COLS)}${picked[i]}`), '',
+    `  ${PICKED_TITLE}`, ...PICK_LABELS.map((l, i) => `  ${l.padEnd(PICK_COLS)}${picked[i]}`.trimEnd()), '',
     `  ${TRY_TITLE}`, ...TRY_NEXT.map(([cmd, what]) => `  ${cmd.padEnd(TRY_COLS)}${what}`), '',
     `  docs: ${DOCS_URL}`,
   ].join('\n')
@@ -79,7 +79,8 @@ export function parsePicked(text: string): [label: string, value: string][] | un
   for (const [i, label] of PICK_LABELS.entries()) {
     const row = lines[at + 1 + i]
     const lead = `  ${label.padEnd(PICK_COLS)}`
-    if (!row?.startsWith(lead)) return undefined
+    // an empty value leaves no trailing spaces after the label, here or after a surface trims the line
+    if (row === undefined || !(row.startsWith(lead) || row.trimEnd() === lead.trimEnd())) return undefined
     rows.push([label, row.slice(lead.length)])
   }
   return rows

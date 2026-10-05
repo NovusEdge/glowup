@@ -4,6 +4,7 @@ import { runCommand, USAGE, type Ctl } from '../hooks/command.ts'
 import type { Mix } from '../hooks/packs.ts'
 import type { PetSetting } from '../hooks/pets.ts'
 import type { BubbleSetting } from '../hooks/bubbles.ts'
+import { configText, parsePicked } from '../hooks/help.ts'
 import { DEFAULT_FIELDS, type FieldId } from '../hooks/fields.ts'
 
 type Q = { question: string; header: string; options: string[]; multiSelect?: true }
@@ -178,11 +179,19 @@ test('the card names the pack default when no spinner is set, and a split mix as
 })
 
 test('every Esc exit ends on the card', async () => {
-  for (const n of [0, 1, 2, 3]) {
-    const out = await rig(['classic (current)', 'Pack default', 'Clawd', ''].slice(0, n)).run()
+  const answers = ['classic (current)', 'Pack default', 'Clawd', '', 'Pick', 'Session', 'Account']
+  for (const n of [0, 1, 2, 3, 4, 5, 6]) {
+    const out = await rig(answers.slice(0, n)).run()
     expect(out).toContain('\n  You picked\n')
     expect(out).toContain('\n  Try next\n')
   }
+})
+
+test('an empty fields list still gives a row the card parses back', () => {
+  const text = configText('glowup · classic · Clawd', ['classic', 'pack default', 'Clawd', 'bubbles on · full motion', ''])
+  expect(text).not.toMatch(/ \n/)
+  expect(parsePicked(text)!.at(-1)).toEqual(['Status line', ''])
+  expect(parsePicked(text.replace('  Status line', '  Status line  '))!.at(-1)).toEqual(['Status line', ''])
 })
 
 test('Other with an installed user pack applies it', async () => {
