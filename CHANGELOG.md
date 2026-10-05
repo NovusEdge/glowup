@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/glowup pack <studio link>` installs a look straight from a glowup studio link, with nothing downloaded.
 - `/glowup color list` draws each color and says what it paints.
 - `motion.field` takes a `simplex` shape and an object form with the knobs of Paper's dithering shader: `speed`, `scale`, `rotation`, `offsetX`, `offsetY`, `density`, `warp`, `size` and `dither`, plus `fps` and `color`. See [Effects](docs/pack-reference.md#effects).
+- `/glowup config` opens a config pane instead of a series of questions. Enter cycles the pack, spinner, pet, meter, bubbles and motion; color rows take an exact hex; band, tabs, bubble moods and status line fields take a typed list, which can also reorder them. A preview shows the look, and the pane can copy a studio link or reset everything to defaults.
 
 ### Changed
 
