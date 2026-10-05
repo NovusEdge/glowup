@@ -23,7 +23,7 @@ export const ROLE_LABELS: Record<(typeof COLOR_KEYS)[number], string> = {
   sel: 'not drawn yet',
 }
 
-export type Colors =Record<(typeof COLOR_KEYS)[number], string>
+export type Colors = Record<(typeof COLOR_KEYS)[number], string>
 export type Theme = { name: string; colors: Colors; spinnerWords: string[]; glyphs: Record<(typeof GLYPH_KEYS)[number], string>; hearts: [string, string] }
 export type ThemeFile = { name: string; extends?: string; colors?: Partial<Colors>; spinner?: { words?: string[] }; glyphs?: Partial<Theme['glyphs']>; band?: { hearts?: [string, string] } }
 
