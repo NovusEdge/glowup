@@ -136,7 +136,7 @@ Each answer does what the matching typed command does (`pack`, `spinner`, `pet`,
 
 ## Settings and the store
 
-The mod's settings in Claude Code's `/plugin` menu (`theme`, `pack`, `pet`, `bubbles`, `statusline` and `reducedMotion`) are defaults. glowup's own saved choice wins over a setting only after a `/glowup` command or the config questions have written that choice. After that, changing the value in `/plugin` has no effect until you use the matching `/glowup` command again. Only `/glowup statusline fields default` clears a saved choice; for the other settings there is no such command.
+The mod's settings in Claude Code's `/plugin` menu (`pack`, `theme`, `spinner`, `pet`, `bubbles`, `statusline` and `reducedMotion`) and the `/glowup` commands change the same saved choices, and the last change wins. glowup remembers the `/plugin` values it saw last. When a value differs at the next session start or after `/reload-plugins`, glowup runs the matching command (`/glowup pack crt` for a new `pack`, and so on) and shows a toast naming what it applied. A `/glowup` command or the config questions replace that choice at once, and stay until you change that setting in `/plugin` again. If `/plugin` holds a value glowup cannot apply, such as an unknown pack, the toast says so and the value is not retried. Only `/glowup statusline fields default` clears a saved choice; for the other settings there is no such command.
 
 ## pane
 
