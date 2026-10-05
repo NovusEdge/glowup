@@ -1,5 +1,5 @@
 import {Node, Rect, Txt} from '@revideo/2d';
-import {ThreadGenerator, linear, waitFor} from '@revideo/core';
+import {ThreadGenerator, all, easeInCubic, easeOutCubic, linear, map, tween, waitFor} from '@revideo/core';
 import type {Mood} from '../../hooks/bubbles.ts';
 import {CLAWD_COLOR, CLAWD_ROW} from '../../hooks/pets.ts';
 import {say as line} from './data';
@@ -35,6 +35,9 @@ export class Claude {
   tab: TabId = 'changes';
   private bubbling = false;
   private dyn: Node;
+  private statusLayer: Node;
+  private top = 17;
+  private goal = 17;
   private box!: Rect;
   private cursor!: Rect;
   private statusBox?: Rect;
@@ -58,6 +61,8 @@ export class Claude {
     this.escLabel = T.txt('(esc to interrupt)', 6, 13, 'dim');
     this.dyn = (<Node />) as Node;
     T.screen.add(this.dyn);
+    this.statusLayer = (<Node />) as Node;
+    T.screen.add(this.statusLayer);
 
     this.box = T.rect(0, rows - 3.5, CHAT, 2, {stroke: look.sig.borderColor, lineWidth: 2, radius: 14}) as Rect;
     T.txt('>', 1, rows - 3, 'accent', {bold: true});
@@ -109,7 +114,8 @@ export class Claude {
   }
 
   // Redraws what depends on the model: tab strip and rows, the status box, or the drawer and band.
-  refresh() {
+  // keepTop leaves the box where the tween in say() has it instead of snapping to the new goal.
+  refresh(keepTop = false) {
     const T = this.term;
     const look = this.look.look;
     this.dyn.removeChildren();
@@ -135,17 +141,36 @@ export class Claude {
       // sprite, which stays put, is never drawn over the last one.
       const status = statusRows(this.model, look, look.hp, PANE_W - 8);
       const top = (this.bubbling ? 13 : 17) - Math.max(0, status.length - 2);
-      this.statusBox?.y((top + 0.5) * LH).height((26 - top) * LH);
+      this.goal = top;
+      if (!keepTop) this.top = top;
+      this.place();
       tabRows(this.model, this.tab, look, PANE_W - 4, false)
         .slice(0, top - 3)
         .forEach((r, i) => drawSegs(T, this.dyn, x0, 3 + i, r));
-      status.forEach((r, i) => drawSegs(T, this.dyn, x0 + 2, top + 1 + i, r));
+      // Status rows sit in their own layer, drawn relative to the box top, so say() can slide them with the box.
+      this.statusLayer.removeChildren();
+      status.forEach((r, i) => drawSegs(T, this.statusLayer, x0 + 2, 1 + i, r));
       return;
     }
     tabs(1, 14);
     tabRows(this.model, this.tab, look, CHAT - 2, true, 4).forEach((r, i) => drawSegs(T, this.dyn, 1, 15 + i, r));
     drawSegs(T, this.dyn, 1, 19, [{text: CLAWD_ROW, color: CLAWD_COLOR}]);
     if (this.model.working) drawSegs(T, this.dyn, 0, this.rows - 5, bandSegs(this.model, look, look.hp, CHAT));
+  }
+
+  private place() {
+    this.statusBox?.y((this.top + 0.5) * LH).height((26 - this.top) * LH);
+    this.statusLayer.y(this.top * LH);
+  }
+
+  // Slides the status box from where it is to its goal over the bubble's fade.
+  // Leaving eases in, so the rows reach the bubble's rows only after it has mostly faded.
+  private slide(seconds: number, ease = easeOutCubic): ThreadGenerator {
+    const from = this.top;
+    return tween(seconds, v => {
+      this.top = map(from, this.goal, ease(v));
+      this.place();
+    });
   }
 
   set(patch: Partial<Model>) {
@@ -192,7 +217,7 @@ export class Claude {
     this.bubbleText.text(text);
     if (this.bubble) {
       this.bubbling = true;
-      this.refresh();
+      this.refresh(true);
     }
     let node: {opacity: (v: number, s?: number) => unknown} = this.bubbleText;
     if (this.bubble && this.bubbleRect) {
@@ -201,12 +226,13 @@ export class Claude {
     } else {
       this.bubbleText.fill(this.look.sig[key]);
     }
-    yield* node.opacity(1, 0.15) as ThreadGenerator;
+    yield* all(node.opacity(1, 0.15) as ThreadGenerator, this.slide(0.15));
     yield* waitFor(hold);
-    yield* node.opacity(0, 0.2) as ThreadGenerator;
     if (this.bubble) {
       this.bubbling = false;
-      this.refresh();
+      this.refresh(true);
     }
+    yield* all(node.opacity(0, 0.2) as ThreadGenerator, this.slide(0.2, easeInCubic));
+    this.refresh();
   }
 }
