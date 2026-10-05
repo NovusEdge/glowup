@@ -20,7 +20,7 @@ import { styleRow } from './rows.tsx'
 import { orbStateOf, usesOwnSpinner, checkedSpinnerProps } from './spinner.ts'
 import type { PetClientProps } from './client/pet.tsx'
 import type { OrbState } from './motion.ts'
-import { statusText, writeStatusFile, drawsStatusLine, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
+import { statusText, writeStatusFile, drawsStatusLine, ensureRefresh, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
 import { parseFields, DEFAULT_FIELDS, type ColorMode, type FieldId } from './fields.ts'
 import { DEFAULT_SETUP, parseSetup, type Setup } from './setup.ts'
 import { runCommand, type Ctl } from './command.ts'
@@ -183,7 +183,9 @@ function startBeat($: Engine) {
 async function syncTakeover($: Engine) {
   // the first-run timer can fire after recheckGuard turned this copy off
   if (off) return
-  takenOver = (await hostOf($).storeGet(BACKUP_KEY)) !== undefined || await drawsStatusLine(hostOf($))
+  const draws = await drawsStatusLine(hostOf($))
+  takenOver = (await hostOf($).storeGet(BACKUP_KEY)) !== undefined || draws
+  if (draws) await ensureRefresh(hostOf($)).catch(() => {})
   writeStatus($, true)
   $.ui.status(statusEntry())
 }

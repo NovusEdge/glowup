@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { takeOver, restore, statusText, writeStatusFile, script } from '../hooks/statusline.ts'
+import { takeOver, restore, ensureRefresh, statusText, writeStatusFile, script } from '../hooks/statusline.ts'
 import { initialModel } from '../hooks/model.ts'
 import { resolveTheme } from '../hooks/themes.ts'
 import { fakeHost } from './kit.ts'
@@ -57,7 +57,7 @@ test('takeover changes only statusLine and restore puts it back', async () => {
   const msg = await takeOver(host, yes)
   expect(msg).toContain('restore')
   const after = JSON.parse(files[SETTINGS]!)
-  expect(after.statusLine).toEqual({ type: 'command', command: `sh '${SCRIPT}'` })
+  expect(after.statusLine).toEqual({ type: 'command', command: `sh '${SCRIPT}'`, refreshInterval: 30 })
   expect({ ...after, statusLine: undefined }).toEqual({ ...original, statusLine: undefined })
   expect(files[SCRIPT]).toContain('ccstatusline')
   await restore(host)
@@ -159,7 +159,7 @@ test('a status line that is already glowup is never saved as the backup', async 
   expect(await takeOver(host, async () => { asked++; return true })).toContain('already')
   expect(asked).toBe(0)
   expect('statusline-backup' in store).toBe(false)
-  expect(files[SETTINGS]).toBe(OURS)
+  expect(JSON.parse(files[SETTINGS]!).statusLine.refreshInterval).toBe(30)
   expect(SCRIPT in files).toBe(false)
 })
 
@@ -198,4 +198,30 @@ test('restore treats a backup that is glowup own command as no previous line', a
   store['statusline-backup'] = { type: 'command', command: `sh '${SCRIPT}'` }
   await restore(host)
   expect(JSON.parse(files[SETTINGS]!)).toEqual({ model: 'opus' })
+})
+
+test('an existing glowup status line gains refreshInterval; one the person set stays', async () => {
+  const { host, files } = fakeHost({ files: { [SETTINGS]: JSON.stringify({ model: 'opus', statusLine: { type: 'command', command: `sh '${SCRIPT}'` } }) } })
+  await ensureRefresh(host)
+  expect(JSON.parse(files[SETTINGS]!)).toEqual({ model: 'opus', statusLine: { type: 'command', command: `sh '${SCRIPT}'`, refreshInterval: 30 } })
+  const mine = JSON.stringify({ statusLine: { type: 'command', command: `sh '${SCRIPT}'`, refreshInterval: 5 } })
+  files[SETTINGS] = mine
+  await ensureRefresh(host)
+  expect(files[SETTINGS]).toBe(mine)
+})
+
+test('ensureRefresh leaves a status line that is not glowup alone', async () => {
+  const theirs = '{"statusLine":{"type":"command","command":"ccstatusline"}}'
+  const { host, files } = fakeHost({ files: { [SETTINGS]: theirs } })
+  await ensureRefresh(host)
+  expect(files[SETTINGS]).toBe(theirs)
+})
+
+test('restore after a takeover brings back the backed-up line with no refreshInterval', async () => {
+  const original = { statusLine: { type: 'command', command: 'ccstatusline', padding: 1 } }
+  const { host, files } = fakeHost({ files: { [SETTINGS]: JSON.stringify(original) } })
+  await takeOver(host, yes)
+  await ensureRefresh(host)
+  await restore(host)
+  expect(JSON.parse(files[SETTINGS]!)).toEqual(original)
 })
