@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { tabRows, statusRows, renderPane, section, BOX, MIN_BOX, COMPACT_ROWS, petStripCols, bubbleBox, type TabId } from '../hooks/pane.tsx'
+import { tabRows, statusRows, renderPane, section, BOX, MIN_BOX, COMPACT_ROWS, petStripCols, bubbleBox, visibleTabs, type TabId } from '../hooks/pane.tsx'
 import { CLAWD_SAY } from '../hooks/bubbles.ts'
 import { resolveLook, BORDERS } from '../hooks/packs.ts'
 import { PACKS } from '../hooks/packpresets.ts'
@@ -444,4 +444,9 @@ test('the context warning follows meter.danger', () => {
   const text = (meter?: { warn: number; danger: number }) => tabRows(m, T, { tab: 'plan', meter }, 80, false, 0).flat().map(s => s.text).join('')
   expect(text()).not.toContain('context 75% used')
   expect(text({ warn: 50, danger: 70 })).toContain('context 75% used')
+})
+
+test('tabs follow the setup and an open hidden tab falls to the first shown one', () => {
+  expect(visibleTabs(undefined, 'agents')).toEqual({ tabs: [['changes', 'Changes'], ['agents', 'Agents'], ['plan', 'Plan & context']], tab: 'agents' })
+  expect(visibleTabs(['plan', 'changes'], 'agents')).toEqual({ tabs: [['plan', 'Plan & context'], ['changes', 'Changes']], tab: 'plan' })
 })

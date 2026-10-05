@@ -777,7 +777,7 @@ export const register: Register = (on, options) => {
     const below = await next(e)
     const els = $.ui.resolve(e)
     const live = (await $.state.get(BAND)).value as { model: Model } | undefined
-    const mine = renderBand(els, live ? normalizeModel(live.model) : model, theme, e.props.bodyColumns, tier, Date.now(), { look })
+    const mine = renderBand(els, live ? normalizeModel(live.model) : model, theme, e.props.bodyColumns, tier, Date.now(), { look, band: setup.band })
     if (!mine) return below
     // other mods draw bands here too: stack ours on top instead of replacing theirs
     const { Box } = els
@@ -796,7 +796,7 @@ export const register: Register = (on, options) => {
     const els = $.ui.resolve(e)
     // the look always applies; the pet and its words only while he is on
     const pid = pet, red = reducedMotion
-    let extra: PaneExtra = { look }
+    let extra: PaneExtra = { look, tabs: setup.tabs }
     if (pid !== 'off' && !red && (e.surface === 'terminal' || e.surface === 'desktop')) {
       const snap = ((await $.state.get(PET)).value as PetSnap | undefined) ?? petSnap()
       const { Client } = $.ui.resolve(e)
