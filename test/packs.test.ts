@@ -25,7 +25,7 @@ test('arcade carries the mockup values', async () => {
   expect(l.gradient).toEqual(['#ff3ec8', '#38e8ff'])
   expect(l.extras).toEqual({ hp: true, combo: true })
   expect(l.rowFlags).toEqual({ labels: false, markers: true, xp: true })
-  expect(l.motion).toEqual({ spinner: 'orb-states', shimmer: 2, color: '#38e8ff' })
+  expect(l.motion).toEqual({ spinner: 'orb-states', shimmer: 2, color: '#38e8ff', field: 'none' })
 })
 
 test('layers mix: crt colors with arcade motion', async () => {
@@ -153,6 +153,6 @@ test('exportMix description is built from shown names and fits 80 characters', a
 })
 
 test('stockMotion freezes motion', async () => {
-  expect(stockMotion(look(pack('arcade')).look).motion).toEqual({ spinner: 'stock', shimmer: 0, color: '#38e8ff' })
+  expect(stockMotion(look(pack('arcade')).look).motion).toEqual({ spinner: 'stock', shimmer: 0, color: '#38e8ff', field: 'none' })
   expect(SPINNER_IDS).toHaveLength(6)
 })

@@ -1,6 +1,7 @@
 import { test, expect } from 'claude-code/testing'
 import { tabRows, COMPACT_ROWS } from '../hooks/pane.tsx'
-import { stackBar, legendRows, shortName, tokensK, brailleArea, chartTop, growth, heaviest, cacheHit } from '../hooks/ctxchart.ts'
+import { stackBar, legendRows, shortName, heaviest, cacheHit } from '../hooks/ctxchart.ts'
+import { tokensK, brailleArea, chartTop, growth } from '../hooks/trend.ts'
 import { visibleLength, type Seg } from '../hooks/layout.tsx'
 import { initialModel, type Model, type PlanItem } from '../hooks/model.ts'
 import { resolveTheme, PRESETS } from '../hooks/themes.ts'

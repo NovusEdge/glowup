@@ -59,6 +59,28 @@ A pack is plain data that glowup validates before installing, so installing one 
 
 A studio link carries the whole pack inside it, so you can share a look without hosting a file. Paste it after /glowup pack.
 
+## Drawing with a plugin
+
+A pack can already switch on glowup's built-in [effects](pack-reference.md#effects) from its JSON: a dithered field in the pane, dithered meters and turn dividers. The [oxide](https://github.com/NovusEdge/glowup-oxide) pack uses all three and installs from a URL like any other pack.
+
+For an effect glowup does not ship, a pack can come with a companion Claude Code plugin that draws it. You install it with `/plugin` like any other plugin, so Claude Code's own plugin trust covers its code, and glowup never runs code it downloaded.
+
+glowup asks for three parts while it draws, and a plugin that lists `glowup` under `dependencies` in its `plugin.json` can answer for its own pack:
+
+- `glowup.field` fills the docked pane's open rows, between the tab and the status box. The answer is a loop of frames that glowup plays on its own timer, holding the first frame when motion is reduced.
+- `glowup.meter` replaces the hearts or HP bar in the status box with up to three rows, given the 5-hour and weekly usage and the context.
+- `glowup.divider` draws a rule above each of your prompts, given the turn number. The answer is a left part, one fill character and a right part, and glowup repeats the fill to fit the width.
+
+Every answer is rows of colored text, the same pieces glowup draws itself. glowup checks each answer before drawing it. A malformed answer, a hook that throws or no answer at all leaves glowup's own drawing in place. A field glowup cannot fit within Claude Code's size limit loses every other frame until it fits. The event inputs and answers are typed in `types/state.d.ts`, which Claude Code gives the plugin when it loads.
+
+```tsx title="hooks/register.tsx"
+export const register: Register = on => {
+  on('glowup.divider', async (_$, e, next) => e.pack === 'mine'
+    ? { value: { left: [{ text: `── ${e.turn} `, color: e.colors.accent }], fill: { text: '─', color: e.colors.faint }, right: [] } }
+    : next(e))
+}
+```
+
 ## Limits
 
 A pack restyles the transcript rows, glowup's own pane and band, and the spinner line. Claude Code's logo, prompt box and status bar stay as they are, and a mod has no way to hide Claude Code's own task list.

@@ -10,7 +10,7 @@ just demo-editor    # live preview in the Revideo editor
 just demo-render    # out/launch.mp4 (1920x1080) and out/launch-square.mp4 (1080x1080)
 ```
 
-`just demo-stills` renders the README's pane images (`pane-wide.png`, `agents.png`, `compact.png`) into `docs/assets`: the classic pack on the bare `Screen`, no HUD or camera, one frame each (`src/scenes/stills.tsx`).
+`just demo-stills` renders the README's pane images (`pane-wide.png`, `agents.png`, `context.png`, `compact.png`) into `docs/assets`: the classic pack on the bare `Screen`, no HUD or camera, one frame each (`src/scenes/stills.tsx`).
 
 Render one file with `pnpm render launch.mp4` (or `launch-square`). The render runs headless
 Chromium (it uses `/usr/bin/chromium`; set `CHROMIUM=/path` to override) and ffmpeg, one worker.
@@ -44,7 +44,7 @@ Chromium (it uses `/usr/bin/chromium`; set `CHROMIUM=/path` to override) and ffm
 - Clawd: `hooks/sprites/clawd.ts`. Its pixel rows are drawn as canvas rectangles and animated from the sheet's
   own frame timings. In the docked pane a sprite pixel is exactly 15 x 16 screen pixels.
 - The pane: `hooks/pane.tsx`, `hooks/ctxchart.ts` (re-implemented in `src/pane.tsx`: importing it drags in
-  `layout.tsx`, which this project's JSX settings cannot type), `hooks/tasks.ts`, `hooks/band.tsx`.
+  `layout.tsx`, which this project's JSX settings cannot type), `hooks/trend.ts` (imported as is), `hooks/tasks.ts`, `hooks/band.tsx`.
   The video draws the arcade HP bar as three flat colour bands instead of the mod's gradient.
 - Clawd's speech bubbles: `say(mood, index)` in `src/data.ts` fills a template from `CLAWD_SAY` in
   `hooks/bubbles.ts` and throws if the line does not exist.

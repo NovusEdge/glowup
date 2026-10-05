@@ -30,6 +30,10 @@ import { firstRun } from './firstrun.ts'
 import { registerCopy, touchCopy, decide, unregisterCopy, pruneStatus, safeId, HEARTBEAT_MS } from './instances.ts'
 import { staleToast, INSTALLED_FILE } from './update.ts'
 import { syncPlugin } from './pluginsync.ts'
+import { cleanFrames, cleanRows, cleanDivider, fitField, meterWindows, type Frames, type Divider } from './renderers.ts'
+import { warpFrames, ditherMeters, turnDivider } from './effects.ts'
+import type { FieldClientProps } from './client/field.tsx'
+import type { Seg } from './layout.tsx'
 
 type Engine = EngineInterface
 type SpinKey = { turnAt: number; detail: string; state: OrbState }
@@ -171,6 +175,48 @@ function xpFor(messageId: string, isFirstOfReply: boolean): number | undefined {
   if (!look.rowFlags.xp || !isFirstOfReply) return undefined
   if (!xpByMessage.has(messageId)) xpByMessage.set(messageId, model.combo)
   return xpByMessage.get(messageId)
+}
+
+// A renderer plugin's answers (glowup.field, glowup.meter). They are asked outside the draw,
+// which may not write state, and the field can take a renderer a while to compute; the answer
+// lands in its slot and publish redraws the pane. `key` is what the held value was asked for.
+type Asked<T> = { key: string; value: T | null; pending?: string }
+const fieldAsk: Asked<Frames> = { key: '', value: null }
+const meterAsk: Asked<Seg[][]> = { key: '', value: null }
+function ask<T>($: Engine, slot: Asked<T>, key: string, call: () => Promise<T | null>) {
+  if (slot.key === key || slot.pending === key) return
+  slot.pending = key
+  $.clock.after(0, async () => {
+    let value: T | null = null
+    try { value = await call() } catch { value = null }
+    // a newer ask overtook this one while it ran
+    if (slot.pending !== key) return
+    slot.key = key; slot.value = value; slot.pending = undefined
+    publish($)
+  })
+}
+// Turns are numbered in the order their prompts are first drawn, which is transcript order.
+const turnByMessage = new Map<string, number>()
+const dividerByMessage = new Map<string, { key: string; value: Divider | null }>()
+const palette = () => ({ ...theme.colors })
+// What a held answer was asked under: both layers' packs and the effects the look picked,
+// since a mix can take its colors and its motion from different packs.
+const lookKey = () => JSON.stringify([mix.colors, mix.motion, look.meters, look.dividers, look.motion.field])
+// Asked while drawing: one short call per prompt and pack, kept for its redraws.
+// A prompt first draws under the id "placeholder" until it is stored: it shows the number the
+// stored row will take, but neither claims it nor is kept.
+async function dividerFor($: Engine, messageId: string): Promise<Divider | null> {
+  const pending = messageId === 'placeholder'
+  if (!pending && !turnByMessage.has(messageId)) turnByMessage.set(messageId, turnByMessage.size + 1)
+  const turn = turnByMessage.get(messageId) ?? turnByMessage.size + 1, pack = mix.colors, colors = palette()
+  const key = JSON.stringify([lookKey(), colors])
+  const held = pending ? undefined : dividerByMessage.get(messageId)
+  if (held?.key === key) return held.value
+  let value: Divider | null = null
+  try { value = cleanDivider(await $.glowup.divider({ pack, turn, colors }), colors.text) } catch { value = null }
+  value ??= look.dividers ? turnDivider(turn, colors) : null
+  if (!pending) dividerByMessage.set(messageId, { key, value })
+  return value
 }
 
 const petOn = () => pet !== 'off' && !reducedMotion
@@ -562,6 +608,13 @@ async function recheckGuard($: Engine, id: string): Promise<boolean> {
 export const register: Register = (on, options) => {
   reducedMotion = options.reducedMotion === true
 
+  // Null from glowup's own methods. When no renderer answers, glowup draws the effect the pack
+  // picked (hooks/effects.ts) in the caller, not here: the test engine never runs these bodies.
+  on('engine.create', async (_$, e, next) => {
+    const built = await next(e)
+    return { ...built, glowup: { field: async () => null, meter: async () => null, divider: async () => null } }
+  })
+
   on('session.start', async ($, e, next) => {
     cwd = e.cwd
     interactive = e.isInteractive
@@ -808,7 +861,32 @@ export const register: Register = (on, options) => {
     // the engine scrolls the whole body, which would carry the pet off with a long tab: budget the tab to bodyRows instead
     extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onScroll: (offset: number) => { view = { ...view, offset }; publish($) } }
     if (e.props.placement === 'dock') extra = { ...extra, minRows: e.props.scroll.bodyRows }
-    return renderPane(els, live ? normalizeModel(live.model) : model, theme, { ...v, meter: setup.meter }, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
+    const m = live ? normalizeModel(live.model) : model, pack = mix.colors, colors = palette(), picked = lookKey()
+    if (!compact) {
+      const width = e.props.bodyColumns - 2 - 4, windows = meterWindows(m, Date.now(), tzOffset)
+      ask($, meterAsk, JSON.stringify([picked, width, windows, m.ctxPercent, colors]), async () =>
+        cleanRows(await $.glowup.meter({ pack, width, windows, ctxPercent: m.ctxPercent, colors }), 3, colors.text)
+          ?? (look.meters === 'dither' ? ditherMeters(width, windows, m.ctxPercent, colors) : null))
+      // between asks the last rows stay up, but never another look's
+      if (meterAsk.value && JSON.parse(meterAsk.key)[0] === picked) extra = { ...extra, meter: meterAsk.value }
+    }
+    if (e.props.placement === 'dock' && !compact && (e.surface === 'terminal' || e.surface === 'desktop')) {
+      const cols = e.props.bodyColumns - 2, rows = e.props.scroll.bodyRows, reduced = reducedMotion
+      const key = JSON.stringify([picked, cols, rows, colors, reduced])
+      ask($, fieldAsk, key, async () => cleanFrames(await $.glowup.field({ pack, cols, rows, colors, reduced }), rows, colors.text)
+        ?? (look.motion.field === 'warp' ? warpFrames(cols, rows, colors, reduced) : null))
+      const got = fieldAsk.key === key ? fieldAsk.value : null
+      if (got) {
+        const { Client } = $.ui.resolve(e)
+        extra = { ...extra, field: (open: number) => {
+          const fit = fitField(got, open)
+          if (!fit) return null
+          const props: FieldClientProps = { frames: fit.frames, ms: fit.ms, reduced }
+          return <Client key="glowup-field" module="./client/field.tsx" props={props} width={cols} />
+        } }
+      }
+    }
+    return renderPane(els, m, theme, { ...v, meter: setup.meter }, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
       view = { ...view, tab: id, offset: 0 }
       publish($)
       if (id === 'plan') void feedContext($)
@@ -838,7 +916,26 @@ export const register: Register = (on, options) => {
     const row = await next(e)
     if (e.surface !== 'terminal') return row
     const p = e.props
-    return styleRow($.ui.resolve(e), look, { site: 'UserMessage', text: p.text, isExpanded: p.isExpanded, own: p.origin.kind === 'composer' && !p.from && !p.task }, row) as RenderElement
+    const own = p.origin.kind === 'composer' && !p.from && !p.task
+    const els = $.ui.resolve(e)
+    const styled = styleRow(els, look, { site: 'UserMessage', text: p.text, isExpanded: p.isExpanded, own }, row) as RenderElement
+    if (!own || p.isExpanded) return styled
+    const rule = await dividerFor($, e.requestId)
+    if (!rule) return styled
+    const { Box, Text } = els
+    const side = (segs: Seg[], k: string) => <Box key={k} flexShrink={0}>{segs.map(s => <Text color={s.color} bold={s.bold}>{s.text}</Text>)}</Box>
+    // The row has no width of its own, so the fill is long and its one-row box clips it; a truncating
+    // Text would end it in "…". The clipping box holds no engine node, which may not sit under overflow.
+    return (
+      <Box flexDirection="column">
+        <Box flexDirection="row">
+          {side(rule.left, 'l')}
+          <Box flexGrow={1} flexShrink={1} height={1} overflow="hidden"><Text color={rule.fill.color}>{rule.fill.text.repeat(400)}</Text></Box>
+          {side(rule.right, 'r')}
+        </Box>
+        {styled}
+      </Box>
+    )
   })
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
     if (off) return next(e)

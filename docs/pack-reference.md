@@ -1,6 +1,6 @@
 ---
 title: Pack reference
-description: The pack file format, validation rules, row styles and flags, extras and spinner ids.
+description: The pack file format, validation rules, row styles and flags, extras, effects and spinner ids.
 ---
 
 For what packs are and how to use them, see [Packs](packs.md).
@@ -24,12 +24,15 @@ Packs are read from `~/.claude/glowup/packs`, or `$CLAUDE_CONFIG_DIR/glowup/pack
     "borderColor": "#ff3ec8",
     "gradient": ["#ff3ec8", "#38e8ff"],
     "extras": { "hp": true, "combo": true },
-    "rowFlags": { "labels": false, "markers": true, "xp": true }
+    "rowFlags": { "labels": false, "markers": true, "xp": true },
+    "meters": "dither",             // default | dither
+    "dividers": true                // a numbered rule above each prompt
   },
   "motion": {
     "spinner": "orb-states",        // stock | comet | eyes | orb-states | clawd | shimmer
     "shimmer": 2,                   // 0 none, 1 soft, 2 fast
-    "color": "#38e8ff"              // defaults to the palette's accent
+    "color": "#38e8ff",             // defaults to the palette's accent
+    "field": "warp"                 // none | warp
   },
   "sound": {},                      // reserved for a later release
   "voice": {}                       // reserved for a later release
@@ -80,6 +83,16 @@ Not styled: notifications, messages from other agents, prompts expanded with ctr
 
 - `hp` replaces the hearts with an HP bar: `HP ████████░░ 38% context left` in the band, `HP ████████░░ 38% weekly limit left` in the pane's status box.
 - `combo` shows `COMBO x3` once three tool calls in a row succeed in one turn. An error, a failed test or a new turn resets it.
+
+## Effects
+
+Three effects are drawn by glowup itself, so a pack switches them on from its JSON and still installs from a URL.
+
+- `colors.meters: "dither"` replaces the hearts or HP bar in the pane's status box with one bar per usage window, `5h` and `wk`, or one `ctx` bar when the session reports no windows. Each bar ramps from `accent` to `text`, dissolves through `▓▒░`, and shows what is used as `faint` dots, followed by the percent left and the reset time.
+- `colors.dividers: true` draws `░▒▓━━ 03 ━━━▓▒░` above each of your prompts, numbered by turn, in `faint` with the number in `accent`.
+- `motion.field: "warp"` fills the docked pane's open rows, between the tab and the status box, with domain-warped noise dithered into braille dots. It loops every four seconds, shades from a darkened `faint` to `accent`, and holds still under `/glowup motion reduced`. The inline drawer has no open rows, so it shows no field.
+
+A [renderer plugin](packs.md#drawing-with-a-plugin) that answers for the pack draws its own version in place of these.
 
 ## Spinners
 

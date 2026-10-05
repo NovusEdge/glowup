@@ -65,6 +65,26 @@ When the pane is not docked, a single line above the prompt shows the same summa
 <tr>
 <td width="50%" valign="top">
 
+<img src="docs/assets/context.png" alt="The docked pane on the Plan & context tab: a task list with one step in progress, then a context box with a stacked bar marked at the auto-compact point, a braille chart of context use that drops at a compaction, the line +14k/turn · auto-compact in ~4 turns, and the three heaviest sources: an MCP server, CLAUDE.md and the skill listing">
+
+<sub>Plan & context tab, one compaction into the session.</sub>
+
+</td>
+<td width="50%" valign="top">
+
+### The context box
+
+The context box shows what is filling the window and when it will run out.
+
+- The `┊` on the bar and the dashed line on the chart mark where auto-compact runs.
+- The line under the chart gives the growth per turn and the turns left before auto-compact.
+- Below that are the three biggest sources you can trim, such as an MCP server's tools, a `CLAUDE.md` or the skill listing.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
 ### Packs and themes
 
 A pack sets colors, transcript row styles, border shape and spinner under one name. A theme is just the palette part: colors, a few glyphs, spinner words and the heart characters. Both are JSON files that can `extends` another, so a custom one only lists what it changes, and either can be shared by hosting the file at an `https://` URL.
