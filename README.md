@@ -203,7 +203,7 @@ Reduced motion hides him. Full guide: [Pets](docs/pets.md).
 /glowup config
 ```
 
-glowup's settings also appear under Claude Code's `/plugin` menu. Those are only defaults. Once `/glowup config` or a `/glowup` command has saved a choice, that choice wins, and changing the setting in `/plugin` does nothing until you run the matching `/glowup` command again.
+glowup's settings also appear under Claude Code's `/plugin` menu. The last change wins, whether you make it there or with a `/glowup` command. A change in `/plugin` applies at the next session start or after `/reload-plugins`.
 
 See [Commands](docs/commands.md#config).
 
