@@ -63,7 +63,16 @@ export function petPose(p: PetInput, now: number): Pose {
 }
 
 export const shiny = (palette: Record<string, string>, tint: Record<string, string> = CLAWD_SHEET.shiny ?? {}): Record<string, string> => ({ ...palette, ...tint })
-export const petPalette = (sheet: PetSheet, pet: PetId) => (pet === 'clawd-shiny' ? shiny(sheet.palette, sheet.shiny) : sheet.palette)
+export type PetTint = { body?: string; light?: string; shade?: string }
+// shiny is an earned reward, so it wins over a pack's tint
+export const petPalette = (sheet: PetSheet, pet: PetId, tint: PetTint = {}): Record<string, string> => {
+  if (pet === 'clawd-shiny') return shiny(sheet.palette, sheet.shiny)
+  const out = { ...sheet.palette }
+  if (tint.body) out.B = tint.body
+  if (tint.light) out.L = tint.light
+  if (tint.shade) out.D = tint.shade
+  return out
+}
 
 type Cell = { text: string; color?: string; bg?: string }
 

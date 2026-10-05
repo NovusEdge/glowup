@@ -29,7 +29,8 @@ Packs are read from `~/.claude/glowup/packs`, or `$CLAUDE_CONFIG_DIR/glowup/pack
     "dividers": true,               // a numbered rule above each prompt
     "glyphs": { "read": "»" },      // tool-kind glyphs, by key
     "hearts": ["●", "○"],           // full, then empty
-    "words": ["Brewing", "Dialing in"] // spinner words
+    "words": ["Brewing", "Dialing in"], // spinner words
+    "pet": { "body": "#7aa2f7", "light": "#a9c1ff", "shade": "#4a6fc4" } // Clawd's colors
   },
   "motion": {
     "spinner": "orb-states",        // stock | comet | eyes | orb-states | clawd | shimmer
@@ -66,6 +67,10 @@ A pack can carry what a [theme file](theme-reference.md) carries beyond colors, 
 - `colors.words` is a list of spinner words, each at most 24 characters. An empty list keeps the theme's words.
 
 A glowup that predates these keys refuses the pack's colors layer as an unknown key. They are ignored while `/glowup theme <name>` overrides the pack's theme. A studio link or `/glowup pack save` writes them only when they differ from the theme.
+
+## Clawd's colors
+
+`colors.pet` recolors Clawd with `body`, `light` and `shade`, each `#rrggbb`. They replace his orange body, its highlight and its shadow (`#d77757`, `#ee9f7b`, `#a8553b`); a key you leave out keeps its default, and the eyes and outfits do not change. The shiny pet stays gold: the unlock wins over a pack. `pet` merges per key down an `extends` chain, and a studio link or `/glowup pack save` writes it only when it is set. A glowup that predates it refuses the pack's colors layer as an unknown key.
 
 ## Row styles
 

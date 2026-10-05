@@ -207,6 +207,22 @@ test('glyphs merge per key down an extends chain', () => {
   expect(look.theme.glyphs.edit).toBe('¤')
 })
 
+test("a pack's pet colors are checked, merge per key, and round-trip through exportMix", () => {
+  const bad = (pet: object) => () => validatePack({ format: 1, name: 'p', colors: { pet } })
+  expect(bad({ body: 'red' })).toThrow('colors.pet.body must be #rrggbb')
+  expect(bad({ shade: '#12' })).toThrow('colors.pet.shade must be #rrggbb')
+  expect(bad({ fur: '#112233' })).toThrow('unknown key "fur" in colors.pet')
+  const parent = { format: 1, name: 'p', colors: { theme: 'classic', pet: { body: '#112233', light: '#445566' } } }
+  const child = { format: 1, name: 'c', extends: 'p', colors: { pet: { light: '#778899' } } }
+  const { look, errors } = resolveLook({ colors: 'c', motion: 'classic' }, { p: parent, c: child }, {})
+  expect(errors).toEqual([])
+  expect(look.pet).toEqual({ body: '#112233', light: '#778899' })
+  expect((exportMix(look, 'x').colors as { pet?: object }).pet).toEqual({ body: '#112233', light: '#778899' })
+  const plain = resolveLook(pack('classic'), {}, {}).look
+  expect(plain.pet).toEqual({})
+  expect('pet' in (exportMix(plain, 'x').colors as object)).toBe(false)
+})
+
 test('a theme override ignores the pack glyphs, hearts and words', () => {
   const pack = { format: 1, name: 'g', colors: { theme: 'classic', glyphs: { read: '»' }, hearts: ['●', '○'], words: ['Brewing'] } }
   const dusk = resolveTheme('dusk', {}).theme

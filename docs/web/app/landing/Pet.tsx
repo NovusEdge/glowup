@@ -7,8 +7,8 @@ export type { PetMode }
 
 const HOP_MS = 1200
 
-export function Pet(props: { scale: number; mode: PetMode; outfit?: string; shiny?: boolean; onClick?: () => void; className?: string; hopKey?: number }) {
-  const { scale, mode, outfit, shiny, onClick, className, hopKey } = props
+export function Pet(props: { scale: number; mode: PetMode; outfit?: string; shiny?: boolean; onClick?: () => void; className?: string; hopKey?: number; palette?: { body?: string; light?: string; shade?: string } }) {
+  const { scale, mode, outfit, shiny, onClick, className, hopKey, palette } = props
   const ref = useRef<HTMLCanvasElement>(null)
   const reduced = useReducedMotion()
   const visible = useVisible()
@@ -25,7 +25,7 @@ export function Pet(props: { scale: number; mode: PetMode; outfit?: string; shin
   useEffect(() => {
     const cv = ref.current, x = cv?.getContext('2d')
     if (!cv || !x) return
-    const pal = petPalette(CLAWD_SHEET, shiny ? 'clawd-shiny' : 'clawd')
+    const pal = petPalette(CLAWD_SHEET, shiny ? 'clawd-shiny' : 'clawd', palette)
     const p = player.current
     const draw = (pl: typeof p, now: number) => {
       const rows = composeFrame(CLAWD_SHEET, playerFrame(pl, now), outfit ? [outfit] : [], mirrored(pl))
@@ -55,7 +55,7 @@ export function Pet(props: { scale: number; mode: PetMode; outfit?: string; shin
     }
     raf = requestAnimationFrame(frame)
     return () => cancelAnimationFrame(raf)
-  }, [scale, mode.kind, mode.kind === 'pose' ? mode.pose : '', outfit, shiny, reduced, visible, w, h])
+  }, [scale, mode.kind, mode.kind === 'pose' ? mode.pose : '', outfit, shiny, palette?.body, palette?.light, palette?.shade, reduced, visible, w, h])
 
   return <canvas ref={ref} width={w} height={h} className={className} onClick={onClick} aria-hidden="true" style={{ imageRendering: 'pixelated', display: 'block' }} />
 }

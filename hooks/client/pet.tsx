@@ -1,8 +1,8 @@
 import type { ClientSurface } from 'claude-code'
-import { CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, CLAWD_SHEET, PET_COLS, composeFrame, halfBlock, mirrored, newPlayer, petPalette, petPose, playerFrame, stepPlayer, type PetId, type PetInput, type Player } from '../pets.ts'
+import { CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, CLAWD_SHEET, PET_COLS, composeFrame, halfBlock, mirrored, newPlayer, petPalette, petPose, playerFrame, stepPlayer, type PetId, type PetInput, type PetTint, type Player } from '../pets.ts'
 import { renderSegs, type Seg } from '../layout.tsx'
 
-export type PetClientProps = { pet: PetId; input: PetInput; overlays: string[]; reduced: boolean; compact: boolean; width: number }
+export type PetClientProps = { pet: PetId; input: PetInput; overlays: string[]; reduced: boolean; compact: boolean; width: number; tint?: PetTint }
 // now is wall-clock ms, the scale of the model's event times. The fields are mutated in place: the tick and
 // the draw share one player, and only a changed picture replaces the state object (which redraws).
 // props is the latest the draw saw, for the tick to read; stop cancels the timer.
@@ -34,7 +34,7 @@ export default function PetClient(props: PetClientProps, surface: ClientSurface<
   const { Box, Text } = surface.elements
   const st = surface.state
   if (typeof st === 'object') st.props = props
-  if (props.compact) return <Box><Text color={props.pet === 'clawd-shiny' ? SHINY_COLOR : CLAWD_COLOR}>{CLAWD_ROW}</Text></Box>
+  if (props.compact) return <Box><Text color={props.pet === 'clawd-shiny' ? SHINY_COLOR : props.tint?.body ?? CLAWD_COLOR}>{CLAWD_ROW}</Text></Box>
 
   let now: number, player: Player
   if (typeof st === 'object') {
@@ -54,5 +54,5 @@ export default function PetClient(props: PetClientProps, surface: ClientSurface<
   stepPlayer(player, CLAWD_SHEET, petPose(props.input, now), now, maxXOf(surface, props))
   const px = composeFrame(CLAWD_SHEET, playerFrame(player, now), props.overlays, mirrored(player))
   const pad: Seg[] = player.x > 0 ? [{ text: ' '.repeat(player.x), color: CLAWD_COLOR }] : []
-  return <Box flexDirection="column">{halfBlock(px, petPalette(CLAWD_SHEET, props.pet)).map((r, i) => renderSegs(surface.elements, [...pad, ...r], 'p' + i))}</Box>
+  return <Box flexDirection="column">{halfBlock(px, petPalette(CLAWD_SHEET, props.pet, props.tint)).map((r, i) => renderSegs(surface.elements, [...pad, ...r], 'p' + i))}</Box>
 }

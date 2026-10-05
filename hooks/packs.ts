@@ -1,6 +1,7 @@
 // JSX-free: the docs site imports it.
 import { resolveTheme, PRESETS, COLOR_KEYS, GLYPH_KEYS, shown, isPlain, isUnsafe, checkGlyphs, checkHearts, checkWords, type Colors, type Theme } from './themes.ts'
 import { PACKS } from './packpresets.ts'
+import type { PetTint } from './pets.ts'
 
 export const SPINNER_IDS = ['stock', 'comet', 'eyes', 'orb-states', 'clawd', 'shimmer'] as const
 export type SpinnerId = (typeof SPINNER_IDS)[number]
@@ -21,7 +22,7 @@ export const FIELD_KEYS = ['shape', ...Object.keys(FIELD_KNOBS), 'dither', 'colo
 export type Field = { shape: FieldId; dither: (typeof DITHERS)[number]; color?: string } & Record<keyof typeof FIELD_KNOBS, number>
 export const FIELD_DEFAULTS: Omit<Field, 'shape'> = { speed: 1, scale: 1, rotation: 0, offsetX: 0, offsetY: 0, density: 1, warp: 4, size: 1, fps: 10, dither: '8x8' }
 export type RowFlags = { labels: boolean; markers: boolean; xp: boolean }
-export type ColorsLayer = { theme?: string; palette?: Partial<Colors>; bg?: string; rows?: RowStyle; border?: Border; borderColor?: string; gradient?: [string, string]; extras?: { hp?: boolean; combo?: boolean }; rowFlags?: Partial<RowFlags>; meters?: MeterStyle; dividers?: boolean; glyphs?: Partial<Theme['glyphs']>; hearts?: [string, string]; words?: string[] }
+export type ColorsLayer = { theme?: string; palette?: Partial<Colors>; bg?: string; rows?: RowStyle; border?: Border; borderColor?: string; gradient?: [string, string]; extras?: { hp?: boolean; combo?: boolean }; rowFlags?: Partial<RowFlags>; meters?: MeterStyle; dividers?: boolean; glyphs?: Partial<Theme['glyphs']>; hearts?: [string, string]; words?: string[]; pet?: PetTint }
 // spinner is any well-formed id: a pack made for a later glowup may name one this build lacks
 export type MotionLayer = { spinner?: string; shimmer?: 0 | 1 | 2; color?: string; field?: FieldId | ({ shape: FieldId } & Partial<Omit<Field, 'shape'>>) }
 export type PackFile = { format: 1; name: string; extends?: string; description?: string; colors?: ColorsLayer | string; motion?: MotionLayer | string }
@@ -29,7 +30,7 @@ export type PackFile = { format: 1; name: string; extends?: string; description?
 export type Mix = { colors: string; motion: string; theme?: string; spinner?: string; overrides?: Partial<Colors> }
 export type Look = {
   colorsFrom: string; motionFrom: string; theme: Theme; bg: string; rows: RowStyle; border: Border; borderColor: string
-  gradient?: [string, string]; extras: { hp: boolean; combo: boolean }; rowFlags: RowFlags; meters: MeterStyle; dividers: boolean
+  gradient?: [string, string]; extras: { hp: boolean; combo: boolean }; rowFlags: RowFlags; meters: MeterStyle; dividers: boolean; pet: PetTint
   motion: { spinner: SpinnerId; shimmer: 0 | 1 | 2; color: string; field: Field }
 }
 export const DEFAULT_MIX: Mix = { colors: 'classic', motion: 'classic' }
@@ -37,7 +38,8 @@ export const MAX_DEPTH = 8
 const FORMAT = 1
 // sound and voice are reserved for later versions: accepted, never read
 export const PACK_KEYS = ['format', 'name', 'extends', 'description', 'colors', 'motion', 'sound', 'voice']
-export const COLORS_KEYS = ['theme', 'palette', 'bg', 'rows', 'border', 'borderColor', 'gradient', 'extras', 'rowFlags', 'meters', 'dividers', 'glyphs', 'hearts', 'words']
+export const COLORS_KEYS = ['theme', 'palette', 'bg', 'rows', 'border', 'borderColor', 'gradient', 'extras', 'rowFlags', 'meters', 'dividers', 'glyphs', 'hearts', 'words', 'pet']
+export const PET_TINT_KEYS = ['body', 'light', 'shade']
 export const MOTION_KEYS = ['spinner', 'shimmer', 'color', 'field']
 export const EXTRAS_KEYS = ['hp', 'combo']
 export const ROW_FLAG_KEYS = ['labels', 'markers', 'xp']
@@ -123,6 +125,13 @@ function checkColors(v: unknown): void {
   checkGlyphs(v.glyphs, 'colors.glyphs')
   checkHearts(v.hearts, 'colors.hearts')
   checkWords(v.words, 'colors.words')
+  if (v.pet !== undefined) {
+    if (!isPlain(v.pet)) throw new Error('colors.pet must be an object of body, light and shade colors')
+    for (const [k, c] of Object.entries(v.pet)) {
+      if (!PET_TINT_KEYS.includes(k)) throw new Error(`unknown key "${shown(k)}" in colors.pet`)
+      if (typeof c !== 'string' || !HEX.test(c)) throw new Error(`colors.pet.${k} must be #rrggbb`)
+    }
+  }
 }
 
 function checkMotion(v: unknown): void {
@@ -157,7 +166,7 @@ export function validatePack(file: unknown): asserts file is PackFile {
 
 const merge = (a: Layer, b: Layer): Layer => {
   const out: Layer = { ...a, ...b }
-  for (const k of ['palette', 'extras', 'rowFlags', 'glyphs']) if (a[k] || b[k]) out[k] = { ...(a[k] as object), ...(b[k] as object) }
+  for (const k of ['palette', 'extras', 'rowFlags', 'glyphs', 'pet']) if (a[k] || b[k]) out[k] = { ...(a[k] as object), ...(b[k] as object) }
   return out
 }
 
@@ -179,7 +188,7 @@ function collect(name: string, kind: 'colors' | 'motion', user: Record<string, u
   return acc
 }
 
-type ColorsOut = Pick<Look, 'theme' | 'bg' | 'rows' | 'border' | 'borderColor' | 'gradient' | 'extras' | 'rowFlags' | 'meters' | 'dividers'>
+type ColorsOut = Pick<Look, 'theme' | 'bg' | 'rows' | 'border' | 'borderColor' | 'gradient' | 'extras' | 'rowFlags' | 'meters' | 'dividers' | 'pet'>
 
 function colorsOf(layer: ColorsLayer, override: string | undefined, userThemes: Record<string, unknown>, overrides?: Partial<Colors>): ColorsOut {
   const { theme: base, error } = resolveTheme(override ?? layer.theme ?? 'classic', userThemes)
@@ -202,6 +211,7 @@ function colorsOf(layer: ColorsLayer, override: string | undefined, userThemes: 
     rowFlags: { labels: layer.rowFlags?.labels ?? true, markers: layer.rowFlags?.markers ?? false, xp: layer.rowFlags?.xp ?? false },
     meters: layer.meters ?? 'default',
     dividers: layer.dividers ?? false,
+    pet: { ...layer.pet },
   }
 }
 
@@ -250,6 +260,7 @@ export function exportMix(look: Look, name: string): PackFile {
   const base = resolveTheme(Object.hasOwn(PRESETS, look.theme.name) ? look.theme.name : 'classic', {}).theme
   const glyphs = Object.fromEntries(GLYPH_KEYS.filter(k => look.theme.glyphs[k] !== base.glyphs[k]).map(k => [k, look.theme.glyphs[k]]))
   if (Object.keys(glyphs).length) colors.glyphs = glyphs
+  if (Object.keys(look.pet).length) colors.pet = { ...look.pet }
   if (look.theme.hearts.join() !== base.hearts.join()) colors.hearts = [...look.theme.hearts]
   if (look.theme.spinnerWords.join('\n') !== base.spinnerWords.join('\n')) colors.words = [...look.theme.spinnerWords]
   // validatePack counts UTF-16 units, so cut there and drop a split surrogate pair.
