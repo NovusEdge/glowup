@@ -23,6 +23,7 @@ export type Model = {
   limits: RateLimit[]
   costUsd?: number
   modelName?: string
+  effort?: string
   root?: string
   branch?: string
 }
@@ -42,6 +43,8 @@ export type Ev =
   // a field left out keeps its last value: model() and root() are read separately and either can fail
   | { type: 'session-info'; modelName?: string; root?: string }
   | { type: 'branch'; branch?: string }
+  // from each main-loop model request; a request without one (a model with no effort support) clears it
+  | { type: 'effort'; effort?: string }
 
 export const LINGER_MS = 1500
 export const CTX_SAMPLES = 120
@@ -118,6 +121,7 @@ export function applyEvent(m: Model, ev: Ev): Model {
     case 'plan-load': return ev.plan.length ? { ...m, plan: ev.plan } : m
     case 'usage': return { ...m, limits: ev.limits, costUsd: ev.costUsd ?? m.costUsd }
     case 'session-info': return { ...m, modelName: ev.modelName ?? m.modelName, root: ev.root ?? m.root }
+    case 'effort': return { ...m, effort: ev.effort }
     case 'branch': return { ...m, branch: ev.branch }
     case 'needs-you': return { ...m, actAt: ev.at, needsYou: { toolUseId: ev.toolUseId, what: ev.what, before: m.needsYou?.before ?? m.act }, act: { glyph: '!', label: `Needs you: ${ev.what}`, tone: 'fail' } }
     case 'agent-bind': return { ...m, agents: m.agents.map(a => a.key === ev.toolUseId ? { ...a, agentId: ev.agentId } : a) }

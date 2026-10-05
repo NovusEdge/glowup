@@ -2,7 +2,7 @@ import { expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
 import { fakeFs, runGlowup, test } from './kit.ts'
 
-const OPTS = { pack: 'classic', theme: 'classic', spinner: 'pack', pet: 'clawd', bubbles: 'on', statusline: 'activity,ctx,5h,week', reducedMotion: false }
+const OPTS = { pack: 'classic', theme: 'classic', spinner: 'pack', pet: 'clawd', bubbles: 'on', statusline: 'activity,ctx,effort,5h,week', reducedMotion: false }
 const CACHE = '/fake/.claude/plugins/cache/glowup/glowup'
 
 function boot(on: Parameters<typeof fakeFs>[0], files: Record<string, string> = {}, seed: Record<string, unknown> = {}) {

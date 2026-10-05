@@ -25,7 +25,7 @@ Claude Code puts a `⚠ glowup:` prefix in front of every mod's status entry. It
 
 ## Choosing the fields
 
-The entry and the takeover line both show the same list of fields, in the order you pick. The default is `activity ctx 5h week`.
+The entry and the takeover line both show the same list of fields, in the order you pick. The default is `activity ctx effort 5h week`.
 
 | Id | Shows |
 | --- | --- |
@@ -35,6 +35,7 @@ The entry and the takeover line both show the same list of fields, in the order 
 | `week` | weekly usage and reset: `wk 61% ↻Thu` |
 | `cost` | session cost: `$1.24` |
 | `model` | the model, as `/model` names it |
+| `effort` | the effort level of Claude's last request: `◐ high` |
 | `agents` | running subagents: `2 agents` |
 | `plan` | plan progress: `plan 3/7` |
 | `branch` | git branch |

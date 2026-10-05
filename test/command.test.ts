@@ -228,14 +228,14 @@ test('stored overrides are cleaned: unknown roles and bad colors are dropped', a
 test('statusline fields: set, show, default, unknown, repeats', async () => {
   const { host, store } = fakeHost()
   const { ctl: c } = ctl()
-  expect(await runCommand(host, 'statusline fields', c)).toBe('Status line fields: activity ctx 5h week')
+  expect(await runCommand(host, 'statusline fields', c)).toBe('Status line fields: activity ctx effort 5h week')
   expect(await runCommand(host, 'statusline fields 5h week 5h branch', c)).toBe('Status line fields: 5h week branch')
   expect(store.statusline).toEqual(['5h', 'week', 'branch'])
   const bad = await runCommand(host, 'statusline fields 5h nope zzz', c)
   expect(bad).toContain('Unknown fields: nope, zzz')
   expect(bad).toContain('activity, ctx, 5h')
   expect(store.statusline).toEqual(['5h', 'week', 'branch'])
-  expect(await runCommand(host, 'statusline fields default', c)).toBe('Status line fields: activity ctx 5h week')
+  expect(await runCommand(host, 'statusline fields default', c)).toBe('Status line fields: activity ctx effort 5h week')
   expect('statusline' in store).toBe(false)
 })
 

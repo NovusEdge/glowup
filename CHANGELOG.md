@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The pane's context warning now appears at the danger threshold, 80% by default (it was 70%).
+- The status line shows the effort level (`◐ high`) by default, as Claude Code's own footer does.
 
 ### Fixed
 

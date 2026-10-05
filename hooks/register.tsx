@@ -755,6 +755,14 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
+  on('turn.step', async function* ($, e, next) {
+    if (!off && !e.agentId) {
+      const effort = e.effort === undefined ? undefined : String(e.effort)
+      if (effort !== model.effort) feed($, { type: 'effort', effort })
+    }
+    return yield* next(e)
+  })
+
   on('tool.call', async ($, e, next) => {
     if (off) return next(e)
     // without an id the call cannot be matched to its end (an Agent row would never close)

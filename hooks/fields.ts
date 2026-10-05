@@ -3,9 +3,9 @@ import type { Colors, Theme } from './themes.ts'
 import { localTime } from './eggs.ts'
 import { DEFAULT_SETUP, toneFor, type Meter } from './setup.ts'
 
-export const FIELD_IDS = ['activity', 'ctx', '5h', 'week', 'cost', 'model', 'agents', 'plan', 'branch', 'changes', 'cwd'] as const
+export const FIELD_IDS = ['activity', 'ctx', '5h', 'week', 'cost', 'model', 'effort', 'agents', 'plan', 'branch', 'changes', 'cwd'] as const
 export type FieldId = (typeof FIELD_IDS)[number]
-export const DEFAULT_FIELDS: readonly FieldId[] = ['activity', 'ctx', '5h', 'week']
+export const DEFAULT_FIELDS: readonly FieldId[] = ['activity', 'ctx', 'effort', '5h', 'week']
 export const isFieldId = (s: string): s is FieldId => (FIELD_IDS as readonly string[]).includes(s)
 
 export function parseFields(v: unknown): FieldId[] | undefined {
@@ -54,6 +54,7 @@ function field(id: FieldId, m: Model, now: number, tzOffset: number, meter: Mete
     case 'week': return window('seven_day', 'wk')
     case 'cost': return m.costUsd === undefined ? undefined : [{ text: `$${m.costUsd.toFixed(2)}`, color: 'text' }]
     case 'model': return m.modelName ? [{ text: m.modelName, color: 'text' }] : undefined
+    case 'effort': return m.effort ? [{ text: '◐ ', color: 'dim' }, { text: m.effort, color: 'text' }] : undefined
     case 'agents': {
       const n = m.agents.filter(a => a.state === 'running').length
       return n ? [{ text: `${n} agent${n === 1 ? '' : 's'}`, color: 'text' }] : undefined
