@@ -17,7 +17,7 @@ jobs:
           test "$(jq -r .version .claude-plugin/plugin.json)" = "$version"
           test "$(jq -r .version package.json)" = "$version"
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       # Same version as types/vendor/claude-code.d.ts; bump both together.
