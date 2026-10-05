@@ -13,9 +13,9 @@
 
 </div>
 
-<img src="docs/assets/hero.gif" alt="glowup with the cyberpunk theme: the pane docked beside the transcript while Claude fixes a bug, a test fails then passes, and a subagent searches the repo" width="100%">
+<img src="docs/assets/hero.gif" alt="A cut of the launch video: Claude Code with the arcade pack and the glowup pane docked beside the transcript. Claude edits a file, a test fails and Clawd says 'ouch, 1 failed', then the fix passes, the level bar flashes LEVEL UP and Clawd hops" width="100%">
 
-<p align="center"><sub>The cyberpunk theme, pane docked: a fix goes in, a test fails, then passes, and a subagent searches on the side.</sub></p>
+<p align="center"><sub>A cut of the launch video, in the arcade pack with the pane docked: Claude edits a file, a test fails and costs a life, the fix passes, and Clawd hops as the level goes up. The full video also switches packs and shows the Plan &amp; context tab.</sub></p>
 
 glowup is a Claude Code mod. It adds to the terminal UI and leaves your transcript and prompt where they are.
 
@@ -38,18 +38,18 @@ The status box under the tabs shows the current action, the running subagents, a
 </td>
 <td width="50%" valign="top">
 
-<img src="docs/assets/pane-wide.png" alt="The Changes tab listing two edited files and two read files, with a status box below showing Done, five hearts and a working Explore subagent">
+<img src="docs/assets/pane-wide.png" alt="The docked pane on the Changes tab: three files in a box with their added and removed counts, and below it the status box reading Done, four hearts for the 5-hour limit and Clawd">
 
-<sub>Changes tab, with the status box below it.</sub>
+<sub>Changes tab, with the status box below it: Done, the usage hearts, and Clawd.</sub>
 
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
 
-<img src="docs/assets/agents.png" alt="The Agents tab showing one running Explore subagent, its task, and the grep it is running">
+<img src="docs/assets/agents.png" alt="The docked pane on the Agents tab: a running Explore subagent with its task and the grep it is running, a finished subagent below it, and the status box naming the running one">
 
-<sub>Agents tab: one subagent, 32 seconds in, mid-grep.</sub>
+<sub>Agents tab: one subagent mid-grep, one finished.</sub>
 
 </td>
 <td width="50%" valign="top">
@@ -217,7 +217,7 @@ glowup picks a layout from your terminal width. Your transcript and prompt never
 | Medium | 80 columns or more, pane not docked | The one-line band. The pane is a drawer you open with `/glowup pane`. |
 | Compact | Under 80 columns | The band, cut to fit. The drawer is small: a tab strip and at most six rows. |
 
-<img src="docs/assets/compact.png" alt="The compact drawer in a 70-column terminal: Changes tab with two files, then the band reading 5/5 tests passing" width="60%">
+<img src="docs/assets/compact.png" alt="The compact layout in a narrow terminal: a tab strip with two changed files and Clawd's one-row glyph, then the band reading 142 tests passing" width="60%">
 
 The pane docks in fullscreen, at 144 columns or more, or from 110 columns once you have opened it yourself. See [Layout](docs/layout.md).
 

@@ -10,6 +10,8 @@ just demo-editor    # live preview in the Revideo editor
 just demo-render    # out/launch.mp4 (1920x1080) and out/launch-square.mp4 (1080x1080)
 ```
 
+`just demo-stills` renders the README's pane images (`pane-wide.png`, `agents.png`, `compact.png`) into `docs/assets`: the classic pack on the bare `Screen`, no HUD or camera, one frame each (`src/scenes/stills.tsx`).
+
 Render one file with `pnpm render launch.mp4` (or `launch-square`). The render runs headless
 Chromium (it uses `/usr/bin/chromium`; set `CHROMIUM=/path` to override) and ffmpeg, one worker.
 `demo-render` wraps it in `systemd-run` with a 6G memory cap.
