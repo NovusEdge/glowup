@@ -12,6 +12,7 @@ import type { BubbleSetting } from './bubbles.ts'
 import type { EggStore } from './eggs.ts'
 import { SHORT_TEXT, FULL_TEXT, configText } from './help.ts'
 import { FIELD_IDS, isFieldId, type FieldId } from './fields.ts'
+import { setSetupField, describeSetup, DEFAULT_SETUP, type Setup } from './setup.ts'
 
 // What a command that needs more input falls back to, and what a headless config run prints.
 export const USAGE = FULL_TEXT
@@ -38,6 +39,8 @@ export type Ctl = {
   fields(): readonly FieldId[]
   // undefined goes back to the installer's (userConfig) list
   setFields(f: readonly FieldId[] | undefined): void
+  setup(): Setup
+  setSetup(s: Setup): void
 }
 
 const MAX_SCHEME_BYTES = 65536
@@ -347,6 +350,20 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   }
   if (sub === 'statusline' && a1 === 'on') return takeOver(host, q => ctl.confirm(q))
   if (sub === 'statusline' && a1 === 'restore') return restore(host)
+  if (sub === 'setup' && !a1) return describeSetup(ctl.setup())
+  if (sub === 'setup' && a1 === 'reset') {
+    await host.storeDelete('setup')
+    ctl.setSetup(DEFAULT_SETUP)
+    return describeSetup(DEFAULT_SETUP)
+  }
+  if (sub === 'setup' && a1 && a2) {
+    const r = setSetupField(ctl.setup(), a1, a2)
+    if ('error' in r) return r.error
+    await host.storeSet('setup', r.setup)
+    ctl.setSetup(r.setup)
+    return describeSetup(r.setup)
+  }
+  if (sub === 'setup') return 'Use /glowup setup <key> <value>, /glowup setup, or /glowup setup reset.'
   if (sub === 'help' && a1 === 'all') return FULL_TEXT
   return sub && sub !== 'help' ? `Unknown: ${args.trim()}\n\n${SHORT_TEXT}` : SHORT_TEXT
 }

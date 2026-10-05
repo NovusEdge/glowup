@@ -2,12 +2,13 @@ import { test, expect, mock } from 'claude-code/testing'
 import { runGlowup, fakeHost, fakeFs } from './kit.ts'
 import { runCommand, type Ctl } from '../hooks/command.ts'
 import { DEFAULT_FIELDS } from '../hooks/fields.ts'
+import { DEFAULT_SETUP } from '../hooks/setup.ts'
 
 const ctl = (colors = 'classic'): Ctl => ({
   current: () => 'classic', setTheme: async () => {}, togglePane: async () => '', setMotion: () => {}, confirm: async () => true,
   mix: () => ({ colors, motion: colors }), setMix: async () => [], pet: () => 'clawd', setPet: () => {},
   bubbles: () => 'on', setBubbles: () => {}, reduced: () => false, ask: async () => { throw new Error('dismissed') }, headless: async () => true,
-  fields: () => DEFAULT_FIELDS, setFields: () => {},
+  fields: () => DEFAULT_FIELDS, setFields: () => {}, setup: () => DEFAULT_SETUP, setSetup: () => {},
 })
 
 const HINT = 'In Konsole: Settings → Edit Current Profile → Appearance → pick "glowup arcade".'

@@ -35,6 +35,11 @@ export const SECTIONS: readonly (readonly [title: string, rows: HelpRow[]])[] = 
   ['Comfort', [
     ['/glowup motion reduced|full', 'animation off or on'],
   ]],
+  ['Layout', [
+    ['/glowup setup', 'band, tabs, meter, bubbles, pet sleep'],
+    ['/glowup setup <key> <value>', 'change one, e.g. meter.danger 90'],
+    ['/glowup setup reset', 'back to the defaults'],
+  ]],
   ['Make your own', [
     ['/glowup pack save <name>', 'save the current look'],
     ['/glowup pack <url>', 'install a shared pack'],

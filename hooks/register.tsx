@@ -21,6 +21,7 @@ import type { PetClientProps } from './client/pet.tsx'
 import type { OrbState } from './motion.ts'
 import { statusText, writeStatusFile, drawsStatusLine, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
 import { parseFields, DEFAULT_FIELDS, type ColorMode, type FieldId } from './fields.ts'
+import { DEFAULT_SETUP, parseSetup, type Setup } from './setup.ts'
 import { runCommand, SUMMARY_LEAD, type Ctl } from './command.ts'
 import { SHORT_TEXT, FULL_TEXT, parsePicked } from './help.ts'
 import { renderHelp, renderConfigCard, renderHeader } from './helpcard.tsx'
@@ -68,6 +69,7 @@ let off = false
 let guardSid = '', guardRoot = ''
 let takenOver = false
 let fields: readonly FieldId[] = DEFAULT_FIELDS
+let setup: Setup = DEFAULT_SETUP
 // the installer's value; `statusline fields default` returns to it
 let configFields: readonly FieldId[] = DEFAULT_FIELDS
 let colorMode: ColorMode = '256'
@@ -510,6 +512,8 @@ function ctlOf($: Engine): Ctl {
       writeStatus($, true)
       $.ui.status(statusEntry())
     },
+    setup: () => setup,
+    setSetup: s => { setup = s; relook($); writeStatus($, true); publishPet($) },
     ask: (question, o) => $.ui.ask(question, o),
     // surfaces() is empty only in a plain -p run
     headless: async () => (await $.session.surfaces().catch(() => ['terminal'])).length === 0,
@@ -587,7 +591,7 @@ export const register: Register = (on, options) => {
     }
     startBeat($)
     void checkStale($)
-    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|restore' })
+    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|setup|restore' })
     mix = await initialMix(host, options)
     const storedPet = await host.storeGet('pet')
     const wantPet = PETS.includes(storedPet as PetSetting) ? storedPet as PetSetting : PETS.includes(options.pet as PetSetting) ? options.pet as PetSetting : 'clawd'
@@ -608,6 +612,9 @@ export const register: Register = (on, options) => {
     installed = typeof at === 'number' ? at : undefined
     configFields = parseFields(options.statusline) ?? DEFAULT_FIELDS
     fields = parseFields(await host.storeGet('statusline')) ?? configFields
+    const parsed = parseSetup(await host.storeGet('setup'))
+    setup = parsed.setup
+    if (parsed.notices.length) $.ui.toast(`glowup setup: ${parsed.notices.join('; ')}`)
     // After the saved choices are loaded: the commands read and extend them (a spinner is added to
     // the current mix), and write the new choice to the store by the same path a typed command does.
     try {

@@ -5,6 +5,7 @@ import { SHORT_TEXT, FULL_TEXT, SECTIONS, DOCS_URL } from '../hooks/help.ts'
 import { resolveLook, cleanOverrides, type Mix } from '../hooks/packs.ts'
 import type { PetSetting } from '../hooks/pets.ts'
 import { DEFAULT_FIELDS, type FieldId } from '../hooks/fields.ts'
+import { DEFAULT_SETUP, type Setup } from '../hooks/setup.ts'
 
 test('/glowup and /glowup help print the short card', { timeoutMs: 20000 }, async ($, on) => {
   fakeFs(on)
@@ -23,7 +24,7 @@ test('/glowup help all prints every command in groups', async ($, on) => {
   mock.store(on)
   const out = (await runGlowup($, 'help all')).text!
   expect(out).toBe(FULL_TEXT)
-  for (const s of ['Start here', 'Look', 'Pet', 'Comfort', 'Make your own', 'Status line']) expect(out).toContain(s)
+  for (const s of ['Start here', 'Look', 'Pet', 'Comfort', 'Layout', 'Make your own', 'Status line']) expect(out).toContain(s)
   for (const [, rows] of SECTIONS) for (const [c] of rows) expect(out).toContain(c)
   expect(out).toBe(USAGE)
 })
@@ -42,6 +43,7 @@ const ctl = (answer = true, current = 'classic') => {
   let mix: Mix = { colors: 'classic', motion: 'classic' }
   let pet: PetSetting = 'clawd'
   let fields: readonly FieldId[] = DEFAULT_FIELDS
+  let setup: Setup = DEFAULT_SETUP
   const c: Ctl = {
     current: () => current,
     setTheme: async name => { calls.push('theme:' + name) },
@@ -57,6 +59,8 @@ const ctl = (answer = true, current = 'classic') => {
     reduced: () => false,
     fields: () => fields,
     setFields: f => { fields = f ?? DEFAULT_FIELDS },
+    setup: () => setup,
+    setSetup: s => { setup = s; calls.push('setup') },
     ask: async () => { throw new Error('dismissed') },
     headless: async () => true,
   }
@@ -410,4 +414,26 @@ test('pet and bubbles; clawd-shiny stays locked until earned', async () => {
   expect(await runCommand(host, 'bubbles haiku', c)).toBe('Bubbles: haiku')
   expect(store.bubbles).toBe('haiku')
   expect(calls).toEqual(['pet:off', 'pet:clawd-shiny', 'bubbles:off', 'bubbles:haiku'])
+})
+
+test('setup prints every key, sets one, and resets', async () => {
+  const { host, store } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'setup', c)).toContain('meter.danger   80')
+  const out = await runCommand(host, 'setup meter.danger 90', c)
+  expect(out).toContain('meter.danger   90')
+  expect((store.setup as Setup).meter.danger).toBe(90)
+  expect(calls).toContain('setup')
+  expect(await runCommand(host, 'setup band plan,meter', c)).toContain('band           plan, meter')
+  expect(await runCommand(host, 'setup reset', c)).toContain('meter.danger   80')
+  expect(store.setup).toBeUndefined()
+})
+
+test('setup refuses a bad value and keeps the old setup', async () => {
+  const { host, store } = fakeHost()
+  const { ctl: c } = ctl()
+  expect(await runCommand(host, 'setup meter.warn 95', c)).toBe('meter.warn must be below meter.danger')
+  expect(await runCommand(host, 'setup tabs none', c)).toBe('tabs must name at least one of: changes, agents, plan')
+  expect(await runCommand(host, 'setup band', c)).toBe('Use /glowup setup <key> <value>, /glowup setup, or /glowup setup reset.')
+  expect(store.setup).toBeUndefined()
 })

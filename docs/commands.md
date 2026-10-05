@@ -106,6 +106,26 @@ An override sits on top of whatever pack and theme are active and survives switc
 
 See [Pets](pets.md).
 
+## setup
+
+Your layout and behavior settings. They are yours alone: installing someone's pack never changes them.
+
+| Command | What it does |
+| --- | --- |
+| `/glowup setup` | Print every setting with its value. |
+| `/glowup setup <key> <value>` | Change one setting and print them all. |
+| `/glowup setup reset` | Go back to the defaults. |
+
+| Key | Value | Default |
+| --- | --- | --- |
+| `band` | Comma list of `combo`, `agents`, `meter`, `plan`, or `none`. The order is the order in the band. | `combo,agents,meter,plan` |
+| `tabs` | Comma list of `changes`, `agents`, `plan`; at least one. | `changes,agents,plan` |
+| `meter.warn` | Percent at which context and usage turn the `edit` color. | `50` |
+| `meter.danger` | Percent at which they turn `fail`, the pane warns and the pet pants. | `80` |
+| `bubbles.moods` | Comma list of `needs-you`, `fail`, `done`, or `none`. | all three |
+| `bubbles.ms` | How long a bubble stays, 1500 to 10000. | `3000` |
+| `pet.sleepMs` | Idle time before the pet sleeps, 15000 to 600000. | `60000` |
+
 ## config
 
 `/glowup config` asks five questions, two more if you pick "Tweak colors" and three more if you pick status line fields, in Claude Code's own question dialog. Each answer applies as soon as you give it:
