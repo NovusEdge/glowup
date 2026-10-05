@@ -93,12 +93,41 @@ export const QUAD: Record<string, number> = {
   '▙': 13, '▛': 7, '▜': 11, '▟': 14, '▚': 9, '▞': 6,
 };
 
+// The bundled JetBrains Mono is the latin subset and has no U+2800..28FF, so braille falls back to a
+// proportional font and renders as a small ':'. Cells are drawn as dots instead. Bit i of the
+// codepoint offset is the dot at BRAILLE_AT[i] = [column, row] in the 2x4 grid.
+export const isBraille = (ch: string) => ch >= '⠀' && ch <= '⣿';
+const BRAILLE_AT = [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [0, 3], [1, 3]];
+
+export class Braille {
+  readonly node: Node;
+  private dots: Circle[];
+
+  constructor(x: number, y: number, fill?: any) {
+    this.node = (<Node x={x} y={y} />) as Node;
+    this.dots = BRAILLE_AT.map(([c, r]) => {
+      const d = (<Circle size={5.2} x={(0.3 + 0.4 * c) * CW} y={LH * (0.2 + 0.2 * r)} opacity={0} fill={fill} />) as Circle;
+      this.node.add(d);
+      return d;
+    });
+  }
+
+  set(ch: string) {
+    const bits = ch.codePointAt(0)! - 0x2800;
+    this.dots.forEach((d, i) => d.opacity(bits & (1 << i) ? 1 : 0));
+  }
+
+  fill(f: string) {
+    this.dots.forEach(d => d.fill(f));
+  }
+}
+
 // The spinner as the mod draws it: a grid of single-cell glyphs. Each glyph sits in its
 // own cell, so braille and star glyphs from fallback fonts cannot push the others off the grid.
 export class SpinnerView {
   readonly node: Node;
   anim: SpinnerAnim;
-  private cells: {t: Txt; b: Rect; q: Rect[]}[][] = [];
+  private cells: {t: Txt; b: Rect; q: Rect[]; br: Braille}[][] = [];
 
   constructor(private look: LookSig, col: number, row: number, anim: SpinnerAnim) {
     this.anim = anim;
@@ -116,7 +145,9 @@ export class SpinnerView {
           <Rect x={c * CW + (i % 2) * (CW / 2)} y={r * LH + (i >> 1) * (LH / 2)} width={CW / 2 + 0.5} height={LH / 2 + 0.5} offset={[-1, -1]} opacity={0} />
         ) as Rect);
         q.forEach(n => this.node.add(n));
-        this.cells[r].push({t, b, q});
+        const br = new Braille(c * CW, r * LH);
+        this.node.add(br.node);
+        this.cells[r].push({t, b, q, br});
       }
     }
   }
@@ -127,10 +158,13 @@ export class SpinnerView {
     const bg = this.look.sig.bg().hex();
     const tint = this.look.sig.spinTint().hex();
     this.cells.forEach((row, r) =>
-      row.forEach(({t: txt, b, q}, c) => {
+      row.forEach(({t: txt, b, q, br}, c) => {
         const cell = s.frames[i][r]?.[c];
         const mask = cell ? QUAD[cell.ch] : undefined;
-        txt.text(mask === undefined ? cell?.ch ?? '' : '');
+        const dots = !!cell && isBraille(cell.ch);
+        txt.text(mask === undefined && !dots ? cell?.ch ?? '' : '');
+        br.set(dots ? cell.ch : '⠀');
+        if (dots) br.fill(shade(cell.fg, tint, bg));
         q.forEach((n, k) => {
           n.opacity(mask !== undefined && mask & (1 << k) ? 1 : 0);
           if (cell) n.fill(shade(cell.fg, tint, bg));

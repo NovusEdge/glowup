@@ -2,7 +2,7 @@ import {Line, Node, Rect, Txt} from '@revideo/2d';
 import {useTime} from '@revideo/core';
 import {planOrder} from '../../hooks/tasks.ts';
 import {Look} from './data';
-import {CW, FONT, FS, LH, Paint, QUAD, Term, binders} from './term';
+import {Braille, CW, FONT, FS, LH, Paint, QUAD, Term, binders, isBraille} from './term';
 
 // The glowup pane as hooks/pane.tsx draws it: rows are lists of colored segments, built by
 // the same rules (what a tab lists, how the context bar is split, what the status box says)
@@ -382,11 +382,16 @@ export function drawSegs(T: Term, parent: Node, col: number, row: number, segs: 
         run += ch;
       } else {
         flush();
-        const t = (
-          <Txt text={s.spin ? SPIN[0] : ch} x={x * CW + CW / 2} y={row * LH} offset={[0, -1]} fontFamily={FONT} fontSize={FS} lineHeight={LH} fontWeight={s.bold ? 700 : 400} fill={T.paint(s.color)} />
-        ) as Txt;
-        parent.add(t);
-        if (s.spin) binders.push(() => t.text(SPIN[Math.floor((useTime() * 1000) / 90) % SPIN.length]));
+        if (isBraille(ch)) {
+          const br = new Braille(x * CW, row * LH, T.paint(s.color));
+          br.set(ch);
+          parent.add(br.node);
+          if (s.spin) binders.push(() => br.set(SPIN[Math.floor((useTime() * 1000) / 90) % SPIN.length]));
+        } else {
+          parent.add(
+            <Txt text={ch} x={x * CW + CW / 2} y={row * LH} offset={[0, -1]} fontFamily={FONT} fontSize={FS} lineHeight={LH} fontWeight={s.bold ? 700 : 400} fill={T.paint(s.color)} />,
+          );
+        }
       }
       x++;
     }
