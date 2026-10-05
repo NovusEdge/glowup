@@ -35,6 +35,8 @@ A pack is a JSON file at `~/.claude/glowup/packs/<name>.json` (`$CLAUDE_CONFIG_D
 | `rowFlags.labels` | `true`, `false` | Show the `you` and `claude` labels (`[YOU]` and `[CLAUDE]` in `retro`). Default `true`. |
 | `rowFlags.markers` | `true`, `false` | In `cards`, mark your prompt with `▶ ` in `accent` and Claude's reply with `◆ ` in `read`, instead of the side bar. Default `false`. |
 | `rowFlags.xp` | `true`, `false` | In `cards`, draw `+N XP` right-aligned above a reply, N being the successful tool calls in a row so far this turn. Left out at 0, in `edit` color. Default `false`. |
+| `meters` | `default`, `dither` | The usage rows in the pane's status box. `default` is hearts, or the HP bar with `extras.hp`; `dither` draws a bar per 5-hour and weekly window that ramps from `accent` to `text` and dissolves through `▓▒░` into `faint` dots. Default `default`. |
+| `dividers` | `true`, `false` | Draw a numbered rule, `░▒▓━━ 03 ━━━▓▒░` in `faint` with the number in `accent`, above each of your prompts. Default `false`. |
 
 ## Motion layer
 
@@ -43,6 +45,7 @@ A pack is a JSON file at `~/.claude/glowup/packs/<name>.json` (`$CLAUDE_CONFIG_D
 | `spinner` | `stock`, `comet`, `eyes`, `orb-states`, `clawd`, `shimmer` | The spinner. `stock` is Claude Code's own. Use only these: an id glowup lacks falls back to `stock` with a notice. Default `stock`. |
 | `shimmer` | `0`, `1`, `2` | Shimmer across the spinner word: none, soft, fast. Default `1`. |
 | `color` | `#rrggbb` | Spinner color. Default: the palette's `accent`. |
+| `field` | `none`, `warp` | An animated texture in the docked pane's open rows, between the tab and the status box. `warp` is domain-warped noise dithered into braille dots, from a darkened `faint` to `accent`. It holds still under reduced motion. Default `none`. |
 
 ## Theme colors
 
