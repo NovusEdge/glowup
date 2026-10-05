@@ -2,6 +2,8 @@ import { expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
 import { runGlowup, fakeFs, test } from './kit.ts'
 import { USAGE } from '../hooks/command.ts'
+import { PACKS } from '../hooks/packpresets.ts'
+import { resolveLook, DEFAULT_MIX } from '../hooks/packs.ts'
 
 const setup = (on: any, surfaces: string[] = ['terminal'], files: Record<string, string> = {}) => {
   fakeFs(on, files)
@@ -55,6 +57,17 @@ test('a submitted hex sets the override; a bad one leaves it and says why', asyn
   await ui.unmount()
 })
 
+test('submitting a field unchanged runs nothing and draws no note', async ($, on) => {
+  setup(on)
+  await runGlowup($, 'config')
+  const ui = await mountConfig($)
+  const accent = resolveLook(DEFAULT_MIX, {}, {}).look.theme.colors.accent
+  await ui.input({ key: 'input-color:accent', text: accent, kind: 'submit' })
+  expect(await ui.find({ type: 'Text', text: /^Color accent/ })).toBeUndefined()
+  expect((await runGlowup($, 'color list')).text).toContain('○ accent')
+  await ui.unmount()
+})
+
 test('tabs typed in a new order reorder the main pane', async ($, on) => {
   setup(on)
   await runGlowup($, 'config')
@@ -65,15 +78,24 @@ test('tabs typed in a new order reorder the main pane', async ($, on) => {
 })
 
 test('a pack deleted after the pane opened shows the error and the pane keeps drawing', async ($, on) => {
-  const files = { '/fake/.claude/glowup/packs/zzz.json': JSON.stringify({ format: 1, name: 'zzz', colors: { theme: 'classic' } }) }
+  const files = { '/fake/.claude/glowup/packs/zzz.json': JSON.stringify({ format: 1, name: 'zzz', colors: { meters: 'dither' } }) }
   setup(on, ['terminal'], files)
-  await runGlowup($, 'pack zzz')
-  await runGlowup($, 'pack classic')
+  // the config dir the pack is read from is set at session start
+  mock.clock(on)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  expect((await runGlowup($, 'pack zzz')).text).toBe('Pack: zzz')
+  // the last built-in is followed by zzz in the cycle
+  await runGlowup($, `pack ${Object.keys(PACKS).at(-1)}`)
   await runGlowup($, 'config')
   delete (files as Record<string, string>)['/fake/.claude/glowup/packs/zzz.json']
   const ui = await mountConfig($)
-  for (let i = 0; i < 20 && !(await ui.find({ text: /zzz/ })); i++) await ui.press({ key: 'cycle-pack' })
+  const last = Object.keys(PACKS).at(-1)!
+  const fail = resolveLook({ colors: last, motion: last }, {}, {}).look.theme.colors.fail
   await ui.press({ key: 'cycle-pack' })
+  const note = await ui.find({ type: 'Text', text: /no pack named "zzz"/ })
+  expect(note?.props.color).toBe(fail)
   expect(await ui.find({ key: 'cycle-pack' })).toBeDefined()
   await ui.unmount()
 })

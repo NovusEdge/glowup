@@ -26,7 +26,7 @@ import { DEFAULT_SETUP, parseSetup, type Setup } from './setup.ts'
 import { runCommand, type Ctl } from './command.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 import { renderHelp, renderColorList } from './helpcard.tsx'
-import { cycleCommands, inputCommand, type ConfigState, type CycleId, type InputId } from './configrows.ts'
+import { cycleCommands, inputCommand, inputValue, type ConfigState, type CycleId, type InputId } from './configrows.ts'
 import { renderConfig, type ConfigNote } from './configpane.tsx'
 import { encodeLink } from './link.ts'
 import { loadUserThemes } from './userthemes.ts'
@@ -953,6 +953,9 @@ export const register: Register = (on, options) => {
       input: (id: InputId, text: string) => {
         const r = inputCommand(id, text, configState())
         if ('error' in r) { configNote = { text: r.error, tone: 'error' }; relook($); return }
+        // Enter on an untouched field would run a no-op command and report it as refused.
+        const same = inputCommand(id, inputValue(id, s), s)
+        if ('cmd' in same && same.cmd === r.cmd) return
         void runConfig($, [r.cmd])
       },
       done: () => void $.ui.close({ id: CONFIG_ID }),
