@@ -804,7 +804,7 @@ export const register: Register = (on, options) => {
       // unsized, the region shrinks to the sprite and surface.columns leaves no room to walk
       const node = <Client key="glowup-pet" module="./client/pet.tsx" props={props} width={compact ? undefined : props.width} />
       const bubbleNow = snap.bubble && snap.bubble.until > Date.now() ? snap.bubble : undefined
-      extra = { look, pet: { id: pid as PetId, node, rows: snap.overlays.some(o => HEAD_OUTFITS.includes(o)) ? PET_ROWS + 2 : undefined }, bubble: bubbleNow, friday: snap.friday }
+      extra = { ...extra, pet: { id: pid as PetId, node, rows: snap.overlays.some(o => HEAD_OUTFITS.includes(o)) ? PET_ROWS + 2 : undefined }, bubble: bubbleNow, friday: snap.friday }
     }
     // the engine scrolls the whole body, which would carry the pet off with a long tab: budget the tab to bodyRows instead
     extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onScroll: (offset: number) => { view = { ...view, offset }; publish($) } }
