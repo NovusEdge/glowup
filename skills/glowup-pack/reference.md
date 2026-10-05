@@ -45,16 +45,16 @@ A pack is a JSON file at `~/.claude/glowup/packs/<name>.json` (`$CLAUDE_CONFIG_D
 | `spinner` | `stock`, `comet`, `eyes`, `orb-states`, `clawd`, `shimmer` | The spinner. `stock` is Claude Code's own. Use only these: an id glowup lacks falls back to `stock` with a notice. Default `stock`. |
 | `shimmer` | `0`, `1`, `2` | Shimmer across the spinner word: none, soft, fast. Default `1`. |
 | `color` | `#rrggbb` | Spinner color. Default: the palette's `accent`. |
-| `field` | `none`, `warp`, `simplex`, or an object | An animated texture in the docked pane's open rows, between the tab and the status box, dithered into braille dots of one color, the palette's `faint` unless `field.color` sets it. `simplex` is soft noise that morphs in place; `warp` is noise folded through itself. A name uses the default knobs; an object takes a `shape` and any of the knobs below. It holds still under reduced motion. Default `none`. |
+| `field` | `none`, `warp`, `simplex`, or an object | An animated texture in the docked pane's open rows, between the tab and the status box, dithered into braille dots of one color, the palette's `faint` unless `field.color` sets it. `simplex` is Paper's dithering shader's simplex shape, and Paper settings for it carry over as they are, except `size`; `warp` is noise folded through itself. A name uses the default knobs; an object takes a `shape` and any of the knobs below. It holds still under reduced motion. Default `none`. |
 | `field.shape` | `none`, `warp`, `simplex` | Required in the object form. |
 | `field.speed` | number, `0` to `4` | How fast it moves. `0` holds still. Default `1`. |
 | `field.scale` | number, `0.05` to `4` | Feature size: smaller packs in more, finer shapes. Default `1`. |
 | `field.rotation` | number, `0` to `360` | Degrees the pattern is turned. Default `0`. |
-| `field.offsetX` | number, `-1` to `1` | Shifts the pattern sideways, in pane heights. Default `0`. |
-| `field.offsetY` | number, `-1` to `1` | Shifts the pattern up or down, in pane heights. Default `0`. |
+| `field.offsetX` | number, `-1` to `1` | Shifts the pattern sideways, in the pane's shorter side. Default `0`. |
+| `field.offsetY` | number, `-1` to `1` | Shifts the pattern up or down, in the pane's shorter side. Default `0`. |
 | `field.density` | number, `0.2` to `2` | How much of the field is lit. Default `1`. |
 | `field.warp` | number, `0` to `8` | How far `warp` folds the noise; ignored by `simplex`. Default `4`. |
-| `field.size` | whole number, `1` to `4` | Braille dots per side of one dither pixel: `1` is finest, `4` lights whole cells. Default `1`. |
+| `field.size` | whole number, `1` to `4` | Braille dots per side of one dither pixel: `1` is finest, `4` lights whole cells. Not Paper's pixel size: keep `1` when copying Paper settings, since Paper's pixels are far finer than a braille dot. Default `1`. |
 | `field.dither` | `2x2`, `4x4`, `8x8` | The ordered (Bayer) dither matrix. Default `8x8`. |
 | `field.fps` | number, `1` to `12` | Frames a second. Claude Code repaints the whole field each frame, about a quarter of one CPU core at `10` on an 88×24 pane, so a slow field can run lower. Default `10`. |
 | `field.color` | `#rrggbb` | The dots' color. Check it reads at 3:1 or less against `bg`, so it stays background. Default: the palette's `faint`. |

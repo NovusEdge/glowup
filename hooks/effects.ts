@@ -43,14 +43,48 @@ function noise3(x: number, y: number, z: number) {
 }
 const fbm3 = (x: number, y: number, z: number) => noise3(x, y, z) * 0.6 + noise3(x * 2.03, y * 2.03, z * 1.7) * 0.4
 
+// Paper's snoise (Ashima 2D simplex, from @paper-design/shaders shader-utils), in [-1, 1].
+const mod289 = (x: number) => x - Math.floor(x / 289) * 289
+const permute = (x: number) => mod289((x * 34 + 1) * x)
+const fract = (x: number) => x - Math.floor(x)
+function snoise(vx: number, vy: number): number {
+  const s = (vx + vy) * 0.366025403784439
+  let ix = Math.floor(vx + s), iy = Math.floor(vy + s)
+  const u = (ix + iy) * 0.211324865405187, x0 = vx - ix + u, y0 = vy - iy + u
+  const i1x = x0 > y0 ? 1 : 0, i1y = 1 - i1x
+  const x1 = x0 + 0.211324865405187 - i1x, y1 = y0 + 0.211324865405187 - i1y
+  const x2 = x0 - 0.577350269189626, y2 = y0 - 0.577350269189626
+  ix = mod289(ix)
+  iy = mod289(iy)
+  let r = 0
+  for (const [dx, dy, px, py] of [[0, 0, x0, y0], [i1x, i1y, x1, y1], [1, 1, x2, y2]] as const) {
+    let m = Math.max(0.5 - (px * px + py * py), 0)
+    if (!m) continue
+    m *= m
+    m *= m
+    const g = 2 * fract(permute(permute(iy + dy) + ix + dx) * 0.024390243902439) - 1
+    const h = Math.abs(g) - 0.5, a0 = g - Math.floor(g + 0.5)
+    r += m * (1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h)) * (a0 * px + h * py)
+  }
+  return 130 * r
+}
+const smoothstep = (a: number, b: number, x: number) => ease(Math.min(1, Math.max(0, (x - a) / (b - a))))
+
 // Claude Code repaints the whole field on every tick, about 2,000 characters at 88x24. Measured
 // in one session against the same pack with no field: about 25 points of one core at fps 10.
 export const fieldTickMs = (f: Field) => Math.round(1000 / f.fps)
 
-// Density in [0, 1] at a point. simplex morphs noise in place along its third axis; warp
-// (after Paper's "warp") folds noise through itself with an offset that circles every 12 s.
+// Density in [0, 1] at a point given in field heights. simplex is Paper's: the field's height
+// stands for Paper's 720 px canvas, and two octaves drift apart vertically. warp (after Paper's
+// "warp", not its formula) folds noise through itself with an offset that circles every 12 s.
 function shapeAt(f: Field, x: number, y: number, t: number): number {
-  if (f.shape === 'simplex') return Math.min(1, Math.max(0, (fbm3(x, y, t * f.speed * 0.5) - 0.5) * 2.2 + 0.5) * f.density)
+  if (f.shape === 'simplex') {
+    const u = x * 0.72, v = y * 0.72, pt = 0.5 * t * f.speed
+    const n = 0.5 * snoise(u, v - 0.3 * pt) + 0.5 * snoise(2 * u, 2 * v + 0.32 * pt)
+    return Math.min(1, smoothstep(0.3, 0.9, 0.5 + 0.5 * n) * f.density)
+  }
+  x *= 1.6
+  y *= 1.6
   const a = t * f.speed * Math.PI * 2 / 12, ox = Math.cos(a) * 0.6, oy = Math.sin(a) * 0.6
   const q = fbm3(x + ox, y + oy, 0)
   return Math.min(1, Math.pow(fbm3(x + f.warp * q + oy, y + f.warp * q + ox, 0), 1.4) * 1.2 * f.density)
@@ -69,14 +103,15 @@ let grid: Grid | undefined
 function gridFor(cols: number, rows: number, f: Field): Grid {
   const key = [cols, rows, f.size, f.scale, f.rotation, f.offsetX, f.offsetY, f.dither].join()
   if (grid?.key === key) return grid
-  const W = cols * 2, H = rows * 4, sz = f.size, freq = 1.6 / f.scale
+  const W = cols * 2, H = rows * 4, sz = f.size, short = Math.min(W, H) / H
   const rad = f.rotation * Math.PI / 180, cs = Math.cos(rad), sn = Math.sin(rad)
   const lw = Math.ceil(W / STEP) + 1, lh = Math.ceil(H / STEP) + 1
   const xy = new Float64Array(lw * lh * 2)
+  // Paper's framing: y up, offsets in the canvas's short side applied before scale and rotation.
   for (let j = 0; j < lh; j++) for (let i = 0; i < lw; i++) {
-    const u = (i * STEP - W / 2) / H - f.offsetX, v = (j * STEP - H / 2) / H - f.offsetY, k = (j * lw + i) * 2
-    xy[k] = (u * cs - v * sn) * freq
-    xy[k + 1] = (u * sn + v * cs) * freq
+    const u = ((i * STEP - W / 2) / H - f.offsetX * short) / f.scale, v = ((H / 2 - j * STEP) / H + f.offsetY * short) / f.scale, k = (j * lw + i) * 2
+    xy[k] = u * cs - v * sn
+    xy[k + 1] = u * sn + v * cs
   }
   const m = BAYER[f.dither], side = m.length
   const bw = Math.ceil(W / sz), bh = Math.ceil(H / sz), n = bw * bh
@@ -87,14 +122,14 @@ function gridFor(cols: number, rows: number, f: Field): Grid {
     at[p] = iy * lw + ix
     wx[p] = gx - ix
     wy[p] = gy - iy
-    cut[p] = (m[by % side]![bx % side]! + 0.5) / (side * side)
+    cut[p] = 1 - m[by % side]![bx % side]! / (side * side)
   }
   return (grid = { key, lw, xy, bw, at, wx, wy, cut })
 }
 
 // One frame of the pack's field at t seconds, drawn live by client/field.tsx on every tick. The
 // field is a grid of braille dots; `size` dots square make one dither pixel, and each pixel meets
-// its own Bayer threshold. Space is centred, one unit the field's height.
+// its own Bayer threshold, lit as Paper lights it: shape + bayer - 0.5 >= 0.5.
 export function fieldFrame(cols: number, rows: number, colors: Colors, t: number, f: Field): Seg[][] {
   const ink = f.color ?? colors.faint
   const g = gridFor(cols, rows, f), sz = f.size
@@ -118,7 +153,7 @@ export function fieldFrame(cols: number, rows: number, colors: Colors, t: number
         const base = Math.floor((r * 4 + y) / sz) * g.bw
         for (let x = 0; x < 2; x++) {
           const p = base + Math.floor((c * 2 + x) / sz)
-          if (pix[p]! > g.cut[p]!) bits |= DOT[y]![x]!
+          if (pix[p]! >= g.cut[p]!) bits |= DOT[y]![x]!
         }
       }
       text += bits ? String.fromCharCode(0x2800 + bits) : ' '
