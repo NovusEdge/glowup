@@ -9,11 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `/glowup setup`: pick and order the band's parts and the pane's tabs, set when context and usage turn warning and danger colors, choose which moments get a speech bubble and how long it stays, and how soon the pet falls asleep. Your setup is never changed by installing a pack.
+- `/glowup pack <studio link>` installs a look straight from a glowup studio link, with nothing downloaded.
+- `/glowup color list` draws each color and says what it paints.
 - glowup shows a toast when a session runs an older copy than the one installed, for example after `claude plugin update`, and says to run `/reload-plugins`.
 - The Plan & context tab says more about the context. The bar marks where auto-compact runs. A two-row braille chart replaces the sparkline and draws the auto-compact point as a dashed rule. A line under it gives the growth per turn and how many turns are left before auto-compact. The tab lists the three heaviest sources you can trim, such as an MCP server's tools, a `CLAUDE.md` or the skill listing, and shows the prompt cache hit rate.
 
 ### Changed
 
+- The pane's context warning now appears at the danger threshold, 80% by default (it was 70%).
 - The last change wins between the `/plugin` settings and the `/glowup` commands. A value changed in `/plugin` is applied at the next session start or after `/reload-plugins`, as if you had typed the matching command; before, a saved `/glowup` choice always won.
 - `/glowup config` ends on a card in the pack's look, with what you picked and three commands to try next, in place of the one-line summary.
 
