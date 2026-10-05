@@ -1,21 +1,53 @@
 import type { Look } from './packs.ts'
 import { renderSegs, type Seg } from './layout.tsx'
-import { SHORT_ROWS, SECTIONS, COMMAND_COLS, DOCS_URL, type HelpRow } from './help.ts'
+import { SHORT_ROWS, SECTIONS, COMMAND_COLS, DOCS_URL, PICK_COLS, TRY_COLS, TRY_NEXT, PICKED_TITLE, TRY_TITLE, type HelpRow } from './help.ts'
 
 // `els` is the table from $.ui.resolve(e).
-export function renderHelp(els: { Box: any; Text: any }, look: Look, full: boolean) {
+type Els = { Box: any; Text: any }
+
+export function renderHeader(els: Els, look: Look) {
   const { Box } = els
   const c = look.theme.colors
   const word = (look.theme.spinnerWords[0] ?? 'Thinking') + '…'
   const swatches = [c.accent, c.read, c.edit, c.shell, c.pass].flatMap((color, i): Seg[] => [...(i ? [{ text: ' ', color }] : []), { text: '██', color }])
   const header: Seg[] = [{ text: 'glowup', color: c.accent, bold: true }, { text: '  ', color: c.text }, ...swatches, { text: '  ✻ ' + word, color: c.accent }]
+  return <Box key="header" flexDirection="column" borderStyle={look.border} borderColor={look.borderColor} paddingX={1}>{renderSegs(els, header)}</Box>
+}
+
+export function renderConfigCard(els: Els, look: Look, picked: readonly (readonly [string, string])[]) {
+  const { Box } = els
+  const c = look.theme.colors
+  const gap = (key: string) => renderSegs(els, [], key)
+  const title = (text: string, key: string) => renderSegs(els, [{ text: '  ' + text, color: c.accent, bold: true }], key)
+  return (
+    <Box flexDirection="column">
+      {renderHeader(els, look)}
+      {gap('gap')}
+      {title(PICKED_TITLE, 'picked')}
+      {picked.map(([label, value]) => renderSegs(els, [
+        { text: '  ' + label.padEnd(PICK_COLS), color: c.dim }, { text: value, color: c.text },
+      ], label))}
+      {gap('gap2')}
+      {title(TRY_TITLE, 'try')}
+      {TRY_NEXT.map(([name, what]) => renderSegs(els, [
+        { text: '  ' + name.padEnd(TRY_COLS), color: c.text, bold: true }, { text: what, color: c.dim },
+      ], name))}
+      {gap('gap3')}
+      {renderSegs(els, [{ text: '  docs: ', color: c.dim }, { text: DOCS_URL, color: c.accent }], 'docs')}
+    </Box>
+  )
+}
+
+export function renderHelp(els: Els, look: Look, full: boolean) {
+  const { Box } = els
+  const c = look.theme.colors
   const cmd = ([name, what]: HelpRow, key: string) => renderSegs(els, [
     { text: '  ' + name.padEnd(COMMAND_COLS) + ' ', color: c.text, bold: true }, { text: what, color: c.dim },
   ], key)
   const gap = (key: string) => renderSegs(els, [], key)
   return (
     <Box flexDirection="column">
-      <Box key="header" flexDirection="column" borderStyle={look.border} borderColor={look.borderColor} paddingX={1}>{renderSegs(els, header)}</Box>
+      {renderHeader(els, look)}
       {full
         ? SECTIONS.map(([title, rows]) => (
           <Box key={title} flexDirection="column">

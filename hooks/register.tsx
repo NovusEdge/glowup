@@ -21,11 +21,13 @@ import type { OrbState } from './motion.ts'
 import { statusText, writeStatusFile, drawsStatusLine, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
 import { parseFields, DEFAULT_FIELDS, type ColorMode, type FieldId } from './fields.ts'
 import { runCommand, SUMMARY_LEAD, type Ctl } from './command.ts'
-import { SHORT_TEXT, FULL_TEXT } from './help.ts'
-import { renderHelp } from './helpcard.tsx'
+import { SHORT_TEXT, FULL_TEXT, parsePicked } from './help.ts'
+import { renderHelp, renderConfigCard, renderHeader } from './helpcard.tsx'
 import { loadUserThemes } from './userthemes.ts'
 import { firstRun } from './firstrun.ts'
 import { registerCopy, touchCopy, decide, unregisterCopy, pruneStatus, safeId, HEARTBEAT_MS } from './instances.ts'
+import { staleToast, INSTALLED_FILE } from './update.ts'
+import { syncPlugin } from './pluginsync.ts'
 
 type Engine = EngineInterface
 type SpinKey = { turnAt: number; detail: string; state: OrbState }
@@ -129,11 +131,21 @@ function writeStatus($: Engine, force: boolean) {
   lastStatusLine = line
   void writeStatusFile(hostOf($), sessionId, line).catch(() => {})
 }
+// Versions already announced this session; a hot reload starts it over, which only repeats a toast.
+const staleShown = new Set<string>()
+async function checkStale($: Engine) {
+  if (off || !interactive) return
+  try {
+    const text = staleToast(staleShown, JSON.parse(await hostOf($).readFile(INSTALLED_FILE(configDir))), guardRoot, configDir)
+    if (text) $.ui.toast(text)
+  } catch {}
+}
 function startBeat($: Engine) {
   beatTimer?.cancel()
   beatTimer = $.clock.every(HEARTBEAT_MS, () => {
     if (guardSid) void touchCopy(hostOf($), guardSid, guardRoot, Date.now()).catch(() => {})
     writeStatus($, true)
+    void checkStale($)
   })
 }
 // A winning copy whose store has no backup (the takeover was made by another copy
@@ -568,6 +580,7 @@ export const register: Register = (on, options) => {
       }
     }
     startBeat($)
+    void checkStale($)
     await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|restore' })
     mix = await initialMix(host, options)
     const storedPet = await host.storeGet('pet')
@@ -589,6 +602,14 @@ export const register: Register = (on, options) => {
     installed = typeof at === 'number' ? at : undefined
     configFields = parseFields(options.statusline) ?? DEFAULT_FIELDS
     fields = parseFields(await host.storeGet('statusline')) ?? configFields
+    // After the saved choices are loaded: the commands read and extend them (a spinner is added to
+    // the current mix), and write the new choice to the store by the same path a typed command does.
+    try {
+      const toast = await syncPlugin(host, options, cmd => runCommand(host, cmd, ctlOf($)))
+      if (toast) $.ui.toast(toast)
+    } catch (err) {
+      $.ui.log(`/plugin sync failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
+    }
     const colorterm = await $.env.get('COLORTERM')
     colorMode = colorterm === 'truecolor' || colorterm === '24bit' ? 'truecolor' : '256'
     await syncTakeover($)
@@ -836,18 +857,18 @@ export const register: Register = (on, options) => {
     if (args !== 'config' || !p.text.startsWith(SUMMARY_LEAD)) return next(e)
     // The row is history: draw the pack it names, not whatever look is on now. A render hook must not
     // read disk, so a user pack resolves only while it is the live one.
-    const [colors = '', motion = colors] = p.text.slice(SUMMARY_LEAD.length).split(' · ')[0]!.split('/')
+    const picked = parsePicked(p.text)
+    const [colors = '', motion = colors] = p.text.slice(SUMMARY_LEAD.length).split('\n')[0]!.split(' · ')[0]!.split('/')
     const live = !mix.theme && mix.colors === colors && mix.motion === motion
     const r = live ? { look, errors: [] } : resolveLook({ colors, motion }, {}, {})
     if (r.errors.length) return next(e)
-    const l = r.look
-    const c = l.theme.colors, swatch = [c.accent, c.read, c.edit, c.shell, c.pass]
-    const word = (l.theme.spinnerWords[0] ?? 'Thinking') + '…'
-    const els = $.ui.resolve(e), { Box } = els
-    return <Box flexDirection="column">
-      {renderSegs(els, [{ text: p.text, color: c.text }], 'summary')}
-      {renderSegs(els, [...swatch.map(color => ({ text: '██', color })), { text: '  ' + word, color: c.accent }], 'palette')}
-    </Box>
+    const els = $.ui.resolve(e)
+    // a row from before the card was one line; it keeps its header
+    if (!picked) {
+      const { Box } = els
+      return <Box flexDirection="column">{renderHeader(els, r.look)}{renderSegs(els, [{ text: p.text, color: r.look.theme.colors.text }], 'summary')}</Box>
+    }
+    return renderConfigCard(els, r.look, picked)
   })
 
   on('command.run', { command: 'glowup' }, async ($, e, next) => {

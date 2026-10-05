@@ -4,10 +4,12 @@ import { runCommand, USAGE, type Ctl } from '../hooks/command.ts'
 import type { Mix } from '../hooks/packs.ts'
 import type { PetSetting } from '../hooks/pets.ts'
 import type { BubbleSetting } from '../hooks/bubbles.ts'
+import { configText, parsePicked } from '../hooks/help.ts'
 import { DEFAULT_FIELDS, type FieldId } from '../hooks/fields.ts'
 
 type Q = { question: string; header: string; options: string[]; multiSelect?: true }
 const ESC = Symbol('esc')
+const first = (s: string) => s.split('\n')[0]
 
 // answers are consumed one per question; ESC rejects like a dismissed dialog
 const rig = (answers: (string | typeof ESC)[], start: { mix?: Mix; pet?: PetSetting; bubbles?: BubbleSetting; reduced?: boolean; headless?: boolean; fields?: FieldId[] } = {}, files: Record<string, string> = {}, store: Record<string, unknown> = {}) => {
@@ -67,7 +69,7 @@ test('each answer applies right away through the command paths', async () => {
   expect(r.kv.bubbles).toBe('off')
   expect(r.kv.reducedMotion).toBe(true)
   expect(r.calls).toEqual(['mix:arcade', 'pet:off', 'bubbles:off', 'motion:true'])
-  expect(out).toBe('glowup · arcade · no pet · bubbles off · reduced motion')
+  expect(first(out)).toBe('glowup · arcade · no pet · bubbles off · reduced motion')
 })
 
 test('the spinner options are Pack default plus the first three ids that are not the pack\'s own', async () => {
@@ -98,7 +100,7 @@ test('picking a spinner id applies it and the summary names it', async () => {
   const r = rig(['classic (current)', 'comet', 'Clawd', ''])
   const out = await r.run()
   expect(r.kv.mix).toEqual({ colors: 'classic', motion: 'classic', spinner: 'comet' })
-  expect(out).toBe('glowup · classic · spinner comet · Clawd · bubbles on · full motion')
+  expect(first(out)).toBe('glowup · classic · spinner comet · Clawd · bubbles on · full motion')
 })
 
 test('Pack default clears an override and does nothing when none is set', async () => {
@@ -145,7 +147,51 @@ test('the first pick is applied before the next question is asked', async () => 
 
 test('the summary line for untouched defaults', async () => {
   const r = rig(['classic (current)', 'Pack default', 'Clawd', ''])
-  expect(await r.run()).toBe('glowup · classic · Clawd · bubbles on · full motion')
+  expect(first(await r.run())).toBe('glowup · classic · Clawd · bubbles on · full motion')
+})
+
+test('the finish text is the card in plain words: labelled rows, next steps, docs', async () => {
+  const r = rig(['arcade', 'comet', 'No pet', 'Turn bubbles off,Turn reduced motion on', 'Keep'], { fields: ['activity', 'ctx', '5h'] })
+  expect((await r.run()).split('\n')).toEqual([
+    'glowup · arcade · spinner comet · no pet · bubbles off · reduced motion',
+    '',
+    '  You picked',
+    '  Pack         arcade',
+    '  Spinner      comet',
+    '  Pet          no pet',
+    '  Extras       bubbles off · reduced motion',
+    '  Status line  activity ctx 5h',
+    '',
+    '  Try next',
+    '  /glowup pane            open the side pane',
+    '  /glowup pack list       other looks',
+    '  /glowup help all        every command',
+    '',
+    '  docs: https://glowup.khimani.dev/',
+  ])
+})
+
+test('the card names the pack default when no spinner is set, and a split mix as colors/motion', async () => {
+  const none = rig(['classic (current)', 'Pack default', 'Clawd', ''])
+  expect(await none.run()).toContain('  Spinner      pack default\n')
+  const mixed = rig(['Keep custom mix', 'Pack default', ESC], { mix: { colors: 'cozy', motion: 'crt' } })
+  expect(await mixed.run()).toContain('  Pack         cozy/crt\n')
+})
+
+test('every Esc exit ends on the card', async () => {
+  const answers = ['classic (current)', 'Pack default', 'Clawd', '', 'Pick', 'Session', 'Account']
+  for (const n of [0, 1, 2, 3, 4, 5, 6]) {
+    const out = await rig(answers.slice(0, n)).run()
+    expect(out).toContain('\n  You picked\n')
+    expect(out).toContain('\n  Try next\n')
+  }
+})
+
+test('an empty fields list still gives a row the card parses back', () => {
+  const text = configText('glowup · classic · Clawd', ['classic', 'pack default', 'Clawd', 'bubbles on · full motion', ''])
+  expect(text).not.toMatch(/ \n/)
+  expect(parsePicked(text)!.at(-1)).toEqual(['Status line', ''])
+  expect(parsePicked(text.replace('  Status line', '  Status line  '))!.at(-1)).toEqual(['Status line', ''])
 })
 
 test('Other with an installed user pack applies it', async () => {
@@ -236,14 +282,14 @@ test('extras toggle relative to the current state, in both directions', async ()
   const r = rig(['classic (current)', 'Pack default', 'Clawd', 'Turn bubbles on,Turn reduced motion off'], { bubbles: 'off', reduced: true })
   const out = await r.run()
   expect(r.asked[3]!.options).toEqual(['Turn bubbles on', 'Write bubbles with Haiku', 'Turn reduced motion off', 'Tweak colors'])
-  expect(out).toBe('glowup · classic · Clawd · bubbles on · full motion')
+  expect(first(out)).toBe('glowup · classic · Clawd · bubbles on · full motion')
   expect(r.kv.bubbles).toBe('on')
   expect(r.kv.reducedMotion).toBe(false)
 })
 
 test('the extras offer Haiku bubbles, and template bubbles from haiku', async () => {
   const a = rig(['classic (current)', 'Pack default', 'Clawd', 'Write bubbles with Haiku'])
-  expect(await a.run()).toBe('glowup · classic · Clawd · bubbles haiku · full motion')
+  expect(first(await a.run())).toBe('glowup · classic · Clawd · bubbles haiku · full motion')
   expect(a.kv.bubbles).toBe('haiku')
   const b = rig(['classic (current)', 'Pack default', 'Clawd', 'Use template bubbles'], { bubbles: 'haiku' })
   await b.run()

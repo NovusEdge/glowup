@@ -32,6 +32,7 @@ An unknown subcommand prints `Unknown: <what you typed>` followed by the short c
 | Command | What it does |
 | --- | --- |
 | `/glowup theme <name>` | Switch to a theme. Prints `Theme: <name>`. |
+| `/glowup theme default` | Drop the theme and go back to the current pack's own colors. Prints `Theme: pack default`. |
 | `/glowup theme list` | List the built-in themes and your own. The active theme has a filled dot, including one chosen in the settings menu. |
 | `/glowup theme add <url>` | Download a theme file, check it, and install it. |
 
@@ -130,13 +131,13 @@ See [Pets](pets.md).
    - **Tweak colors** asks **Color**: `accent`, `text`, `dim` or `panel`, or Other to type any role from `/glowup color list`. Then it asks **Hex**: a few colors from the current palette, or Other to type `#rgb` or `#rrggbb`. It sets the same override as `/glowup color <role> <#hex>`. An unknown role or a bad hex prints the reason and stops.
 5. **Status line fields**: `Keep`, `Default` or `Pick`. Default does what `/glowup statusline fields default` does. Pick asks three more questions, each a multi-select: Session (`activity`, `ctx`, `agents`, `plan`), Account (`5h`, `week`, `cost`, `model`) and Repo (`branch`, `changes`, `cwd`). The fields apply in that order. Picking none, or exactly the current list, changes nothing, and Esc on any of the three applies no field change. If glowup is not drawing your status line, the question says the fields show in the entry under the prompt, and that `/glowup statusline on` draws the whole line.
 
-Esc on any question stops there. Answers you already gave stay applied. The command ends with a one-line summary, for example `glowup · arcade · spinner comet · Clawd · bubbles on · full motion` (the spinner part appears only when you set one), drawn with the pack's colors.
+Esc on any question stops there. Answers you already gave stay applied. The command ends with a card. At the top is the same box as `/glowup help`, in the pack's border and colors. Under it, **You picked** lists Pack, Spinner (`pack default` when you set none), Pet, Extras and Status line, and **Try next** gives three commands and the docs link. A history row keeps the pack it was drawn with. Where the card cannot draw, such as a `-p` run, the same content prints as plain text, starting with a line like `glowup · arcade · spinner comet · Clawd · bubbles on · full motion`.
 
 Each answer does what the matching typed command does (`pack`, `spinner`, `pet`, `bubbles`, `motion`, `color`, `statusline fields`), so the questions add nothing the commands lack. The colors and motion layers on their own, and saving a look are not in the questions: use `/glowup pack save <name>` to save the current look. In a `-p` run there is no one to ask, so `/glowup config` prints the command list instead.
 
 ## Settings and the store
 
-The mod's settings in Claude Code's `/plugin` menu (`theme`, `pack`, `pet`, `bubbles`, `statusline` and `reducedMotion`) are defaults. glowup's own saved choice wins over a setting only after a `/glowup` command or the config questions have written that choice. After that, changing the value in `/plugin` has no effect until you use the matching `/glowup` command again. Only `/glowup statusline fields default` clears a saved choice; for the other settings there is no such command.
+The mod's settings in Claude Code's `/plugin` menu (`pack`, `theme`, `spinner`, `pet`, `bubbles`, `statusline` and `reducedMotion`) and the `/glowup` commands change the same saved choices, and the last change wins. glowup remembers the `/plugin` values it saw last. When a value differs at the next session start or after `/reload-plugins`, glowup runs the matching command (`/glowup pack crt` for a new `pack`, and so on) and shows a toast naming what it applied. A `/glowup` command or the config questions replace that choice at once, and stay until you change that setting in `/plugin` again. If `/plugin` holds a value glowup cannot apply, such as an unknown pack, the toast says so and the value is not retried. Setting `theme` back to `classic`, `spinner` to `pack` or `statusline` to its default list clears the saved choice (`/glowup theme default`, `/glowup spinner default`, `/glowup statusline fields default`) instead of saving the default. When `pack` changes, glowup also puts the `/plugin` theme and spinner back on top of the new pack.
 
 ## pane
 

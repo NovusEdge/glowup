@@ -10,7 +10,7 @@ import { konsoleScheme } from './konsole.ts'
 import type { PetSetting } from './pets.ts'
 import type { BubbleSetting } from './bubbles.ts'
 import type { EggStore } from './eggs.ts'
-import { SHORT_TEXT, FULL_TEXT } from './help.ts'
+import { SHORT_TEXT, FULL_TEXT, configText } from './help.ts'
 import { FIELD_IDS, isFieldId, type FieldId } from './fields.ts'
 
 // What a command that needs more input falls back to, and what a headless config run prints.
@@ -131,12 +131,11 @@ const PET_LABELS: [PetSetting, string][] = [['clawd', 'Clawd'], ['clawd-shiny', 
 export const SUMMARY_LEAD = 'glowup · '
 const summary = (ctl: Ctl) => {
   const m = ctl.mix(), p = ctl.pet()
-  return [
-    'glowup', m.colors === m.motion ? m.colors : `${m.colors}/${m.motion}`,
-    ...(m.spinner ? [`spinner ${m.spinner}`] : []),
-    p === 'off' ? 'no pet' : PET_LABELS.find(([id]) => id === p)![1],
-    `bubbles ${ctl.bubbles()}`, `${ctl.reduced() ? 'reduced' : 'full'} motion`,
-  ].join(' · ')
+  const pack = m.colors === m.motion ? m.colors : `${m.colors}/${m.motion}`
+  const pet = p === 'off' ? 'no pet' : PET_LABELS.find(([id]) => id === p)![1]
+  const extras = `bubbles ${ctl.bubbles()} · ${ctl.reduced() ? 'reduced' : 'full'} motion`
+  const first = ['glowup', pack, ...(m.spinner ? [`spinner ${m.spinner}`] : []), pet, extras].join(' · ')
+  return configText(first, [pack, m.spinner ?? 'pack default', pet, extras, ctl.fields().join(' ')])
 }
 
 // Each answer goes through runCommand, so the wizard and the typed commands cannot drift apart.
@@ -254,6 +253,12 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   }
   if (sub === 'theme' && a1 === 'add' && a2) return addTheme(host, a2)
   if (sub === 'theme' && a1 === 'add') return USAGE
+  if (sub === 'theme' && a1 === 'default') {
+    const { theme: _, ...rest } = ctl.mix()
+    await host.storeDelete('theme')
+    await applyMix(host, ctl, rest)
+    return 'Theme: pack default'
+  }
   if (sub === 'theme' && a1) {
     const r = resolveTheme(a1, await loadUserThemes(host))
     if (r.error) return r.error
