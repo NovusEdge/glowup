@@ -64,14 +64,14 @@ export async function drawsStatusLine(host: Host): Promise<boolean> {
 
 // Installs from before refreshInterval existed; a value the person set stays.
 export async function ensureRefresh(host: Host): Promise<void> {
+  // re-read just before writing: Claude Code writes this file too
   const settings = await readSettings(host)
   const line = settings?.statusLine as { command?: unknown; refreshInterval?: unknown } | undefined
-  if (!settings || !line || !isOurs(host.configDir, line.command) || line.refreshInterval !== undefined) return
-  // re-read just before writing: Claude Code writes this file too
-  const fresh = await readSettings(host)
-  const now = fresh?.statusLine as { command?: unknown; refreshInterval?: unknown } | undefined
-  if (!fresh || !now || !isOurs(host.configDir, now.command) || now.refreshInterval !== undefined) return
-  await host.writeFile(SETTINGS(host.configDir), JSON.stringify({ ...fresh, statusLine: { ...now, refreshInterval: REFRESH_SECONDS } }, null, 2) + '\n')
+  // not isOurs: a command that only reads our status files is the person's own
+  const cmd = line?.command
+  const glowups = typeof cmd === 'string' && (cmd === command(host.configDir) || cmd.includes(SCRIPT_PATH(host.configDir)))
+  if (!settings || !line || !glowups || line.refreshInterval !== undefined) return
+  await host.writeFile(SETTINGS(host.configDir), JSON.stringify({ ...settings, statusLine: { ...line, refreshInterval: REFRESH_SECONDS } }, null, 2) + '\n')
 }
 
 export async function takeOver(host: Host, ask: (question: string) => Promise<boolean>): Promise<string> {

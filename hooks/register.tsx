@@ -165,6 +165,8 @@ async function beatStatus($: Engine) {
     const id = await $.session.id()
     if (id && id !== sessionId) {
       if (await recheckGuard($, id)) return
+      // turn.start may have adopted the id while the guard check was awaited
+      if (id === sessionId) return
       await adoptSession($, sessionId)
     }
   } catch {}

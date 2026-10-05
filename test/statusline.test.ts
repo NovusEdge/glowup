@@ -225,3 +225,10 @@ test('restore after a takeover brings back the backed-up line with no refreshInt
   await restore(host)
   expect(JSON.parse(files[SETTINGS]!)).toEqual(original)
 })
+
+test('ensureRefresh leaves a command that only reads glowup status files alone', async () => {
+  const reader = JSON.stringify({ statusLine: { type: 'command', command: 'cat /home/u/.claude/glowup/status/x' } })
+  const { host, files } = fakeHost({ files: { [SETTINGS]: reader } })
+  await ensureRefresh(host)
+  expect(files[SETTINGS]).toBe(reader)
+})

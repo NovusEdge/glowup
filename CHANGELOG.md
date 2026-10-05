@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- After `/clear` the status line kept showing your previous one until the first prompt, because glowup only noticed the new session on the first turn. The heartbeat now picks up the new session within a minute, and glowup's line shows within 30 seconds of `/clear`, launch or a reload: it sets `refreshInterval: 30` on the status line it owns, including existing installs (a value you set yourself stays).
+- After `/clear` the status line kept showing your previous one until the first prompt, because glowup only noticed the new session on the first turn. The heartbeat now picks up the new session within a minute, and glowup sets `refreshInterval: 30` on the status line it owns (a value you set yourself stays, existing installs included), so the line shows within about a minute and a half of `/clear`, and within 30 seconds of launch or a reload.
 - A glowup restart in the middle of a session (a hot reload) wrote a status line without `ctx`, `5h` and `wk` until the next tool call or turn ended. It now reads them back at start.
 
 ## [0.8.1] - 2026-10-05
