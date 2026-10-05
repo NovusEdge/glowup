@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/glowup setup`: pick and order the band's parts and the pane's tabs, set when context and usage turn warning and danger colors, choose which moments get a speech bubble and how long it stays, and how soon the pet falls asleep. Your setup is never changed by installing a pack.
 - `/glowup pack <studio link>` installs a look straight from a glowup studio link, with nothing downloaded.
 - `/glowup color list` draws each color and says what it paints.
-- `motion.field` takes a `simplex` shape and an object form with the knobs of Paper's dithering shader: `speed`, `scale`, `rotation`, `offsetX`, `offsetY`, `density`, `warp`, `size` and `dither`. See [Effects](docs/pack-reference.md#effects).
+- `motion.field` takes a `simplex` shape and an object form with the knobs of Paper's dithering shader: `speed`, `scale`, `rotation`, `offsetX`, `offsetY`, `density`, `warp`, `size` and `dither`, plus `fps` and `color`. See [Effects](docs/pack-reference.md#effects).
 
 ### Changed
 
@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- The pane field stuttered on panes wider than about 60 columns and cost about half a second to build on every resize. glowup now draws it live every 83 ms, like the pet, at a few milliseconds a frame.
+- The pane field stuttered on panes wider than about 60 columns and cost about half a second to build on every resize. glowup now draws it live, 10 frames a second by default, at a few milliseconds a frame.
 - In the `cards` row style, a message's side bar sat alone on a line above the message, and tool cards had an empty line inside their top edge. In `retro`, the tool tag sat a line above the tool name. Each now lines up with the text.
 
 ## [0.7.0] - 2026-10-05

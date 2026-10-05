@@ -108,7 +108,7 @@ export function fieldFrame(cols: number, rows: number, colors: Colors, t: number
   }
   // One colour, as in Paper's two-colour dithering, so each row is one segment. Every segment is
   // an element Claude Code diffs and repaints each tick: a shade per cell split rows into ~40 runs
-  // and cost 84% of a core at 88x24, one colour about 35%.
+  // and the whole process used 84% of a core at 88x24; with one colour it uses about 35%.
   const frame: Seg[][] = []
   for (let r = 0; r < rows; r++) {
     let text = ''
