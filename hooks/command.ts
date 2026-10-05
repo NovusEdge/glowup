@@ -252,11 +252,11 @@ async function packFromLink(host: Host, ctl: Ctl, link: string, force: boolean):
   }
   if (parts.setup !== undefined) {
     const { setup, notices } = parseSetup(parts.setup)
-    if (notices.length) out.push(`Setup not applied: ${notices[0]}`)
+    if (typeof parts.setup !== 'object' || parts.setup === null || Array.isArray(parts.setup)) out.push(`Setup not applied: ${notices[0]}`)
     else if (await ctl.confirm('This link also carries a layout setup (band, tabs, meter, bubbles, pet sleep). Apply it?')) {
       await host.storeSet('setup', setup)
       ctl.setSetup(setup)
-      out.push('Setup: applied')
+      out.push('Setup: applied', ...notices.map(n => `  dropped: ${n}`))
     } else out.push('Setup: kept yours')
   }
   if (parts.pet !== undefined) out.push('This link carries a pet; this glowup cannot install pets yet.')

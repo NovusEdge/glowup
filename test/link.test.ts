@@ -17,6 +17,12 @@ test('fromBase64Url refuses bad characters and impossible lengths', () => {
   expect(() => fromBase64Url('abcde')).toThrow()
 })
 
+test('a part with trailing = padding still decodes', () => {
+  expect(new TextDecoder().decode(fromBase64Url('aGk_Pg=='))).toBe('hi?>')
+  const p = toBase64Url(bytes('{"a":1}'))
+  expect(decodeLink(`${STUDIO_URL}#v=1&p=${p}==`).parts.pack).toEqual({ a: 1 })
+})
+
 test('a link round-trips its parts', () => {
   const pack = { format: 1, name: 'sunset', colors: { palette: { accent: '#ff8c42' } } }
   const setup = { band: ['plan'] }

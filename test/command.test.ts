@@ -471,6 +471,29 @@ test('a studio link with a setup asks before applying it', async () => {
   expect(s2.setup).toBeUndefined()
 })
 
+test('a studio link setup with unknown ids applies like a stored one and names what it dropped', async () => {
+  const { host, store } = fakeHost()
+  const out = await runCommand(host, `pack ${encodeLink({ setup: { band: ['plan', 'weather'] } })}`, ctl(true).ctl)
+  expect(out).toBe('Setup: applied\n  dropped: unknown band item "weather"')
+  expect((store.setup as { band: string[] }).band).toEqual(['plan'])
+  expect(await runCommand(host, `pack ${encodeLink({ setup: { band: ['plan', 'weather'] } })}`, ctl(false).ctl)).toBe('Setup: kept yours')
+})
+
+test('a studio link setup that is not an object is refused without asking', async () => {
+  const { host, store } = fakeHost()
+  const q = ctl(true)
+  expect(await runCommand(host, `pack ${encodeLink({ setup: [1] })}`, q.ctl)).toBe('Setup not applied: setup must be an object')
+  expect(q.questions).toEqual([])
+  expect(store.setup).toBeUndefined()
+})
+
+test('a studio link cannot smuggle terminal escapes through a setup id', async () => {
+  const { host } = fakeHost()
+  const out = await runCommand(host, `pack ${encodeLink({ setup: { band: ['\u001b]0;pwn\u0007'] } })}`, ctl(true).ctl)
+  expect(out).toContain('unknown band item')
+  expect(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/.test(out)).toBe(false)
+})
+
 test('a studio link names the installed pack it would replace unless --force', async () => {
   const { host } = fakeHost({ files: { '/home/u/.claude/glowup/packs/sunset.json': '{"format":1,"name":"sunset"}' } })
   const { ctl: c } = ctl()

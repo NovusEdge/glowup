@@ -21,6 +21,7 @@ export function toBase64Url(b: Uint8Array): string {
 }
 
 export function fromBase64Url(s: string): Uint8Array {
+  s = s.replace(/=+$/, '')
   if (s.length % 4 === 1) throw new Error('cut off')
   const out: number[] = []
   let acc = 0, bits = 0
@@ -39,7 +40,7 @@ const KEYS = [['p', 'pack'], ['s', 'setup'], ['pet', 'pet']] as const
 // The engine's typings omit the `fatal` option the runtime honors, and a global var cannot be re-declared to add it.
 const strictUtf8 = () => new (TextDecoder as unknown as new (label: string, opts: { fatal: boolean }) => TextDecoder)('utf-8', { fatal: true })
 
-const part =(v: unknown) => toBase64Url(new TextEncoder().encode(JSON.stringify(v)))
+const part = (v: unknown) => toBase64Url(new TextEncoder().encode(JSON.stringify(v)))
 
 export function encodeLink(parts: LinkParts): string {
   const q = [`v=${LINK_VERSION}`]

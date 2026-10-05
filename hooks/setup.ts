@@ -1,5 +1,6 @@
 // JSX-free: the docs site imports it.
 import type { Mood } from './bubbles.ts'
+import { shown } from './themes.ts'
 
 export const BAND_ITEMS = ['combo', 'agents', 'meter', 'plan'] as const
 export type BandItem = (typeof BAND_ITEMS)[number]
@@ -29,7 +30,7 @@ function ids<T extends string>(v: unknown, known: readonly T[], what: string, no
   const out: T[] = []
   for (const x of v) {
     if (typeof x === 'string' && (known as readonly string[]).includes(x)) { if (!out.includes(x as T)) out.push(x as T) }
-    else notices.push(`unknown ${what} "${String(x).slice(0, 40)}"`)
+    else notices.push(`unknown ${what} "${shown(String(x))}"`)
   }
   return out
 }
@@ -101,7 +102,7 @@ export function setSetupField(s: Setup, key: string, value: string): { setup: Se
     case 'bubbles.moods': bubbles.moods = list(value); break
     case 'bubbles.ms': bubbles.ms = num; break
     case 'pet.sleepMs': pet.sleepMs = num; break
-    default: return { error: `Unknown setup key "${key.slice(0, 40)}". Keys: ${SETUP_KEYS.join(', ')}.` }
+    default: return { error: `Unknown setup key "${shown(key)}". Keys: ${SETUP_KEYS.join(', ')}.` }
   }
   const r = parseSetup(next)
   return r.notices.length ? { error: r.notices[0]! } : { setup: r.setup }

@@ -455,7 +455,20 @@ test('the stored mix loads at session start; a bad layer toasts once', async ($,
   expect((await runGlowup($, 'pack list')).text).toContain('custom mix: colors half, motion half')
 })
 
-test('userConfig seeds the look', { options: { pack: 'crt', theme: 'dusk', pet: 'off', bubbles: 'off' } }, async ($, on) => {
+test('a stored setup from a later glowup loads with a toast and never breaks session start', async ($, on) => {
+  fakeFs(on)
+  mock.clock(on)
+  mock.store(on, { setup: { format: 2, band: ['plan', 'weather'] } })
+  bootable(on)
+  const toasts: string[] = []
+  on('ui.toast', async (_$, e) => { toasts.push(e.text); return { value: undefined } as never })
+  on('session.id', async () => ({ value: 's1' }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  expect(toasts.filter(t => t.includes('weather'))).toHaveLength(1)
+  expect((await runGlowup($, 'setup')).text).toContain('band           plan\n')
+})
+
+test('userConfig seeds the look',{ options: { pack: 'crt', theme: 'dusk', pet: 'off', bubbles: 'off' } }, async ($, on) => {
   fakeFs(on)
   mock.clock(on)
   mock.store(on, {})
