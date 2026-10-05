@@ -30,16 +30,17 @@
 
 .landing .st-main{display:flex;flex-direction:column;flex:1;min-height:0}
 .landing .st-stage{order:-1;display:flex;flex-direction:column;gap:10px;padding:12px;max-height:50vh;overflow:auto;min-width:0}
-.landing .st-view{align-self:flex-end;display:flex;flex-direction:column;align-items:flex-end;gap:6px;text-align:right}
-.landing .st-view p{margin:0;padding:2px 8px;border-radius:6px;font-size:12.5px;color:var(--dim);background:color-mix(in srgb,var(--bg) 85%,transparent)}
-.landing .seg2{background:var(--panel)}
+.landing .st-view{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:2px 12px;padding:3px 6px;background:var(--panel);border:1px solid color-mix(in srgb,var(--faint) 80%,#fff 8%);border-bottom:0;border-radius:10px 10px 0 0}
+.landing .st-view p{margin:0;font-size:12.5px;color:var(--dim)}
 .landing .seg2 button{min-height:44px}
 
-.landing .studio-preview{flex:1;display:flex;align-items:center;justify-content:center;min-width:0}
-.landing .studio-preview .term{width:100%}
+.landing .studio-preview{flex:1;min-height:0;display:flex;align-items:stretch;justify-content:center;min-width:0}
+.landing .st-frame{display:flex;flex-direction:column;width:100%;min-width:0}
+.landing .st-frame .term{border-top-left-radius:0;border-top-right-radius:0}
+.landing .studio-preview .plist{display:flex}
 .landing .studio-preview[data-width=narrow] .pane,
-.landing .studio-preview[data-width=wide] .band,
-.landing .studio-preview[data-width=fullscreen] .band{display:none}
+.landing .studio-preview[data-width=wide] .bitems,
+.landing .studio-preview[data-width=fullscreen] .bitems{display:none}
 
 .landing .st-side{min-width:0;padding:12px}
 .landing .acc{background:var(--panel);border:1px solid var(--faint);border-radius:8px}
@@ -103,10 +104,10 @@
   .landing .st-main{flex-direction:row}
   .landing .st-side{flex:0 0 360px;width:360px;overflow-y:auto;border-right:1px solid var(--faint)}
   .landing .st-stage{order:0;flex:1;max-height:none;padding:12px 16px 16px}
-  .landing .studio-preview{--th:clamp(320px,calc(100dvh - 330px),760px)}
-  .landing .studio-preview[data-width=narrow] .term{max-width:460px}
-  .landing .studio-preview[data-width=wide] .term{max-width:1000px}
-  .landing .studio-preview[data-width=fullscreen]{--th:calc(100dvh - 300px)}
+  .landing .st-frame .term{flex:1;min-height:0;display:flex;flex-direction:column}
+  .landing .st-frame .tbody{flex:1;min-height:0;height:auto}
+  .landing .studio-preview[data-width=narrow] .st-frame{width:calc(480px*var(--z,1));max-width:100%}
+  .landing .studio-preview[data-width=wide] .st-frame{max-width:calc(820px*var(--z,1))}
   .landing .swatches{grid-template-columns:repeat(auto-fill,minmax(36px,1fr))}
   .landing .sw{min-height:36px}
   .landing .seg2 button{min-height:36px}
@@ -117,5 +118,5 @@
 @media (max-width:899px){
   .landing .st-from{flex:1 1 auto}
   .landing .st-from select{flex:1}
-  .landing .studio-preview[data-width=narrow] .term{max-width:none}
+  .landing .studio-preview[data-width=narrow] .st-frame{max-width:none}
 }
