@@ -1,27 +1,36 @@
 import { test, expect } from 'claude-code/testing'
-import { warpFrames, ditherMeters, turnDivider, WARP_FRAMES } from '../hooks/effects.ts'
-import { validatePack, resolveLook } from '../hooks/packs.ts'
+import { fieldFrame, ditherMeters, turnDivider } from '../hooks/effects.ts'
+import { validatePack, resolveLook, FIELD_DEFAULTS, type Field } from '../hooks/packs.ts'
 import { resolveTheme } from '../hooks/themes.ts'
 
 const C = resolveTheme('classic', {}).theme.colors
 const cells = (row: { text: string }[]) => row.reduce((n, s) => n + [...s.text].length, 0)
+const text = (frame: { text: string }[][]) => frame.map(r => r.map(s => s.text).join('')).join('\n')
+const SIMPLEX: Field = { ...FIELD_DEFAULTS, shape: 'simplex', speed: 0.28, scale: 0.32, rotation: 96, offsetX: -0.22, offsetY: 0.12, size: 3, dither: '4x4' }
 
-test('warp: a full loop of frames, each row exactly the asked width, all braille or blank', async () => {
-  const { ms, frames } = warpFrames(58, 40, C, false)
-  expect(frames.length).toBe(WARP_FRAMES)
-  expect(ms).toBeGreaterThanOrEqual(40)
-  for (const f of frames) {
-    expect(f.length).toBe(40)
-    for (const r of f) {
+test('every shape and dither size fills each row to exactly the asked width with braille or blanks', async () => {
+  for (const f of [SIMPLEX, { ...SIMPLEX, size: 1, dither: '8x8' }, { ...FIELD_DEFAULTS, shape: 'warp' }, { ...SIMPLEX, size: 4, dither: '2x2' }] as Field[]) {
+    const frame = fieldFrame(58, 12, C, 1.5, f)
+    expect(frame.length).toBe(12)
+    for (const r of frame) {
       expect(cells(r)).toBe(58)
       for (const s of r) expect(/^[⠀-⣿ ]+$/.test(s.text)).toBe(true)
     }
   }
 })
 
-test('warp: reduced motion is one frame, and the same input draws the same picture', async () => {
-  expect(warpFrames(20, 6, C, true).frames.length).toBe(1)
-  expect(JSON.stringify(warpFrames(20, 6, C, true))).toBe(JSON.stringify(warpFrames(20, 6, C, true)))
+test('the field is a function of time: the same moment draws the same frame, a later one moves', async () => {
+  expect(text(fieldFrame(40, 8, C, 2, SIMPLEX))).toBe(text(fieldFrame(40, 8, C, 2, SIMPLEX)))
+  expect(text(fieldFrame(40, 8, C, 4, SIMPLEX))).not.toBe(text(fieldFrame(40, 8, C, 2, SIMPLEX)))
+  // speed 0 holds still, whatever the clock says
+  const still = { ...SIMPLEX, speed: 0 }
+  expect(text(fieldFrame(40, 8, C, 9, still))).toBe(text(fieldFrame(40, 8, C, 0, still)))
+})
+
+test('size makes dither pixels of size x size dots: at 4, a whole braille cell is on or off', async () => {
+  const glyphs = [...text(fieldFrame(16, 4, C, 1, { ...SIMPLEX, size: 4, dither: '2x2' })).replace(/\n/g, '')]
+  expect(glyphs.every(g => g === '⣿' || g === ' ')).toBe(true)
+  expect(glyphs.some(g => g === '⣿')).toBe(true)
 })
 
 test('dither meters: one bar per window that fits the width and shows what is left', async () => {
@@ -51,14 +60,26 @@ test('packs pick the effects: motion.field, colors.meters and colors.dividers, o
   validatePack(file)
   const { look, errors } = resolveLook({ colors: 'fx', motion: 'fx' }, { fx: file }, {})
   expect(errors).toEqual([])
-  expect([look.meters, look.dividers, look.motion.field]).toEqual(['dither', true, 'warp'])
+  expect([look.meters, look.dividers, look.motion.field]).toEqual(['dither', true, { shape: 'warp', ...FIELD_DEFAULTS }])
   const base = resolveLook({ colors: 'classic', motion: 'classic' }, {}, {}).look
-  expect([base.meters, base.dividers, base.motion.field]).toEqual(['default', false, 'none'])
+  expect([base.meters, base.dividers, base.motion.field.shape]).toEqual(['default', false, 'none'])
+})
+
+test('motion.field as an object sets the knobs it names and leaves the rest at their defaults', async () => {
+  const file = { format: 1, name: 'fx', motion: { field: { shape: 'simplex', speed: 0.28, scale: 0.32, rotation: 96, offsetX: -0.22, offsetY: 0.12, size: 3, dither: '4x4' } } }
+  validatePack(file)
+  const { look } = resolveLook({ colors: 'classic', motion: 'fx' }, { fx: file }, {})
+  expect(look.motion.field).toEqual({ ...SIMPLEX })
 })
 
 test('a bad effect value is refused with the allowed values', async () => {
   const bad = (colors: object, motion: object = {}) => () => validatePack({ format: 1, name: 'x', colors, motion })
   expect(bad({ meters: 'bars' })).toThrow('colors.meters must be one of default, dither')
   expect(bad({ dividers: 'yes' })).toThrow('colors.dividers must be true or false')
-  expect(bad({}, { field: 'plasma' })).toThrow('motion.field must be one of none, warp')
+  expect(bad({}, { field: 'plasma' })).toThrow('motion.field must be one of none, warp, simplex, or an object with a shape')
+  expect(bad({}, { field: { speed: 1 } })).toThrow('motion.field.shape must be one of none, warp, simplex')
+  expect(bad({}, { field: { shape: 'simplex', speed: 9 } })).toThrow('motion.field.speed must be a number from 0 to 4')
+  expect(bad({}, { field: { shape: 'simplex', size: 2.5 } })).toThrow('motion.field.size must be a whole number of dots')
+  expect(bad({}, { field: { shape: 'simplex', dither: '3x3' } })).toThrow('motion.field.dither must be one of 2x2, 4x4, 8x8')
+  expect(bad({}, { field: { shape: 'simplex', hue: 1 } })).toThrow('unknown key "hue" in motion.field')
 })

@@ -10,19 +10,26 @@ export const BORDERS = ['round', 'single', 'double', 'bold', 'classic'] as const
 export type Border = (typeof BORDERS)[number]
 export const METER_STYLES = ['default', 'dither'] as const
 export type MeterStyle = (typeof METER_STYLES)[number]
-export const FIELD_IDS = ['none', 'warp'] as const
+export const FIELD_IDS = ['none', 'warp', 'simplex'] as const
 export type FieldId = (typeof FIELD_IDS)[number]
+export const DITHERS = ['2x2', '4x4', '8x8'] as const
+// motion.field as an object: the shape and its knobs, each held to [min, max]. The knobs follow
+// Paper's dithering shader (shaders.paper.design/dithering), with size counted in braille dots.
+export const FIELD_KNOBS = { speed: [0, 4], scale: [0.05, 4], rotation: [0, 360], offsetX: [-1, 1], offsetY: [-1, 1], density: [0.2, 2], warp: [0, 8], size: [1, 4] } as const
+export const FIELD_KEYS = ['shape', ...Object.keys(FIELD_KNOBS), 'dither']
+export type Field = { shape: FieldId; dither: (typeof DITHERS)[number] } & Record<keyof typeof FIELD_KNOBS, number>
+export const FIELD_DEFAULTS: Omit<Field, 'shape'> = { speed: 1, scale: 1, rotation: 0, offsetX: 0, offsetY: 0, density: 1, warp: 4, size: 1, dither: '8x8' }
 export type RowFlags = { labels: boolean; markers: boolean; xp: boolean }
 export type ColorsLayer = { theme?: string; palette?: Partial<Colors>; bg?: string; rows?: RowStyle; border?: Border; borderColor?: string; gradient?: [string, string]; extras?: { hp?: boolean; combo?: boolean }; rowFlags?: Partial<RowFlags>; meters?: MeterStyle; dividers?: boolean }
 // spinner is any well-formed id: a pack made for a later glowup may name one this build lacks
-export type MotionLayer = { spinner?: string; shimmer?: 0 | 1 | 2; color?: string; field?: FieldId }
+export type MotionLayer = { spinner?: string; shimmer?: 0 | 1 | 2; color?: string; field?: FieldId | ({ shape: FieldId } & Partial<Omit<Field, 'shape'>>) }
 export type PackFile = { format: 1; name: string; extends?: string; description?: string; colors?: ColorsLayer | string; motion?: MotionLayer | string }
 // overrides sit on top of whatever pack and theme resolve, so a pack switch keeps them
 export type Mix = { colors: string; motion: string; theme?: string; spinner?: string; overrides?: Partial<Colors> }
 export type Look = {
   colorsFrom: string; motionFrom: string; theme: Theme; bg: string; rows: RowStyle; border: Border; borderColor: string
   gradient?: [string, string]; extras: { hp: boolean; combo: boolean }; rowFlags: RowFlags; meters: MeterStyle; dividers: boolean
-  motion: { spinner: SpinnerId; shimmer: 0 | 1 | 2; color: string; field: FieldId }
+  motion: { spinner: SpinnerId; shimmer: 0 | 1 | 2; color: string; field: Field }
 }
 export const DEFAULT_MIX: Mix = { colors: 'classic', motion: 'classic' }
 export const MAX_DEPTH = 8
@@ -111,8 +118,20 @@ function checkMotion(v: unknown): void {
   if (v.spinner !== undefined && !(typeof v.spinner === 'string' && SPINNER_SHAPE.test(v.spinner))) throw new Error('motion.spinner must be a lowercase id such as "comet"')
   if (v.shimmer !== undefined && !oneOf([0, 1, 2], v.shimmer)) throw new Error('motion.shimmer must be 0, 1 or 2')
   if (v.color !== undefined && (typeof v.color !== 'string' || !HEX.test(v.color))) throw new Error('motion.color must be #rrggbb')
-  if (v.field !== undefined && !oneOf(FIELD_IDS, v.field)) throw new Error(`motion.field must be one of ${FIELD_IDS.join(', ')}`)
+  const f = v.field
+  if (f === undefined || oneOf(FIELD_IDS, f)) return
+  if (!isPlain(f)) throw new Error(`motion.field must be one of ${FIELD_IDS.join(', ')}, or an object with a shape`)
+  for (const k of Object.keys(f)) if (!FIELD_KEYS.includes(k)) throw new Error(`unknown key "${shown(k)}" in motion.field`)
+  if (!oneOf(FIELD_IDS, f.shape)) throw new Error(`motion.field.shape must be one of ${FIELD_IDS.join(', ')}`)
+  for (const [k, [lo, hi]] of Object.entries(FIELD_KNOBS)) {
+    const n = f[k]
+    if (n !== undefined && (typeof n !== 'number' || !(n >= lo && n <= hi))) throw new Error(`motion.field.${k} must be a number from ${lo} to ${hi}`)
+  }
+  if (f.size !== undefined && !Number.isInteger(f.size)) throw new Error('motion.field.size must be a whole number of dots')
+  if (f.dither !== undefined && !oneOf(DITHERS, f.dither)) throw new Error(`motion.field.dither must be one of ${DITHERS.join(', ')}`)
 }
+
+const fieldOf = (f: MotionLayer['field']): Field => typeof f === 'object' ? { ...FIELD_DEFAULTS, ...f } : { shape: f ?? 'none', ...FIELD_DEFAULTS }
 
 export function validatePack(file: unknown): asserts file is PackFile {
   checkTop(file)
@@ -195,7 +214,7 @@ export function resolveLook(mix: Mix, userPacks: Record<string, unknown>, userTh
   if (oneOf(SPINNER_IDS, want)) spinner = want as SpinnerId
   else errors.push(`spinner "${shown(want)}" needs a newer glowup; using stock`)
 
-  return { look: { colorsFrom, motionFrom, ...c, motion: { spinner, shimmer: m.shimmer ?? 1, color: m.color ?? c.theme.colors.accent, field: m.field ?? 'none' } }, errors }
+  return { look: { colorsFrom, motionFrom, ...c, motion: { spinner, shimmer: m.shimmer ?? 1, color: m.color ?? c.theme.colors.accent, field: fieldOf(m.field) } }, errors }
 }
 
 // A mix based on a user theme exports only built-in theme names: that theme's glyphs and spinner words are not carried.

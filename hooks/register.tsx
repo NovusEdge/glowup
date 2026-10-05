@@ -31,7 +31,7 @@ import { registerCopy, touchCopy, decide, unregisterCopy, pruneStatus, safeId, H
 import { staleToast, INSTALLED_FILE } from './update.ts'
 import { syncPlugin } from './pluginsync.ts'
 import { cleanFrames, cleanRows, cleanDivider, fitField, meterWindows, type Frames, type Divider } from './renderers.ts'
-import { warpFrames, ditherMeters, turnDivider } from './effects.ts'
+import { ditherMeters, turnDivider } from './effects.ts'
 import type { FieldClientProps } from './client/field.tsx'
 import type { Seg } from './layout.tsx'
 
@@ -873,15 +873,15 @@ export const register: Register = (on, options) => {
     if (e.props.placement === 'dock' && !compact && (e.surface === 'terminal' || e.surface === 'desktop')) {
       const cols = e.props.bodyColumns - 2, rows = e.props.scroll.bodyRows, reduced = reducedMotion
       const key = JSON.stringify([picked, cols, rows, colors, reduced])
-      ask($, fieldAsk, key, async () => cleanFrames(await $.glowup.field({ pack, cols, rows, colors, reduced }), rows, colors.text)
-        ?? (look.motion.field === 'warp' ? warpFrames(cols, rows, colors, reduced) : null))
-      const got = fieldAsk.key === key ? fieldAsk.value : null
-      if (got) {
+      ask($, fieldAsk, key, async () => cleanFrames(await $.glowup.field({ pack, cols, rows, colors, reduced }), rows, colors.text))
+      // a plugin's frames win; else the pack's own shape, which the Client draws live, so it sends no frames
+      const got = fieldAsk.key === key ? fieldAsk.value : null, field = look.motion.field
+      if (got || field.shape !== 'none') {
         const { Client } = $.ui.resolve(e)
         extra = { ...extra, field: (open: number) => {
-          const fit = fitField(got, open)
-          if (!fit) return null
-          const props: FieldClientProps = { frames: fit.frames, ms: fit.ms, reduced }
+          const fit = got && fitField(got, open)
+          if (got && !fit) return null
+          const props: FieldClientProps = fit ? { frames: fit.frames, ms: fit.ms, reduced } : { live: { cols, rows: open, colors, field }, reduced }
           return <Client key="glowup-field" module="./client/field.tsx" props={props} width={cols} />
         } }
       }
