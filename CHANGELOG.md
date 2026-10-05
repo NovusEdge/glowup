@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-05
+
 ### Added
 
 - Three effects a pack switches on from its JSON, so it still installs from a URL: `motion.field: "warp"` animates a dithered braille field in the docked pane's open rows, `colors.meters: "dither"` draws the 5-hour and weekly usage as dithered bars, and `colors.dividers: true` puts a numbered rule above each of your prompts. A renderer plugin that answers for the pack still takes precedence. See [Effects](docs/pack-reference.md#effects).
