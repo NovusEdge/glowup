@@ -129,7 +129,12 @@ test('a pack that picks the built-in effects gets the field, the meters and the 
   const tree = await pane.drawn()
   expect(text(tree)).toContain('ctx ')
   expect(text(tree)).toContain('▓▒░')
-  expect(fieldClient(tree)).toBeDefined()
+  // drawn live from the pack's shape: no frames cross, only the size, colours and knobs
+  const live = fieldClient(tree).props.props
+  expect(live.frames).toBeUndefined()
+  expect(live.live.field.shape).toBe('warp')
+  expect(live.live.cols).toBe(58)
+  expect(live.live.rows).toBeGreaterThan(0)
   await pane.unmount()
   const row = await mountPrompt($, 'u1')
   expect(text(await row.drawn())).toContain('░▒▓━━ ')

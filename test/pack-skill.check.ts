@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { validatePack, resolveLook, ROW_STYLES, BORDERS, SPINNER_IDS, PACK_KEYS, COLORS_KEYS, MOTION_KEYS, EXTRAS_KEYS, ROW_FLAG_KEYS } from '../hooks/packs.ts'
+import { validatePack, resolveLook, ROW_STYLES, BORDERS, SPINNER_IDS, PACK_KEYS, COLORS_KEYS, MOTION_KEYS, EXTRAS_KEYS, ROW_FLAG_KEYS, FIELD_KEYS } from '../hooks/packs.ts'
 import { COLOR_KEYS, GLYPH_KEYS, parseJsonc, resolveTheme } from '../hooks/themes.ts'
 import { loadUserPacks, PACK_DIR, SAFE_NAME } from '../hooks/userpacks.ts'
 import type { Host } from '../hooks/host.ts'
@@ -73,7 +73,8 @@ test('documented pack fields are the fields the pack loader accepts', () => {
   assert.deepEqual(names('Colors layer').filter(n => !n.includes('.')), [...COLORS_KEYS].sort())
   assert.deepEqual(names('Colors layer').filter(n => n.startsWith('extras.')), EXTRAS_KEYS.map(k => `extras.${k}`).sort())
   assert.deepEqual(names('Colors layer').filter(n => n.startsWith('rowFlags.')), ROW_FLAG_KEYS.map(k => `rowFlags.${k}`).sort())
-  assert.deepEqual(names('Motion layer'), [...MOTION_KEYS].sort())
+  assert.deepEqual(names('Motion layer').filter(n => !n.includes('.')), [...MOTION_KEYS].sort())
+  assert.deepEqual(names('Motion layer').filter(n => n.startsWith('field.')), FIELD_KEYS.map(k => `field.${k}`).sort())
 })
 
 test('documented palette colors and glyphs are the ones themes accept', () => {

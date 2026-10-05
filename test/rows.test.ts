@@ -19,8 +19,10 @@ test('classic leaves every row to the engine, plus the finished tool glyph', asy
   expect(styleRow(els, l, tool({ isRunning: true }), ENGINE)).toBe(ENGINE)
 })
 
-const bar = (n: any) => walk(n).find(x => x.type === 'Text' && x.children?.[0] === '▎ ')
+// The bar and the tool frame are absolute overlays (see card() in rows.tsx): a column of ▎, a bordered Box.
+const bar = (n: any) => walk(n).find(x => x.type === 'Text' && String(x.children?.[0]).startsWith('▎\n'))
 const bordered = (n: any) => walk(n).some(x => x.props?.borderStyle)
+const frame = (n: any) => walk(n).find(x => x.props?.borderStyle && x.props.position === 'absolute')
 const asst = (first = true): RowInput => ({ site: 'AssistantMessage', isFirstOfReply: first })
 
 const withFlags = (l: Look, f: Partial<Look['rowFlags']>): Look => ({ ...l, rowFlags: { ...l.rowFlags, ...f } })
@@ -44,9 +46,18 @@ test('cards: messages have no box, a side bar in accent (you) or faint (claude),
 test('cards: tool rows keep the pack border style, framed in faint', async () => {
   const l = look('arcade')
   const card = inner(styleRow(els, l, tool(), ENGINE)) as any
-  expect([card.type, card.props.borderStyle, card.props.borderColor]).toEqual(['Box', 'bold', l.theme.colors.faint])
-  expect(card.props.borderColor).not.toBe(l.borderColor)
+  expect([frame(card).props.borderStyle, frame(card).props.borderColor]).toEqual(['bold', l.theme.colors.faint])
+  expect(frame(card).props.borderColor).not.toBe(l.borderColor)
   expect(hasEngine(card)).toBe(true)
+})
+
+test('cards: the frame and the bar lie over the engine row, so its blank margin line becomes the top edge', async () => {
+  const l = look('arcade')
+  const f = frame(styleRow(els, l, tool(), ENGINE)).props
+  expect([f.top, f.bottom, f.left, f.right]).toEqual([0, 0, 0, 0])
+  const b = walk(styleRow(els, look('cozy'), user(), ENGINE)).find(x => x.props?.position === 'absolute').props
+  // the bar starts a line down, beside the text and not on the margin line
+  expect([b.top, b.bottom, b.left, b.width, b.overflow]).toEqual([1, 0, 0, 1, 'hidden'])
 })
 
 test('cards: tool results stay indented 2', async () => {
@@ -66,9 +77,9 @@ test('cozy keeps its bars and drops the you and claude labels', async () => {
   expect(l.rowFlags).toEqual({ labels: false, markers: false, xp: false })
   const u = styleRow(els, l, user(), ENGINE)
   const a = styleRow(els, l, asst(), ENGINE)
-  expect(text(u)).toBe('▎ ')
+  expect(text(u).replace(/[▎\n]/g, '')).toBe('')
   expect(bar(u).props.color).toBe(l.theme.colors.accent)
-  expect(text(a)).toBe('▎ ')
+  expect(text(a).replace(/[▎\n]/g, '')).toBe('')
   expect(bar(a).props.color).toBe(l.theme.colors.faint)
 })
 
@@ -185,7 +196,7 @@ test('the margin wrapper leaves the inner row untouched', async () => {
   const s = styleRow(els, l, tool(), ENGINE) as any
   expect(s.children).toHaveLength(1)
   expect(s.children[0].props.marginLeft).toBeUndefined()
-  expect(s.children[0].props.borderStyle).toBeTruthy()
+  expect(frame(s.children[0])).toBeTruthy()
 })
 
 test('other styles never draw the side bar or a border on messages', async () => {
@@ -208,7 +219,8 @@ function beside(n: any): number {
   const kids = n.children ?? []
   const hit = kids.findIndex((k: any) => k === ENGINE || (k && typeof k === 'object' && walk(k).includes(ENGINE)))
   if (hit < 0) return own
-  const sib = p.flexDirection === 'row' ? kids.reduce((s: number, k: any, i: number) => (i === hit || typeof k !== 'object' ? s : s + cols(k)), 0) : 0
+  // an absolute sibling is out of the flow and takes no columns
+  const sib = p.flexDirection === 'row' ? kids.reduce((s: number, k: any, i: number) => (i === hit || typeof k !== 'object' || k?.props?.position === 'absolute' ? s : s + cols(k)), 0) : 0
   return own + sib + beside(kids[hit])
 }
 

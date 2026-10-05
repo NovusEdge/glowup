@@ -32,7 +32,7 @@ Packs are read from `~/.claude/glowup/packs`, or `$CLAUDE_CONFIG_DIR/glowup/pack
     "spinner": "orb-states",        // stock | comet | eyes | orb-states | clawd | shimmer
     "shimmer": 2,                   // 0 none, 1 soft, 2 fast
     "color": "#38e8ff",             // defaults to the palette's accent
-    "field": "warp"                 // none | warp
+    "field": { "shape": "simplex", "speed": 0.28, "scale": 0.32, "size": 3, "dither": "4x4" }
   },
   "sound": {},                      // reserved for a later release
   "voice": {}                       // reserved for a later release
@@ -90,7 +90,15 @@ Three effects are drawn by glowup itself, so a pack switches them on from its JS
 
 - `colors.meters: "dither"` replaces the hearts or HP bar in the pane's status box with one bar per usage window, `5h` and `wk`, or one `ctx` bar when the session reports no windows. Each bar ramps from `accent` to `text`, dissolves through `▓▒░`, and shows what is used as `faint` dots, followed by the percent left and the reset time.
 - `colors.dividers: true` draws `░▒▓━━ 03 ━━━▓▒░` above each of your prompts, numbered by turn, in `faint` with the number in `accent`.
-- `motion.field: "warp"` fills the docked pane's open rows, between the tab and the status box, with domain-warped noise dithered into braille dots. It loops every four seconds, shades from a darkened `faint` to `accent`, and holds still under `/glowup motion reduced`. The inline drawer has no open rows, so it shows no field.
+- `motion.field` fills the docked pane's open rows, between the tab and the status box, with animated noise dithered into braille dots of one color, the palette's `faint` unless `color` sets it. `"simplex"` is soft noise that morphs in place, and `"warp"` is noise folded through itself. glowup draws it live, 10 frames a second by default, and holds it still under `/glowup motion reduced`. The inline drawer has no open rows, so it shows no field.
+
+  The object form takes the knobs of [Paper's dithering shader](https://shaders.paper.design/dithering), so a look tuned there carries over: `speed` (0 to 4), `scale` (0.05 to 4, smaller is finer), `rotation` (degrees), `offsetX` and `offsetY` (-1 to 1, in pane heights), `density` (0.2 to 2), `warp` (0 to 8, the `warp` shape only), `size` (1 to 4 braille dots per dither pixel) and `dither` (`2x2`, `4x4` or `8x8`). Paper's front color is `color`; its back color is the terminal background. `fps` (1 to 12) sets the frame rate.
+
+  ```json title="a simplex field"
+  "motion": { "field": { "shape": "simplex", "speed": 0.28, "scale": 0.32, "rotation": 96, "offsetX": -0.22, "offsetY": 0.12, "size": 3, "dither": "4x4" } }
+  ```
+
+  The field has a cost: Claude Code repaints all of it every frame. On an 88×24 pane at 10 frames a second it takes about a quarter of one CPU core more than the same pack without a field. A slow field looks the same at a lower `fps`.
 
 A [renderer plugin](packs.md#drawing-with-a-plugin) that answers for the pack draws its own version in place of these.
 

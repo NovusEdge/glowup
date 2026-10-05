@@ -31,7 +31,7 @@ import { registerCopy, touchCopy, decide, unregisterCopy, pruneStatus, safeId, H
 import { staleToast, INSTALLED_FILE } from './update.ts'
 import { syncPlugin } from './pluginsync.ts'
 import { cleanFrames, cleanRows, cleanDivider, fitField, meterWindows, type Frames, type Divider } from './renderers.ts'
-import { warpFrames, ditherMeters, turnDivider } from './effects.ts'
+import { ditherMeters, turnDivider } from './effects.ts'
 import type { FieldClientProps } from './client/field.tsx'
 import type { Seg } from './layout.tsx'
 
@@ -873,15 +873,15 @@ export const register: Register = (on, options) => {
     if (e.props.placement === 'dock' && !compact && (e.surface === 'terminal' || e.surface === 'desktop')) {
       const cols = e.props.bodyColumns - 2, rows = e.props.scroll.bodyRows, reduced = reducedMotion
       const key = JSON.stringify([picked, cols, rows, colors, reduced])
-      ask($, fieldAsk, key, async () => cleanFrames(await $.glowup.field({ pack, cols, rows, colors, reduced }), rows, colors.text)
-        ?? (look.motion.field === 'warp' ? warpFrames(cols, rows, colors, reduced) : null))
-      const got = fieldAsk.key === key ? fieldAsk.value : null
-      if (got) {
+      ask($, fieldAsk, key, async () => cleanFrames(await $.glowup.field({ pack, cols, rows, colors, reduced }), rows, colors.text))
+      // a plugin's frames win; else the pack's own shape, which the Client draws live, so it sends no frames
+      const got = fieldAsk.key === key ? fieldAsk.value : null, field = look.motion.field
+      if (got || field.shape !== 'none') {
         const { Client } = $.ui.resolve(e)
         extra = { ...extra, field: (open: number) => {
-          const fit = fitField(got, open)
-          if (!fit) return null
-          const props: FieldClientProps = { frames: fit.frames, ms: fit.ms, reduced }
+          const fit = got && fitField(got, open)
+          if (got && !fit) return null
+          const props: FieldClientProps = fit ? { frames: fit.frames, ms: fit.ms, reduced } : { live: { cols, rows: open, colors, field }, reduced }
           return <Client key="glowup-field" module="./client/field.tsx" props={props} width={cols} />
         } }
       }
@@ -924,16 +924,17 @@ export const register: Register = (on, options) => {
     if (!rule) return styled
     const { Box, Text } = els
     const side = (segs: Seg[], k: string) => <Box key={k} flexShrink={0}>{segs.map(s => <Text color={s.color} bold={s.bold}>{s.text}</Text>)}</Box>
-    // The row has no width of its own, so the fill is long and its one-row box clips it; a truncating
-    // Text would end it in "…". The clipping box holds no engine node, which may not sit under overflow.
+    // Laid over the blank margin line Claude Code opens the row with (see card() in rows.tsx), so
+    // the rule sits right above the prompt. The fill is long and its one-row box clips it, since a
+    // truncating Text would end it in "…"; neither box is above the engine node.
     return (
       <Box flexDirection="column">
-        <Box flexDirection="row">
+        {styled}
+        <Box position="absolute" top={0} left={0} right={0} height={1} flexDirection="row">
           {side(rule.left, 'l')}
           <Box flexGrow={1} flexShrink={1} height={1} overflow="hidden"><Text color={rule.fill.color}>{rule.fill.text.repeat(400)}</Text></Box>
           {side(rule.right, 'r')}
         </Box>
-        {styled}
       </Box>
     )
   })
