@@ -16,17 +16,17 @@ A pack is one JSON file that sets a whole look: palette, transcript row style, s
 5. **Check contrast** and fix colors before you save. See below.
 6. **Apply.** Tell the user to run `/glowup pack <name>`. If it prints errors, fix the file from the message and ask them to run it again. To match the terminal background in Konsole they can run `/glowup export konsole`.
 
-A pack cannot hold glyphs or spinner words. For those, write a theme file (see Theme file in reference.md) and name it in `colors.theme`.
+For glyphs, hearts and spinner words, set `colors.glyphs`, `colors.hearts` and `colors.words` in the pack. A theme file (see Theme file in reference.md) is only for a reusable theme.
 
 ## Change an existing pack or theme
 
 Built-in packs (`classic`, `crt`, `cozy`, `arcade`) and built-in themes live in glowup's code, so there is no file to edit. Do not write a file with a built-in's name: glowup ignores it.
 
 1. **Small color tweak** ("make the accent greener", "dimmer text"): do not write a file. Tell the user to run `/glowup color <role> <#hex>`. It is saved, sits on top of any pack or theme, and survives `/glowup pack <name>`. `/glowup color list` shows the roles, `/glowup color reset [role]` undoes it. Use a file when the change is several colors, or anything that is not a color.
-2. **Change a built-in**: write a new user pack that `extends` it and sets only the differences, for example `{ "format": 1, "name": "arcade-soft", "extends": "arcade", "colors": { "palette": { "accent": "#d46fb0" } } }`. `palette`, `extras` and `rowFlags` merge key by key; every other key you set replaces the parent's. The user needs `/glowup pack arcade-soft` to apply it. To start from the look they have now, with their overrides, run `/glowup pack save <name>`: it writes a self-contained file you can edit.
+2. **Change a built-in**: write a new user pack that `extends` it and sets only the differences, for example `{ "format": 1, "name": "arcade-soft", "extends": "arcade", "colors": { "palette": { "accent": "#d46fb0" } } }`. `palette`, `extras`, `rowFlags`, `glyphs` and `pet` merge key by key; every other key you set replaces the parent's. The user needs `/glowup pack arcade-soft` to apply it. To start from the look they have now, with their overrides, run `/glowup pack save <name>`: it writes a self-contained file you can edit.
 3. **Change one of their packs**: read `~/.claude/glowup/packs/<name>.json`, edit it in place, keep every key you were not asked to change, and tell them to run `/glowup pack <name>` again.
 4. **What the pack can change**: `colors.palette`, `bg`, `border`, `borderColor`, `gradient`, `rows`, `extras`, `rowFlags` (`labels`, `markers`, `xp`), `glyphs`, `hearts`, `words`, `pet` (Clawd's `body`, `light`, `shade`), and `motion.spinner`, `shimmer`, `color`. `rowFlags.labels: false` drops the `you` and `claude` labels; `markers` swaps the side bar for `▶` (accent) and `◆` (`read`) in `cards`; `xp` adds a `+N XP` tag above replies in `cards`. A spinner alone can also be changed with `/glowup spinner <id>`.
-5. **Glyphs and spinner words** are not pack fields. Write a theme file `~/.claude/glowup/themes/<name>.json` with `"extends": "<built-in or their theme>"` and only the `glyphs` or `spinner.words` you change, then set `colors.theme` to its name in the pack. Each glyph is one character, one cell wide.
+5. **Glyphs and spinner words** go in the pack: `colors.glyphs`, `colors.hearts`, `colors.words`, and `colors.pet` for Clawd's colors. Write a theme file `~/.claude/glowup/themes/<name>.json` (`"extends": "<built-in or their theme>"`, only the `glyphs` or `spinner.words` you change) only when the user wants a reusable theme, and then set `colors.theme` to its name in the pack. Each glyph is one character, one cell wide.
 6. **Check contrast** again for any palette color you changed, then have the user apply it.
 
 ## Status line fields
