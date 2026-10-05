@@ -59,7 +59,9 @@ A pack is plain data that glowup validates before installing, so installing one 
 
 ## Drawing with a plugin
 
-Some looks need more than data: an animated texture in the pane, meters drawn a different way, or a rule between turns. A pack can come with a companion Claude Code plugin that draws those parts. You install it with `/plugin` like any other plugin, so Claude Code's own plugin trust covers its code, and glowup never runs code it downloaded. The [oxide](https://github.com/NovusEdge/glowup-oxide) pack works this way.
+A pack can already switch on glowup's built-in [effects](pack-reference.md#effects) from its JSON: a dithered field in the pane, dithered meters and turn dividers. The [oxide](https://github.com/NovusEdge/glowup-oxide) pack uses all three and installs from a URL like any other pack.
+
+For an effect glowup does not ship, a pack can come with a companion Claude Code plugin that draws it. You install it with `/plugin` like any other plugin, so Claude Code's own plugin trust covers its code, and glowup never runs code it downloaded.
 
 glowup asks for three parts while it draws, and a plugin that lists `glowup` under `dependencies` in its `plugin.json` can answer for its own pack:
 

@@ -10,8 +10,8 @@ const walk = (n: any, out: any[] = []): any[] => { if (typeof n === 'string') ou
 const fieldClient = (tree: any) => walk(tree).find(n => n?.type === 'Client' && String(n.props?.module).endsWith('client/field.tsx'))
 const text = (tree: any) => walk(tree).filter(n => typeof n === 'string').join(' ')
 
-function base(on: any) {
-  fakeFs(on); mock.store(on)
+function base(on: any, files: Record<string, string> = {}) {
+  fakeFs(on, files); mock.store(on)
   on('ui.render', async () => ENGINE_ROW)
   on('ui.panes', async () => ({ value: [{ id: 'glowup', isShown: true, isPlaced: true }] }))
   on('ui.status', async () => ({ value: undefined }) as never)
@@ -113,6 +113,27 @@ test('the placeholder row a prompt draws before it is stored shows the next numb
   const stored = await mountPrompt($, 'u1')
   expect(text(await stored.drawn())).toContain('T1 ')
   await stored.unmount()
+})
+
+test('a pack that picks the built-in effects gets the field, the meters and the dividers with no plugin', async ($, on) => {
+  const fx = { format: 1, name: 'fx', colors: { meters: 'dither', dividers: true }, motion: { field: 'warp' } }
+  base(on, { '/fake/.claude/glowup/packs/fx.json': JSON.stringify(fx) })
+  const clock = mock.clock(on)
+  // the session start is what tells glowup where the config directory is
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false } as never)
+  expect((await runGlowup($, 'pack fx')).text).toBe('Pack: fx')
+  const pane = await mountPane($)
+  await pane.drawn(); await clock.advance(1)
+  const tree = await pane.drawn()
+  expect(text(tree)).toContain('ctx ')
+  expect(text(tree)).toContain('▓▒░')
+  expect(fieldClient(tree)).toBeDefined()
+  await pane.unmount()
+  const row = await mountPrompt($, 'u1')
+  expect(text(await row.drawn())).toContain('░▒▓━━ ')
+  await row.unmount()
 })
 
 test('without a divider answer the prompt row is unchanged', async ($, on) => {
