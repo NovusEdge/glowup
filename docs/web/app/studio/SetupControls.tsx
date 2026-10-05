@@ -42,16 +42,19 @@ function Order<T extends string>({ title, all, active, labels, onChange }: { tit
 const BAND_LABEL = { combo: 'Combo', agents: 'Agents', meter: 'Meter', plan: 'Plan' }
 const TAB_LABEL = { changes: 'Changes', agents: 'Agents', plan: 'Plan' }
 
-export function SetupControls({ setup, onSetup }: { setup: Setup; onSetup(s: Setup): void }) {
+export function SetupControls({ setup, onSetup, onTier }: { setup: Setup; onSetup(s: Setup): void; onTier(w: 'narrow' | 'wide'): void }) {
   const [notice, setNotice] = useState<string>()
   const apply = (patch: Partial<Setup>) => {
     const r = editSetup(setup, patch)
     setNotice(r.notice)
-    if (!r.notice) onSetup(r.setup)
+    if (r.notice) return
+    onSetup(r.setup)
+    // The band only draws in the narrow preview and tabs only in the wide one; show what was just edited.
+    if (patch.band) onTier('narrow')
+    else if (patch.tabs) onTier('wide')
   }
   return (
-    <section className="grp">
-      <h3>Setup</h3>
+    <>
       {notice && <p className="bad" role="status">{notice}</p>}
       <Order title="Band" all={BAND_ITEMS} active={setup.band} labels={BAND_LABEL} onChange={band => apply({ band })} />
       <Order title="Tabs" all={TAB_IDS} active={setup.tabs} labels={TAB_LABEL} onChange={tabs => apply({ tabs })} />
@@ -69,6 +72,6 @@ export function SetupControls({ setup, onSetup }: { setup: Setup; onSetup(s: Set
         <NumField label="Bubble time (s)" value={setup.bubbles.ms / 1000} min={1.5} max={10} step={0.5} onCommit={s => apply({ bubbles: { ...setup.bubbles, ms: Math.round(s * 1000) } })} />
       </div>
       <NumField label="Pet sleeps after (s)" value={setup.pet.sleepMs / 1000} min={15} max={600} onCommit={s => apply({ pet: { sleepMs: Math.round(s * 1000) } })} />
-    </section>
+    </>
   )
 }
