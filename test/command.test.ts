@@ -486,6 +486,15 @@ test('a studio link status line keeps the field ids glowup knows and names the r
   expect(out).toContain('  dropped: unknown status line field "nope"')
 })
 
+test('the setup prompt names the status line only when the link carries one', async () => {
+  const withSl = ctl(true)
+  expect(await runCommand(fakeHost().host, `pack ${encodeLink({ setup: { band: ['plan'], statusline: ['model', 'ctx'] } })}`, withSl.ctl)).toBe('Setup: applied\nStatus line: model ctx')
+  expect(withSl.questions[0]).toBe('This link also carries a layout setup (band, tabs, meter, bubbles, pet sleep, status line). Apply it?')
+  const without = ctl(true)
+  await runCommand(fakeHost().host, `pack ${encodeLink({ setup: { band: ['plan'] } })}`, without.ctl)
+  expect(without.questions[0]).toBe('This link also carries a layout setup (band, tabs, meter, bubbles, pet sleep). Apply it?')
+})
+
 test('a studio link status line of only unknown ids leaves the stored fields alone', async () => {
   const { host, store } = fakeHost()
   const out = await runCommand(host, `pack ${encodeLink({ setup: { statusline: ['nope'] } })}`, ctl(true).ctl)

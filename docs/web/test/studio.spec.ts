@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { COLOR_KEYS, DEFAULT_SETUP, FIELD_KNOBS, resolveTheme, STUDIO_URL, encodeLink, exportMix } from '../app/landing/data.ts'
+import { COLOR_KEYS, DEFAULT_SETUP, FIELD_KNOBS, resolveTheme, STUDIO_URL, encodeLink, decodeLink, exportMix } from '../app/landing/data.ts'
 import { packLook } from '../app/landing/look.ts'
 import {
   COLOR_GROUPS, DEFAULT_STUDIO_SETUP, LINK_MAX, contrast, draftLook, draftProblems, editColors, editSetup, focusVars, fromHash,
@@ -53,6 +53,17 @@ test('the send command carries pack and setup', () => {
   assert.ok(cmd.startsWith(`/glowup pack ${STUDIO_URL}#v=1&p=`))
   assert.deepEqual(fromHash(hashOf(cmd.slice('/glowup pack '.length))).setup!.tabs, ['plan', 'changes'])
   assert.equal(stateHash(startDraft('crt'), s), hashOf(cmd.slice('/glowup pack '.length)))
+})
+
+test('the status line rides in the setup part only when edited away from the default', () => {
+  const part = (cmd: string) => decodeLink(cmd.slice('/glowup pack '.length)).parts.setup as Record<string, unknown>
+  const d = startDraft('crt')
+  assert.ok(!('statusline' in part(sendCommand(d, DEFAULT_STUDIO_SETUP))))
+  assert.equal(stateHash(d, DEFAULT_STUDIO_SETUP), hashOf(encodeLink({ pack: d, setup: DEFAULT_SETUP })))
+  assert.deepEqual(fromHash(stateHash(d, DEFAULT_STUDIO_SETUP)).setup!.statusline, DEFAULT_STUDIO_SETUP.statusline)
+  const edited = editSetup(DEFAULT_STUDIO_SETUP, { statusline: ['model', 'ctx'] }).setup
+  assert.deepEqual(part(sendCommand(d, edited)).statusline, ['model', 'ctx'])
+  assert.deepEqual(fromHash(stateHash(d, edited)).setup!.statusline, ['model', 'ctx'])
 })
 
 test('a pane link named after a built-in loads renamed, with the pane description kept', () => {

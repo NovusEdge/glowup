@@ -126,8 +126,14 @@ export const COLOR_GROUPS: { name: string; items: Swatch[] }[] = [
 
 const hashOf = (link: string) => link.slice(STUDIO_URL.length)
 export const shareLink = (d: Draft) => encodeLink({ pack: d })
-export const sendCommand = (d: Draft, s: StudioSetup) => `/glowup pack ${encodeLink({ pack: d, setup: s })}`
-export const stateHash = (d: Draft, s: StudioSetup) => hashOf(encodeLink({ pack: d, setup: s }))
+// The default status line stays out of the link: accepting a setup replaces the receiver's status line fields,
+// so only a deliberate edit should carry them. fromHash restores the default when the part is absent.
+const setupPart = (s: StudioSetup) => {
+  const { statusline, ...rest } = s
+  return statusline.length === DEFAULT_FIELDS.length && statusline.every((f, i) => f === DEFAULT_FIELDS[i]) ? rest : s
+}
+export const sendCommand = (d: Draft, s: StudioSetup) => `/glowup pack ${encodeLink({ pack: d, setup: setupPart(s) })}`
+export const stateHash = (d: Draft, s: StudioSetup) => hashOf(encodeLink({ pack: d, setup: setupPart(s) }))
 
 function parseStatusline(raw: unknown): { ids: StatusFieldId[]; notices: string[] } {
   if (raw === undefined) return { ids: [...DEFAULT_FIELDS], notices: [] }
