@@ -75,6 +75,26 @@ jobs:
           GLOWUP_BASE_URL="file://$RUNNER_TEMP/release" GLOWUP_VERSION="$tag" \
             sh docs/web/public/install.sh --dry-run --pack crt </dev/null | tee "$RUNNER_TEMP/out.txt"
           grep -qF 'claude plugin install glowup@glowup --config pack=crt' "$RUNNER_TEMP/out.txt"
+  docs:
+    name: Docs site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: docs/web/pnpm-lock.yaml
+      # Same install flags as pages.yml, which explains them.
+      - run: >-
+          pnpm -C docs/web install --frozen-lockfile --ignore-workspace
+          --allow-build=esbuild
+          --config.minimum-release-age-exclude=fumadocs-core@16.16.1
+          --config.minimum-release-age-exclude=fumadocs-ui@16.16.1
+      - run: pnpm -C docs/web build
+      - run: pnpm -C docs/web check
+      - run: pnpm -C docs/web test
   versions:
     name: Manifest versions agree
     runs-on: ubuntu-latest

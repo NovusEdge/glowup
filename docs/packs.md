@@ -57,7 +57,7 @@ Host the pack file anywhere it can be fetched over `https://`, such as a gist or
 
 A pack is plain data that glowup validates before installing, so installing one cannot run code.
 
-A studio link carries the whole pack inside it, so you can share a look without hosting a file. Paste it after /glowup pack.
+A studio link carries the whole pack inside it, so you can share a look without hosting a file. Paste it after /glowup pack. The studio at https://glowup.khimani.dev/studio builds a pack and setup with a live preview and produces these links.
 
 ## Drawing with a plugin
 

@@ -1,6 +1,6 @@
 // The built-in answers to glowup.field, glowup.meter and glowup.divider, which a pack picks
 // with motion.field, colors.meters and colors.dividers. A renderer plugin that answers first wins.
-import type { Seg } from './layout.tsx'
+import type { Seg } from './segs.ts'
 import type { Colors } from './themes.ts'
 import type { Divider, Window } from './renderers.ts'
 import type { Field } from './packs.ts'

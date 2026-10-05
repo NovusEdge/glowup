@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { resolveLook, validatePack, exportMix, stockMotion, SPINNER_IDS, FIELD_DEFAULTS, type Mix } from '../hooks/packs.ts'
+import { resolveLook, validatePack, exportMix, exportName, packNameProblem, stockMotion, SPINNER_IDS, FIELD_DEFAULTS, type Mix } from '../hooks/packs.ts'
 import { PACKS } from '../hooks/packpresets.ts'
 import { resolveTheme } from '../hooks/themes.ts'
 
@@ -155,4 +155,81 @@ test('exportMix description is built from shown names and fits 80 characters', a
 test('stockMotion freezes motion', async () => {
   expect(stockMotion(look(pack('arcade')).look).motion).toEqual({ spinner: 'stock', shimmer: 0, color: '#38e8ff', field: { shape: 'none', ...FIELD_DEFAULTS } })
   expect(SPINNER_IDS).toHaveLength(6)
+})
+
+test('exportName prefixes a built-in name and keeps any other', () => {
+  expect(exportName('cozy')).toBe('my-cozy')
+  expect(exportName('classic')).toBe('my-classic')
+  expect(exportName('sunset')).toBe('sunset')
+  expect(packNameProblem(exportName('arcade'))).toBeUndefined()
+})
+
+test('packNameProblem refuses unsafe and built-in names with the install wording', () => {
+  expect(packNameProblem('sunset')).toBeUndefined()
+  expect(packNameProblem('crt')).toBe('"crt" is a built-in pack name; pick another.')
+  expect(packNameProblem('My Pack')).toBe('A pack needs a "name" of lowercase letters, digits and dashes.')
+  expect(packNameProblem('')).toBe('A pack needs a "name" of lowercase letters, digits and dashes.')
+  expect(packNameProblem('a'.repeat(41))).toBe('A pack needs a "name" of lowercase letters, digits and dashes.')
+})
+
+test('a pack can set glyphs, hearts and spinner words over its theme', () => {
+  const pack = { format: 1, name: 'g', colors: { theme: 'classic', glyphs: { read: '»' }, hearts: ['●', '○'], words: ['Brewing'] } }
+  const { look, errors } = resolveLook({ colors: 'g', motion: 'classic' }, { g: pack }, {})
+  expect(errors).toEqual([])
+  expect(look.theme.glyphs.read).toBe('»')
+  expect(look.theme.glyphs.edit).toBe(resolveTheme('classic', {}).theme.glyphs.edit)
+  expect(look.theme.hearts).toEqual(['●', '○'])
+  expect(look.theme.spinnerWords).toEqual(['Brewing'])
+})
+
+test('pack glyphs, hearts and words are checked like theme files', () => {
+  const bad = (colors: object) => () => validatePack({ format: 1, name: 'g', colors })
+  expect(bad({ glyphs: { read: 'ab' } })).toThrow('glyph "read" must be one width-1 character')
+  expect(bad({ glyphs: { nope: '»' } })).toThrow('unknown glyph "nope"')
+  expect(bad({ hearts: ['♥'] })).toThrow('colors.hearts must be two width-1 characters')
+  expect(bad({ words: ['x'.repeat(25)] })).toThrow('colors.words must be short strings of printable characters')
+})
+
+test('exportMix leaves out glyphs, hearts and words that match the base theme', () => {
+  const plain = exportMix(resolveLook({ colors: 'cozy', motion: 'cozy' }, {}, {}).look, 'x')
+  expect('glyphs' in (plain.colors as object) || 'hearts' in (plain.colors as object) || 'words' in (plain.colors as object)).toBe(false)
+  const pack = { format: 1, name: 'g', colors: { theme: 'classic', glyphs: { read: '»' } } }
+  const out = exportMix(resolveLook({ colors: 'g', motion: 'classic' }, { g: pack }, {}).look, 'g')
+  expect((out.colors as { glyphs?: object }).glyphs).toEqual({ read: '»' })
+})
+
+test('glyphs merge per key down an extends chain', () => {
+  const parent = { format: 1, name: 'p', colors: { theme: 'classic', glyphs: { read: '»' } } }
+  const child = { format: 1, name: 'c', extends: 'p', colors: { glyphs: { edit: '¤' } } }
+  const { look, errors } = resolveLook({ colors: 'c', motion: 'classic' }, { p: parent, c: child }, {})
+  expect(errors).toEqual([])
+  expect(look.theme.glyphs.read).toBe('»')
+  expect(look.theme.glyphs.edit).toBe('¤')
+})
+
+test("a pack's pet colors are checked, merge per key, and round-trip through exportMix", () => {
+  const bad = (pet: object) => () => validatePack({ format: 1, name: 'p', colors: { pet } })
+  expect(bad({ body: 'red' })).toThrow('colors.pet.body must be #rrggbb')
+  expect(bad({ shade: '#12' })).toThrow('colors.pet.shade must be #rrggbb')
+  expect(bad({ fur: '#112233' })).toThrow('unknown key "fur" in colors.pet')
+  const parent = { format: 1, name: 'p', colors: { theme: 'classic', pet: { body: '#112233', light: '#445566' } } }
+  const child = { format: 1, name: 'c', extends: 'p', colors: { pet: { light: '#778899' } } }
+  const { look, errors } = resolveLook({ colors: 'c', motion: 'classic' }, { p: parent, c: child }, {})
+  expect(errors).toEqual([])
+  expect(look.pet).toEqual({ body: '#112233', light: '#778899' })
+  expect((exportMix(look, 'x').colors as { pet?: object }).pet).toEqual({ body: '#112233', light: '#778899' })
+  const plain = resolveLook(pack('classic'), {}, {}).look
+  expect(plain.pet).toEqual({})
+  expect('pet' in (exportMix(plain, 'x').colors as object)).toBe(false)
+})
+
+test('a theme override ignores the pack glyphs, hearts and words', () => {
+  const pack = { format: 1, name: 'g', colors: { theme: 'classic', glyphs: { read: '»' }, hearts: ['●', '○'], words: ['Brewing'] } }
+  const dusk = resolveTheme('dusk', {}).theme
+  const { look, errors } = resolveLook({ colors: 'g', motion: 'classic', theme: 'dusk' }, { g: pack }, {})
+  expect(errors).toEqual([])
+  expect(look.theme.glyphs).toEqual(dusk.glyphs)
+  expect(look.theme.hearts).toEqual(dusk.hearts)
+  expect(look.theme.spinnerWords).toEqual(dusk.spinnerWords)
+  expect(look.theme.spinnerWords).not.toEqual(['Brewing'])
 })

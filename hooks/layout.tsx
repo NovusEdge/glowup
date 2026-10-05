@@ -3,9 +3,10 @@ import type { Act } from './model.ts'
 import { cellWidth } from './cells.ts'
 import { gradient } from './color.ts'
 import type { Look } from './packs.ts'
+import type { Seg } from './segs.ts'
 
 export type Tier = 'wide' | 'medium' | 'compact'
-export type Seg = { text: string; color: string; bold?: boolean; bg?: string }
+export type { Seg }
 
 export const tierFor = (columns: number, paneDocked: boolean): Tier => paneDocked ? 'wide' : columns >= 80 ? 'medium' : 'compact'
 export { cellWidth }

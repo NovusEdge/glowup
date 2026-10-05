@@ -1,0 +1,78 @@
+.st-root{position:relative;min-height:100dvh;padding-bottom:72px;display:flex;flex-direction:column;font-size:14px;background:var(--bg)}
+.st-root :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.st-root button:disabled{opacity:.4;cursor:not-allowed}
+
+.st-root .st-bar{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px 14px;padding:8px 12px;border-bottom:1px solid var(--faint);background:var(--bg)}
+.st-root .st-id{flex:1 1 100%;display:flex;align-items:center;gap:14px;min-width:0}
+.st-root .st-logo{display:inline-flex;align-items:center;min-height:44px;font:700 21px 'Pixelify Sans',monospace;color:var(--text)}
+.st-root .st-logo span{color:var(--accent)}
+.st-root .st-docs{color:var(--dim);font-size:13px;min-height:44px;display:inline-flex;align-items:center}
+.st-root .st-docs:hover{color:var(--text)}
+.st-root .st-word{margin:0;padding-left:14px;border-left:1px solid var(--faint);color:var(--dim);font:400 14px Geist,sans-serif;letter-spacing:0;text-shadow:none}
+.st-root .st-name,.st-root .st-from{display:flex;flex-direction:column;gap:4px;min-width:0;font-size:12.5px;color:var(--dim)}
+.st-root .st-name{flex:1 1 160px;position:relative}
+.st-root .st-name label,.st-root .st-from{display:flex;flex-direction:column;gap:4px}
+.st-root .st-from{flex:1 1 140px}
+.st-root .st-name p{margin:0;color:var(--fail);font-size:12.5px;overflow-wrap:anywhere}
+.st-root .st-name p:empty{position:absolute;width:1px;height:1px;overflow:hidden}
+
+.st-root .st-actions{position:fixed;z-index:30;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px 12px;background:var(--panel);border-top:1px solid var(--faint)}
+.st-root .st-actions button{min-height:44px;padding:0 10px;border:1px solid var(--faint);border-radius:8px;background:var(--bg);font-size:13px}
+.st-root .st-actions button:hover:not(:disabled){border-color:var(--accent)}
+.st-root .st-actions .primary:not(:disabled){background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:600}
+.st-root .st-pop{position:fixed;z-index:31;left:12px;right:12px;bottom:68px;background:var(--panel);border:1px solid var(--faint);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 24px #0006}
+.st-root .st-pop p{margin:0;font-size:12.5px;color:var(--dim)}
+.st-root .st-pop .note{color:var(--edit)}
+.st-root .st-pop code{display:block;font:12px/1.5 'JetBrains Mono',monospace;background:var(--bg);border:1px solid var(--faint);border-radius:8px;padding:8px 10px;max-height:160px;overflow:auto;overflow-wrap:anywhere;user-select:all}
+
+.st-root .st-notice{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:6px 12px;background:var(--panel);border-bottom:1px solid var(--faint)}
+.st-root .st-notice p{margin:4px 0;font-size:13px}
+.st-root .st-notice button{min-width:44px;min-height:44px;margin:-6px -8px -6px 0;font-size:18px;color:var(--dim)}
+
+.st-root .st-main{display:flex;flex-direction:column;flex:1;min-height:0}
+.st-root .st-stage{order:-1;display:flex;flex-direction:column;padding:12px;max-height:50dvh;overflow:auto;min-width:0}
+.st-root .st-view{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:2px 12px;padding:3px 6px;background:var(--panel);border:1px solid var(--faint);border-bottom:0;border-radius:10px 10px 0 0}
+.st-root .st-view p{margin:0;font-size:12.5px;color:var(--dim)}
+.st-root .st-seg{display:inline-flex;gap:2px}
+.st-root .st-seg button{min-height:44px;padding:0 12px;border-radius:7px;font:500 13px 'JetBrains Mono',monospace;color:var(--dim)}
+.st-root .st-seg button[aria-pressed=true]{background:var(--accent);color:var(--bg)}
+
+.st-root .studio-preview{flex:1;min-height:0;display:flex;align-items:stretch;justify-content:center;min-width:0}
+.st-root .st-frame{display:flex;flex-direction:column;width:100%;min-width:0}
+.st-root .st-frame .term{border-top-left-radius:0;border-top-right-radius:0}
+.st-root .studio-preview .plist{display:flex}
+.st-root .studio-preview[data-width=narrow] .pane,
+.st-root .studio-preview[data-width=wide] .bitems,
+.st-root .studio-preview[data-width=fullscreen] .bitems{display:none}
+
+.st-root .st-side{min-width:0;background:var(--panel);border-top:1px solid var(--faint)}
+
+@media (min-width:900px){
+  .st-root{height:100dvh;min-height:0;padding-bottom:0;overflow:hidden}
+  .st-root .st-bar{flex-wrap:nowrap;align-items:flex-end;padding:8px 16px}
+  .st-root .st-id{flex:0 0 auto;align-items:center;padding-bottom:0}
+  .st-root .st-name{flex:0 0 190px}
+  .st-root .st-from{flex:0 0 160px}
+  .st-root .st-name p{position:absolute;top:100%;left:0;z-index:6;width:max-content;max-width:420px}
+  .st-root .st-name p:not(:empty){margin-top:4px;padding:4px 8px;background:var(--bg);border:1px solid var(--faint);border-radius:6px}
+  .st-root .st-docs{min-height:40px}
+  .st-root .st-actions{position:relative;inset:auto;margin-left:auto;display:flex;padding:0;background:none;border:0}
+  .st-root .st-actions button{min-height:40px;padding:0 14px}
+  .st-root .st-pop{position:absolute;left:auto;right:0;top:calc(100% + 10px);bottom:auto;width:min(440px,90vw)}
+  .st-root .st-notice{padding:2px 16px}
+  .st-root .st-main{flex-direction:row}
+  .st-root .st-side{flex:0 0 360px;width:360px;overflow-y:auto;border-top:0;border-right:1px solid var(--faint)}
+  .st-root .st-stage{order:0;flex:1;max-height:none;padding:12px 16px 16px}
+  .st-root .st-frame .term{flex:1;min-height:0;display:flex;flex-direction:column}
+  .st-root .st-frame .tbody{flex:1;min-height:0;height:auto}
+  .st-root .studio-preview[data-width=narrow] .st-frame{width:calc(480px*var(--z,1));max-width:100%}
+  .st-root .studio-preview[data-width=wide] .st-frame{max-width:calc(820px*var(--z,1))}
+  .st-root .st-seg button{min-height:36px}
+}
+@media (max-width:899px){
+  /* column-reverse starts a scroller at its end and keeps it there as the transcript grows. The preview must not
+     shrink to the stage, or the terminal clips instead of scrolling. */
+  .st-root .st-stage{flex-direction:column-reverse}
+  .st-root .studio-preview{flex:none}
+  .st-root .studio-preview[data-width=narrow] .st-frame{max-width:none}
+}

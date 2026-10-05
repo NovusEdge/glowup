@@ -111,7 +111,7 @@ docs-dev:
 # build the docs site, check it and run its tests
 [group('docs')]
 docs-check:
-    pnpm -C docs/web install --ignore-workspace
+    pnpm -C docs/web install --frozen-lockfile --ignore-workspace --allow-build=esbuild --config.minimum-release-age-exclude=fumadocs-core@16.16.1 --config.minimum-release-age-exclude=fumadocs-ui@16.16.1
     pnpm -C docs/web build
     pnpm -C docs/web check
     pnpm -C docs/web test

@@ -74,15 +74,27 @@ function validate(file: unknown): asserts file is ThemeFile {
     if (!(COLOR_KEYS as readonly string[]).includes(k)) throw new Error(`unknown color "${shown(k)}"`)
     if (typeof v !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(v)) throw new Error(`color "${k}" must be #rrggbb`)
   }
-  if (f.glyphs !== undefined && !isPlain(f.glyphs)) throw new Error('"glyphs" must be an object')
-  for (const [k, v] of Object.entries(f.glyphs ?? {})) {
+  checkGlyphs(f.glyphs, 'glyphs')
+  checkHearts((f.band as { hearts?: unknown } | undefined)?.hearts, 'band.hearts')
+  checkWords((f.spinner as { words?: unknown } | undefined)?.words, 'spinner.words')
+}
+
+// `where` names the field in the message, so a theme file and a pack each report their own key.
+export function checkGlyphs(v: unknown, where: string): void {
+  if (v === undefined) return
+  if (!isPlain(v)) throw new Error(`"${where}" must be an object`)
+  for (const [k, g] of Object.entries(v)) {
     if (!(GLYPH_KEYS as readonly string[]).includes(k)) throw new Error(`unknown glyph "${shown(k)}"`)
-    if (!isGlyph(v)) throw new Error(`glyph "${k}" must be one width-1 character`)
+    if (!isGlyph(g)) throw new Error(`glyph "${k}" must be one width-1 character`)
   }
-  const hearts = (f.band as { hearts?: unknown } | undefined)?.hearts
-  if (hearts !== undefined && (!Array.isArray(hearts) || hearts.length !== 2 || !hearts.every(isGlyph))) throw new Error('band.hearts must be two width-1 characters')
-  const words = (f.spinner as { words?: unknown } | undefined)?.words
-  if (words !== undefined && (!Array.isArray(words) || !words.every(isWord))) throw new Error('spinner.words must be short strings of printable characters')
+}
+
+export function checkHearts(v: unknown, where: string): void {
+  if (v !== undefined && (!Array.isArray(v) || v.length !== 2 || !v.every(isGlyph))) throw new Error(`${where} must be two width-1 characters`)
+}
+
+export function checkWords(v: unknown, where: string): void {
+  if (v !== undefined && (!Array.isArray(v) || !v.every(isWord))) throw new Error(`${where} must be short strings of printable characters`)
 }
 
 function chain(name: string, user: Record<string, unknown>, seen: string[] = []): ThemeFile[] {

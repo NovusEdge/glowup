@@ -1,4 +1,4 @@
-import type { Seg } from './layout.tsx'
+import type { Seg } from './segs.ts'
 import type { Model } from './model.ts'
 import { isUnsafe } from './themes.ts'
 import { liveLimit, resetIn } from './fields.ts'

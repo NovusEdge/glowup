@@ -251,6 +251,15 @@ test('shiny swaps only the body colors, and only keys the palette has', async ()
   expect(Object.keys(s).sort()).toEqual(Object.keys(CLAWD_SHEET.palette).sort())
 })
 
+test('a pack tint recolors B, L and D for clawd and is ignored for clawd-shiny', async () => {
+  const tint = { body: '#112233', light: '#445566', shade: '#778899' }
+  const p = petPalette(CLAWD_SHEET, 'clawd', tint)
+  expect([p.B, p.L, p.D]).toEqual(['#112233', '#445566', '#778899'])
+  expect(petPalette(CLAWD_SHEET, 'clawd', { body: '#112233' }).L).toBe(CLAWD_SHEET.palette.L)
+  expect(petPalette(CLAWD_SHEET, 'clawd')).toEqual(CLAWD_SHEET.palette)
+  expect(petPalette(CLAWD_SHEET, 'clawd-shiny', tint)).toEqual(petPalette(CLAWD_SHEET, 'clawd-shiny'))
+})
+
 test('outfits draw on the head and change the picture; unknown names change nothing', async () => {
   const base = (ov: string[]) => flat(draw('clawd', 'idle', 0, ov))
   for (const ov of ['santa', 'party', 'nightcap', 'pumpkin', 'sweat']) expect(base([ov]).join('\n')).not.toBe(base([]).join('\n'))

@@ -143,10 +143,20 @@ async function packFromLink(host: Host, ctl: Ctl, link: string, force: boolean):
   if (parts.setup !== undefined) {
     const { setup, notices } = parseSetup(parts.setup)
     if (typeof parts.setup !== 'object' || parts.setup === null || Array.isArray(parts.setup)) out.push(`Setup not applied: ${notices[0]}`)
-    else if (await ctl.confirm('This link also carries a layout setup (band, tabs, meter, bubbles, pet sleep). Apply it?')) {
+    else if (await ctl.confirm(`This link also carries a layout setup (band, tabs, meter, bubbles, pet sleep${'statusline' in parts.setup ? ', status line' : ''}). Apply it?`)) {
       await host.storeSet('setup', setup)
       ctl.setSetup(setup)
       out.push('Setup: applied', ...notices.map(n => `  dropped: ${n}`))
+      const sl = (parts.setup as { statusline?: unknown }).statusline
+      if (Array.isArray(sl)) {
+        const ids = [...new Set(sl.filter((s): s is FieldId => typeof s === 'string' && isFieldId(s)))]
+        if (ids.length) {
+          await host.storeSet('statusline', ids)
+          ctl.setFields(ids)
+          out.push(`Status line: ${ids.join(' ')}`)
+        }
+        for (const s of sl) if (typeof s !== 'string' || !isFieldId(s)) out.push(`  dropped: unknown status line field "${shown(String(s))}"`)
+      }
     } else out.push('Setup: kept yours')
   }
   if (parts.pet !== undefined) out.push('This link carries a pet; this glowup cannot install pets yet.')
