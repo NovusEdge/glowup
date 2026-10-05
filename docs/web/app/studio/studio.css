@@ -1,0 +1,65 @@
+.landing main.studio{padding-top:84px;padding-bottom:40px}
+.landing .studio .st-title{font-size:28px;letter-spacing:-.03em;margin-bottom:18px;text-shadow:none}
+.landing .studio .st-grid{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);gap:20px;align-items:start}
+.landing .studio .st-controls{grid-column:1;grid-row:1;display:flex;flex-direction:column;gap:12px;min-width:0}
+.landing .studio .st-side{grid-column:2;grid-row:1;position:sticky;top:76px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.landing .studio .st-view{display:flex;flex-direction:column;gap:10px;align-items:flex-start;min-width:0;width:100%}
+.landing .studio .seg2{background:var(--panel)}
+.landing .studio .seg2 button{min-height:34px}
+
+.landing .studio .studio-preview{width:100%;min-width:0}
+.landing .studio .studio-preview[data-width=narrow]{max-width:460px}
+.landing .studio .studio-preview[data-width=narrow] .pane,
+.landing .studio .studio-preview[data-width=wide] .band,
+.landing .studio .studio-preview[data-width=fullscreen] .band{display:none}
+.landing .studio .studio-preview[data-width=fullscreen] .term{--th:640px}
+
+.landing .studio .grp,.landing .studio .out,.landing .studio .st-notice{background:var(--panel);border:1px solid var(--faint);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;font-size:14px}
+.landing .studio h2,.landing .studio h3{font:600 13px Geist,sans-serif;color:var(--dim);letter-spacing:0}
+.landing .studio h4{font:500 13px Geist,sans-serif;color:var(--dim)}
+.landing .studio .line{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end}
+.landing .studio .fld{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--dim);min-width:0}
+.landing .studio .fld.wide{width:100%}
+.landing .studio .chk{display:inline-flex;align-items:center;gap:6px;min-height:32px;font-size:14px}
+.landing .studio .chk input,.landing .studio .orow input,.landing .studio .line label input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent)}
+
+.landing .studio select,.landing .studio input[type=text],.landing .studio input[type=number]{font:13px 'JetBrains Mono',monospace;color:var(--text);background:var(--bg);border:1px solid var(--faint);border-radius:8px;padding:0 10px;min-height:44px;min-width:0;max-width:100%}
+.landing .studio input[type=number]{width:120px}
+.landing .studio input[type=color]{width:44px;height:44px;padding:3px;background:var(--bg);border:1px solid var(--faint);border-radius:8px;cursor:pointer}
+.landing .studio .fld input[type=color]{width:56px}
+
+.landing .studio .role{display:grid;grid-template-columns:44px 88px minmax(48px,auto) minmax(0,1fr);gap:4px 10px;align-items:center;border-radius:6px}
+.landing .studio .role .hex{width:88px;padding:0 8px}
+.landing .studio .role b{font:600 13px 'JetBrains Mono',monospace}
+.landing .studio .role span{color:var(--dim);font-size:12.5px;line-height:1.3}
+
+.landing .studio .order{display:flex;flex-direction:column;gap:2px}
+.landing .studio .orow{display:flex;align-items:center;gap:6px}
+.landing .studio .orow label{flex:1;display:flex;align-items:center;gap:8px;min-height:44px}
+.landing .studio .orow button,.landing .studio .btns button{min-height:44px;min-width:44px;padding:0 14px;border:1px solid var(--faint);border-radius:8px;background:var(--bg);font-size:13px}
+.landing .studio .orow button:hover:not(:disabled),.landing .studio .btns button:hover:not(:disabled){border-color:var(--accent)}
+.landing .studio button:disabled{opacity:.4;cursor:not-allowed}
+
+.landing .studio .bad{color:var(--fail);font-size:13px;min-height:1.3em;margin:0}
+.landing .studio .grp .bad:empty{display:none}
+.landing .studio .warn{color:var(--edit);font-size:13px;margin:0}
+.landing .studio .st-notice{flex-direction:row;justify-content:space-between;align-items:flex-start}
+.landing .studio .st-notice p{margin:0 0 4px;font-size:13px}
+.landing .studio .st-notice button{min-width:44px;min-height:44px;margin:-8px -8px 0 0;font-size:18px;color:var(--dim)}
+
+.landing .studio .btns{display:flex;flex-wrap:wrap;gap:8px}
+.landing .studio .btns button:first-child:not(:disabled){background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:600}
+.landing .studio .hint{font-size:12.5px;color:var(--dim);margin:0}
+.landing .studio .cmd{display:block;font:12px/1.5 'JetBrains Mono',monospace;background:var(--bg);border:1px solid var(--faint);border-radius:8px;padding:10px 12px;max-height:96px;overflow:auto;overflow-wrap:anywhere;user-select:all}
+.landing .studio .note{font-size:13px;color:var(--edit);margin:0}
+
+@media (max-width:900px){
+  .landing .studio .st-grid{grid-template-columns:minmax(0,1fr)}
+  .landing .studio .st-side{display:contents}
+  .landing .studio .st-view{grid-column:1;grid-row:1}
+  .landing .studio .st-controls{grid-column:1;grid-row:2}
+  .landing .studio .out{grid-column:1;grid-row:3}
+  .landing .studio .studio-preview[data-width=narrow]{max-width:none}
+  .landing .studio .role{grid-template-columns:44px 9ch minmax(0,1fr)}
+  .landing .studio .role span{grid-column:1/-1}
+}

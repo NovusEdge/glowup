@@ -11,7 +11,7 @@ export type Guide = { slug: string; title: string; description: string }
 
 export const slugs = (): string[] => guides().map(g => g.slug)
 export const pathOf = (slug: string) => `/${slug}`
-export const allPaths = () => ['/', ...slugs().map(pathOf)]
+export const allPaths = () => ['/', '/studio', ...slugs().map(pathOf)]
 
 export function guides(): Guide[] {
   const order = (JSON.parse(readFileSync(new URL('meta.json', CONTENT_DIR), 'utf8')).pages as string[]).filter(p => !p.startsWith('---'))
