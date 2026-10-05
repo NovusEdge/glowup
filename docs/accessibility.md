@@ -9,7 +9,7 @@ description: Reduced motion, the high-contrast theme, narrow terminals and termi
 
 glowup cannot follow your operating system's reduced-motion setting, because Claude Code does not pass it to mods, so it has to be turned on here.
 
-Even with full motion, nothing flashes more than 2.5 times a second, color flashes last at least 400 ms, and Clawd's frames change at most every 80 ms. Elapsed times keep counting up once a second under reduced motion, since that is text changing in place rather than animation.
+With motion on, nothing flashes more than 2.5 times a second, color flashes last at least 400 ms, and Clawd's frames change at most every 80 ms. Elapsed times still count up once a second under reduced motion.
 
 ## High contrast
 
@@ -21,7 +21,7 @@ Even with full motion, nothing flashes more than 2.5 times a second, color flash
 
 ## Narrow terminals
 
-Under 80 columns glowup switches to compact forms of the band and the drawer. Lines are measured in terminal cells and cut with an ellipsis rather than wrapping. See [Layout](layout.md).
+Under 80 columns glowup switches to compact forms of the band and the drawer. A line that does not fit ends in an ellipsis. See [Layout](layout.md).
 
 ## Without color
 

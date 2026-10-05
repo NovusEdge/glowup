@@ -49,7 +49,7 @@ Set `GLOWUP_VERSION=v0.3.0` to use that release's installer instead of the lates
 
 The installer has been tested in Konsole, kitty, ghostty, alacritty and xterm. It uses 24-bit color when the terminal advertises it, falls back to 256 colors under `TERM=xterm`, and respects `NO_COLOR`.
 
-xterm takes block characters from the font rather than drawing them itself, so Clawd shows gaps unless the font covers the Block Elements range (DejaVu Sans Mono does). kitty, ghostty and alacritty draw block characters themselves and are not affected.
+xterm takes block characters from the font rather than drawing them itself, so Clawd shows gaps unless the font covers the Block Elements range (DejaVu Sans Mono does). kitty, ghostty and alacritty draw them themselves.
 
 ### Install by hand
 

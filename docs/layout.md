@@ -19,7 +19,7 @@ In fullscreen, glowup asks Claude Code once to open its pane, but Claude Code on
 
 ![The glowup pane docked beside the transcript](assets/pane-wide.png)
 
-Clawd appears only in the pane, never in the band; [Pets](pets.md) has the details.
+Clawd only ever appears in the pane; see [Pets](pets.md).
 
 ### The drawer
 
@@ -47,7 +47,7 @@ When the line is too long, the action text is shortened first. If the rest of th
 
 The pane has three tabs, selected with their number key or by clicking. In the docked pane each tab is a box in the pack's `border` style, with the section name and its counts in the top edge; the compact drawer draws no boxes.
 
-Under the tabs in the wide pane, a status box shows the current action, the running subagents and a row of hearts. These hearts track account usage rather than context (the Plan & context tab already covers context): they show whichever of the 5-hour and weekly limits has less left, for example `♥♥♡♡♡  weekly limit 38% left`. On an API key, which has no such limits, the row shows the session's spend instead, such as `$4.20 spent this session`. Until the first usage reading arrives, the hearts show context.
+Under the tabs in the wide pane, a status box shows the current action, the running subagents and a row of hearts. These hearts show account usage: whichever of the 5-hour and weekly limits has less left, for example `♥♥♡♡♡  weekly limit 38% left`. On an API key, which has no such limits, the row shows the session's spend instead, such as `$4.20 spent this session`. Until the first usage reading arrives, the hearts show context.
 
 ### Changes
 
@@ -82,6 +82,6 @@ The tab has two boxes, `PLAN` and `CONTEXT`, one blank row apart.
 - The compact form is the checklist and one line with the stacked bar and the percent.
 - Without a task list, `PLAN` says `No task list yet.`
 
-Claude Code's own task list stays where Claude Code draws it, since a mod cannot hide it, so the plan appears in both places.
+A mod cannot hide Claude Code's own task list, so the plan shows in both places.
 
 The tabs do not respond to selection yet; opening a file's diff or a subagent's tool calls is on the [roadmap](roadmap.md).

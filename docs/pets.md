@@ -7,7 +7,7 @@ description: Clawd, the pixel pet at the bottom of the glowup pane. Where he app
 
 Clawd is a pixel pet who sits at the bottom of the glowup pane and reacts to what Claude is doing. He is drawn in half-block characters in Claude Code's orange and keeps his colors under every pack and theme. He is the only pet so far, and he is on by default.
 
-He only appears in the pane, never in the band above the prompt, so you see him when the pane is docked beside the transcript or opened as a drawer with `/glowup pane`. A drawer narrower than 80 columns shows a one-row Clawd, `▐▛█▜▌`, instead of the full sprite. Reduced motion and `/glowup pet off` both hide him.
+He only appears in the pane, so you see him when the pane is docked beside the transcript or opened as a drawer with `/glowup pane`. A drawer narrower than 80 columns shows a one-row Clawd, `▐▛█▜▌`, instead of the full sprite. Reduced motion and `/glowup pet off` both hide him.
 
 ## What he does
 

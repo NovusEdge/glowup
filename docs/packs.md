@@ -39,11 +39,11 @@ If one part of a pack fails to load, glowup uses `classic` for that part only an
 
 ## Making your own
 
-The quickest way is to ask Claude. glowup ships a skill that knows the pack format, so you can say "make me a glowup pack from this palette", hand it an image or a terminal color scheme, or ask it to "make arcade less pink". Claude writes the file, checks that the text stays readable against the background, and tells you which command applies it. When it changes a built-in pack, it writes a new pack based on it rather than editing the original.
+The quickest way is to ask Claude. glowup ships a skill that knows the pack format, so you can say "make me a glowup pack from this palette", hand it an image or a terminal color scheme, or ask it to "make arcade less pink". Claude writes the file, checks that the text stays readable against the background, and tells you which command applies it. To change a built-in pack, it writes a new pack based on it.
 
 If you already have a terminal color scheme, `/glowup import <file>` turns a Ghostty theme or a base16 file into a pack and applies it.
 
-To keep a look you have put together from a pack, a theme and some overrides, run `/glowup pack save <name>`. The saved file does not depend on anything else on your machine, so you can share it.
+To keep a look you have put together from a pack, a theme and some overrides, run `/glowup pack save <name>`. The saved file is self-contained, so you can share it.
 
 The file format, its limits and every option are in the [pack reference](pack-reference.md).
 
@@ -55,10 +55,10 @@ Host the pack file anywhere it can be fetched over `https://`, such as a gist or
 /glowup pack https://example.com/neon.json
 ```
 
-A pack is plain data and cannot run anything, so installing one only changes how glowup looks.
+A pack is plain data, so installing one can only change how glowup looks.
 
 ## Limits
 
 A pack restyles the transcript rows, glowup's own pane and band, and the spinner line. Claude Code's logo, prompt box and status bar stay as they are, and a mod has no way to hide Claude Code's own task list.
 
-A custom spinner replaces Claude Code's whole spinner line, which means the token count disappears from it, because Claude Code does not pass that number to mods. The stock spinner keeps it.
+A custom spinner replaces Claude Code's whole spinner line, including the token count, which Claude Code does not pass to mods. The stock spinner keeps it.

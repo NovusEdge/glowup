@@ -3,7 +3,7 @@ title: Making a theme
 description: Write a theme file, try it, and share it with other people.
 ---
 
-A theme changes only the colors, while a [pack](packs.md) changes the whole look. Applying a theme with `/glowup theme <name>` recolors the pack you are using and keeps its row style, borders and extras. Besides colors, a theme can set the spinner words, the heart characters and the small glyphs glowup puts on tool rows.
+A theme is the color part of a [pack](packs.md). Applying a theme with `/glowup theme <name>` recolors the pack you are using and keeps its row style, borders and extras. Besides colors, a theme can set the spinner words, the heart characters and the small glyphs glowup puts on tool rows.
 
 glowup ships seven themes. `classic`, the default, uses Claude Code's own colors; the others are `glowup`, `aurora`, `dusk`, `cyberpunk`, `vaporwave` and `high-contrast`. Themes color glowup's text and leave the terminal background alone.
 

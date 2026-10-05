@@ -46,7 +46,7 @@ Every field except `format` and `name` is optional. `palette` takes the color ro
 - Names and the description must be printable, with no control, zero-width or bidirectional characters. A description is at most 80 characters.
 - Unknown keys are refused, except `sound` and `voice` at the top level.
 - `extends` and layer references together go at most 8 deep. A loop or a ninth level is refused, with the chain named in the message.
-- An unknown spinner id falls back to `stock` with a notice rather than failing, so a pack made for a later glowup still loads.
+- An unknown spinner id falls back to `stock` with a notice, so a pack made for a later glowup still loads.
 - Any other bad value refuses the layer it is in, and that layer falls back to `classic`.
 
 `/glowup pack <url>` accepts `https://` only, waits up to 10 seconds, and validates the whole file and its `extends` chain before writing. It refuses a built-in name, or the name of an installed pack unless `--force` is given.

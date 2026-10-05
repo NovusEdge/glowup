@@ -17,7 +17,7 @@ A Claude Code mod that adds a side pane for changed files, subagents and context
 
 <p align="center"><sub>A cut of the launch video, in the arcade pack with the pane docked: Claude edits a file, a test fails and costs a life, the fix passes, and Clawd hops as the level goes up. The full video also switches packs and shows the Plan &amp; context tab.</sub></p>
 
-glowup draws around Claude Code's transcript and prompt rather than replacing them, so everything Claude Code shows is still where you expect it.
+glowup draws around Claude Code's transcript and prompt without moving them.
 
 ## What you get
 
@@ -123,7 +123,7 @@ Four packs ship: classic (the default, which keeps Claude Code's own look), crt,
 
 <img src="docs/assets/pack-arcade.png" alt="The arcade pack: neon pink and cyan on deep purple, with bold cards around tool calls and an HP bar in the pane's status box" width="100%">
 
-You can mix parts of different packs, put one of seven color themes on top, or override single colors. To make your own, ask Claude: glowup ships a skill that writes packs from a palette, an image or a description, and adjusts existing ones ("make arcade less pink"). `/glowup import` also converts Ghostty and base16 color schemes. Packs and themes are JSON files that can be shared by URL, and since they are plain data, installing one cannot run code.
+You can mix parts of different packs, put one of seven color themes on top, or override single colors. To make your own, ask Claude: glowup ships a skill that writes packs from a palette, an image or a description, and adjusts existing ones ("make arcade less pink"). `/glowup import` also converts Ghostty and base16 color schemes. Packs and themes are plain JSON files you can share by URL.
 
 See [Packs](docs/packs.md) and [Making a theme](docs/themes.md).
 
@@ -145,7 +145,7 @@ See [Layout](docs/layout.md).
 
 ## Accessibility
 
-- `/glowup motion reduced` (or the `reducedMotion` setting) switches to the stock spinner, turns off the shimmer and hides Clawd. Even with motion on, nothing flashes more than 2.5 times a second.
+- `/glowup motion reduced` (or the `reducedMotion` setting) switches to the stock spinner, turns off the shimmer and hides Clawd. With motion on, nothing flashes more than 2.5 times a second.
 - The `high-contrast` theme uses pure white text and fully saturated colors.
 - Every state has a glyph and a word as well as a color, so nothing depends on color alone.
 
