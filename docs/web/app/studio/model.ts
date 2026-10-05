@@ -50,8 +50,13 @@ export function setRole(d: Draft, role: Role, text: string): Draft | undefined {
 
 // Drops the base theme's own glyphs, hearts and words with it, so the new theme's apply.
 export function setBaseTheme(d: Draft, theme: string): Draft {
-  const { glyphs: _g, hearts: _h, words: _w, ...rest } = d.colors as ColorsLayer
+  const { glyphs: _g, hearts: _h, words: _w, bg: _b, borderColor: _c, gradient: _r, ...rest } = d.colors as ColorsLayer
   return { ...d, colors: { ...rest, theme, palette: { ...resolveTheme(theme, {}).theme.colors } } }
+}
+
+export function setSurface(d: Draft, key: 'bg' | 'borderColor', text: string): Draft | undefined {
+  const hex = normalizeHex(text.trim())
+  return hex ? editColors(d, { [key]: hex }) : undefined
 }
 
 const clamp = (v: number, [lo, hi]: readonly [number, number]) => Math.min(hi, Math.max(lo, v))
@@ -62,7 +67,8 @@ export function setField(d: Draft, patch: Partial<Field>): Draft {
   const next: Record<string, unknown> = { ...base, ...patch }
   for (const [k, range] of Object.entries(FIELD_KNOBS)) {
     const v = next[k]
-    if (typeof v === 'number') next[k] = k === 'size' ? Math.round(clamp(v, range)) : clamp(v, range)
+    if (typeof v === 'number' && !Number.isFinite(v)) next[k] = (base as Record<string, unknown>)[k]
+    else if (typeof v === 'number') next[k] = k === 'size' ? Math.round(clamp(v, range)) : clamp(v, range)
   }
   return editMotion(d, { field: next as MotionLayer['field'] })
 }

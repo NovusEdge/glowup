@@ -1,10 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { DEFAULT_SETUP, FIELD_KNOBS, resolveTheme, STUDIO_URL, encodeLink, exportMix } from '../app/landing/data.ts'
+import { COLOR_KEYS, DEFAULT_SETUP, FIELD_KNOBS, resolveTheme, STUDIO_URL, encodeLink, exportMix } from '../app/landing/data.ts'
 import { packLook } from '../app/landing/look.ts'
 import {
   COLOR_GROUPS, DEFAULT_STUDIO_SETUP, LINK_MAX, contrast, draftLook, draftProblems, editColors, editSetup, focusVars, fromHash,
-  move, packJson, resetPet, sendCommand, setBaseTheme, setField, setGlyph, setHearts, setPetColor, setRole, setWords, shareLink,
+  move, packJson, resetPet, sendCommand, setBaseTheme, setField, setGlyph, setHearts, setPetColor, setRole, setSurface, setWords, shareLink,
   startDraft, stateHash, toggle, type Draft,
 } from '../app/studio/model.ts'
 
@@ -143,6 +143,19 @@ test('switching the base theme swaps the palette and clears glyphs, hearts and w
   assert.equal(n.colors.hearts, undefined)
   assert.equal(n.colors.words, undefined)
   assert.deepEqual(draftProblems(n), [])
+  const crt = setBaseTheme(startDraft('crt'), 'aurora')
+  const t = resolveTheme('aurora', {}).theme.colors
+  assert.equal(crt.colors.bg, undefined)
+  assert.equal(crt.colors.borderColor, undefined)
+  assert.equal(draftLook(crt).look.bg, t.panel)
+  assert.equal(draftLook(crt).look.borderColor, t.faint)
+})
+
+test('setSurface takes a whole hex only', () => {
+  const d = startDraft('classic')
+  assert.equal(setSurface(d, 'bg', '#12'), undefined)
+  assert.equal(setSurface(d, 'bg', '#ABC')!.colors.bg, '#aabbcc')
+  assert.equal(setSurface(d, 'borderColor', '#123456')!.colors.borderColor, '#123456')
 })
 
 test('setField clamps knobs and both ends of every knob are valid', () => {
@@ -151,6 +164,7 @@ test('setField clamps knobs and both ends of every knob are valid', () => {
   assert.equal(f(setField(d, { speed: 99 }))['speed'], FIELD_KNOBS.speed[1])
   assert.equal(f(setField(d, { scale: 0 }))['scale'], FIELD_KNOBS.scale[0])
   assert.equal(f(setField(d, { size: 2.6 }))['size'], 3)
+  assert.equal(f(setField(d, { speed: NaN }))['speed'], f(setField(d, {}))['speed'])
   for (const [k, [lo, hi]] of Object.entries(FIELD_KNOBS))
     for (const v of [lo, hi]) assert.deepEqual(draftProblems(setField(d, { [k]: v })), [], `${k}=${v}`)
   const str = setField({ ...d, motion: { ...(d.motion as object), field: 'simplex' as const } }, { speed: 2 })
@@ -191,7 +205,8 @@ test('color groups name every drawn role once, then Clawd', () => {
   const roles = COLOR_GROUPS.flatMap(g => g.items.flatMap(i => ('role' in i ? [i.role] : [])))
   assert.equal(new Set(roles).size, roles.length)
   assert.ok(!roles.some(r => ['addBg', 'delBg', 'sel'].includes(r)))
-  assert.equal(roles.length, 13)
+  const want = [...COLOR_KEYS.filter(k => !['addBg', 'delBg', 'sel'].includes(k)), 'bg', 'borderColor']
+  assert.deepEqual([...roles].sort(), want.sort())
   assert.deepEqual(COLOR_GROUPS[4]!.items.map(i => i.label), ['Body', 'Light', 'Shade'])
 })
 
