@@ -12,9 +12,14 @@ export function staleCopy(installedJson: unknown, root: string, configDir: strin
   const key = market && plugin ? `${plugin}@${market}` : 'glowup@glowup'
   const plugins = (installedJson as { plugins?: Record<string, unknown> } | null | undefined)?.plugins
   const entries = plugins && typeof plugins === 'object' ? plugins[key] : undefined
-  const hit = Array.isArray(entries) ? entries.find(e => typeof e?.installPath === 'string') : undefined
+  // one entry per scope; the user's install is the one /reload-plugins moves a session onto
+  const withPath = Array.isArray(entries) ? entries.filter(e => typeof e?.installPath === 'string') : []
+  const hit = withPath.find(e => e.scope === 'user') ?? withPath[0]
   if (!hit || tidy(hit.installPath) === tidy(root)) return undefined
-  return typeof hit.version === 'string' && hit.version ? hit.version : hit.installPath.split('/').filter(Boolean).pop()
+  if (typeof hit.version === 'string' && hit.version) return hit.version
+  // a git-sourced plugin's folder is named by commit; a sha is no version to show
+  const last: string | undefined = hit.installPath.split('/').filter(Boolean).pop()
+  return last && !/^[0-9a-f]{40}$/i.test(last) ? last : undefined
 }
 
 const ownVersion = (root: string) => tidy(root).split('/').pop() ?? ''

@@ -43,6 +43,21 @@ test('a different marketplace name with no entry of its own gives nothing', () =
   expect(staleCopy(file(at('glowup', 'glowup', '0.4.1'), '0.4.1'), at('mine', 'glowup', '0.4.0'), CFG)).toBeUndefined()
 })
 
+test('the user-scope entry is preferred over another scope', () => {
+  const j = { plugins: { 'glowup@glowup': [{ scope: 'project', installPath: at('glowup', 'glowup', '0.1.0'), version: '0.1.0' }, { scope: 'user', installPath: at('glowup', 'glowup', '0.4.1'), version: '0.4.1' }] } }
+  expect(staleCopy(j, at('glowup', 'glowup', '0.4.0'), CFG)).toBe('0.4.1')
+})
+
+test('without a version the folder name stands in, unless it is a commit sha', () => {
+  const root = at('glowup', 'glowup', '0.4.0')
+  expect(staleCopy(file(at('glowup', 'glowup', '0.4.1'), undefined as never), root, CFG)).toBe('0.4.1')
+  expect(staleCopy(file(at('glowup', 'glowup', 'a'.repeat(40)), undefined as never), root, CFG)).toBeUndefined()
+})
+
+test('a cache root with no version segment falls back to the glowup@glowup entry', () => {
+  expect(staleCopy(file(at('glowup', 'glowup', '0.4.1'), '0.4.1'), `${CFG}/plugins/cache/glowup`, CFG)).toBe('0.4.1')
+})
+
 test('the toast names both versions and shows once per installed version', () => {
   const shown = new Set<string>()
   const root = at('glowup', 'glowup', '0.4.0')
