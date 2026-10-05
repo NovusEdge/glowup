@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { CLAWD_SAY, spinnerWordSpans, type OrbState } from './data.ts'
+import { Fragment, useEffect, useRef, useState } from 'react'
+import { CLAWD_SAY, DEFAULT_SETUP, spinnerWordSpans, toneFor, type BandItem, type OrbState, type Setup, type TabId } from './data.ts'
 import { useReducedMotion, useVisible } from './motion.ts'
 import { Pet } from './Pet.tsx'
 import { usePack } from './PackContext.tsx'
@@ -9,6 +9,7 @@ import './terminal.css'
 
 const ORB: Record<Kind | 'fail' | 'pass', OrbState> = { read: 'search', agent: 'agents', edit: 'work', shell: 'run', fail: 'think', pass: 'think' }
 const GLYPH: Record<Kind, string> = { read: '▸', edit: '✎', shell: '$', agent: '◆' }
+const TAB_LABEL: Record<TabId, string> = { changes: 'Changes', agents: 'Agents', plan: 'Plan & context' }
 const WORD = 'Thinking…'
 
 function Hearts({ n }: { n: number }) {
@@ -58,7 +59,7 @@ function Word({ animate }: { animate: boolean }) {
 const glowupWord = (s: TermState) =>
   s.status.tone === 'idle' ? 'idle' : s.status.tone === 'done' ? 'done' : s.status.tone === 'bad' ? 'failed' : s.status.text.replace(/^◇ /, '').split(' ')[0]!.toLowerCase()
 
-export function Terminal() {
+export function Terminal({ setup = DEFAULT_SETUP }: { setup?: Setup } = {}) {
   const { pack, look, hop } = usePack()
   const reduced = useReducedMotion()
   const visible = useVisible()
@@ -93,7 +94,11 @@ export function Terminal() {
       <div className="tbody">
         <div className="tx">{state.rows.map((r, i) => <RowView key={i} r={r} />)}</div>
         <aside className="pane">
-          <div className="ptabs"><b>[ Changes ]</b> [ Agents ] [ Plan &amp; context ]</div>
+          {/* The body always lists changes, so that tab is drawn selected; with it hidden, the first tab is. */}
+          <div className="ptabs">{setup.tabs.map((t, i) => {
+            const on = setup.tabs.includes('changes') ? t === 'changes' : i === 0
+            return <Fragment key={t}>{i ? ' ' : ''}{on ? <b>[ {TAB_LABEL[t]} ]</b> : `[ ${TAB_LABEL[t]} ]`}</Fragment>
+          })}</div>
           <div className="phead">CHANGES<span className="tot">{state.files.length ? `${state.files.length} files` : ''}</span></div>
           <div className="plist">
             {state.files.map(f => (
@@ -116,14 +121,16 @@ export function Terminal() {
         {showWord ? <Word animate={!reduced && visible} /> : <span className="word" />}
         <span className="sep">·</span>
         <span className={`act k-${band?.kind ?? 'pass'}`}>{band?.text}</span>
-        {agents ? <><span className="sep agsep">·</span><span className="ag">◆ {agents} subagent</span></> : null}
-        <span className="sep">·</span>
-        <Hearts n={state.hearts} />
-        <span className="combo">{look.extras.combo && state.combo > 1 ? `COMBO ×${state.combo}` : ''}</span>
+        {setup.band.map((id: BandItem) => <Fragment key={id}>{
+          id === 'agents' ? (agents ? <><span className="sep agsep">·</span><span className="ag">◆ {agents} subagent</span></> : null)
+          : id === 'meter' ? <><span className="sep">·</span><Hearts n={state.hearts} /></>
+          : id === 'combo' ? <span className="combo">{look.extras.combo && state.combo > 1 ? `COMBO ×${state.combo}` : ''}</span>
+          : null
+        }</Fragment>)}
       </div>
       <div className="prompt"><span style={{ color: 'var(--accent)' }}>❯</span><span className="c">{state.typed}</span><span className="cur">&nbsp;</span></div>
       <div className="status">
-        <span className="gl">glowup: <span className="gs">{gw}</span> · ctx <span className="ctx">{state.ctx}</span>%</span>
+        <span className="gl">glowup: <span className="gs">{gw}</span> · ctx <span className="ctx" style={{ color: `var(--${toneFor(state.ctx, setup.meter)})` }}>{state.ctx}</span>%</span>
         <span className="m">Model: Opus 5.5  ⎇ main  (+0,−0)</span>
       </div>
     </div>

@@ -6,11 +6,11 @@ export type PackState = { pack: string; theme?: string; look: Look; setPack(name
 
 export const PackContext = createContext<PackState>(null as unknown as PackState)
 
-export function PackProvider(props: { children: React.ReactNode; initial?: string }) {
+export function PackProvider(props: { children: React.ReactNode; initial?: string; look?: Look }) {
   const [pack, setPackName] = useState(props.initial ?? 'classic')
   const [theme, setTheme] = useState<string | undefined>()
   const [hop, setHop] = useState(0)
-  const look = useMemo(() => packLook(pack, theme), [pack, theme])
+  const look = useMemo(() => props.look ?? packLook(pack, theme), [props.look, pack, theme])
   const setPack = useCallback((name: string) => { setPackName(name); setTheme(undefined); setHop(h => h + 1) }, [])
   const value = useMemo(() => ({ pack, theme, look, setPack, setTheme, hop }), [pack, theme, look, setPack, hop])
   return (
