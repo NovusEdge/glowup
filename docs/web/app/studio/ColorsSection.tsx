@@ -67,7 +67,7 @@ export function ColorsSection({ draft, look, onDraft, onHover }: { draft: Draft;
     <button
       key={s} type="button" className="sw" aria-pressed={sel === s}
       title={isRole(s) ? `${s}: ${ROLE_LABELS[s]}` : undefined}
-      onClick={() => setPicked(s)}
+      onClick={() => { setPicked(s); setSeparate(false) }}
       onMouseEnter={() => lit(s)} onMouseLeave={() => onHover()} onFocus={() => lit(s)} onBlur={() => onHover()}
     >
       <i style={{ background: value(s) }} />

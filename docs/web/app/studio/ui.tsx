@@ -24,7 +24,7 @@ export function TextField({ label, value, onCommit, className, size, maxLength }
   const input = useRef<HTMLInputElement>(null)
   useEffect(() => { if (document.activeElement !== input.current) setText(value) }, [value])
   return (
-    <label className={`fld ${className ?? ''}`}>
+    <label className={className ? `fld ${className}` : 'fld'}>
       <span>{label}</span>
       <input
         ref={input} type="text" value={text} size={size} maxLength={maxLength} spellCheck={false} aria-invalid={!!error}

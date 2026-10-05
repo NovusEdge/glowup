@@ -16,10 +16,11 @@
 .st-root .checks{display:flex;flex-wrap:wrap;gap:0 16px}
 .st-root .line{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:flex-end}
 .st-root .line .fld{flex:1 1 120px}
-.st-root .hint{margin:-8px 0 0;font-size:12.5px;color:var(--dim)}
+.st-root .hint{margin:0;font-size:12.5px;color:var(--dim)}
+.st-root .base{display:flex;flex-direction:column;gap:6px}
 .st-root .st-err,.st-root .warn{margin:0;font-size:12.5px;color:var(--fail)}
 .st-root .warn{color:var(--edit)}
-.st-root .acc-body>.st-err:empty,.st-root .colors>.warn:empty{margin-bottom:-16px}
+.st-root :is(.st-err,.warn):empty{position:absolute;width:1px;height:1px;overflow:hidden}
 .st-root .glyphs{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px 10px}
 
 .st-root select,.st-root input[type=text],.st-root input[type=number]{appearance:none;-webkit-appearance:none;font:13px 'JetBrains Mono',monospace;color:var(--text);background-color:var(--panel);border:1px solid var(--faint);border-radius:8px;padding:0 10px;min-height:44px;min-width:0;max-width:100%;width:100%}

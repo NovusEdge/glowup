@@ -13,8 +13,10 @@ export function ThemeSection({ draft, look, onDraft }: { draft: Draft; look: Loo
   }
   return (
     <>
-      <Select label="Base theme" value={draft.colors.theme ?? 'classic'} options={THEMES} onChange={t => onDraft(setBaseTheme(draft, t))} />
-      <p className="hint">Picking a base theme replaces your colors, glyphs and words with that theme's.</p>
+      <div className="base">
+        <Select label="Base theme" value={draft.colors.theme ?? 'classic'} options={THEMES} onChange={t => onDraft(setBaseTheme(draft, t))} />
+        <p className="hint">Picking a base theme replaces your colors, glyphs and words with that theme's.</p>
+      </div>
       <div role="group" aria-labelledby="th-glyphs">
         <h3 id="th-glyphs">Glyphs</h3>
         <div className="glyphs">

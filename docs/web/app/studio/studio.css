@@ -14,6 +14,7 @@
 .st-root .st-name label,.st-root .st-from{display:flex;flex-direction:column;gap:4px}
 .st-root .st-from{flex:1 1 140px}
 .st-root .st-name p{margin:0;color:var(--fail);font-size:12.5px;overflow-wrap:anywhere}
+.st-root .st-name p:empty{position:absolute;width:1px;height:1px;overflow:hidden}
 
 .st-root .st-actions{position:fixed;z-index:30;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px 12px;background:var(--panel);border-top:1px solid var(--faint)}
 .st-root .st-actions button{min-height:44px;padding:0 10px;border:1px solid var(--faint);border-radius:8px;background:var(--bg);font-size:13px}
