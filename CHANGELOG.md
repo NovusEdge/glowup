@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The README describes the 0.4 pane, Clawd's new reactions and the `/plugin` settings, and its screenshots and animation show the boxed pane.
+
 ## [0.4.0] - 2026-10-05
 
 ### Added
