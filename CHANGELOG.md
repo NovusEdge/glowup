@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-10-05
+
 ### Fixed
 
 - A `simplex` field tuned in Paper's dithering shader looked nothing like it in the pane: glowup drew blocky value noise with its own contrast and framing. It now runs Paper's simplex noise, contrast curve and drift, with Paper's rotation and offsets and the pane's height standing for Paper's 720 px canvas, so `scale`, `rotation`, `offsetX` and `offsetY` copy across. Offsets are now measured in the pane's shorter side, and every dither matrix lights pixels in Paper's order. `size` still counts braille dots; keep it at `1` for a Paper look.
