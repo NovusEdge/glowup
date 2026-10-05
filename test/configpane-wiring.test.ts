@@ -77,6 +77,18 @@ test('tabs typed in a new order reorder the main pane', async ($, on) => {
   await ui.unmount()
 })
 
+test('a setup change names its own setting in the note, not the first row', async ($, on) => {
+  setup(on)
+  await runGlowup($, 'config')
+  const ui = await mountConfig($)
+  await ui.input({ key: 'input-tabs', text: 'plan, changes', kind: 'submit' })
+  const note = await ui.find({ type: 'Text', text: /plan, changes/ })
+  expect(note).toBeDefined()
+  expect(String(note!.children.join(''))).not.toMatch(/^band/)
+  expect(String(note!.children.join(''))).toMatch(/^tabs/)
+  await ui.unmount()
+})
+
 test('a pack deleted after the pane opened shows the error and the pane keeps drawing', async ($, on) => {
   const files = { '/fake/.claude/glowup/packs/zzz.json': JSON.stringify({ format: 1, name: 'zzz', colors: { meters: 'dither' } }) }
   setup(on, ['terminal'], files)

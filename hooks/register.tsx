@@ -444,12 +444,13 @@ async function openConfig($: Engine): Promise<string> {
 
 const configState = (): ConfigState => ({ packs: configPacks, mix, colors: look.theme.colors, pet, shiny: configShiny, bubbles, reduced: reducedMotion, setup, fields })
 
-// Every change runs as the typed command would; the first line it prints becomes the pane's note.
+// Every change runs as the typed command would; the last command's first line, or its setting's row for a setup, becomes the pane's note.
 // A command that leaves the state unchanged was refused, so the rest of the run is dropped: the
 // meter cycle's second command must not follow a refused first.
 async function runConfig($: Engine, cmds: string[]) {
-  let text = '', stopped = false
+  let text = '', lastCmd = '', stopped = false
   for (const cmd of cmds) {
+    lastCmd = cmd
     const before = JSON.stringify(configState())
     text = await runCommand(hostOf($), cmd, ctlOf($))
     const moved = JSON.stringify(configState()) !== before
@@ -457,7 +458,10 @@ async function runConfig($: Engine, cmds: string[]) {
     if (cmd.startsWith('pack ')) await readConfigLists($)
     if (!moved) { stopped = true; break }
   }
-  configNote = { text: text.split('\n')[0]!, tone: stopped ? 'error' : 'ok' }
+  const lines = text.split('\n'), key = lastCmd.match(/^setup (\S+)/)?.[1]
+  // every setup command prints the whole table, whose first row is always band
+  const line = key ? lines.find(l => l.startsWith(`${key} `)) : undefined
+  configNote = { text: line ?? lines[0]!, tone: stopped ? 'error' : 'ok' }
   await syncTakeover($)
   relook($)
 }
