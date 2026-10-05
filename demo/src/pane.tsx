@@ -1,6 +1,7 @@
 import {Line, Node, Rect, Txt} from '@revideo/2d';
 import {useTime} from '@revideo/core';
 import {planOrder} from '../../hooks/tasks.ts';
+import {brailleArea, chartTop, markBar, outlook, tokensK} from '../../hooks/trend.ts';
 import {Look} from './data';
 import {Braille, CW, FONT, FS, LH, Paint, QUAD, Term, binders, isBraille} from './term';
 
@@ -30,16 +31,18 @@ export type Model = {
   limits?: Limit[];
   cats: Cat[];
   maxTokens: number;
+  compactions: number;
+  ctx: CtxDetail;
 };
 
 export type Cat = {name: string; tokens: number; kind: string};
+export type Heavy = {kind: string; name: string; tokens: number; note?: string};
+// What the mod reads from the context breakdown beyond the categories (CtxDetail in hooks/pane.tsx).
+export type CtxDetail = {threshold: number; window: number; heavy: Heavy[]; cacheHit?: number};
 
 // hooks/ctxchart.ts without its imports: that file pulls in layout.tsx, which this project's JSX settings cannot type.
 const SHORT: [RegExp, string][] = [[/system prompt/i, 'system'], [/system tools/i, 'tools'], [/mcp/i, 'mcp'], [/memory/i, 'memory'], [/messages?/i, 'messages']];
 const shortName = (n: string) => SHORT.find(([re]) => re.test(n))?.[1] ?? n.toLowerCase().slice(0, 10);
-const tokensK = (n: number) => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(Math.round(n)));
-const BLOCKS = '▁▂▃▄▅▆▇█';
-const sparkline = (samples: number[]) => samples.map(v => BLOCKS[Math.max(0, Math.min(7, Math.floor((v / 100) * 8)))]).join('');
 
 // One bar of `width` cells; largest-remainder rounding keeps the cells summing to the width.
 function stackBar(cats: Cat[], max: number, width: number) {
@@ -76,12 +79,24 @@ export const initialModel = (): Model => ({
   ctxHistory: [9, 14, 19, 24, 28, 32, 35, 38],
   limits: [{kind: 'five_hour', percentUsed: 30}, {kind: 'seven_day', percentUsed: 12}],
   cats: [
-    {name: 'Messages', tokens: 45000, kind: 'used'},
-    {name: 'System prompt', tokens: 14000, kind: 'used'},
-    {name: 'System tools', tokens: 11000, kind: 'used'},
+    {name: 'Messages', tokens: 36000, kind: 'used'},
+    {name: 'System tools', tokens: 18000, kind: 'used'},
+    {name: 'MCP tools', tokens: 12000, kind: 'used'},
     {name: 'Memory files', tokens: 6000, kind: 'used'},
+    {name: 'System prompt', tokens: 4000, kind: 'used'},
   ],
   maxTokens: 200000,
+  compactions: 0,
+  ctx: {
+    threshold: 167000,
+    window: 200000,
+    heavy: [
+      {kind: 'mcp', name: 'linear', tokens: 12000, note: '31 tools'},
+      {kind: 'memory', name: 'CLAUDE.md', tokens: 4200, note: 'project'},
+      {kind: 'skills', name: '24 listed', tokens: 2900},
+    ],
+    cacheHit: 91,
+  },
 });
 
 const len = (s: Seg[]) => s.reduce((n, x) => n + [...x.text].length, 0);
@@ -202,14 +217,35 @@ function planRow(p: PlanRow, w: number, lead: string): Seg[] {
   return clip([{text: `${lead}${done ? '✓' : on ? '◉' : '○'} `, color: done ? 'pass' : on ? 'accent' : 'dim'}, {text: on && p.active ? p.active : p.title, color: done ? 'dim' : 'text', bold: on}], w);
 }
 
-const LABEL = 'over this session ';
-function history(m: Model, w: number): Seg[] | undefined {
-  if (!m.ctxHistory.length) return undefined;
-  const lead = w >= 48 ? LABEL : '';
-  const peak = `peak ${Math.max(...m.ctxHistory)}%`;
-  // two cells keep the sparkline off the right-hand text
-  const n = Math.max(0, Math.min(m.ctxHistory.length, w - lead.length - peak.length - 2));
-  return spread([{text: lead, color: 'dim'}, {text: n ? sparkline(m.ctxHistory.slice(-n)) : '', color: 'accent'}], [{text: peak, color: 'dim'}], w);
+// markCompact, trend, heavyRow and stats in hooks/pane.tsx.
+const markCompact = (segs: Seg[], m: Model, w: number): Seg[] =>
+  markBar(segs, Math.min(w - 1, Math.floor((m.ctx.threshold / m.maxTokens) * w)), {text: '┊', color: 'text'});
+
+function trend(m: Model, w: number): Seg[][] {
+  if (!m.ctxHistory.length) return [];
+  const line = (m.ctx.threshold / m.ctx.window) * 100;
+  const top = chartTop(m.ctxHistory, line);
+  const label = w >= 24 ? ` ${Math.round(top)}%`.padStart(5) : '';
+  const {rows, data} = brailleArea(m.ctxHistory, w - label.length, line, top);
+  const out = rows.map(r => [...r].reduce<Seg[]>((segs, ch, i) => {
+    const color = data[i] ? 'accent' : 'dim';
+    const last = segs.at(-1);
+    if (last?.color === color) last.text += ch;
+    else segs.push({text: ch, color});
+    return segs;
+  }, []));
+  if (label) out[0].push({text: label, color: 'dim'});
+  const says = outlook(m.ctxHistory, m.ctxPct, true, line, m.ctx.window);
+  if (says) out.push(clip([{text: says, color: 'dim'}], w));
+  return out;
+}
+
+const heavyRow = (h: Heavy, w: number): Seg[] =>
+  spread([{text: h.kind.padEnd(7), color: 'dim'}, {text: h.name, color: 'text'}, ...(h.note ? [{text: '  ' + h.note, color: 'dim' as const}] : [])], [{text: tokensK(h.tokens), color: 'text'}], w);
+
+function stats(m: Model, w: number): Seg[] {
+  const says = [m.ctx.cacheHit !== undefined ? `cache hit ${m.ctx.cacheHit}%` : '', `peak ${Math.max(...m.ctxHistory, m.ctxPct)}%`, m.compactions ? `compacted ${m.compactions}×` : ''];
+  return clip([{text: says.filter(Boolean).join(' · '), color: 'dim'}], w);
 }
 
 function plan(m: Model, look: Look, w: number, compact: boolean, limit: number): Seg[][] {
@@ -222,13 +258,13 @@ function plan(m: Model, look: Look, w: number, compact: boolean, limit: number):
   if (compact) {
     const inner = Math.max(4, w - 12);
     const bar = stack(m, inner);
-    const ctx: Seg[] = [{text: ' ctx ▕', color: 'dim'}, ...bar.segs, {text: `▏${String(m.ctxPct).padStart(4)}%`, color: 'text'}];
+    const ctx: Seg[] = [{text: ' ctx ▕', color: 'dim'}, ...markCompact(bar.segs, m, inner), {text: `▏${String(m.ctxPct).padStart(4)}%`, color: 'text'}];
     return [...cap(items, w, 1, limit), clip(ctx, w)];
   }
   if (hiddenDone) items.push([{text: `  +${hiddenDone} more done`, color: 'dim'}]);
   const used = m.cats.filter(x => x.kind === 'used').reduce((n, x) => n + x.tokens, 0);
   const bar = stack(m, iw);
-  const ctx: Seg[][] = [bar.segs];
+  const ctx: Seg[][] = [markCompact(bar.segs, m, iw)];
   // Legend items packed into rows of at most iw cells, three spaces apart.
   let row: Seg[] = [];
   for (const x of bar.slices.filter(x => x.cells > 0)) {
@@ -240,8 +276,10 @@ function plan(m: Model, look: Look, w: number, compact: boolean, limit: number):
     row = row.length ? [...row, sp(3), ...item] : item;
   }
   if (row.length) ctx.push(clip(row, iw));
-  const hist = history(m, iw);
-  if (hist) ctx.push([], hist);
+  const chart = trend(m, iw);
+  if (chart.length) ctx.push([], ...chart);
+  if (m.ctx.heavy.length) ctx.push([], ...m.ctx.heavy.map(h => heavyRow(h, iw)));
+  ctx.push(stats(m, iw));
   return [
     ...section('PLAN', m.plan.length ? `${done}/${m.plan.length}` : '', items, w, look.border),
     [],
