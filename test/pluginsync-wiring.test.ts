@@ -59,6 +59,31 @@ test('an unknown pack in /plugin is reported and not retried', { options: { ...O
   expect(told()).toHaveLength(1)
 })
 
+test('a first run with no snapshot keeps the saved mix, pet and bubbles that differ from /plugin', { options: { ...OPTS, pack: 'crt', pet: 'clawd', bubbles: 'on' } }, async ($, on) => {
+  const { toasts } = boot(on, {}, { mix: { colors: 'arcade', motion: 'arcade', theme: 'dusk' }, pet: 'off', bubbles: 'off' })
+  mock.clock(on)
+  await start($)
+  expect(toasts.filter(t => t.includes('/plugin'))).toEqual([])
+  expect((await runGlowup($, 'pack list')).text).toContain('custom mix: colors arcade, motion arcade, theme dusk')
+  expect((await runGlowup($, 'pet list')).text).toContain('● off')
+  expect((await runGlowup($, 'bubbles')).text).toContain('Bubbles: off')
+})
+
+test('setting the theme back to classic in /plugin brings the pack\'s own colors back', { options: { ...OPTS, pack: 'arcade', theme: 'classic' } }, async ($, on) => {
+  boot(on, {}, { 'plugin-seen': { ...OPTS, pack: 'arcade', theme: 'dusk' }, mix: { colors: 'arcade', motion: 'arcade', theme: 'dusk' }, theme: 'dusk' })
+  mock.clock(on)
+  await start($)
+  expect((await runGlowup($, 'pack list')).text).toContain('● arcade')
+  expect((await runGlowup($, 'pack list')).text).not.toContain('custom mix')
+})
+
+test('a pack change in /plugin keeps the /plugin theme and spinner on top of the new pack', { options: { ...OPTS, pack: 'crt', theme: 'dusk', spinner: 'comet' } }, async ($, on) => {
+  boot(on, {}, { 'plugin-seen': { ...OPTS, theme: 'dusk', spinner: 'comet' }, mix: { colors: 'classic', motion: 'classic', theme: 'dusk', spinner: 'comet' } })
+  mock.clock(on)
+  await start($)
+  expect((await runGlowup($, 'pack list')).text).toContain('custom mix: colors crt, motion crt, theme dusk, spinner comet')
+})
+
 test('a dev copy shows no older-copy toast even when another folder is recorded', async ($, on) => {
   const installed = JSON.stringify({ plugins: { 'glowup@glowup': [{ scope: 'user', installPath: `${CACHE}/9.9.9`, version: '9.9.9' }] } })
   const { toasts } = boot(on, { '/fake/.claude/plugins/installed_plugins.json': installed })

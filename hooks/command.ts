@@ -254,6 +254,12 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   }
   if (sub === 'theme' && a1 === 'add' && a2) return addTheme(host, a2)
   if (sub === 'theme' && a1 === 'add') return USAGE
+  if (sub === 'theme' && a1 === 'default') {
+    const { theme: _, ...rest } = ctl.mix()
+    await host.storeDelete('theme')
+    await applyMix(host, ctl, rest)
+    return 'Theme: pack default'
+  }
   if (sub === 'theme' && a1) {
     const r = resolveTheme(a1, await loadUserThemes(host))
     if (r.error) return r.error

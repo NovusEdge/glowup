@@ -369,6 +369,17 @@ test('theme <name> keeps the pack and sets mix.theme', async () => {
   expect(calls.at(-1)).toBe('mix:arcade/arcade/dusk')
 })
 
+test('theme default drops the theme from the mix and the store, keeping the pack', async () => {
+  const { host, store } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  await runCommand(host, 'pack arcade', c)
+  await runCommand(host, 'theme dusk', c)
+  expect(await runCommand(host, 'theme default', c)).toBe('Theme: pack default')
+  expect(store.mix).toEqual({ colors: 'arcade', motion: 'arcade' })
+  expect(store.theme).toBeUndefined()
+  expect(calls.at(-1)).toBe('mix:arcade/arcade')
+})
+
 test('import reads a scheme and applies its colors layer', async () => {
   const ghostty = ['#21222c', '#ff5555', '#50fa7b', '#f1fa8c', '#bd93f9', '#ff79c6', '#8be9fd', '#f8f8f2'].map((x, i) => `palette = ${i}=${x}`).join('\n') + '\nbackground = #282a36\nforeground = #f8f8f2'
   const { host, files, store } = fakeHost({ runs: { 'head -c 65537 /home/u/schemes/dracula': { exitCode: 0, stdout: ghostty } } })

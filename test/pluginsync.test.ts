@@ -16,7 +16,7 @@ test('one changed value is returned with its new value', () => {
   expect(changedOptions({ ...base }, { ...base, pack: 'crt' })).toEqual([{ key: 'pack', value: 'crt' }])
 })
 
-test('whitespace and a reordered-looking list with the same fields do not count, a real reorder does', () => {
+test('whitespace and stray commas do not count, a real reorder does', () => {
   expect(changedOptions({ ...base }, { ...base, statusline: ' activity , ctx,5h ,week,, ' })).toEqual([])
   expect(changedOptions({ ...base }, { ...base, pack: ' classic ' })).toEqual([])
   expect(changedOptions({ ...base }, { ...base, statusline: 'ctx, activity, 5h, week' })).toEqual([{ key: 'statusline', value: 'ctx,activity,5h,week' }])
@@ -27,7 +27,7 @@ test('several changes come back in a fixed order', () => {
   expect(r).toEqual([{ key: 'pack', value: 'crt' }, { key: 'pet', value: 'off' }, { key: 'reducedMotion', value: true }])
 })
 
-const run = (store: Record<string, unknown>, log: string[], errors: Record<string, string> = {}) => async (cmd: string) => {
+const run = (log: string[], errors: Record<string, string> = {}) => async (cmd: string) => {
   log.push(cmd)
   return errors[cmd] ?? ({ pack: 'Pack: ', theme: 'Theme: ', spinner: 'Spinner: ', pet: 'Pet: ', bubbles: 'Bubbles: ', motion: 'Motion: ', statusline: 'Status line fields: ' }[cmd.split(' ')[0]!]! + cmd.split(' ').slice(1).join(' '))
 }
@@ -35,7 +35,7 @@ const run = (store: Record<string, unknown>, log: string[], errors: Record<strin
 test('with no snapshot, the current values are written and nothing is applied', async () => {
   const { host, store } = fakeHost()
   const log: string[] = []
-  expect(await syncPlugin(host, base, run(store, log))).toBeUndefined()
+  expect(await syncPlugin(host, base, run(log))).toBeUndefined()
   expect(log).toEqual([])
   expect(store[SEEN_KEY]).toEqual({ ...base })
 })
@@ -44,12 +44,12 @@ test('a changed value is applied through its /glowup command, saved, and announc
   const { host, store } = fakeHost()
   store[SEEN_KEY] = { ...base }
   const log: string[] = []
-  const toast = await syncPlugin(host, { ...base, pack: 'crt', pet: 'off', reducedMotion: true, spinner: 'comet', bubbles: 'haiku', theme: 'aurora', statusline: 'cost, model' }, run(store, log))
+  const toast = await syncPlugin(host, { ...base, pack: 'crt', pet: 'off', reducedMotion: true, spinner: 'comet', bubbles: 'haiku', theme: 'aurora', statusline: 'cost, model' }, run(log))
   expect(log).toEqual(['pack crt', 'theme aurora', 'spinner comet', 'pet off', 'bubbles haiku', 'statusline fields cost model', 'motion reduced'])
   expect(toast).toBe('Applied from /plugin: pack crt, theme aurora, spinner comet, pet off, bubbles haiku, statusline cost,model, motion reduced.')
   expect(store[SEEN_KEY]).toEqual({ ...base, pack: 'crt', theme: 'aurora', spinner: 'comet', pet: 'off', bubbles: 'haiku', statusline: 'cost,model', reducedMotion: true })
   const again: string[] = []
-  expect(await syncPlugin(host, { ...base, pack: 'crt', pet: 'off', reducedMotion: true, spinner: 'comet', bubbles: 'haiku', theme: 'aurora', statusline: 'cost,model' }, run(store, again))).toBeUndefined()
+  expect(await syncPlugin(host, { ...base, pack: 'crt', pet: 'off', reducedMotion: true, spinner: 'comet', bubbles: 'haiku', theme: 'aurora', statusline: 'cost,model' }, run(again))).toBeUndefined()
   expect(again).toEqual([])
 })
 
@@ -57,15 +57,36 @@ test('the spinner value "pack" and motion off map to their default commands', as
   const { host, store } = fakeHost()
   store[SEEN_KEY] = { ...base, spinner: 'comet', reducedMotion: true }
   const log: string[] = []
-  await syncPlugin(host, base, run(store, log))
+  await syncPlugin(host, base, run(log))
   expect(log).toEqual(['spinner default', 'motion full'])
+})
+
+test('going back to the default theme or status line fields clears the saved choice instead of storing the default', async () => {
+  const { host, store } = fakeHost()
+  store[SEEN_KEY] = { ...base, theme: 'aurora', statusline: 'cost,model' }
+  const log: string[] = []
+  await syncPlugin(host, base, run(log))
+  expect(log).toEqual(['theme default', 'statusline fields default'])
+})
+
+test('a pack change reapplies the unchanged non-default theme and spinner, and skips default ones', async () => {
+  const { host, store } = fakeHost()
+  store[SEEN_KEY] = { ...base, theme: 'dusk', spinner: 'comet' }
+  const log: string[] = []
+  const toast = await syncPlugin(host, { ...base, pack: 'crt', theme: 'dusk', spinner: 'comet' }, run(log))
+  expect(log).toEqual(['pack crt', 'theme dusk', 'spinner comet'])
+  expect(toast).toBe('Applied from /plugin: pack crt.')
+  const only: string[] = []
+  store[SEEN_KEY] = { ...base }
+  await syncPlugin(host, { ...base, pack: 'cozy' }, run(only))
+  expect(only).toEqual(['pack cozy'])
 })
 
 test('a command that fails is named in the toast and the value is still recorded', async () => {
   const { host, store } = fakeHost()
   store[SEEN_KEY] = { ...base }
   const log: string[] = []
-  const toast = await syncPlugin(host, { ...base, pack: 'nope', pet: 'off' }, run(store, log, { 'pack nope': 'No pack named "nope".' }))
+  const toast = await syncPlugin(host, { ...base, pack: 'nope', pet: 'off' }, run(log, { 'pack nope': 'No pack named "nope".' }))
   expect(toast).toBe('Applied from /plugin: pet off. Not applied: pack nope: No pack named "nope".')
   expect((store[SEEN_KEY] as typeof base).pack).toBe('nope')
 })
@@ -74,6 +95,6 @@ test('an empty value is recorded without running a command', async () => {
   const { host, store } = fakeHost()
   store[SEEN_KEY] = { ...base }
   const log: string[] = []
-  expect(await syncPlugin(host, { ...base, pack: '' }, run(store, log))).toBeUndefined()
+  expect(await syncPlugin(host, { ...base, pack: '' }, run(log))).toBeUndefined()
   expect(log).toEqual([])
 })
