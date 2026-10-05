@@ -90,11 +90,10 @@
 .landing .mini[data-rows=retro] .row .verb::before{content:'> '}
 
 .landing .maker{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}
-.landing .ed{display:flex;flex-direction:column;border:1px solid var(--faint);border-radius:12px;overflow:hidden;background:var(--panel)}
-.landing .edh{font:12px 'JetBrains Mono',monospace;color:var(--dim);padding:9px 14px;border-bottom:1px solid var(--faint)}
-.landing .ed textarea{flex:1;min-height:250px;resize:vertical;background:transparent;color:var(--text);border:0;outline:0;padding:14px;font:13px/1.6 'JetBrains Mono',monospace}
-.landing .err{font:12px 'JetBrains Mono',monospace;color:var(--fail);padding:0 14px 10px;min-height:1em}
 .landing .maker .mini{justify-content:center}
+.landing .maker .lede{align-self:center;margin:0;font-size:18px}
+.landing .maker .lede a{color:var(--accent)}
+.landing .maker .lede a:hover{text-decoration:underline}
 
 .landing footer{padding:120px 0 110px;font:13px 'JetBrains Mono',monospace;color:var(--dim)}
 .landing footer a:hover{color:var(--text)}
