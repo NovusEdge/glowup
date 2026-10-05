@@ -36,7 +36,10 @@ export function fromBase64Url(s: string): Uint8Array {
 export type LinkParts = { pack?: unknown; setup?: unknown; pet?: unknown }
 const KEYS = [['p', 'pack'], ['s', 'setup'], ['pet', 'pet']] as const
 
-const part = (v: unknown) => toBase64Url(new TextEncoder().encode(JSON.stringify(v)))
+// The engine's typings omit the `fatal` option the runtime honors, and a global var cannot be re-declared to add it.
+const strictUtf8 = () => new (TextDecoder as unknown as new (label: string, opts: { fatal: boolean }) => TextDecoder)('utf-8', { fatal: true })
+
+const part =(v: unknown) => toBase64Url(new TextEncoder().encode(JSON.stringify(v)))
 
 export function encodeLink(parts: LinkParts): string {
   const q = [`v=${LINK_VERSION}`]
@@ -60,7 +63,7 @@ export function decodeLink(url: string): { parts: LinkParts; errors: string[] } 
     const raw = q.get(k)
     if (raw === undefined) continue
     try {
-      parts[name] = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(fromBase64Url(raw)))
+      parts[name] = JSON.parse(strictUtf8().decode(fromBase64Url(raw)))
     } catch (err) {
       errors.push(`${name} part: ${err instanceof SyntaxError ? 'not valid JSON (the link may be cut off)' : (err as Error).message}`)
     }
