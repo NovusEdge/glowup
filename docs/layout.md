@@ -19,7 +19,7 @@ In fullscreen, glowup asks Claude Code once to open its pane, but Claude Code on
 
 ![The glowup pane docked beside the transcript](assets/pane-wide.png)
 
-Clawd appears only in the pane, never in the band; [Pets](pets.md#where-he-appears) has the details per tier.
+Clawd appears only in the pane, never in the band; [Pets](pets.md) has the details.
 
 ### The drawer
 
