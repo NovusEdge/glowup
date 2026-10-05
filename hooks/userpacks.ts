@@ -1,11 +1,10 @@
 import type { Host } from './host.ts'
 import { parseJsonc, isUnsafe } from './themes.ts'
 import { loadUserThemes } from './userthemes.ts'
-import { resolveLook, validatePack, isNewerSpinner, type PackFile } from './packs.ts'
-import { PACKS } from './packpresets.ts'
+import { resolveLook, validatePack, isNewerSpinner, packNameProblem, type PackFile } from './packs.ts'
 
 export const PACK_DIR = (configDir: string) => `${configDir}/glowup/packs`
-export const SAFE_NAME = /^[a-z0-9][a-z0-9-]{0,39}$/
+export { SAFE_NAME } from './packs.ts'
 const MAX_BYTES = 65536
 
 export async function loadUserPacks(host: Host): Promise<Record<string, unknown>> {
@@ -24,8 +23,8 @@ const msg = (err: unknown) => err instanceof Error ? err.message : String(err)
 
 // Shared by addPack and savePack: a refusal message, or undefined when the name may be written.
 async function nameProblem(host: Host, name: string, force: boolean): Promise<string | undefined> {
-  if (!SAFE_NAME.test(name)) return 'A pack needs a "name" of lowercase letters, digits and dashes.'
-  if (Object.hasOwn(PACKS, name)) return `"${name}" is a built-in pack name; pick another.`
+  const problem = packNameProblem(name)
+  if (problem) return problem
   if (!force && (await host.exists(`${PACK_DIR(host.configDir)}/${name}.json`))) return `A pack named "${name}" is installed already. Add --force to replace it.`
   return undefined
 }

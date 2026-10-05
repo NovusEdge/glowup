@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { resolveLook, validatePack, exportMix, stockMotion, SPINNER_IDS, FIELD_DEFAULTS, type Mix } from '../hooks/packs.ts'
+import { resolveLook, validatePack, exportMix, exportName, packNameProblem, stockMotion, SPINNER_IDS, FIELD_DEFAULTS, type Mix } from '../hooks/packs.ts'
 import { PACKS } from '../hooks/packpresets.ts'
 import { resolveTheme } from '../hooks/themes.ts'
 
@@ -155,4 +155,19 @@ test('exportMix description is built from shown names and fits 80 characters', a
 test('stockMotion freezes motion', async () => {
   expect(stockMotion(look(pack('arcade')).look).motion).toEqual({ spinner: 'stock', shimmer: 0, color: '#38e8ff', field: { shape: 'none', ...FIELD_DEFAULTS } })
   expect(SPINNER_IDS).toHaveLength(6)
+})
+
+test('exportName prefixes a built-in name and keeps any other', () => {
+  expect(exportName('cozy')).toBe('my-cozy')
+  expect(exportName('classic')).toBe('my-classic')
+  expect(exportName('sunset')).toBe('sunset')
+  expect(packNameProblem(exportName('arcade'))).toBeUndefined()
+})
+
+test('packNameProblem refuses unsafe and built-in names with the install wording', () => {
+  expect(packNameProblem('sunset')).toBeUndefined()
+  expect(packNameProblem('crt')).toBe('"crt" is a built-in pack name; pick another.')
+  expect(packNameProblem('My Pack')).toBe('A pack needs a "name" of lowercase letters, digits and dashes.')
+  expect(packNameProblem('')).toBe('A pack needs a "name" of lowercase letters, digits and dashes.')
+  expect(packNameProblem('a'.repeat(41))).toBe('A pack needs a "name" of lowercase letters, digits and dashes.')
 })

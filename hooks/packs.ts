@@ -42,6 +42,17 @@ export const MOTION_KEYS = ['spinner', 'shimmer', 'color', 'field']
 export const EXTRAS_KEYS = ['hp', 'combo']
 export const ROW_FLAG_KEYS = ['labels', 'markers', 'xp']
 export const isNewerSpinner = (e: string) => /^spinner ".*" needs a newer glowup/.test(e)
+
+export const SAFE_NAME = /^[a-z0-9][a-z0-9-]{0,39}$/
+
+export function packNameProblem(name: string): string | undefined {
+  if (!SAFE_NAME.test(name)) return 'A pack needs a "name" of lowercase letters, digits and dashes.'
+  if (Object.hasOwn(PACKS, name)) return `"${name}" is a built-in pack name; pick another.`
+  return undefined
+}
+
+// A look exported from a built-in keeps a name /glowup pack accepts.
+export const exportName = (name: string) => (Object.hasOwn(PACKS, name) ? `my-${name}` : name)
 const HEX = /^#[0-9a-fA-F]{6}$/
 const SHORT_HEX = /^#[0-9a-fA-F]{3}$/
 

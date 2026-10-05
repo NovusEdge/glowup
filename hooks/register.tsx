@@ -3,7 +3,7 @@ import type { Host } from './host.ts'
 import { initialModel, normalizeModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
 import { approvalLabel, dialogCall, modeAsksPerson, shortPath } from './events.ts'
 import type { Theme } from './themes.ts'
-import { resolveLook, cleanOverrides, exportMix, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
+import { resolveLook, cleanOverrides, exportMix, exportName, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { PACKS } from './packpresets.ts'
 import { loadUserPacks, SAFE_NAME } from './userpacks.ts'
 import { PET_ROWS, type PetSetting, type PetId, type PetInput, type PetKind } from './pets.ts'
@@ -994,7 +994,7 @@ export const register: Register = (on, options) => {
     if (off) return next(e)
     const els = $.ui.resolve(e) as any
     const s = configState()
-    const link = encodeLink({ pack: exportMix(look, mix.colors), setup })
+    const link = encodeLink({ pack: exportMix(look, exportName(mix.colors)), setup })
     return renderConfig(els, s, look, e.props.bodyColumns, {
       cycle: (id: CycleId) => void runConfig($, cycleCommands(id, configState())),
       input: (id: InputId, text: string) => {
