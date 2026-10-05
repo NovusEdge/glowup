@@ -10,7 +10,7 @@ import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTo
 import { recordPass, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, refreshCounts, serial } from './changes.ts'
 import { loadTasks, taskListId } from './tasks.ts'
-import { tierFor, renderSegs } from './layout.tsx'
+import { tierFor } from './layout.tsx'
 import { renderBand } from './band.tsx'
 import { renderPane, bubbleBox, petStripCols, type PaneExtra, type PaneView, type TabId } from './pane.tsx'
 import { spinnerWord, newTurnWord } from './restyle.ts'
@@ -21,8 +21,8 @@ import type { OrbState } from './motion.ts'
 import { statusText, writeStatusFile, drawsStatusLine, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
 import { parseFields, DEFAULT_FIELDS, type ColorMode, type FieldId } from './fields.ts'
 import { runCommand, SUMMARY_LEAD, type Ctl } from './command.ts'
-import { SHORT_TEXT, FULL_TEXT } from './help.ts'
-import { renderHelp } from './helpcard.tsx'
+import { SHORT_TEXT, FULL_TEXT, parsePicked } from './help.ts'
+import { renderHelp, renderConfigCard } from './helpcard.tsx'
 import { loadUserThemes } from './userthemes.ts'
 import { firstRun } from './firstrun.ts'
 import { registerCopy, touchCopy, decide, unregisterCopy, pruneStatus, safeId, HEARTBEAT_MS } from './instances.ts'
@@ -836,18 +836,13 @@ export const register: Register = (on, options) => {
     if (args !== 'config' || !p.text.startsWith(SUMMARY_LEAD)) return next(e)
     // The row is history: draw the pack it names, not whatever look is on now. A render hook must not
     // read disk, so a user pack resolves only while it is the live one.
-    const [colors = '', motion = colors] = p.text.slice(SUMMARY_LEAD.length).split(' · ')[0]!.split('/')
+    const picked = parsePicked(p.text)
+    if (!picked) return next(e)
+    const [colors = '', motion = colors] = p.text.slice(SUMMARY_LEAD.length).split('\n')[0]!.split(' · ')[0]!.split('/')
     const live = !mix.theme && mix.colors === colors && mix.motion === motion
     const r = live ? { look, errors: [] } : resolveLook({ colors, motion }, {}, {})
     if (r.errors.length) return next(e)
-    const l = r.look
-    const c = l.theme.colors, swatch = [c.accent, c.read, c.edit, c.shell, c.pass]
-    const word = (l.theme.spinnerWords[0] ?? 'Thinking') + '…'
-    const els = $.ui.resolve(e), { Box } = els
-    return <Box flexDirection="column">
-      {renderSegs(els, [{ text: p.text, color: c.text }], 'summary')}
-      {renderSegs(els, [...swatch.map(color => ({ text: '██', color })), { text: '  ' + word, color: c.accent }], 'palette')}
-    </Box>
+    return renderConfigCard($.ui.resolve(e), r.look, picked)
   })
 
   on('command.run', { command: 'glowup' }, async ($, e, next) => {

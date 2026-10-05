@@ -2,6 +2,7 @@ import { expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
 import { runGlowup, fakeFs, test } from './kit.ts'
 import { USAGE } from '../hooks/command.ts'
+import { configText } from '../hooks/help.ts'
 
 const walk = (n: any, out: any[] = []): any[] => { if (typeof n === 'string') out.push(n); else if (n && typeof n === 'object') { out.push(n); for (const c of n.children ?? []) walk(c, out) } return out }
 const texts = (n: any) => walk(n).filter(x => typeof x === 'string').join('')
@@ -39,7 +40,7 @@ test('/glowup config asks through the engine dialog, applies each pick and never
   expect(s.asked[0].options.map((o: any) => o.label)).toEqual(['arcade', 'classic (current)', 'cozy', 'crt'])
   expect(s.asked[1].options.map((o: any) => o.label)).toEqual(['Pack default', 'stock', 'comet', 'eyes'])
   expect(s.asked[3].multiSelect).toBe(true)
-  expect(out.text).toBe('glowup · arcade · no pet · bubbles off · full motion')
+  expect(out.text!.split('\n')[0]).toBe('glowup · arcade · no pet · bubbles off · full motion')
   expect((await runGlowup($, 'pack list')).text).toContain('● arcade')
   expect((await runGlowup($, 'pet list')).text).toContain('● off')
   expect(s.opens).toEqual([])
@@ -74,19 +75,49 @@ test('Esc on the first question in a live session is not usage', async ($, on) =
   expect(out.text).toContain('glowup · classic')
 })
 
-test('the config row draws a summary with swatches and the spinner word', async ($, on) => {
+const LINE1 = 'glowup · arcade · spinner comet · Clawd · bubbles on · full motion'
+const cardText = (first: string, pack: string, spinner = 'comet') => configText(first, [pack, spinner, 'Clawd', 'bubbles on · full motion', 'activity ctx 5h week'])
+const box = (drawn: any) => walk(drawn).find(n => n?.props?.borderStyle)
+
+test('the config row draws the card: header box, section titles and the picked values', async ($, on) => {
   setup(on, ['arcade', 'Pack default', 'Clawd', ''])
   const text = (await runGlowup($, 'config')).text!
   for (const surface of ['terminal', 'desktop']) {
     const ui = await mountRow($, ROW(text), surface)
     const drawn = await ui.drawn()
     const all = walk(drawn)
-    expect(texts(drawn)).toContain(text)
+    expect(box(drawn).props.borderStyle).toBe('bold')
+    expect(box(drawn).props.borderColor).toBe('#ff3ec8')
+    expect(texts(box(drawn))).toContain('glowup')
     expect(all.filter(n => n?.children?.[0] === '██')).toHaveLength(5)
     expect(all.some(n => n?.props?.color && texts(n).endsWith('…'))).toBe(true)
-    expect(texts(drawn)).not.toContain('engine')
+    for (const title of ['You picked', 'Try next']) {
+      const t = all.find(n => n?.type === 'Text' && texts(n) === `  ${title}`)
+      expect(t.props.bold).toBe(true)
+    }
+    const flat = texts(drawn)
+    for (const v of ['arcade', 'pack default', 'Clawd', 'bubbles on · full motion', 'activity ctx 5h week', '/glowup pane', '/glowup pack list', '/glowup help all', 'https://glowup.khimani.dev/']) expect(flat).toContain(v)
+    expect(flat).not.toContain('engine')
     await ui.unmount()
   }
+})
+
+test('a history card keeps its own pack: box border and colors, not the live pack\'s', async ($, on) => {
+  setup(on, [])
+  await runGlowup($, 'pack arcade')
+  const ui = await mountRow($, ROW(cardText('glowup · cozy · spinner comet · Clawd · bubbles on · full motion', 'cozy')))
+  const drawn = await ui.drawn()
+  expect(box(drawn).props.borderStyle).toBe('round')
+  expect(box(drawn).props.borderColor).toBe('#8a6f64')
+  expect(texts(drawn)).toContain('  Pack         cozy')
+  await ui.unmount()
+})
+
+test('an old one-line summary row passes through', async ($, on) => {
+  setup(on, [])
+  const ui = await mountRow($, ROW(LINE1))
+  expect(texts(await ui.drawn())).toBe('engine')
+  await ui.unmount()
 })
 
 test('an old summary row keeps its own pack colors after the look changes', async ($, on) => {
@@ -102,12 +133,12 @@ test('an old summary row keeps its own pack colors after the look changes', asyn
 test('a summary with a spinner segment still draws as the card, in the pack\'s colors, live or old', async ($, on) => {
   setup(on, ['arcade', 'comet', 'Clawd', ''])
   const text = (await runGlowup($, 'config')).text!
-  expect(text).toBe('glowup · arcade · spinner comet · Clawd · bubbles on · full motion')
+  expect(text.split('\n')[0]).toBe(LINE1)
   for (const pack of [undefined, 'crt']) {
     if (pack) await runGlowup($, `pack ${pack}`)
     const ui = await mountRow($, ROW(text))
     const all = walk(await ui.drawn())
-    expect(texts(await ui.drawn())).toContain(text)
+    expect(texts(await ui.drawn())).toContain('  Spinner      comet')
     const swatches = all.filter(n => n?.children?.[0] === '██')
     expect(swatches).toHaveLength(5)
     expect(swatches[0].props.color).toBe('#ff3ec8')
@@ -125,7 +156,7 @@ test('a live user pack with a spinner override still draws as the card', async (
   await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
   expect((await runGlowup($, 'pack mine')).text).toBe('Pack: mine')
   await runGlowup($, 'spinner comet')
-  const text = 'glowup · mine · spinner comet · Clawd · bubbles on · full motion'
+  const text = cardText('glowup · mine · spinner comet · Clawd · bubbles on · full motion', 'mine')
   const ui = await mountRow($, ROW(text))
   const swatches = walk(await ui.drawn()).filter(n => n?.children?.[0] === '██')
   expect(swatches).toHaveLength(5)
@@ -135,14 +166,14 @@ test('a live user pack with a spinner override still draws as the card', async (
 
 test('a summary naming a pack that cannot be resolved passes through', async ($, on) => {
   setup(on, [])
-  const ui = await mountRow($, ROW('glowup · ghost · Clawd · bubbles on · full motion'))
+  const ui = await mountRow($, ROW(cardText('glowup · ghost · Clawd · bubbles on · full motion', 'ghost')))
   expect(texts(await ui.drawn())).toBe('engine')
   await ui.unmount()
 })
 
 test('every other command row passes through', async ($, on) => {
   setup(on, [])
-  for (const props of [ROW('Pack: crt', { args: 'pack crt' }), ROW('glowup · x', { command: 'other' }), ROW('No pack named "x".', { isErrored: true })]) {
+  for (const props of [ROW('Pack: crt', { args: 'pack crt' }), ROW(cardText('glowup · classic · Clawd', 'classic'), { command: 'other' }), ROW(cardText('glowup · classic · Clawd', 'classic'), { args: 'pack crt' }), ROW('No pack named "x".', { isErrored: true })]) {
     const ui = await mountRow($, props)
     expect(texts(await ui.drawn())).toBe('engine')
     await ui.unmount()
