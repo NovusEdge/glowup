@@ -3,15 +3,16 @@ import type { Host } from './host.ts'
 import { initialModel, normalizeModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
 import { approvalLabel, dialogCall, modeAsksPerson, shortPath } from './events.ts'
 import type { Theme } from './themes.ts'
-import { resolveLook, cleanOverrides, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
-import { loadUserPacks } from './userpacks.ts'
+import { resolveLook, cleanOverrides, exportMix, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
+import { PACKS } from './packpresets.ts'
+import { loadUserPacks, SAFE_NAME } from './userpacks.ts'
 import { PET_ROWS, type PetSetting, type PetId, type PetInput, type PetKind } from './pets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
 import { recordPass, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, refreshCounts, serial } from './changes.ts'
 import { loadTasks, taskListId } from './tasks.ts'
 import { cacheHit, heaviest } from './ctxchart.ts'
-import { tierFor, renderSegs } from './layout.tsx'
+import { tierFor } from './layout.tsx'
 import { renderBand } from './band.tsx'
 import { renderPane, bubbleBox, petStripCols, type PaneExtra, type PaneView, type TabId } from './pane.tsx'
 import { spinnerWord, newTurnWord } from './restyle.ts'
@@ -22,9 +23,12 @@ import type { OrbState } from './motion.ts'
 import { statusText, writeStatusFile, drawsStatusLine, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
 import { parseFields, DEFAULT_FIELDS, type ColorMode, type FieldId } from './fields.ts'
 import { DEFAULT_SETUP, parseSetup, type Setup } from './setup.ts'
-import { runCommand, SUMMARY_LEAD, type Ctl } from './command.ts'
-import { SHORT_TEXT, FULL_TEXT, parsePicked } from './help.ts'
-import { renderHelp, renderColorList, renderConfigCard, renderHeader } from './helpcard.tsx'
+import { runCommand, type Ctl } from './command.ts'
+import { SHORT_TEXT, FULL_TEXT } from './help.ts'
+import { renderHelp, renderColorList } from './helpcard.tsx'
+import { cycleCommands, inputCommand, type ConfigState, type CycleId, type InputId } from './configrows.ts'
+import { renderConfig, type ConfigNote } from './configpane.tsx'
+import { encodeLink } from './link.ts'
 import { loadUserThemes } from './userthemes.ts'
 import { firstRun } from './firstrun.ts'
 import { registerCopy, touchCopy, decide, unregisterCopy, pruneStatus, safeId, HEARTBEAT_MS } from './instances.ts'
@@ -100,6 +104,14 @@ let tzOffset = 0
 let installed: number | undefined
 let lastPet = ''
 const PANE_OPEN: PaneOpenArgs = { id: 'glowup', title: 'glowup', focus: true, closeOnEscape: true }
+const CONFIG_ID = 'glowup-config'
+const CONFIG_OPEN: PaneOpenArgs = { id: CONFIG_ID, title: 'glowup config', focus: true, closeOnEscape: true, rows: 40 }
+// Read when the config pane opens and after each pack change: its render hook may not read disk.
+let configPacks: string[] = Object.keys(PACKS)
+let configShiny = false
+let configNote: ConfigNote | undefined
+// The element holding the config pane's focus ring, from ui.focus; the preview marks what it paints.
+let configFocus: string | undefined
 const DOCK_OPEN: PaneOpenArgs = { id: 'glowup', title: 'glowup' }
 
 function hostOf($: Engine): Host {
@@ -416,6 +428,44 @@ async function togglePane($: Engine): Promise<string> {
   return r.isPlaced ? 'glowup pane open (Esc closes it)' : `glowup pane waits: ${r.reason}`
 }
 
+async function readConfigLists($: Engine) {
+  const host = hostOf($)
+  const user = await loadUserPacks(host)
+  configPacks = [...new Set([...Object.keys(PACKS), ...Object.keys(user).filter(n => SAFE_NAME.test(n))])]
+  configShiny = ((await host.storeGet('eggs')) as EggStore | undefined)?.shinyAt !== undefined
+}
+
+async function openConfig($: Engine): Promise<string> {
+  await readConfigLists($)
+  configNote = undefined
+  const r = await $.ui.open(CONFIG_OPEN)
+  return r.isPlaced ? 'glowup config open (Esc closes it)' : `glowup config waits: ${r.reason}`
+}
+
+const configState = (): ConfigState => ({ packs: configPacks, mix, colors: look.theme.colors, pet, shiny: configShiny, bubbles, reduced: reducedMotion, setup, fields })
+
+// Every change runs as the typed command would; the first line it prints becomes the pane's note.
+// A command that leaves the state unchanged was refused, so the rest of the run is dropped: the
+// meter cycle's second command must not follow a refused first.
+async function runConfig($: Engine, cmds: string[]) {
+  let text = '', stopped = false
+  for (const cmd of cmds) {
+    const before = JSON.stringify(configState())
+    text = await runCommand(hostOf($), cmd, ctlOf($))
+    const moved = JSON.stringify(configState()) !== before
+    // after the compare: a pack that vanished from disk shrinks the list but was still refused
+    if (cmd.startsWith('pack ')) await readConfigLists($)
+    if (!moved) { stopped = true; break }
+  }
+  configNote = { text: text.split('\n')[0]!, tone: stopped ? 'error' : 'ok' }
+  await syncTakeover($)
+  relook($)
+}
+
+// Task 4 fills these in.
+async function resetConfig(_$: Engine) {}
+async function copyStudioLink(_$: Engine, _link: string, _surface: string) {}
+
 // Not awaited by callers: git must not hold up a tool result. A refresh that
 // started before adoptSession must not land in the new session's model.
 function refresh($: Engine) {
@@ -561,7 +611,7 @@ function ctlOf($: Engine): Ctl {
     },
     setup: () => setup,
     setSetup: s => { setup = s; relook($); writeStatus($, true); publishPet($) },
-    ask: (question, o) => $.ui.ask(question, o),
+    openConfig: () => openConfig($),
     // surfaces() is empty only in a plain -p run
     headless: async () => (await $.session.surfaces().catch(() => ['terminal'])).length === 0,
   }
@@ -893,6 +943,34 @@ export const register: Register = (on, options) => {
     }, extra)
   })
 
+  on('ui.render', { component: 'Pane', requestId: CONFIG_ID }, async ($, e, next) => {
+    if (off) return next(e)
+    const els = $.ui.resolve(e) as any
+    const s = configState()
+    const link = encodeLink({ pack: exportMix(look, mix.colors), setup })
+    return renderConfig(els, s, look, e.props.bodyColumns, {
+      cycle: (id: CycleId) => void runConfig($, cycleCommands(id, configState())),
+      input: (id: InputId, text: string) => {
+        const r = inputCommand(id, text, configState())
+        if ('error' in r) { configNote = { text: r.error, tone: 'error' }; relook($); return }
+        void runConfig($, [r.cmd])
+      },
+      done: () => void $.ui.close({ id: CONFIG_ID }),
+      reset: () => void resetConfig($),
+      copyLink: () => void copyStudioLink($, link, e.surface),
+    }, { focus: configFocus, note: configNote, link })
+  })
+
+  on('ui.focus', async ($, e, next) => {
+    if (!off && e.component === 'Pane' && e.requestId === CONFIG_ID) {
+      const was = configFocus
+      configFocus = e.element
+      // only a color row changes the preview's marker, so other moves skip the redraw
+      if ([was, configFocus].some(k => k?.startsWith('input-color:'))) $.ui.invalidate('ui.render')
+    }
+    return next(e)
+  })
+
   on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
     if (off) return next(e)
     const word = spinnerWord(theme, e.props.word, reducedMotion)
@@ -970,21 +1048,7 @@ export const register: Register = (on, options) => {
       const card = renderColorList($.ui.resolve(e), look, p.text)
       if (card) return card
     }
-    if (args !== 'config' || !p.text.startsWith(SUMMARY_LEAD)) return next(e)
-    // The row is history: draw the pack it names, not whatever look is on now. A render hook must not
-    // read disk, so a user pack resolves only while it is the live one.
-    const picked = parsePicked(p.text)
-    const [colors = '', motion = colors] = p.text.slice(SUMMARY_LEAD.length).split('\n')[0]!.split(' · ')[0]!.split('/')
-    const live = !mix.theme && mix.colors === colors && mix.motion === motion
-    const r = live ? { look, errors: [] } : resolveLook({ colors, motion }, {}, {})
-    if (r.errors.length) return next(e)
-    const els = $.ui.resolve(e)
-    // a row from before the card was one line; it keeps its header
-    if (!picked) {
-      const { Box } = els
-      return <Box flexDirection="column">{renderHeader(els, r.look)}{renderSegs(els, [{ text: p.text, color: r.look.theme.colors.text }], 'summary')}</Box>
-    }
-    return renderConfigCard(els, r.look, picked)
+    return next(e)
   })
 
   on('command.run', { command: 'glowup' }, async ($, e, next) => {

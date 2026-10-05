@@ -63,7 +63,7 @@ const ctl = (answer = true, current = 'classic') => {
     setFields: f => { fields = f ?? DEFAULT_FIELDS },
     setup: () => setup,
     setSetup: s => { setup = s; calls.push('setup') },
-    ask: async () => { throw new Error('dismissed') },
+    openConfig: async () => 'glowup config open (Esc closes it)',
     headless: async () => true,
   }
   return { calls, questions, ctl: c }

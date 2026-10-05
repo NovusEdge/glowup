@@ -1,7 +1,7 @@
 import { expect } from 'claude-code/testing'
 import { test } from './kit.ts'
 import { renderConfig, previewRows, type ConfigHandlers } from '../hooks/configpane.tsx'
-import type { ConfigState } from '../hooks/configrows.ts'
+import { inputValue, type ConfigState } from '../hooks/configrows.ts'
 import { resolveLook, DEFAULT_MIX } from '../hooks/packs.ts'
 import { DEFAULT_SETUP } from '../hooks/setup.ts'
 import { DEFAULT_FIELDS } from '../hooks/fields.ts'
@@ -50,7 +50,8 @@ test('without Input (mobile) the values draw as text', () => {
   const { Input: _, ...mobile } = EL
   const tree = renderConfig(mobile, s, look, 50, noop, {})
   expect(keys(tree).some(k => k.startsWith('input-'))).toBe(false)
-  expect(JSON.stringify(tree)).toContain(look.theme.colors.accent)
+  expect(walk(tree).every(n => n.type !== 'Input')).toBe(true)
+  expect(JSON.stringify(tree)).toContain(inputValue('band', s))
 })
 
 test('a narrow pane drops the role descriptions, a wide one shows them', () => {
