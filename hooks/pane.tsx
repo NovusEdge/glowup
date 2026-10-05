@@ -9,12 +9,13 @@ import { wrapBubble, type Mood } from './bubbles.ts'
 import { CLAWD_ROW, PET_ROWS, type PetId } from './pets.ts'
 import { comboSegs, fit, hearts, hpBar, renderSegs, toneColor, visibleLength, type Seg } from './layout.tsx'
 import { liveLimit } from './fields.ts'
+import { DEFAULT_SETUP, type Meter } from './setup.ts'
 
 export type TabId = 'changes' | 'agents' | 'plan'
 // ctx comes from the context breakdown: threshold is the auto-compact point in tokens (absent when it is off),
 // window the model's window that m.ctxPercent and m.ctxHistory are measured against.
 export type CtxDetail = { autoCompact: boolean; threshold?: number; window?: number; heavy: Heavy[]; cacheHit?: number }
-export type PaneView = { tab: TabId; offset?: number; categories?: { name: string; tokens: number; kind: ContextCategoryKind }[]; maxTokens?: number; ctx?: CtxDetail; reduced?: boolean }
+export type PaneView = { tab: TabId; offset?: number; categories?: { name: string; tokens: number; kind: ContextCategoryKind }[]; maxTokens?: number; ctx?: CtxDetail; reduced?: boolean; meter?: Meter }
 export const TABS: [TabId, string][] = [['changes', 'Changes'], ['agents', 'Agents'], ['plan', 'Plan & context']]
 // The compact drawer sits under a one-row tab strip in a short space.
 export const COMPACT_ROWS = 6
@@ -183,7 +184,7 @@ function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, limi
   if (heavy.length) ctx.push([], ...heavy.map(h => heavyRow(h, iw, t)))
   const tail = stats(m, v, iw, t)
   if (tail) ctx.push(...(chart.length || heavy.length ? [] : [[]]), tail)
-  if (used >= 70) {
+  if (used >= (v.meter ?? DEFAULT_SETUP.meter).danger) {
     const top = stack.slices[0]
     ctx.push([{ text: `! ${top && top.label !== 'used' ? `${top.label} is the biggest share` : `context ${used}% used`}`, color: c.edit }])
   }

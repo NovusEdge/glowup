@@ -52,7 +52,7 @@ An unknown id rejects the whole command and lists the valid ones. `/glowup confi
 
 A field with nothing to show is left out; `5h` and `week` only appear on a subscription that reports those limits. The usage numbers are the latest Claude Code gave this session, so usage from another session on the same account shows up here after your next response.
 
-In the takeover line, percentages are drawn in your theme's pass color, switching to its edit color at 50% and its fail color at 80%. It uses 24-bit color when `COLORTERM` is `truecolor` or `24bit` and 256 colors otherwise. The entry under the prompt is plain text.
+In the takeover line, percentages are drawn in your theme's pass color, switching to its edit color from `meter.warn` and its fail color from `meter.danger` (50 and 80 unless you change them with [`/glowup setup`](commands.md#setup)). It uses 24-bit color when `COLORTERM` is `truecolor` or `24bit` and 256 colors otherwise. The entry under the prompt is plain text.
 
 ## The takeover
 

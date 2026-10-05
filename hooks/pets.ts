@@ -11,7 +11,7 @@ export type Pose = 'idle' | 'walk' | 'working' | 'hop' | 'alert' | 'done' | 'sle
 export type PetSpan = { text: string; color: string; bg?: string }
 export type PetKind = 'read' | 'search' | 'edit' | 'shell' | 'agent' | 'plan' | 'think'
 // agents is the number of subagents running; ctx the context window's percent used.
-export type PetInput = { working: boolean; kind?: PetKind; needsYou: boolean; lastTest?: { passed: boolean; at: number }; doneAt?: number; doneOk?: boolean; actAt?: number; agents?: number; compactAt?: number; ctx?: number }
+export type PetInput = { working: boolean; kind?: PetKind; needsYou: boolean; lastTest?: { passed: boolean; at: number }; doneAt?: number; doneOk?: boolean; actAt?: number; agents?: number; compactAt?: number; ctx?: number; sleepMs?: number; pantAt?: number }
 
 // Pixel rows of single-char palette keys, '.' = transparent. Two pixel rows make one terminal row.
 // head is [x, y] of the top-centre of the head, where outfits anchor; dx is horizontal travel in pixels.
@@ -54,11 +54,11 @@ export function petPose(p: PetInput, now: number): Pose {
   if (p.compactAt !== undefined && now - p.compactAt >= 0 && now - p.compactAt <= SCRUNCH_MS) return 'scrunch'
   if (!p.working && p.doneOk && p.doneAt !== undefined && now - p.doneAt <= DONE_MS) return 'done'
   if ((p.agents ?? 0) >= JUGGLE_AGENTS) return 'juggle'
-  const tired = (p.ctx ?? 0) >= PANT_CTX
+  const tired = (p.ctx ?? 0) >= (p.pantAt ?? PANT_CTX)
   // typing while he writes code, runs commands or has subagents at it; walking while he reads, searches, plans or waits
   if (p.working) return p.kind === 'edit' || p.kind === 'shell' || p.kind === 'agent' ? 'working' : tired ? 'pant-walk' : 'walk'
   // 0 is initialModel's "nothing yet", not a real time
-  if (p.actAt !== undefined && p.actAt > 0 && now - p.actAt >= SLEEP_MS) return 'sleep'
+  if (p.actAt !== undefined && p.actAt > 0 && now - p.actAt >= (p.sleepMs ?? SLEEP_MS)) return 'sleep'
   return tired ? 'pant' : 'idle'
 }
 

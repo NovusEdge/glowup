@@ -50,7 +50,7 @@ Every value must match `#rrggbb`: a hash and six hex digits, upper or lower case
 | `delBg` | Validated, not drawn yet |
 | `sel` | Validated, not drawn yet |
 
-The context meter color changes with use: `read` below 60%, `edit` from 60%, `fail` from 80%.
+Percentages in the status line read in `pass` below `meter.warn`, `edit` from it, and `fail` from `meter.danger` (50 and 80 unless you change them with [`/glowup setup`](commands.md#setup)).
 
 ## Glyphs
 

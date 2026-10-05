@@ -3,6 +3,7 @@ import { safeId } from './instances.ts'
 import { renderFields, DEFAULT_FIELDS, type ColorMode, type FieldId } from './fields.ts'
 import type { Model } from './model.ts'
 import type { Theme } from './themes.ts'
+import type { Meter } from './setup.ts'
 
 export const SCRIPT_PATH = (configDir: string) => `${configDir}/glowup/statusline.sh`
 export const STATUS_DIR = (configDir: string) => `${configDir}/glowup/status`
@@ -10,8 +11,8 @@ const SETTINGS = (configDir: string) => `${configDir}/settings.json`
 export const BACKUP_KEY = 'statusline-backup'
 const NONE = '__none__'
 
-export function statusText(m: Model, t: Theme, o: { fields?: readonly FieldId[]; now?: number; tzOffset?: number; color?: ColorMode } = {}): string {
-  return renderFields(m, t, o.fields ?? DEFAULT_FIELDS, { now: o.now ?? Date.now(), tzOffset: o.tzOffset ?? 0, color: o.color ?? 'plain' })
+export function statusText(m: Model, t: Theme, o: { fields?: readonly FieldId[]; now?: number; tzOffset?: number; color?: ColorMode; meter?: Meter } = {}): string {
+  return renderFields(m, t, o.fields ?? DEFAULT_FIELDS, { now: o.now ?? Date.now(), tzOffset: o.tzOffset ?? 0, color: o.color ?? 'plain', meter: o.meter })
 }
 
 // The script prints the line glowup wrote for this session; when that file is

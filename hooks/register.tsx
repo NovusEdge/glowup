@@ -129,7 +129,7 @@ function hostOf($: Engine): Host {
 // The takeover script falls back to the person's own command once this file is
 // 10 minutes old, so a quiet session still rewrites it every minute.
 function writeStatus($: Engine, force: boolean) {
-  const line = statusText(model, theme, { fields, now: Date.now(), tzOffset, color: colorMode })
+  const line = statusText(model, theme, { fields, now: Date.now(), tzOffset, color: colorMode, meter: setup.meter })
   if (!takenOver || !sessionId || (!force && line === lastStatusLine)) return
   lastStatusLine = line
   void writeStatusFile(hostOf($), sessionId, line).catch(() => {})
@@ -186,6 +186,8 @@ function petKind(): PetKind | undefined {
 }
 const petInput = (): PetInput => ({
   working: isBusy(model),
+  sleepMs: setup.pet.sleepMs,
+  pantAt: setup.meter.danger,
   kind: petKind(),
   needsYou: !!model.needsYou,
   lastTest: model.lastTest,
@@ -807,7 +809,7 @@ export const register: Register = (on, options) => {
     // the engine scrolls the whole body, which would carry the pet off with a long tab: budget the tab to bodyRows instead
     extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onScroll: (offset: number) => { view = { ...view, offset }; publish($) } }
     if (e.props.placement === 'dock') extra = { ...extra, minRows: e.props.scroll.bodyRows }
-    return renderPane(els, live ? normalizeModel(live.model) : model, theme, v, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
+    return renderPane(els, live ? normalizeModel(live.model) : model, theme, { ...v, meter: setup.meter }, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
       view = { ...view, tab: id, offset: 0 }
       publish($)
       if (id === 'plan') void feedContext($)
