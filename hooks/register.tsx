@@ -24,7 +24,7 @@ import { parseFields, DEFAULT_FIELDS, type ColorMode, type FieldId } from './fie
 import { DEFAULT_SETUP, parseSetup, type Setup } from './setup.ts'
 import { runCommand, SUMMARY_LEAD, type Ctl } from './command.ts'
 import { SHORT_TEXT, FULL_TEXT, parsePicked } from './help.ts'
-import { renderHelp, renderConfigCard, renderHeader } from './helpcard.tsx'
+import { renderHelp, renderColorList, renderConfigCard, renderHeader } from './helpcard.tsx'
 import { loadUserThemes } from './userthemes.ts'
 import { firstRun } from './firstrun.ts'
 import { registerCopy, touchCopy, decide, unregisterCopy, pruneStatus, safeId, HEARTBEAT_MS } from './instances.ts'
@@ -868,6 +868,10 @@ export const register: Register = (on, options) => {
     const args = p.args.trim()
     if ((args === '' || args === 'help') && p.text === SHORT_TEXT) return renderHelp($.ui.resolve(e), look, false)
     if (args === 'help all' && p.text === FULL_TEXT) return renderHelp($.ui.resolve(e), look, true)
+    if (args === 'color' || args === 'color list') {
+      const card = renderColorList($.ui.resolve(e), look, p.text)
+      if (card) return card
+    }
     if (args !== 'config' || !p.text.startsWith(SUMMARY_LEAD)) return next(e)
     // The row is history: draw the pack it names, not whatever look is on now. A render hook must not
     // read disk, so a user pack resolves only while it is the live one.

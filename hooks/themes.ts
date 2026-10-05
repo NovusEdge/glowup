@@ -5,7 +5,25 @@ export { PRESETS }
 export const MAX_THEME_BYTES = 65536
 export const COLOR_KEYS = ['accent', 'text', 'dim', 'faint', 'read', 'edit', 'shell', 'agent', 'pass', 'fail', 'panel', 'addBg', 'delBg', 'sel'] as const
 export const GLYPH_KEYS = ['read', 'search', 'edit', 'shell', 'agent', 'plan'] as const
-export type Colors = Record<(typeof COLOR_KEYS)[number], string>
+// What each role paints, in words: the config pane, the studio and /glowup color list show these.
+export const ROLE_LABELS: Record<(typeof COLOR_KEYS)[number], string> = {
+  accent: 'plan item, progress pips, plan glyphs',
+  text: 'main text',
+  dim: 'secondary text, separators, empty hearts',
+  faint: 'empty bar parts, box and section borders',
+  read: 'read & search rows, running subagent work',
+  edit: 'edit rows, context warnings',
+  shell: 'shell rows',
+  agent: 'subagent rows',
+  pass: 'passing tests, finished subagents, added lines',
+  fail: 'failures, full hearts, removed lines',
+  panel: 'the background fades blend toward',
+  addBg: 'not drawn yet',
+  delBg: 'not drawn yet',
+  sel: 'not drawn yet',
+}
+
+export type Colors =Record<(typeof COLOR_KEYS)[number], string>
 export type Theme = { name: string; colors: Colors; spinnerWords: string[]; glyphs: Record<(typeof GLYPH_KEYS)[number], string>; hearts: [string, string] }
 export type ThemeFile = { name: string; extends?: string; colors?: Partial<Colors>; spinner?: { words?: string[] }; glyphs?: Partial<Theme['glyphs']>; band?: { hearts?: [string, string] } }
 

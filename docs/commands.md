@@ -76,7 +76,7 @@ The built-in packs are `classic` (the default), `crt`, `cozy` and `arcade`. If a
 
 | Command | What it does |
 | --- | --- |
-| `/glowup color` or `/glowup color list` | List the 14 color roles with their current hex. A filled dot and `(override)` mark the ones you changed. |
+| `/glowup color` or `/glowup color list` | List the 14 color roles with a swatch, their current hex and what each one paints. A filled dot and `(override)` mark the ones you changed. |
 | `/glowup color <role> <#hex>` | Override one role. The hex is `#rgb` or `#rrggbb`. Prints `Color <role>: #rrggbb`. |
 | `/glowup color reset <role>` | Clear one override. |
 | `/glowup color reset` | Clear all overrides. |

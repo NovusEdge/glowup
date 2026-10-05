@@ -64,6 +64,19 @@ test('the card follows the current look', async ($, on) => {
   await ui.unmount()
 })
 
+test('the color list draws a swatch in each role color, upper-case hex included', async ($, on) => {
+  setup(on)
+  const text = ['○ read   #aabbcc  read rows', '● accent #ABCDEF  plan item  (override)', '', '● overridden. Set one with /glowup color <role> <#hex>.'].join('\n')
+  for (const args of ['color', 'color list']) {
+    const ui = await mountRow($, row(args, text))
+    const drawn = await ui.drawn()
+    expect(texts(drawn)).not.toContain('engine')
+    expect(walk(drawn).filter(n => n?.children?.[0] === '██ ').map(n => n.props.color)).toEqual(['#aabbcc', '#ABCDEF'])
+    expect(colorOf(drawn, '  (override)')?.color).toBe(classic.theme.colors.accent)
+    await ui.unmount()
+  }
+})
+
 test('other rows, errors and altered help text pass through', async ($, on) => {
   setup(on)
   for (const props of [

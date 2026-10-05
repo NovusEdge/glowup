@@ -1,5 +1,5 @@
 import type { Host } from './host.ts'
-import { resolveTheme, PRESETS, COLOR_KEYS, shown } from './themes.ts'
+import { resolveTheme, PRESETS, COLOR_KEYS, ROLE_LABELS, shown } from './themes.ts'
 import { loadUserThemes, addTheme } from './userthemes.ts'
 import { takeOver, restore, drawsStatusLine } from './statusline.ts'
 import { resolveLook, exportMix, normalizeHex, cleanOverrides, SPINNER_IDS, type Mix } from './packs.ts'
@@ -72,7 +72,7 @@ async function colorList(host: Host, ctl: Ctl): Promise<string> {
   const m = ctl.mix()
   const { look } = resolveLook(m, await loadUserPacks(host), await loadUserThemes(host))
   const over = cleanOverrides(m.overrides) ?? {}
-  const rows = COLOR_KEYS.map(k => `${k in over ? '●' : '○'} ${k.padEnd(6)} ${look.theme.colors[k]}${k in over ? '  (override)' : ''}`)
+  const rows = COLOR_KEYS.map(k => `${k in over ? '●' : '○'} ${k.padEnd(6)} ${look.theme.colors[k]}  ${ROLE_LABELS[k]}${k in over ? '  (override)' : ''}`)
   return [...rows, '', '● overridden. Set one with /glowup color <role> <#hex>; clear with /glowup color reset [role].'].join('\n')
 }
 

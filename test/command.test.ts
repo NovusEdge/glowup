@@ -7,6 +7,7 @@ import type { PetSetting } from '../hooks/pets.ts'
 import { DEFAULT_FIELDS, type FieldId } from '../hooks/fields.ts'
 import { DEFAULT_SETUP, type Setup } from '../hooks/setup.ts'
 import { encodeLink } from '../hooks/link.ts'
+import { ROLE_LABELS } from '../hooks/themes.ts'
 
 test('/glowup and /glowup help print the short card', { timeoutMs: 20000 }, async ($, on) => {
   fakeFs(on)
@@ -148,11 +149,12 @@ test('color lists every role with its hex and marks overrides', async () => {
   const plain = await runCommand(host, 'color', c)
   expect(plain).toBe(await runCommand(host, 'color list', c))
   expect(plain).toContain('○ accent #d77757')
+  expect(plain).toContain(`○ read   ${resolveLook({ colors: 'classic', motion: 'classic' }, {}, {}).look.theme.colors.read}  ${ROLE_LABELS.read}`)
   expect(plain.split('\n').filter(l => l.startsWith('○'))).toHaveLength(14)
   expect(plain).not.toContain('(override)')
   await runCommand(host, 'color accent #0f0', c)
   const after = await runCommand(host, 'color list', c)
-  expect(after).toContain('● accent #00ff00  (override)')
+  expect(after).toContain(`● accent #00ff00  ${ROLE_LABELS.accent}  (override)`)
   expect(after).toContain('○ text')
 })
 
@@ -204,7 +206,7 @@ test('color overrides survive pack, theme and spinner changes and apply on top o
   expect(resolveLook(c.mix(), {}, {}).look.theme.colors.accent).toBe('#123456')
   expect(resolveLook({ colors: 'arcade', motion: 'arcade' }, {}, {}).look.theme.colors.accent).toBe('#ff3ec8')
   const list = await runCommand(host, 'color list', c)
-  expect(list).toContain('● accent #123456  (override)')
+  expect(list).toContain(`● accent #123456  ${ROLE_LABELS.accent}  (override)`)
   expect(list).toContain('○ read')
 })
 

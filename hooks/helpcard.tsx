@@ -38,6 +38,34 @@ export function renderConfigCard(els: Els, look: Look, picked: readonly (readonl
   )
 }
 
+const LIST_ROW = /^([●○]) (\S+)\s+(#[0-9a-fA-F]{6})  (.+?)(  \(override\))?$/
+
+// The same lines /glowup color list printed, with a swatch drawn in each role's color.
+export function renderColorList(els: Els, look: Look, text: string) {
+  const { Box } = els
+  const c = look.theme.colors
+  const lines = text.split('\n')
+  const rows = lines.map(l => LIST_ROW.exec(l))
+  if (!rows.some(Boolean)) return undefined
+  return (
+    <Box flexDirection="column">
+      {lines.map((l, i) => {
+        const m = rows[i]
+        if (!m) return renderSegs(els, [{ text: l, color: c.dim }], 'l' + i)
+        const [, mark, role, hex, label, over] = m
+        return renderSegs(els, [
+          { text: mark + ' ', color: over ? c.accent : c.dim },
+          { text: '██ ', color: hex! },
+          { text: role!.padEnd(7), color: c.text },
+          { text: hex! + '  ', color: c.dim },
+          { text: label!, color: c.dim },
+          ...(over ? [{ text: over, color: c.accent }] : []),
+        ], 'l' + i)
+      })}
+    </Box>
+  )
+}
+
 export function renderHelp(els: Els, look: Look, full: boolean) {
   const { Box } = els
   const c = look.theme.colors

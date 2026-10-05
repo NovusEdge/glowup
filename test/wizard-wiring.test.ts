@@ -3,6 +3,7 @@ import type { RenderElement } from 'claude-code'
 import { runGlowup, fakeFs, test } from './kit.ts'
 import { USAGE } from '../hooks/command.ts'
 import { configText } from '../hooks/help.ts'
+import { ROLE_LABELS } from '../hooks/themes.ts'
 
 const walk = (n: any, out: any[] = []): any[] => { if (typeof n === 'string') out.push(n); else if (n && typeof n === 'object') { out.push(n); for (const c of n.children ?? []) walk(c, out) } return out }
 const texts = (n: any) => walk(n).filter(x => typeof x === 'string').join('')
@@ -51,9 +52,9 @@ test('Tweak colors in the live wizard sets an override that survives a pack swit
   await runGlowup($, 'config')
   expect(s.asked.map(q => q.header)).toEqual(['Pack', 'Spinner', 'Pet', 'Extras', 'Color', 'Hex', 'Status line'])
   expect(s.asked[3].options.map((o: any) => o.label).at(-1)).toBe('Tweak colors')
-  expect((await runGlowup($, 'color list')).text).toContain('● accent #112233  (override)')
+  expect((await runGlowup($, 'color list')).text).toContain(`● accent #112233  ${ROLE_LABELS.accent}  (override)`)
   await runGlowup($, 'pack arcade')
-  expect((await runGlowup($, 'color list')).text).toContain('● accent #112233  (override)')
+  expect((await runGlowup($, 'color list')).text).toContain(`● accent #112233  ${ROLE_LABELS.accent}  (override)`)
   expect((await runGlowup($, 'color reset')).text).toBe('Color overrides cleared.')
 })
 

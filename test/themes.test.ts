@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { parseJsonc, resolveTheme, PRESETS, MAX_THEME_BYTES } from '../hooks/themes.ts'
+import { parseJsonc, resolveTheme, PRESETS, MAX_THEME_BYTES, COLOR_KEYS, ROLE_LABELS } from '../hooks/themes.ts'
 import { DEFAULT_THEME } from '../hooks/presets.ts'
 
 test('parseJsonc strips line and block comments but not // inside strings', async () => {
@@ -143,4 +143,8 @@ test('new presets resolve with all 14 colors set', async () => {
 test('presets include the built-ins', async () => {
   expect(Object.keys(PRESETS).sort()).toEqual(['aurora', 'classic', 'cyberpunk', 'dusk', 'glowup', 'high-contrast', 'vaporwave'])
   expect(MAX_THEME_BYTES).toBe(65536)
+})
+
+test('every color role has a plain label', () => {
+  for (const k of COLOR_KEYS) expect(ROLE_LABELS[k].length).toBeGreaterThan(3)
 })
