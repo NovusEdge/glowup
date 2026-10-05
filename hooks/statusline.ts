@@ -10,6 +10,9 @@ export const STATUS_DIR = (configDir: string) => `${configDir}/glowup/status`
 const SETTINGS = (configDir: string) => `${configDir}/settings.json`
 export const BACKUP_KEY = 'statusline-backup'
 const NONE = '__none__'
+// Claude Code runs the command on events only; without this a status file written after the
+// last event (after /clear, at launch, after a reload) stays unseen until the next message.
+const REFRESH_SECONDS = 30
 
 export function statusText(m: Model, t: Theme, o: { fields?: readonly FieldId[]; now?: number; tzOffset?: number; color?: ColorMode; meter?: Meter } = {}): string {
   return renderFields(m, t, o.fields ?? DEFAULT_FIELDS, { now: o.now ?? Date.now(), tzOffset: o.tzOffset ?? 0, color: o.color ?? 'plain', meter: o.meter })
@@ -59,6 +62,18 @@ export async function drawsStatusLine(host: Host): Promise<boolean> {
   return isOurs(host.configDir, (settings?.statusLine as { command?: unknown } | undefined)?.command)
 }
 
+// Installs from before refreshInterval existed; a value the person set stays.
+export async function ensureRefresh(host: Host): Promise<void> {
+  // re-read just before writing: Claude Code writes this file too
+  const settings = await readSettings(host)
+  const line = settings?.statusLine as { command?: unknown; refreshInterval?: unknown } | undefined
+  // not isOurs: a command that only reads our status files is the person's own
+  const cmd = line?.command
+  const glowups = typeof cmd === 'string' && (cmd === command(host.configDir) || cmd.includes(SCRIPT_PATH(host.configDir)))
+  if (!settings || !line || !glowups || line.refreshInterval !== undefined) return
+  await host.writeFile(SETTINGS(host.configDir), JSON.stringify({ ...settings, statusLine: { ...line, refreshInterval: REFRESH_SECONDS } }, null, 2) + '\n')
+}
+
 export async function takeOver(host: Host, ask: (question: string) => Promise<boolean>): Promise<string> {
   const settings = await readSettings(host)
   if (!settings) return `glowup could not read ${SETTINGS(host.configDir)}, so your status line is unchanged.`
@@ -69,6 +84,7 @@ export async function takeOver(host: Host, ask: (question: string) => Promise<bo
     if ((await host.exists(path)) && (await host.readFile(path)).includes(`sh -c`) && (await host.readFile(path)).includes(path)) {
       await host.writeFile(path, script(host.configDir, originalOf(await host.storeGet(BACKUP_KEY))))
     }
+    await ensureRefresh(host)
     return 'glowup already draws your status line.'
   }
   const override = (await host.projectStatusLine()) ? OVERRIDE : ''
@@ -77,7 +93,7 @@ export async function takeOver(host: Host, ask: (question: string) => Promise<bo
   await host.writeFile(SCRIPT_PATH(host.configDir), script(host.configDir, originalOf(await host.storeGet(BACKUP_KEY))))
   // re-read just before writing: Claude Code writes this file too
   const fresh = (await readSettings(host)) ?? settings
-  await host.writeFile(SETTINGS(host.configDir), JSON.stringify({ ...fresh, statusLine: { type: 'command', command: command(host.configDir) } }, null, 2) + '\n')
+  await host.writeFile(SETTINGS(host.configDir), JSON.stringify({ ...fresh, statusLine: { type: 'command', command: command(host.configDir), refreshInterval: REFRESH_SECONDS } }, null, 2) + '\n')
   return 'glowup now draws your status line. `/glowup statusline restore` brings yours back.' + override
 }
 

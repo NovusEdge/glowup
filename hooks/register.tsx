@@ -20,7 +20,7 @@ import { styleRow } from './rows.tsx'
 import { orbStateOf, usesOwnSpinner, checkedSpinnerProps } from './spinner.ts'
 import type { PetClientProps } from './client/pet.tsx'
 import type { OrbState } from './motion.ts'
-import { statusText, writeStatusFile, drawsStatusLine, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
+import { statusText, writeStatusFile, drawsStatusLine, ensureRefresh, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
 import { parseFields, DEFAULT_FIELDS, type ColorMode, type FieldId } from './fields.ts'
 import { DEFAULT_SETUP, parseSetup, type Setup } from './setup.ts'
 import { runCommand, type Ctl } from './command.ts'
@@ -158,11 +158,25 @@ async function checkStale($: Engine) {
     if (text) $.ui.toast(text)
   } catch {}
 }
+// After /clear, session.end still reports the ending id and no turn.start comes until the first
+// prompt, so the beat is what notices the new id.
+async function beatStatus($: Engine) {
+  try {
+    const id = await $.session.id()
+    if (id && id !== sessionId) {
+      if (await recheckGuard($, id)) return
+      // turn.start may have adopted the id while the guard check was awaited
+      if (id === sessionId) return
+      await adoptSession($, sessionId)
+    }
+  } catch {}
+  writeStatus($, true)
+}
 function startBeat($: Engine) {
   beatTimer?.cancel()
   beatTimer = $.clock.every(HEARTBEAT_MS, () => {
     if (guardSid) void touchCopy(hostOf($), guardSid, guardRoot, Date.now()).catch(() => {})
-    writeStatus($, true)
+    void beatStatus($)
     void checkStale($)
   })
 }
@@ -171,7 +185,9 @@ function startBeat($: Engine) {
 async function syncTakeover($: Engine) {
   // the first-run timer can fire after recheckGuard turned this copy off
   if (off) return
-  takenOver = (await hostOf($).storeGet(BACKUP_KEY)) !== undefined || await drawsStatusLine(hostOf($))
+  const draws = await drawsStatusLine(hostOf($))
+  takenOver = (await hostOf($).storeGet(BACKUP_KEY)) !== undefined || draws
+  if (draws) await ensureRefresh(hostOf($)).catch(() => {})
   writeStatus($, true)
   $.ui.status(statusEntry())
 }
@@ -753,6 +769,9 @@ export const register: Register = (on, options) => {
     git = await gitBase(host, cwd)
     void readBranch($)
     void readSessionInfo($)
+    // a hot reload restarts the module mid-session with an empty model; without this the beat
+    // writes a line with no ctx or limits until the next tool call or turn end
+    void feedContext($)
     void loadPlan($)
     // a beat after launch, so the dialog does not open over the startup frame
     if (e.isInteractive) $.clock.after(1500, () => void askFirstRun($))
