@@ -8,16 +8,16 @@ import { resolveLook, DEFAULT_MIX } from '../hooks/packs.ts'
 const setup = (on: any, surfaces: string[] = ['terminal'], files: Record<string, string> = {}) => {
   fakeFs(on, files)
   mock.store(on)
-  const opens: any[] = [], copies: string[] = [], closes: any[] = []
+  const opens: any[] = [], copies: string[] = [], closes: any[] = [], copyResult: { value: unknown } = { value: { isCopied: true } }
   on('ui.open', async (_$: unknown, e: unknown) => { opens.push(e); return { value: { isPlaced: true } } as never })
   on('ui.close', async (_$: unknown, e: unknown) => { closes.push(e); return { value: undefined } as never })
-  on('ui.copy', async (_$: unknown, e: any) => { copies.push(e.text); return { value: undefined } as never })
+  on('ui.copy', async (_$: unknown, e: any) => { copies.push(e.text); return copyResult as never })
   on('ui.panes', async () => ({ value: [] }))
   on('ui.status', async () => ({ value: undefined }) as never)
   on('ui.render', async () => ({ type: 'Text', props: {}, children: ['engine'] }) as RenderElement)
   on('session.surfaces', async () => ({ value: surfaces }) as never)
   on('session.id', async () => ({ value: 's1' }))
-  return { opens, copies, closes }
+  return { opens, copies, closes, copyResult }
 }
 const mountConfig = ($: any, surface = 'terminal') => $.ui.mount({ plugin: 'glowup', surface, component: 'Pane', requestId: 'glowup-config', props: { title: 'glowup config', isFocused: true, bodyColumns: 90, placement: 'inline', scroll: { offset: 0, bodyRows: 40 }, view: {} } })
 
@@ -182,15 +182,29 @@ test('Reset answered No changes nothing', async ($, on) => {
   await ui.unmount()
 })
 
-test('Copy studio link copies the whole link, even past 2048 characters', async ($, on) => {
+test('Copy studio link copies the whole link, not a clipped one', async ($, on) => {
+  // The link reaches about 1.2k here and cannot pass 2048: pack names stop at 40 characters and the setup is small.
   const s = setup(on)
   await runGlowup($, 'pack arcade')
-  for (const role of ['accent', 'text', 'dim', 'faint', 'read', 'edit', 'shell', 'agent', 'pass', 'fail', 'panel', 'addBg', 'delBg', 'sel']) await runGlowup($, `color ${role} #123456`)
+  const roles = ['accent', 'text', 'dim', 'faint', 'read', 'edit', 'shell', 'agent', 'pass', 'fail', 'panel', 'addBg', 'delBg', 'sel']
+  for (const role of roles) await runGlowup($, `color ${role} #123456`)
   await runGlowup($, 'config')
   const ui = await mountConfig($)
   await ui.press({ key: 'copy-link' })
   expect(s.copies).toHaveLength(1)
+  expect(s.copies[0]!.length).toBeGreaterThan(1000)
   expect(s.copies[0]).toMatch(/^https:\/\/glowup\.khimani\.dev\/studio#v=1&p=[A-Za-z0-9_-]+&s=[A-Za-z0-9_-]+$/)
   expect(await ui.find({ text: /copied/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a copy that did not happen says why instead of claiming success', async ($, on) => {
+  const s = setup(on)
+  s.copyResult.value = { isCopied: false, reason: 'no-clipboard' }
+  await runGlowup($, 'config')
+  const ui = await mountConfig($)
+  await ui.press({ key: 'copy-link' })
+  expect(await ui.find({ text: /Could not copy the studio link: no-clipboard/ })).toBeDefined()
+  expect(await ui.find({ text: /Studio link copied/ })).toBeUndefined()
   await ui.unmount()
 })

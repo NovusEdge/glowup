@@ -474,8 +474,10 @@ async function resetConfig($: Engine) {
 }
 
 async function copyStudioLink($: Engine, link: string, surface: RenderSurface) {
-  await $.ui.copy({ text: link, surface })
-  configNote = { text: 'Studio link copied. Open it in a browser to fine-tune this look.', tone: 'ok' }
+  const r = await $.ui.copy({ text: link, surface }).catch((e: unknown) => ({ isCopied: false as const, reason: e instanceof Error ? e.message : String(e) }))
+  configNote = r.isCopied
+    ? { text: 'Studio link copied. Open it in a browser to fine-tune this look.', tone: 'ok' }
+    : { text: `Could not copy the studio link: ${r.reason}`, tone: 'error' }
   relook($)
 }
 
