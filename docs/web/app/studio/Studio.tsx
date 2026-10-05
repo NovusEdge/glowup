@@ -22,7 +22,7 @@ export function Studio() {
   const [z, setZ] = useState(1)
   const area = useRef<HTMLDivElement>(null)
   const { look } = useMemo(() => draftLook(draft), [draft])
-  const problem = draftProblems(draft)[0]
+  const problem = useMemo(() => draftProblems(draft)[0], [draft])
 
   // The mock is sized for its natural width and scales up with the preview area. Phones keep 1 because the stage
   // there is a short scrolling strip, and measuring its height would feed back into the size.

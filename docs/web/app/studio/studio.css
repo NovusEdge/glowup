@@ -70,5 +70,9 @@
   .st-root .st-seg button{min-height:36px}
 }
 @media (max-width:899px){
+  /* column-reverse starts a scroller at its end and keeps it there as the transcript grows. The preview must not
+     shrink to the stage, or the terminal clips instead of scrolling. */
+  .st-root .st-stage{flex-direction:column-reverse}
+  .st-root .studio-preview{flex:none}
   .st-root .studio-preview[data-width=narrow] .st-frame{max-width:none}
 }
