@@ -15,10 +15,11 @@ export type FieldId = (typeof FIELD_IDS)[number]
 export const DITHERS = ['2x2', '4x4', '8x8'] as const
 // motion.field as an object: the shape and its knobs, each held to [min, max]. The knobs follow
 // Paper's dithering shader (shaders.paper.design/dithering), with size counted in braille dots.
-export const FIELD_KNOBS = { speed: [0, 4], scale: [0.05, 4], rotation: [0, 360], offsetX: [-1, 1], offsetY: [-1, 1], density: [0.2, 2], warp: [0, 8], size: [1, 4] } as const
-export const FIELD_KEYS = ['shape', ...Object.keys(FIELD_KNOBS), 'dither']
-export type Field = { shape: FieldId; dither: (typeof DITHERS)[number] } & Record<keyof typeof FIELD_KNOBS, number>
-export const FIELD_DEFAULTS: Omit<Field, 'shape'> = { speed: 1, scale: 1, rotation: 0, offsetX: 0, offsetY: 0, density: 1, warp: 4, size: 1, dither: '8x8' }
+export const FIELD_KNOBS = { speed: [0, 4], scale: [0.05, 4], rotation: [0, 360], offsetX: [-1, 1], offsetY: [-1, 1], density: [0.2, 2], warp: [0, 8], size: [1, 4], fps: [1, 12] } as const
+export const FIELD_KEYS = ['shape', ...Object.keys(FIELD_KNOBS), 'dither', 'color']
+// color is the dither's one ink colour; without it the field uses the palette's faint.
+export type Field = { shape: FieldId; dither: (typeof DITHERS)[number]; color?: string } & Record<keyof typeof FIELD_KNOBS, number>
+export const FIELD_DEFAULTS: Omit<Field, 'shape'> = { speed: 1, scale: 1, rotation: 0, offsetX: 0, offsetY: 0, density: 1, warp: 4, size: 1, fps: 10, dither: '8x8' }
 export type RowFlags = { labels: boolean; markers: boolean; xp: boolean }
 export type ColorsLayer = { theme?: string; palette?: Partial<Colors>; bg?: string; rows?: RowStyle; border?: Border; borderColor?: string; gradient?: [string, string]; extras?: { hp?: boolean; combo?: boolean }; rowFlags?: Partial<RowFlags>; meters?: MeterStyle; dividers?: boolean }
 // spinner is any well-formed id: a pack made for a later glowup may name one this build lacks
@@ -129,6 +130,7 @@ function checkMotion(v: unknown): void {
   }
   if (f.size !== undefined && !Number.isInteger(f.size)) throw new Error('motion.field.size must be a whole number of dots')
   if (f.dither !== undefined && !oneOf(DITHERS, f.dither)) throw new Error(`motion.field.dither must be one of ${DITHERS.join(', ')}`)
+  if (f.color !== undefined && (typeof f.color !== 'string' || !HEX.test(f.color))) throw new Error('motion.field.color must be #rrggbb')
 }
 
 const fieldOf = (f: MotionLayer['field']): Field => typeof f === 'object' ? { ...FIELD_DEFAULTS, ...f } : { shape: f ?? 'none', ...FIELD_DEFAULTS }

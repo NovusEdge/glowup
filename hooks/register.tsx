@@ -924,16 +924,17 @@ export const register: Register = (on, options) => {
     if (!rule) return styled
     const { Box, Text } = els
     const side = (segs: Seg[], k: string) => <Box key={k} flexShrink={0}>{segs.map(s => <Text color={s.color} bold={s.bold}>{s.text}</Text>)}</Box>
-    // The row has no width of its own, so the fill is long and its one-row box clips it; a truncating
-    // Text would end it in "…". The clipping box holds no engine node, which may not sit under overflow.
+    // Laid over the blank margin line Claude Code opens the row with (see card() in rows.tsx), so
+    // the rule sits right above the prompt. The fill is long and its one-row box clips it, since a
+    // truncating Text would end it in "…"; neither box is above the engine node.
     return (
       <Box flexDirection="column">
-        <Box flexDirection="row">
+        {styled}
+        <Box position="absolute" top={0} left={0} right={0} height={1} flexDirection="row">
           {side(rule.left, 'l')}
           <Box flexGrow={1} flexShrink={1} height={1} overflow="hidden"><Text color={rule.fill.color}>{rule.fill.text.repeat(400)}</Text></Box>
           {side(rule.right, 'r')}
         </Box>
-        {styled}
       </Box>
     )
   })

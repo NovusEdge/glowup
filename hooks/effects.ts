@@ -43,9 +43,9 @@ function noise3(x: number, y: number, z: number) {
 }
 const fbm3 = (x: number, y: number, z: number) => noise3(x, y, z) * 0.6 + noise3(x * 2.03, y * 2.03, z * 1.7) * 0.4
 
-// The field's tick, the pet's: fast enough to read as motion, cheap enough to draw every time.
-export const FIELD_TICK_MS = 83
-const SHADES = 4
+// Claude Code repaints the whole field on every tick, about 2,000 characters at 88x24. Measured
+// in one session against the same pack with no field: about 25 points of one core at fps 10.
+export const fieldTickMs = (f: Field) => Math.round(1000 / f.fps)
 
 // Density in [0, 1] at a point. simplex morphs noise in place along its third axis; warp
 // (after Paper's "warp") folds noise through itself with an offset that circles every 12 s.
@@ -56,51 +56,74 @@ function shapeAt(f: Field, x: number, y: number, t: number): number {
   return Math.min(1, Math.pow(fbm3(x + f.warp * q + oy, y + f.warp * q + ox, 0), 1.4) * 1.2 * f.density)
 }
 
-// One frame of the pack's field at t seconds, drawn live by client/field.tsx on every tick. The
-// field is a grid of braille dots; `size` dots square make one dither pixel, sampled once at its
-// centre, and each pixel meets its own Bayer threshold. Space is centred, one unit the field's height.
-// Where each dither pixel samples the shape, which only the time changes between ticks, so it is
-// worked out once per size and framing: the pixel grid's width, then x and y interleaved.
-type Grid = { key: string; bw: number; xy: Float64Array }
-let grid: Grid = { key: '', bw: 0, xy: new Float64Array(0) }
+// The shape is sampled on a lattice every STEP dots and blended in between: the noise is smooth at
+// that scale, and the mod runtime runs this about 7 times slower than node, so sampling every dot
+// cost 113 ms a frame at 88x24, more than the tick.
+const STEP = 4
+
+// Everything about the field that only its size and framing decide, worked out once and reused
+// every tick: where each lattice point samples the shape, and for each dither pixel its four
+// lattice neighbours, its blend weights and its Bayer threshold.
+type Grid = { key: string; lw: number; xy: Float64Array; bw: number; at: Int32Array; wx: Float64Array; wy: Float64Array; cut: Float64Array }
+let grid: Grid | undefined
 function gridFor(cols: number, rows: number, f: Field): Grid {
-  const key = [cols, rows, f.size, f.scale, f.rotation, f.offsetX, f.offsetY].join()
-  if (grid.key === key) return grid
+  const key = [cols, rows, f.size, f.scale, f.rotation, f.offsetX, f.offsetY, f.dither].join()
+  if (grid?.key === key) return grid
   const W = cols * 2, H = rows * 4, sz = f.size, freq = 1.6 / f.scale
-  const bw = Math.ceil(W / sz), bh = Math.ceil(H / sz), rad = f.rotation * Math.PI / 180, cs = Math.cos(rad), sn = Math.sin(rad)
-  const xy = new Float64Array(bw * bh * 2)
-  for (let by = 0; by < bh; by++) for (let bx = 0; bx < bw; bx++) {
-    const u = ((bx + 0.5) * sz - W / 2) / H - f.offsetX, v = ((by + 0.5) * sz - H / 2) / H - f.offsetY, i = (by * bw + bx) * 2
-    xy[i] = (u * cs - v * sn) * freq
-    xy[i + 1] = (u * sn + v * cs) * freq
+  const rad = f.rotation * Math.PI / 180, cs = Math.cos(rad), sn = Math.sin(rad)
+  const lw = Math.ceil(W / STEP) + 1, lh = Math.ceil(H / STEP) + 1
+  const xy = new Float64Array(lw * lh * 2)
+  for (let j = 0; j < lh; j++) for (let i = 0; i < lw; i++) {
+    const u = (i * STEP - W / 2) / H - f.offsetX, v = (j * STEP - H / 2) / H - f.offsetY, k = (j * lw + i) * 2
+    xy[k] = (u * cs - v * sn) * freq
+    xy[k + 1] = (u * sn + v * cs) * freq
   }
-  return (grid = { key, bw, xy })
+  const m = BAYER[f.dither], side = m.length
+  const bw = Math.ceil(W / sz), bh = Math.ceil(H / sz), n = bw * bh
+  const at = new Int32Array(n), wx = new Float64Array(n), wy = new Float64Array(n), cut = new Float64Array(n)
+  for (let by = 0; by < bh; by++) for (let bx = 0; bx < bw; bx++) {
+    const p = by * bw + bx, gx = ((bx + 0.5) * sz) / STEP, gy = ((by + 0.5) * sz) / STEP
+    const ix = Math.min(lw - 2, Math.floor(gx)), iy = Math.min(lh - 2, Math.floor(gy))
+    at[p] = iy * lw + ix
+    wx[p] = gx - ix
+    wy[p] = gy - iy
+    cut[p] = (m[by % side]![bx % side]! + 0.5) / (side * side)
+  }
+  return (grid = { key, lw, xy, bw, at, wx, wy, cut })
 }
 
+// One frame of the pack's field at t seconds, drawn live by client/field.tsx on every tick. The
+// field is a grid of braille dots; `size` dots square make one dither pixel, and each pixel meets
+// its own Bayer threshold. Space is centred, one unit the field's height.
 export function fieldFrame(cols: number, rows: number, colors: Colors, t: number, f: Field): Seg[][] {
-  const dark = mix(colors.faint, '#000000', 0.55)
-  const shade = Array.from({ length: SHADES }, (_, i) => mix(dark, colors.accent, i / (SHADES - 1)))
-  const m = BAYER[f.dither], side = m.length, cut = side * side, sz = f.size
-  const { bw, xy } = gridFor(cols, rows, f)
-  const density = new Float64Array(xy.length / 2).fill(-1)
-  const at = (bx: number, by: number) => {
-    const i = by * bw + bx
-    if (density[i]! < 0) density[i] = shapeAt(f, xy[i * 2]!, xy[i * 2 + 1]!, t)
-    return density[i]!
+  const ink = f.color ?? colors.faint
+  const g = gridFor(cols, rows, f), sz = f.size
+  const lattice = new Float64Array(g.xy.length / 2)
+  for (let k = 0; k < lattice.length; k++) lattice[k] = shapeAt(f, g.xy[k * 2]!, g.xy[k * 2 + 1]!, t)
+  const pix = new Float64Array(g.at.length)
+  for (let p = 0; p < pix.length; p++) {
+    const a = g.at[p]!, x = g.wx[p]!, y = g.wy[p]!
+    const top = lattice[a]! + (lattice[a + 1]! - lattice[a]!) * x, low = lattice[a + g.lw]! + (lattice[a + g.lw + 1]! - lattice[a + g.lw]!) * x
+    pix[p] = top + (low - top) * y
   }
+  // One colour, as in Paper's two-colour dithering, so each row is one segment. Every segment is
+  // an element Claude Code diffs and repaints each tick: a shade per cell split rows into ~40 runs
+  // and cost 84% of a core at 88x24, one colour about 35%.
   const frame: Seg[][] = []
   for (let r = 0; r < rows; r++) {
-    const cells: Seg[] = []
+    let text = ''
     for (let c = 0; c < cols; c++) {
-      let bits = 0, sum = 0
-      for (let y = 0; y < 4; y++) for (let x = 0; x < 2; x++) {
-        const bx = Math.floor((c * 2 + x) / sz), by = Math.floor((r * 4 + y) / sz), d = at(bx, by)
-        sum += d
-        if (d > (m[by % side]![bx % side]! + 0.5) / cut) bits |= DOT[y]![x]!
+      let bits = 0
+      for (let y = 0; y < 4; y++) {
+        const base = Math.floor((r * 4 + y) / sz) * g.bw
+        for (let x = 0; x < 2; x++) {
+          const p = base + Math.floor((c * 2 + x) / sz)
+          if (pix[p]! > g.cut[p]!) bits |= DOT[y]![x]!
+        }
       }
-      cells.push(bits ? { text: String.fromCharCode(0x2800 + bits), color: shade[Math.min(SHADES - 1, Math.floor((sum / 8) * SHADES))]! } : { text: ' ', color: dark })
+      text += bits ? String.fromCharCode(0x2800 + bits) : ' '
     }
-    frame.push(runs(cells))
+    frame.push([{ text, color: ink }])
   }
   return frame
 }

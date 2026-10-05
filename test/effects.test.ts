@@ -82,4 +82,11 @@ test('a bad effect value is refused with the allowed values', async () => {
   expect(bad({}, { field: { shape: 'simplex', size: 2.5 } })).toThrow('motion.field.size must be a whole number of dots')
   expect(bad({}, { field: { shape: 'simplex', dither: '3x3' } })).toThrow('motion.field.dither must be one of 2x2, 4x4, 8x8')
   expect(bad({}, { field: { shape: 'simplex', hue: 1 } })).toThrow('unknown key "hue" in motion.field')
+  expect(bad({}, { field: { shape: 'simplex', fps: 30 } })).toThrow('motion.field.fps must be a number from 1 to 12')
+  expect(bad({}, { field: { shape: 'simplex', color: 'red' } })).toThrow('motion.field.color must be #rrggbb')
+})
+
+test('the field is one colour, one segment a row: field.color, else the palette faint', async () => {
+  for (const r of fieldFrame(40, 6, C, 1, SIMPLEX)) expect(r.map(s => s.color)).toEqual([C.faint])
+  for (const r of fieldFrame(40, 6, C, 1, { ...SIMPLEX, color: '#e0703a' })) expect(r.map(s => s.color)).toEqual(['#e0703a'])
 })

@@ -34,14 +34,31 @@ function label({ Text }: Els, text: string, look: Look, color: string, bold?: bo
 // node under a Box with width, height, min sizes, overflow, display or position, so only the
 // flex props go here (test/engine-tree.ts).
 const shrinker = (Box: any, engine: unknown) => <Box flexGrow={1} flexShrink={1}>{engine}</Box>
-const fixed = ({ Box, Text }: Els, color: string, s: string) => <Box flexShrink={0}><Text color={color} wrap="truncate">{s}</Text></Box>
+// down a line by default: the engine row beside it opens with a blank margin line (see card())
+const fixed = ({ Box, Text }: Els, color: string, s: string, down = 1) => <Box flexShrink={0} marginTop={down}><Text color={color} wrap="truncate">{s}</Text></Box>
 
 // Messages are always a bar; tool rows are boxed unless prefixCards asks for the bar too.
+// Claude Code opens each message and tool row with a blank margin line inside its engine node,
+// and a mod cannot see or change it. Drawn in the flow, the bar sat alone on that line and a
+// border boxed it in. So both are absolute overlays sized by top/bottom: the bar starts a line
+// down, and the frame's top edge lies on the blank line. Neither can sit above the engine node,
+// which refuses position and overflow on its ancestors (test/engine-tree.ts).
+const BAR_ROWS = '▎\n'.repeat(400)
 function card({ Box, Text }: Els, look: Look, direction: 'row' | 'column', kids: unknown[], color: string, prefix?: boolean) {
   if (prefix) {
-    return <Box flexDirection="row"><Text color={color}>{'▎ '}</Text><Box flexDirection={direction}>{kids}</Box></Box>
+    return (
+      <Box flexDirection="row" paddingLeft={2}>
+        <Box flexDirection={direction}>{kids}</Box>
+        <Box position="absolute" top={1} bottom={0} left={0} width={1} overflow="hidden"><Text color={color}>{BAR_ROWS}</Text></Box>
+      </Box>
+    )
   }
-  return <Box flexDirection={direction} borderStyle={look.border} borderColor={color} paddingX={1}>{kids}</Box>
+  return (
+    <Box flexDirection={direction} paddingX={2} paddingBottom={1}>
+      {kids}
+      <Box position="absolute" top={0} bottom={0} left={0} right={0} borderStyle={look.border} borderColor={color} />
+    </Box>
+  )
 }
 
 // A glyph marker replaces the bar: the glyph column keeps the body aligned on every block of a reply.
@@ -109,7 +126,7 @@ function draw(els: Els, look: Look, row: RowInput, engine: unknown, opts: { pref
           return row.isFirstOfReply && look.rowFlags.labels ?<Box flexDirection="column">{label(els, '[CLAUDE]', look, c.accent, true)}{body}</Box> : body
         }
         const m = mark(look, row, MARKS.retro)
-        return <Box flexDirection="row"><Box flexShrink={0}>{label(els, retroTag(row.tool), look, c.accent)}</Box>{shrinker(Box, engine)}{fixed(els, m.color, ' ' + m.mark)}</Box>
+        return <Box flexDirection="row"><Box flexShrink={0} marginTop={1}>{label(els, retroTag(row.tool), look, c.accent)}</Box>{shrinker(Box, engine)}{fixed(els, m.color, ' ' + m.mark)}</Box>
       }
     }
     return engine
