@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The status line shows the effort level (`◐ high`) by default, as Claude Code's own footer does.
 
+### Fixed
+
+- After `/clear` the status line kept showing your previous one until the first prompt, because glowup only noticed the new session on the first turn. The heartbeat now picks up the new session within a minute.
+- A glowup restart in the middle of a session (a hot reload) wrote a status line without `ctx`, `5h` and `wk` until the next tool call or turn ended. It now reads them back at start.
+
 ## [0.8.1] - 2026-10-05
 
 ### Fixed

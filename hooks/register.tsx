@@ -158,11 +158,23 @@ async function checkStale($: Engine) {
     if (text) $.ui.toast(text)
   } catch {}
 }
+// After /clear, session.end still reports the ending id and no turn.start comes until the first
+// prompt, so the beat is what notices the new id.
+async function beatStatus($: Engine) {
+  try {
+    const id = await $.session.id()
+    if (id && id !== sessionId) {
+      if (await recheckGuard($, id)) return
+      await adoptSession($, sessionId)
+    }
+  } catch {}
+  writeStatus($, true)
+}
 function startBeat($: Engine) {
   beatTimer?.cancel()
   beatTimer = $.clock.every(HEARTBEAT_MS, () => {
     if (guardSid) void touchCopy(hostOf($), guardSid, guardRoot, Date.now()).catch(() => {})
-    writeStatus($, true)
+    void beatStatus($)
     void checkStale($)
   })
 }
@@ -753,6 +765,9 @@ export const register: Register = (on, options) => {
     git = await gitBase(host, cwd)
     void readBranch($)
     void readSessionInfo($)
+    // a hot reload restarts the module mid-session with an empty model; without this the beat
+    // writes a line with no ctx or limits until the next tool call or turn end
+    void feedContext($)
     void loadPlan($)
     // a beat after launch, so the dialog does not open over the startup frame
     if (e.isInteractive) $.clock.after(1500, () => void askFirstRun($))

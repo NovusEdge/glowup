@@ -233,6 +233,44 @@ test('usage limits survive /clear; the status file keeps showing them', async ($
   expect(files['/fake/.claude/glowup/status/s2']).toContain('42%')
 })
 
+test('the heartbeat adopts the new session id after /clear, before any prompt', async ($, on) => {
+  const { files } = fakeFs(on)
+  const clock = mock.clock(on)
+  mock.store(on, { 'statusline-backup': '__none__', statusline: ['5h'] })
+  let id = 's1'
+  on('ui.status', async () => ({ value: undefined }) as never)
+  on('ui.panes', async () => ({ value: [] }))
+  on('session.id', async () => ({ value: id }))
+  on('session.start', async (_$, e) => ({ cwd: e.cwd }) as never)
+  on('session.end', async (_$, e) => ({ sessionId: e.sessionId }))
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.measure', async (_$, e) => ({ changed: e.changed }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  await $.session.measure({ context: { window: 1000, percent: 10 }, rateLimits: [{ kind: 'five_hour', percentUsed: 42 }], changed: ['rateLimits'] } as never)
+  // session.end still sees the ending id; the new one shows up later
+  await $.session.end({ reason: 'clear', sessionId: 's1' } as never)
+  id = 's2'
+  await clock.advance(60_000)
+  expect(files['/fake/.claude/glowup/status/s2']).toContain('42%')
+})
+
+test('session.start fills ctx and limits from usage, so a restarted module does not write a bare line', async ($, on) => {
+  const { files } = fakeFs(on)
+  const clock = mock.clock(on)
+  mock.store(on, { 'statusline-backup': '__none__', statusline: ['ctx', '5h'] })
+  on('ui.status', async () => ({ value: undefined }) as never)
+  on('ui.panes', async () => ({ value: [] }))
+  on('session.id', async () => ({ value: 's1' }))
+  on('session.start', async (_$, e) => ({ cwd: e.cwd }) as never)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.usage', async () => ({ value: { context: { window: 1000, percent: 10 }, rateLimits: [{ kind: 'five_hour', percentUsed: 42 }] } as never }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  await clock.advance(60_000)
+  const line = files['/fake/.claude/glowup/status/s1']!
+  expect(line).toContain('ctx ')
+  expect(line).toContain('42%')
+})
+
 test('an entry whose fields render nothing is not pinned as an empty notice', async ($, on) => {
   fakeFs(on, {}, argv => { if (argv.includes('symbolic-ref')) return { exitCode: 128, stdout: '' } })
   mock.clock(on)
