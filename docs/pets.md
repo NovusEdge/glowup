@@ -27,7 +27,7 @@ He only appears in the pane, so you see him when the pane is docked beside the t
 
 On a Friday after 15:00, a deploy command gets him into a sweat outfit.
 
-His frames change at most every 80 ms and nothing flashes more than 2.5 times a second. Under reduced motion, or in the narrow drawer, he does not animate.
+His frames change at most every 80 ms and nothing flashes more than 2.5 times a second. In the narrow drawer he does not animate.
 
 ## Speech bubbles
 
@@ -55,7 +55,7 @@ glowup makes one call at a time, at most one per turn, at least 90 seconds apart
 
 ## The shiny pet
 
-Keeping your tests green unlocks a gold Clawd. glowup tells you when he unlocks, and `/glowup pet clawd-shiny` switches to him. Progress carries across sessions.
+Keep your tests green and see what happens. When it does, glowup tells you, and `/glowup pet clawd-shiny` switches to a gold Clawd. Progress toward it carries across sessions.
 
 ![The shiny gold Clawd](assets/clawd/shiny/idle/clip.gif)
 

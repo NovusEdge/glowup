@@ -55,7 +55,7 @@ Host the pack file anywhere it can be fetched over `https://`, such as a gist or
 /glowup pack https://example.com/neon.json
 ```
 
-A pack is plain data that glowup checks before installing it. Its fields set colors, row styles, borders and the spinner.
+A pack is plain data that glowup validates before installing, so installing one cannot run code.
 
 ## Limits
 
