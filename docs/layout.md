@@ -77,9 +77,13 @@ The tab has two boxes, `PLAN` and `CONTEXT`, one blank row apart.
 - The list is Claude Code's saved one, read from `tasks/<list>/*.json` under your config directory when the session starts and again after each `TaskCreate` or `TaskUpdate` Claude makes. `<list>` is `CLAUDE_CODE_TASK_LIST_ID` when that is set, otherwise the working directory with every character outside letters and digits turned into `-` and the leading `-` dropped (`/home/you/Projects` is `home-you-Projects`). Deleted and unreadable tasks are skipped. Subagent task calls do not count. A `TodoWrite` list still shows too.
 - `CONTEXT` has one stacked bar: each part of the context that uses tokens is its own colored segment, biggest first, and free space is a faint `░` track (`·` when the theme gives no usable colors). Segment colors come from your theme's `read`, `agent`, `shell`, `edit` and `accent` colors, so they follow the pack. If the theme gives no usable colors, the segments use the block shades `█▓▒░` instead. The top edge shows the percent and tokens, such as `62% · 124k / 200k`.
 - Under the bar, a legend names each part with its share (`● messages 31%`) and wraps onto more lines when the pane is narrow. Up to five parts get their own segment and the rest join as `other`.
-- Below that, a sparkline of the context percent, one sample per finished turn, with the peak and the compaction count at the right edge. It shows once there is a sample.
+- A `┊` on the bar marks where auto-compact runs. It is absent when auto-compact is off.
+- Below the legend, a two-row braille chart of the context percent, one sample per finished turn. A compaction shows as a drop. A dashed rule marks the auto-compact point, with its percent at the right end. Each turn gets a full cell until the chart is full, then two turns share a cell. The chart shows once there is a sample.
+- Under the chart, how fast the context grows and when auto-compact will run, such as `+7k/turn · auto-compact in ~6 turns`. The growth is averaged over the last six turns since the last compaction. The line says `auto-compact off` when it is off.
+- Next, up to three of the heaviest sources you can trim, each with its tokens: an MCP server's loaded tool schemas (`mcp  linear  38 tools  14k`), a memory file such as a `CLAUDE.md`, the skill listing, or the custom agent listing.
+- The last line shows the prompt cache's share of the last request's input, the session's peak, and the number of compactions, such as `cache hit 92% · peak 81% · compacted 1×`.
 - From 70% used, a warning line names the biggest part.
-- The compact form is the checklist and one line with the stacked bar and the percent.
+- The compact form is the checklist and one line with the stacked bar, its auto-compact mark, and the percent.
 - Without a task list, `PLAN` says `No task list yet.`
 
 A mod cannot hide Claude Code's own task list, so the plan shows in both places.

@@ -1,6 +1,6 @@
 import { test, expect } from 'claude-code/testing'
 import { tabRows, COMPACT_ROWS } from '../hooks/pane.tsx'
-import { stackBar, legendRows, shortName, tokensK, sparkline } from '../hooks/ctxchart.ts'
+import { stackBar, legendRows, shortName, tokensK, brailleArea, growth, heaviest, cacheHit } from '../hooks/ctxchart.ts'
 import { visibleLength, type Seg } from '../hooks/layout.tsx'
 import { initialModel, type Model, type PlanItem } from '../hooks/model.ts'
 import { resolveTheme, PRESETS } from '../hooks/themes.ts'
@@ -92,19 +92,80 @@ test('plan rows: active first, then pending, then the last three done and a coun
   expect(rows[0]).toMatch(/ 12\/15 ─╮$/)
 })
 
-test('the sparkline is bounded by the width and counts compactions and the peak', async () => {
-  const hist = Array.from({ length: 100 }, (_, i) => i % 100)
-  for (const w of [30, 40, 60, 90]) {
-    const rows = text(tabRows(base({ ctxHistory: hist, ctxPeak: 99, compactions: 2 }), T, view, w, false, 0))
-    const line = rows.find(r => r.includes('peak'))!
-    expect(visibleLength([{ text: line, color: '' }])).toBeLessThanOrEqual(w)
-    expect([...line].filter(c => '▁▂▃▄▅▆▇█'.includes(c)).length).toBeLessThan(w)
-    expect(line).toContain('peak 99%')
+const BRAILLE = /[⠁-⣿]/
+const DETAIL = { autoCompact: true, threshold: 160000, window: 200000, heavy: [], cacheHit: 92 }
+
+test('braille area: two samples per cell, eight levels, and a rule at the given percent', async () => {
+  const full = brailleArea([100, 100], 1)
+  expect(full.rows).toEqual(['⣿', '⣿'])
+  const low = brailleArea([12, 0, 12], 1)
+  expect(low.rows).toEqual([' ', '⢀'])
+  // while samples fit, each fills a whole cell
+  expect(brailleArea([12], 2).rows).toEqual(['  ', '⣀ '])
+  // 50% fills the bottom row only; a 100% rule adds the top-left dot
+  expect(brailleArea([50, 50, 50], 2, 100)).toEqual({ rows: ['⠁⠁', '⣿⡇'], data: [true, true] })
+  const many = brailleArea(Array.from({ length: 50 }, () => 30), 10)
+  expect(many.rows.every(r => [...r].length === 10)).toBe(true)
+  expect(many.data.every(Boolean)).toBe(true)
+})
+
+test('growth is per turn since the last drop', async () => {
+  expect(growth([10])).toBeUndefined()
+  expect(growth([10, 20, 30])).toBe(10)
+  expect(growth([40, 60, 8, 12, 16])).toBe(4)
+  expect(growth([40, 60, 8])).toBeUndefined()
+  expect(growth([10, 10, 10])).toBe(0)
+})
+
+test('heaviest groups MCP tools by server, skips unloaded schemas, and ranks every source', async () => {
+  const b = {
+    mcpTools: [
+      { name: 'a', serverName: 'linear', tokens: 9000, isLoaded: true },
+      { name: 'b', serverName: 'linear', tokens: 5000, isLoaded: true },
+      { name: 'c', serverName: 'slack', tokens: 40000, isLoaded: false },
+    ],
+    memoryFiles: [{ path: '/r/CLAUDE.md', type: 'Project', tokens: 3000 }],
+    agents: [{ agentType: 'x', source: 'userSettings', tokens: 400 }],
+    skills: { totalSkills: 50, includedSkills: 41, tokens: 6000, skillFrontmatter: [] },
   }
-  const wide = text(tabRows(base({ ctxHistory: [10, 40, 64], ctxPeak: 64, compactions: 1 }), T, view, 90, false, 0)).find(r => r.includes('over this session'))!
-  expect(wide).toMatch(/^│ over this session ▁▄▆ +peak 64% · compacted 1× │$/)
-  expect(sparkline([0, 50, 100])).toBe('▁▅█')
-  expect(text(tabRows(base(), T, view, 60, false, 0)).some(r => r.includes('over this session'))).toBe(false)
+  expect(heaviest(b)).toEqual([
+    { kind: 'mcp', name: 'linear', tokens: 14000, note: '2 tools' },
+    { kind: 'skills', name: '41 listed', tokens: 6000 },
+    { kind: 'memory', name: 'CLAUDE.md', tokens: 3000, note: 'project' },
+  ])
+  expect(heaviest({ mcpTools: [], memoryFiles: [], agents: [] })).toEqual([])
+})
+
+test('cache hit is the cached share of the input', async () => {
+  expect(cacheHit({ input_tokens: 10, cache_read_input_tokens: 90, cache_creation_input_tokens: 0, output_tokens: 5 } as any)).toBe(90)
+  expect(cacheHit(null)).toBeUndefined()
+})
+
+test('the trend chart is two braille rows inside the width, with growth and turns to auto-compact', async () => {
+  const hist = Array.from({ length: 100 }, (_, i) => 20 + (i % 50))
+  for (const w of [30, 40, 60, 90]) {
+    const rows = text(tabRows(base({ ctxHistory: hist, ctxPeak: 99, compactions: 2 }), T, { ...view, ctx: DETAIL }, w, false, 0))
+    expect(rows.filter(r => BRAILLE.test(r))).toHaveLength(2)
+    for (const r of rows) if (r) expect(visibleLength([{ text: r, color: '' }])).toBe(w)
+  }
+  const rows = text(tabRows(base({ ctxHistory: [20, 30, 40, 50], ctxPercent: 50, ctxPeak: 50, compactions: 1 }), T, { ...view, ctx: DETAIL }, 60, false, 0)).map(inside)
+  expect(rows.find(r => BRAILLE.test(r))).toMatch(/ 80%$/)
+  // +10 points a turn on a 200k window is 20k; 80% - 50% at 10 a turn is 3 turns
+  expect(rows).toContain('+20k/turn · auto-compact in ~3 turns')
+  expect(rows).toContain('cache hit 92% · peak 50% · compacted 1×')
+  expect(text(tabRows(base({ ctxHistory: [20, 30] }), T, { ...view, ctx: { ...DETAIL, autoCompact: false, threshold: undefined } }, 60, false, 0)).map(inside)).toContain('+20k/turn · auto-compact off')
+  expect(text(tabRows(base(), T, view, 60, false, 0)).some(r => BRAILLE.test(r))).toBe(false)
+})
+
+test('the bar marks the auto-compact point and the heaviest sources list under the chart', async () => {
+  const heavy = [{ kind: 'mcp', name: 'linear', tokens: 14000, note: '38 tools' }, { kind: 'memory', name: 'CLAUDE.md', tokens: 3000, note: 'project' }]
+  const rows = text(tabRows(base(), T, { ...view, ctx: { ...DETAIL, heavy } }, 60, false, 0))
+  const bar = inside(rows.find(r => r.includes('█'))!)
+  expect(bar.indexOf('┊')).toBe(Math.floor(0.8 * 56))
+  expect([...bar]).toHaveLength(56)
+  expect(rows.map(inside)).toContainEqual(expect.stringMatching(/^mcp {4}linear  38 tools +14k$/))
+  expect(rows.map(inside)).toContainEqual(expect.stringMatching(/^memory CLAUDE\.md  project +3k$/))
+  expect(text(tabRows(base(), T, { ...view, ctx: DETAIL }, 40, true, 0)).at(-1)).toContain('┊')
 })
 
 test('the warning appears from 70% only', async () => {
