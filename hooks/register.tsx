@@ -1,4 +1,4 @@
-import type { EngineInterface, PaneOpenArgs, Register, RenderElement, Timer } from 'claude-code'
+import type { EngineInterface, PaneOpenArgs, Register, RenderElement, RenderSurface, Timer } from 'claude-code'
 import type { Host } from './host.ts'
 import { initialModel, normalizeModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
 import { approvalLabel, dialogCall, modeAsksPerson, shortPath } from './events.ts'
@@ -462,9 +462,22 @@ async function runConfig($: Engine, cmds: string[]) {
   relook($)
 }
 
-// Task 4 fills these in.
-async function resetConfig(_$: Engine) {}
-async function copyStudioLink(_$: Engine, _link: string, _surface: string) {}
+// runConfig is no use here: it drops the rest of a run after a command that changed nothing, and
+// either half of a reset may have nothing to clear.
+async function resetConfig($: Engine) {
+  if (!(await ctlOf($).confirm('Reset color overrides and your setup (band, tabs, meter, bubbles, pet sleep) to their defaults?'))) return
+  await runCommand(hostOf($), 'color reset', ctlOf($))
+  await runCommand(hostOf($), 'setup reset', ctlOf($))
+  configNote = { text: 'Colors and setup are back to their defaults.', tone: 'ok' }
+  await syncTakeover($)
+  relook($)
+}
+
+async function copyStudioLink($: Engine, link: string, surface: RenderSurface) {
+  await $.ui.copy({ text: link, surface })
+  configNote = { text: 'Studio link copied. Open it in a browser to fine-tune this look.', tone: 'ok' }
+  relook($)
+}
 
 // Not awaited by callers: git must not hold up a tool result. A refresh that
 // started before adoptSession must not land in the new session's model.

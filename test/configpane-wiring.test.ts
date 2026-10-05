@@ -127,3 +127,70 @@ test('/glowup config output is no longer drawn as a card', async ($, on) => {
   expect(await ui.find({ text: 'engine' })).toBeDefined()
   await ui.unmount()
 })
+
+const answer = (on: any, a: 'Yes' | 'No') => on('tool.call', async (_$: unknown, e: any) => e.tool === 'AskUserQuestion'
+  ? { result: { questions: [], answers: { [e.questions[0].question]: a } }, text: a } as never
+  : { result: {}, text: '' } as never)
+
+test('Reset asks, then clears color overrides and the setup', async ($, on) => {
+  setup(on)
+  answer(on, 'Yes')
+  await runGlowup($, 'color accent #112233')
+  await runGlowup($, 'setup tabs plan')
+  await runGlowup($, 'config')
+  const ui = await mountConfig($)
+  await ui.press({ key: 'reset' })
+  expect((await runGlowup($, 'color list')).text).not.toContain('● accent')
+  expect((await runGlowup($, 'setup')).text).not.toContain('tabs           plan')
+  expect(await ui.find({ text: /back to their defaults/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('Reset with only a setup change still resets it', async ($, on) => {
+  setup(on)
+  answer(on, 'Yes')
+  await runGlowup($, 'setup tabs plan')
+  await runGlowup($, 'config')
+  const ui = await mountConfig($)
+  await ui.press({ key: 'reset' })
+  expect((await runGlowup($, 'setup')).text).toContain('tabs           changes, agents, plan')
+  expect(await ui.find({ text: /back to their defaults/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('Reset with only a color override still resets it', async ($, on) => {
+  setup(on)
+  answer(on, 'Yes')
+  await runGlowup($, 'color accent #112233')
+  await runGlowup($, 'config')
+  const ui = await mountConfig($)
+  await ui.press({ key: 'reset' })
+  expect((await runGlowup($, 'color list')).text).not.toContain('● accent')
+  await ui.unmount()
+})
+
+test('Reset answered No changes nothing', async ($, on) => {
+  setup(on)
+  answer(on, 'No')
+  await runGlowup($, 'color accent #112233')
+  await runGlowup($, 'setup tabs plan')
+  await runGlowup($, 'config')
+  const ui = await mountConfig($)
+  await ui.press({ key: 'reset' })
+  expect((await runGlowup($, 'color list')).text).toContain('● accent #112233')
+  expect((await runGlowup($, 'setup')).text).toContain('tabs           plan')
+  await ui.unmount()
+})
+
+test('Copy studio link copies the whole link, even past 2048 characters', async ($, on) => {
+  const s = setup(on)
+  await runGlowup($, 'pack arcade')
+  for (const role of ['accent', 'text', 'dim', 'faint', 'read', 'edit', 'shell', 'agent', 'pass', 'fail', 'panel', 'addBg', 'delBg', 'sel']) await runGlowup($, `color ${role} #123456`)
+  await runGlowup($, 'config')
+  const ui = await mountConfig($)
+  await ui.press({ key: 'copy-link' })
+  expect(s.copies).toHaveLength(1)
+  expect(s.copies[0]).toMatch(/^https:\/\/glowup\.khimani\.dev\/studio#v=1&p=[A-Za-z0-9_-]+&s=[A-Za-z0-9_-]+$/)
+  expect(await ui.find({ text: /copied/ })).toBeDefined()
+  await ui.unmount()
+})
