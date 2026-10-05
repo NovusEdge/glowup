@@ -197,3 +197,23 @@ test('exportMix leaves out glyphs, hearts and words that match the base theme', 
   const out = exportMix(resolveLook({ colors: 'g', motion: 'classic' }, { g: pack }, {}).look, 'g')
   expect((out.colors as { glyphs?: object }).glyphs).toEqual({ read: '»' })
 })
+
+test('glyphs merge per key down an extends chain', () => {
+  const parent = { format: 1, name: 'p', colors: { theme: 'classic', glyphs: { read: '»' } } }
+  const child = { format: 1, name: 'c', extends: 'p', colors: { glyphs: { edit: '¤' } } }
+  const { look, errors } = resolveLook({ colors: 'c', motion: 'classic' }, { p: parent, c: child }, {})
+  expect(errors).toEqual([])
+  expect(look.theme.glyphs.read).toBe('»')
+  expect(look.theme.glyphs.edit).toBe('¤')
+})
+
+test('a theme override ignores the pack glyphs, hearts and words', () => {
+  const pack = { format: 1, name: 'g', colors: { theme: 'classic', glyphs: { read: '»' }, hearts: ['●', '○'], words: ['Brewing'] } }
+  const dusk = resolveTheme('dusk', {}).theme
+  const { look, errors } = resolveLook({ colors: 'g', motion: 'classic', theme: 'dusk' }, { g: pack }, {})
+  expect(errors).toEqual([])
+  expect(look.theme.glyphs).toEqual(dusk.glyphs)
+  expect(look.theme.hearts).toEqual(dusk.hearts)
+  expect(look.theme.spinnerWords).toEqual(dusk.spinnerWords)
+  expect(look.theme.spinnerWords).not.toEqual(['Brewing'])
+})

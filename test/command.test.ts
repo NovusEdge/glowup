@@ -486,6 +486,13 @@ test('a studio link status line keeps the field ids glowup knows and names the r
   expect(out).toContain('  dropped: unknown status line field "nope"')
 })
 
+test('a studio link status line of only unknown ids leaves the stored fields alone', async () => {
+  const { host, store } = fakeHost()
+  const out = await runCommand(host, `pack ${encodeLink({ setup: { statusline: ['nope'] } })}`, ctl(true).ctl)
+  expect(store.statusline).toBeUndefined()
+  expect(out).toContain('  dropped: unknown status line field "nope"')
+})
+
 test('a studio link setup that is not an object is refused without asking', async () => {
   const { host, store } = fakeHost()
   const q = ctl(true)
