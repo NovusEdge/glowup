@@ -27,6 +27,7 @@ import { loadUserThemes } from './userthemes.ts'
 import { firstRun } from './firstrun.ts'
 import { registerCopy, touchCopy, decide, unregisterCopy, pruneStatus, safeId, HEARTBEAT_MS } from './instances.ts'
 import { staleToast, INSTALLED_FILE } from './update.ts'
+import { syncPlugin } from './pluginsync.ts'
 type Engine = EngineInterface
 type SpinKey = { turnAt: number; detail: string; state: OrbState }
 
@@ -600,6 +601,14 @@ export const register: Register = (on, options) => {
     installed = typeof at === 'number' ? at : undefined
     configFields = parseFields(options.statusline) ?? DEFAULT_FIELDS
     fields = parseFields(await host.storeGet('statusline')) ?? configFields
+    // After the saved choices are loaded: the commands read and extend them (a spinner is added to
+    // the current mix), and write the new choice to the store by the same path a typed command does.
+    try {
+      const toast = await syncPlugin(host, options, cmd => runCommand(host, cmd, ctlOf($)))
+      if (toast) $.ui.toast(toast)
+    } catch (err) {
+      $.ui.log(`/plugin sync failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
+    }
     const colorterm = await $.env.get('COLORTERM')
     colorMode = colorterm === 'truecolor' || colorterm === '24bit' ? 'truecolor' : '256'
     await syncTakeover($)
