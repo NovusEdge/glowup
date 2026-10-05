@@ -131,12 +131,15 @@ export class Claude {
       tabs(x0, 1);
       // The status box grows upward while Clawd's bubble is up, as the footer does in hooks/pane.tsx,
       // and the tab keeps the rows above it. Only the Changes tab is on screen while he talks.
-      const top = this.bubbling ? 13 : 17;
+      // Each status row past the usual two lifts the box by a row (footerRows counts them), so the
+      // sprite, which stays put, is never drawn over the last one.
+      const status = statusRows(this.model, look, look.hp, PANE_W - 8);
+      const top = (this.bubbling ? 13 : 17) - Math.max(0, status.length - 2);
       this.statusBox?.y((top + 0.5) * LH).height((26 - top) * LH);
       tabRows(this.model, this.tab, look, PANE_W - 4, false)
         .slice(0, top - 3)
         .forEach((r, i) => drawSegs(T, this.dyn, x0, 3 + i, r));
-      statusRows(this.model, look, look.hp, PANE_W - 8).forEach((r, i) => drawSegs(T, this.dyn, x0 + 2, top + 1 + i, r));
+      status.forEach((r, i) => drawSegs(T, this.dyn, x0 + 2, top + 1 + i, r));
       return;
     }
     tabs(1, 14);
