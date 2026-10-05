@@ -1,0 +1,95 @@
+import { expect } from 'claude-code/testing'
+import { test } from './kit.ts'
+import { cycleValue, cycleCommands, inputValue, inputCommand, type ConfigState } from '../hooks/configrows.ts'
+import { DEFAULT_SETUP } from '../hooks/setup.ts'
+import { DEFAULT_FIELDS } from '../hooks/fields.ts'
+import { resolveLook, DEFAULT_MIX, SPINNER_IDS } from '../hooks/packs.ts'
+
+const base = (over: Partial<ConfigState> = {}): ConfigState => ({
+  packs: ['classic', 'cozy', 'arcade', 'mine'],
+  mix: DEFAULT_MIX,
+  colors: resolveLook(DEFAULT_MIX, {}, {}).look.theme.colors,
+  pet: 'clawd', shiny: false, bubbles: 'on', reduced: false,
+  setup: DEFAULT_SETUP, fields: DEFAULT_FIELDS,
+  ...over,
+})
+
+test('pack cycles through the installed packs and wraps', () => {
+  expect(cycleValue('pack', base())).toBe('classic')
+  expect(cycleCommands('pack', base())).toEqual(['pack cozy'])
+  expect(cycleCommands('pack', base({ mix: { colors: 'mine', motion: 'mine' } }))).toEqual(['pack classic'])
+})
+
+test('a custom mix shows as one and cycles to the first pack', () => {
+  const s = base({ mix: { colors: 'cozy', motion: 'arcade' } })
+  expect(cycleValue('pack', s)).toBe('custom mix')
+  expect(cycleCommands('pack', s)).toEqual(['pack classic'])
+})
+
+test('spinner starts at the pack default and walks the spinner ids', () => {
+  expect(cycleValue('spinner', base())).toBe('pack default')
+  expect(cycleCommands('spinner', base())[0]).toMatch(/^spinner [a-z-]+$/)
+  const last = base({ mix: { ...DEFAULT_MIX, spinner: SPINNER_IDS.at(-1)! } })
+  expect(cycleCommands('spinner', last)).toEqual(['spinner default'])
+})
+
+test('pet offers shiny only once it is unlocked', () => {
+  expect(cycleCommands('pet', base())).toEqual(['pet off'])
+  expect(cycleCommands('pet', base({ shiny: true }))).toEqual(['pet clawd-shiny'])
+  expect(cycleCommands('pet', base({ pet: 'off' }))).toEqual(['pet clawd'])
+})
+
+test('bubbles and motion toggle through their settings', () => {
+  expect(cycleCommands('bubbles', base())).toEqual(['bubbles haiku'])
+  expect(cycleCommands('bubbles', base({ bubbles: 'off' }))).toEqual(['bubbles on'])
+  expect(cycleValue('motion', base({ reduced: true }))).toBe('reduced')
+  expect(cycleCommands('motion', base())).toEqual(['motion reduced'])
+})
+
+test('meter steps run in an order the warn < danger check accepts', () => {
+  expect(cycleValue('meter', base())).toBe('warn 50%  danger 80%')
+  expect(cycleCommands('meter', base())).toEqual(['setup meter.danger 85', 'setup meter.warn 60'])
+  const top = base({ setup: { ...DEFAULT_SETUP, meter: { warn: 70, danger: 90 } } })
+  expect(cycleCommands('meter', top)).toEqual(['setup meter.warn 40', 'setup meter.danger 70'])
+  const odd = base({ setup: { ...DEFAULT_SETUP, meter: { warn: 30, danger: 95 } } })
+  expect(cycleCommands('meter', odd)).toEqual(['setup meter.warn 50', 'setup meter.danger 80'])
+})
+
+test('bubble time and sleep show in seconds or minutes', () => {
+  expect(cycleValue('bubbleMs', base())).toBe('3 s')
+  expect(cycleCommands('bubbleMs', base())).toEqual(['setup bubbles.ms 5000'])
+  expect(cycleValue('sleep', base())).toBe('1 min')
+  expect(cycleCommands('sleep', base())).toEqual(['setup pet.sleepMs 300000'])
+})
+
+test('hex input accepts #rgb, #rrggbb, a bare hex and spaces, and refuses a name', () => {
+  const s = base()
+  expect(inputCommand('color:accent', '8ecbff', s)).toEqual({ cmd: 'color accent #8ecbff' })
+  expect(inputCommand('color:accent', '#ABC', s)).toEqual({ cmd: 'color accent #aabbcc' })
+  expect(inputCommand('color:accent', ' #8ecbff ', s)).toEqual({ cmd: 'color accent #8ecbff' })
+  expect(inputCommand('color:accent', 'blue', s)).toEqual({ error: '"blue" is not a color. Use #rgb or #rrggbb.' })
+  expect(inputCommand('color:accent', '', s)).toEqual({ cmd: 'color reset accent' })
+})
+
+test('list inputs take commas or spaces and reorder', () => {
+  const s = base()
+  expect(inputValue('tabs', s)).toBe('changes, agents, plan')
+  expect(inputCommand('tabs', 'plan, changes', s)).toEqual({ cmd: 'setup tabs plan,changes' })
+  expect(inputCommand('band', 'meter plan', s)).toEqual({ cmd: 'setup band meter,plan' })
+  expect(inputCommand('moods', 'fail', s)).toEqual({ cmd: 'setup bubbles.moods fail' })
+})
+
+test('an empty list means none for band and moods, default for fields, and is refused for tabs', () => {
+  const s = base()
+  expect(inputCommand('band', '', s)).toEqual({ cmd: 'setup band none' })
+  expect(inputCommand('moods', ' ', s)).toEqual({ cmd: 'setup bubbles.moods none' })
+  expect(inputCommand('fields', '', s)).toEqual({ cmd: 'statusline fields default' })
+  expect('error' in inputCommand('tabs', '', s)).toBe(true)
+})
+
+test('unknown list ids are refused before anything runs', () => {
+  const s = base()
+  expect(inputCommand('tabs', 'plan; rm -rf', s)).toHaveProperty('error')
+  expect(inputCommand('fields', 'ctx bogus', s)).toEqual({ error: 'Unknown field: bogus. Choose from: activity, ctx, 5h, week, cost, model, agents, plan, branch, changes, cwd.' })
+  expect(inputValue('fields', s)).toBe(DEFAULT_FIELDS.join(' '))
+})
