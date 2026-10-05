@@ -11,7 +11,7 @@ const setup = (on: any, surfaces: string[] = ['terminal'], files: Record<string,
   const opens: any[] = [], copies: string[] = [], closes: any[] = [], copyResult: { value: unknown } = { value: { isCopied: true } }
   on('ui.open', async (_$: unknown, e: unknown) => { opens.push(e); return { value: { isPlaced: true } } as never })
   on('ui.close', async (_$: unknown, e: unknown) => { closes.push(e); return { value: undefined } as never })
-  on('ui.copy', async (_$: unknown, e: any) => { copies.push(e.text); return copyResult as never })
+  on('ui.copy', async (_$: unknown, e: any) => { copies.push(e.text); if (copyResult.value instanceof Error) throw copyResult.value; return copyResult as never })
   on('ui.panes', async () => ({ value: [] }))
   on('ui.status', async () => ({ value: undefined }) as never)
   on('ui.render', async () => ({ type: 'Text', props: {}, children: ['engine'] }) as RenderElement)
@@ -207,6 +207,17 @@ test('Copy studio link copies the whole link, not a clipped one', async ($, on) 
   expect(s.copies[0]!.length).toBeGreaterThan(1000)
   expect(s.copies[0]).toMatch(/^https:\/\/glowup\.khimani\.dev\/studio#v=1&p=[A-Za-z0-9_-]+&s=[A-Za-z0-9_-]+$/)
   expect(await ui.find({ text: /copied/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a copy that throws is reported as an error, not success', async ($, on) => {
+  const s = setup(on)
+  s.copyResult.value = new Error('clipboard blocked')
+  await runGlowup($, 'config')
+  const ui = await mountConfig($)
+  await ui.press({ key: 'copy-link' })
+  expect(await ui.find({ text: /Could not copy the studio link: \S/ })).toBeDefined()
+  expect(await ui.find({ text: /Studio link copied/ })).toBeUndefined()
   await ui.unmount()
 })
 

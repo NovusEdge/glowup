@@ -84,6 +84,7 @@ test('an empty list means none for band and moods, default for fields, and is re
   expect(inputCommand('band', '', s)).toEqual({ cmd: 'setup band none' })
   expect(inputCommand('moods', ' ', s)).toEqual({ cmd: 'setup bubbles.moods none' })
   expect(inputCommand('fields', '', s)).toEqual({ cmd: 'statusline fields default' })
+  expect(inputCommand('fields', ' default ', s)).toEqual({ cmd: 'statusline fields default' })
   expect('error' in inputCommand('tabs', '', s)).toBe(true)
 })
 

@@ -438,6 +438,7 @@ async function readConfigLists($: Engine) {
 async function openConfig($: Engine): Promise<string> {
   await readConfigLists($)
   configNote = undefined
+  configFocus = undefined
   const r = await $.ui.open(CONFIG_OPEN)
   return r.isPlaced ? 'glowup config open (Esc closes it)' : `glowup config waits: ${r.reason}`
 }
@@ -978,10 +979,11 @@ export const register: Register = (on, options) => {
     return renderConfig(els, s, look, e.props.bodyColumns, {
       cycle: (id: CycleId) => void runConfig($, cycleCommands(id, configState())),
       input: (id: InputId, text: string) => {
-        const r = inputCommand(id, text, configState())
+        const now = configState()
+        const r = inputCommand(id, text, now)
         if ('error' in r) { configNote = { text: r.error, tone: 'error' }; relook($); return }
         // Enter on an untouched field would run a no-op command and report it as refused.
-        const same = inputCommand(id, inputValue(id, s), s)
+        const same = inputCommand(id, inputValue(id, now), now)
         if ('cmd' in same && same.cmd === r.cmd) return
         void runConfig($, [r.cmd])
       },

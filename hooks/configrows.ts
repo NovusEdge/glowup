@@ -85,7 +85,7 @@ export function inputCommand(id: InputId, text: string, s: ConfigState): { cmd: 
   }
   if (id === 'fields') {
     const ids = words(text)
-    if (!ids.length) return { cmd: 'statusline fields default' }
+    if (!ids.length || (ids.length === 1 && ids[0] === 'default')) return { cmd: 'statusline fields default' }
     const bad = ids.filter(x => !isFieldId(x))
     if (bad.length) return { error: `Unknown field${bad.length > 1 ? 's' : ''}: ${bad.map(shown).join(', ')}. Choose from: ${FIELD_IDS.join(', ')}.` }
     return { cmd: `statusline fields ${ids.join(' ')}` }

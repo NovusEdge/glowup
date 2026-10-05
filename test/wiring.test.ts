@@ -557,7 +557,7 @@ test('shiny from userConfig or the store applies only once earned', { options: {
   expect((await runGlowup($, 'pet list')).text).toContain('● clawd\n')
 })
 
-test('a main-loop step sets the effort field; a subagent step and a repeat leave it', async ($, on) => {
+test('a main-loop step sets the effort field; a subagent step leaves it; a numeric effort shows as given; a step without one clears it', async ($, on) => {
   fakeFs(on)
   mock.clock(on)
   const statuses: (string | undefined)[] = []
