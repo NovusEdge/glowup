@@ -29,6 +29,7 @@ export function Actions({ draft, setup, blocked }: { draft: Draft; setup: Studio
 
   // navigator.clipboard is undefined outside secure contexts; the popover then shows the text, selected, to copy by hand.
   const copy = (kind: Shown['kind'], text: string) => {
+    if (kind === 'link') setShown(undefined)
     const done = () => {
       setCopied(kind)
       clearTimeout(timer.current)
@@ -51,7 +52,7 @@ export function Actions({ draft, setup, blocked }: { draft: Draft; setup: Studio
   return (
     <div className="st-actions" ref={box}>
       <button type="button" className="primary" disabled={blocked} onClick={() => copy('link', shareLink(draft))}>{copied === 'link' ? 'Copied' : 'Copy share link'}</button>
-      <button type="button" disabled={blocked} aria-expanded={shown?.kind === 'send'} onClick={() => copy('send', sendCommand(draft, setup))}>{copied === 'send' ? 'Copied' : 'Send to my Claude'}</button>
+      <button type="button" disabled={blocked} aria-expanded={shown?.kind === 'send'} onClick={() => (shown?.kind === 'send' ? setShown(undefined) : copy('send', sendCommand(draft, setup)))}>{copied === 'send' ? 'Copied' : 'Send to my Claude'}</button>
       <button type="button" disabled={blocked} onClick={download}>Download pack.json</button>
       {shown && (
         <div className="st-pop" role="dialog" aria-label={shown.kind === 'send' ? 'Send to my Claude' : 'Share link'}>

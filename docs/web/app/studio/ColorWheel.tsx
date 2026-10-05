@@ -40,8 +40,10 @@ export function ColorWheel({ hex, onChange, label }: { hex: string; onChange(hex
     <div className="wheel">
       <div
         ref={disc} className="wheel-disc"
-        onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); thumb.current?.focus(); fromPointer(e) }}
+        onPointerDown={e => { if (e.button !== 0) return; e.currentTarget.setPointerCapture(e.pointerId); fromPointer(e) }}
         onPointerMove={e => { if (e.currentTarget.hasPointerCapture(e.pointerId)) fromPointer(e) }}
+        // The compatibility mousedown after pointerdown moves focus to the body, so focus waits for pointerup.
+        onPointerUp={e => { if (e.button === 0) thumb.current?.focus() }}
       >
         <div className="wheel-dark" style={{ opacity: 1 - hsv.v }} />
         <div

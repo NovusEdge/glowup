@@ -1,41 +1,27 @@
 import { useState } from 'react'
-import {
-  BORDERS, FIELD_IDS, METER_STYLES, ROW_STYLES, SPINNER_IDS,
-  type ColorsLayer, type Look,
-} from '../landing/data.ts'
+import { BORDERS, METER_STYLES, ROW_STYLES, type ColorsLayer, type Look } from '../landing/data.ts'
 import { ColorsSection } from './ColorsSection'
+import { MotionSection } from './MotionSection'
 import { SetupControls } from './SetupControls'
-import { editColors, editMotion, type Draft, type Role, type StudioSetup } from './model.ts'
+import { StatusSection } from './StatusSection'
+import { ThemeSection } from './ThemeSection'
+import { editColors, type Draft, type Role, type StudioSetup } from './model.ts'
+import { Check, Select } from './ui'
 
 type Props = {
   draft: Draft; look: Look; setup: StudioSetup
   onDraft(d: Draft): void; onSetup(s: StudioSetup): void; onHover(role?: Role): void; onTier(w: 'narrow' | 'wide'): void
 }
 
-const SHIMMER = ['off', 'soft', 'strong'] as const
-const SECTIONS = ['Colors', 'Rows & meters', 'Motion', 'Setup'] as const
-
-function Select<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: readonly T[]; onChange(v: T): void }) {
-  return (
-    <label className="fld">
-      <span>{label}</span>
-      <select value={value} onChange={e => onChange(e.target.value as T)}>{options.map(o => <option key={o}>{o}</option>)}</select>
-    </label>
-  )
-}
-
-function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange(v: boolean): void }) {
-  return <label className="chk"><input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} /> {label}</label>
-}
+const SECTIONS = ['Theme', 'Colors', 'Rows & meters', 'Motion', 'Status line', 'Setup'] as const
+type Section = (typeof SECTIONS)[number]
 
 export function Controls({ draft, look, setup, onDraft, onSetup, onHover, onTier }: Props) {
-  const [open, setOpen] = useState<(typeof SECTIONS)[number] | undefined>('Colors')
-  const m = draft.motion
+  const [open, setOpen] = useState<Section | undefined>('Theme')
   const colors = (patch: Partial<ColorsLayer>) => onDraft(editColors(draft, patch))
-  const motion = (patch: Parameters<typeof editMotion>[1]) => onDraft(editMotion(draft, patch))
-  const field = typeof m.field === 'object' ? m.field : { shape: look.motion.field.shape }
 
-  const body: Record<(typeof SECTIONS)[number], React.ReactNode> = {
+  const body: Record<Section, React.ReactNode> = {
+    Theme: <ThemeSection draft={draft} look={look} onDraft={onDraft} />,
     Colors: <ColorsSection draft={draft} look={look} onDraft={onDraft} onHover={onHover} />,
     'Rows & meters': (
       <>
@@ -54,25 +40,8 @@ export function Controls({ draft, look, setup, onDraft, onSetup, onHover, onTier
         </div>
       </>
     ),
-    Motion: (
-      <>
-        <div className="cols3">
-          <Select label="Spinner" value={look.motion.spinner} options={SPINNER_IDS} onChange={spinner => motion({ spinner })} />
-          <Select label="Field" value={look.motion.field.shape} options={FIELD_IDS} onChange={shape => motion({ field: { ...field, shape } })} />
-          <label className="fld">
-            <span>Spinner color</span>
-            <input type="color" value={m.color ?? look.motion.color} onChange={e => motion({ color: e.target.value })} />
-          </label>
-        </div>
-        <div className="checks" role="radiogroup" aria-label="Shimmer">
-          {SHIMMER.map((label, i) => (
-            <label key={label} className="chk">
-              <input type="radio" name="shimmer" checked={look.motion.shimmer === i} onChange={() => motion({ shimmer: i as 0 | 1 | 2 })} /> shimmer {label}
-            </label>
-          ))}
-        </div>
-      </>
-    ),
+    Motion: <MotionSection draft={draft} look={look} onDraft={onDraft} />,
+    'Status line': <StatusSection setup={setup} onSetup={onSetup} onTier={onTier} />,
     Setup: <SetupControls setup={setup} onSetup={onSetup} onTier={onTier} />,
   }
 
