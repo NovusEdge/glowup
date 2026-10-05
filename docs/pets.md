@@ -31,7 +31,7 @@ His frames change at most every 80 ms and nothing flashes more than 2.5 times a 
 
 ## Speech bubbles
 
-With bubbles on, Clawd says a short line (40 characters at most) when a turn ends, when a test fails and when Claude needs you, and the bubble stays for 3 seconds. Lines come from a small set of templates per mood, never the same one twice in a row, and some fill in details such as the failure count or the command. In the narrow drawer the line appears beside the one-row Clawd.
+With bubbles on, Clawd says a short line (40 characters at most) when a turn ends, when a test fails and when Claude needs you, and the bubble stays for 3 seconds. Lines come from a small set of templates per mood, never the same one twice in a row, and some fill in details such as the failure count or the command. In the narrow drawer the line appears beside the one-row Clawd. Choose which moments get a bubble and how long it stays with /glowup setup bubbles.moods and /glowup setup bubbles.ms.
 
 ```text title="claude code"
 /glowup bubbles off

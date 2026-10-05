@@ -1,5 +1,11 @@
 import { test, expect } from 'claude-code/testing'
-import { fill, pickLine, bubbleFor, sanitizeLine, fitsBubble, haikuMaxTokens, haikuPrompt, haikuLimit, wrapBubble, HaikuGate, kindWords, CLAWD_SAY } from '../hooks/bubbles.ts'
+import { fill, pickLine, bubbleFor, sanitizeLine, fitsBubble, haikuMaxTokens, haikuPrompt, haikuLimit, wrapBubble, HaikuGate, kindWords, speaks, CLAWD_SAY } from '../hooks/bubbles.ts'
+
+test('only the moods in the setup speak', async () => {
+  expect(speaks('done', ['needs-you', 'fail', 'done'])).toBe(true)
+  expect(speaks('done', ['needs-you'])).toBe(false)
+  expect(speaks('fail', [])).toBe(false)
+})
 
 test('fill replaces placeholders, strips unsafe characters and caps at 40', async () => {
   expect(fill('{n}/{n} green', { n: 12 })).toBe('12/12 green')

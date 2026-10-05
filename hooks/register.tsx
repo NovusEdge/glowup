@@ -6,7 +6,7 @@ import type { Theme } from './themes.ts'
 import { resolveLook, cleanOverrides, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { loadUserPacks } from './userpacks.ts'
 import { PET_ROWS, type PetSetting, type PetId, type PetInput, type PetKind } from './pets.ts'
-import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
+import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
 import { recordPass, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, refreshCounts, serial } from './changes.ts'
 import { loadTasks, taskListId } from './tasks.ts'
@@ -85,7 +85,6 @@ let lastTemplate: string | undefined
 const haikuGate = new HaikuGate()
 let haikuAbort: AbortController | undefined
 let bubbleTimer: Timer | undefined
-const BUBBLE_MS = 3000
 let turnNo = 0
 // Characters the last drawn pane can show in a bubble; 40 until a pane has drawn.
 let bubbleCap = 40
@@ -270,18 +269,18 @@ async function askHaiku($: Engine, mine: Bubble, ctx: HaikuContext) {
 }
 
 // One clear timer for the one bubble: arming again (a new bubble, or Haiku's line landing)
-// replaces it, and the bubble then shows for the full BUBBLE_MS from that moment.
+// replaces it, and the bubble then shows for the full setup's bubbles.ms from that moment.
 function armBubble($: Engine, mine: Bubble) {
-  mine.until = Date.now() + BUBBLE_MS
+  mine.until = Date.now() + setup.bubbles.ms
   bubbleTimer?.cancel()
-  bubbleTimer = $.clock.after(BUBBLE_MS + 100, () => {
+  bubbleTimer = $.clock.after(setup.bubbles.ms + 100, () => {
     bubbleTimer = undefined
     if (bubble === mine) { bubble = undefined; publishPet($) }
   })
 }
 
 async function say($: Engine, mood: Mood, vars: BubbleVars) {
-  if (bubbles === 'off' || !petOn()) return
+  if (bubbles === 'off' || !petOn() || !speaks(mood, setup.bubbles.moods)) return
   // Kind words only, never the act's label: it holds commands, paths and patterns.
   const ctx: HaikuContext = {
     mood,

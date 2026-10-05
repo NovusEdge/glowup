@@ -1,6 +1,9 @@
 import { isUnsafe } from './themes.ts'
 
 export type Mood = 'done' | 'fail' | 'needs-you'
+
+// The person's setup picks which moods speak.
+export const speaks = (mood: Mood, moods: readonly Mood[]) => moods.includes(mood)
 export type BubbleSetting = 'off' | 'on' | 'haiku'
 export const BUBBLE_SETTINGS: readonly BubbleSetting[] = ['on', 'off', 'haiku']
 export const HAIKU_MODEL = 'haiku'
