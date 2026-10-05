@@ -429,6 +429,13 @@ test('setup prints every key, sets one, and resets', async () => {
   expect(store.setup).toBeUndefined()
 })
 
+test('setup keeps a comma list that was typed with spaces', async () => {
+  const { host, store } = fakeHost()
+  const { ctl: c } = ctl()
+  await runCommand(host, 'setup band plan, meter', c)
+  expect((store.setup as Setup).band).toEqual(['plan', 'meter'])
+})
+
 test('setup refuses a bad value and keeps the old setup', async () => {
   const { host, store } = fakeHost()
   const { ctl: c } = ctl()

@@ -357,7 +357,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     return describeSetup(DEFAULT_SETUP)
   }
   if (sub === 'setup' && a1 && a2) {
-    const r = setSetupField(ctl.setup(), a1, a2)
+    const r = setSetupField(ctl.setup(), a1, args.trim().split(/\s+/).slice(2).join(' '))
     if ('error' in r) return r.error
     await host.storeSet('setup', r.setup)
     ctl.setSetup(r.setup)
