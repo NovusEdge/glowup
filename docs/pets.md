@@ -19,7 +19,7 @@ He only appears in the pane, so you see him when the pane is docked beside the t
 | ![Clawd juggling](assets/clawd/juggle/clip.gif) | With three or more subagents running, he juggles them. |
 | ![Clawd hopping](assets/clawd/hop/clip.gif) | A passing test makes him hop. |
 | ![Clawd sagging and sweating](assets/clawd/fail/clip.gif) | A failing test makes him sag and sweat, and the sweat drop stays until your next prompt. |
-| ![Clawd waiting with a question mark](assets/clawd/alert/clip.gif) | When Claude needs your approval, he startles and then waits with a `?` beside him. This only happens when Claude Code opens a permission dialog, so not in auto mode, even when the auto-mode check hands a call to you. |
+| ![Clawd waiting with a question mark](assets/clawd/alert/clip.gif) | When Claude needs your approval, he startles and then waits with a question mark beside him. This happens only when Claude Code opens a permission dialog, so he does not react in auto mode, including when the auto-mode check hands a call to you. |
 | ![Clawd crumpling a sheet of paper](assets/clawd/scrunch/clip.gif) | When the context is compacted, he crumples up a sheet of paper and tosses it. |
 | ![Clawd panting](assets/clawd/pant/clip.gif) | Once the context window is 80% full, he pants. |
 | ![Clawd dancing](assets/clawd/done/clip.gif) | At the end of a turn he does a little dance. |
@@ -41,7 +41,7 @@ With bubbles on, Clawd says a short line (40 characters at most) when a turn end
 
 ### Lines written by Haiku
 
-With `/glowup bubbles haiku`, glowup sometimes asks Claude Haiku for the line. The template line shows first, and Haiku's replaces it only if the reply arrives while that bubble is still up, so drawing never waits on the call.
+With `/glowup bubbles haiku`, glowup sometimes asks Claude Haiku for the line. The template line shows first, and Haiku's replaces it only if the reply arrives while that bubble is still up, so the bubble is drawn without waiting for the call.
 
 **Cost.** Each line is a small Haiku call billed to your account, made with your session's credentials.
 
@@ -55,7 +55,7 @@ glowup makes one call at a time, at most one per turn, at least 90 seconds apart
 
 ## The shiny pet
 
-Keep your tests green and see what happens. When it does, glowup tells you, and `/glowup pet clawd-shiny` switches to a gold Clawd. Progress toward it carries across sessions.
+Keeping your tests green unlocks a gold Clawd. glowup tells you when he unlocks, and `/glowup pet clawd-shiny` switches to him. Progress carries across sessions.
 
 ![The shiny gold Clawd](assets/clawd/shiny/idle/clip.gif)
 

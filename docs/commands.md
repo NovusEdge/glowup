@@ -154,4 +154,4 @@ See [Accessibility](accessibility.md) for what reduced motion changes.
 
 The fields are `activity`, `ctx`, `5h`, `week`, `cost`, `model`, `agents`, `plan`, `branch`, `changes` and `cwd`. See [Choosing the fields](statusline.md#choosing-the-fields).
 
-Without `statusline on`, glowup only adds its own entry under the prompt while Claude works. `restore` puts your line back only if the current one is still glowup's, so it never overwrites a status line you set in the meantime. See [Status line](statusline.md).
+Without `statusline on`, glowup only adds its own entry under the prompt while Claude works. `restore` puts your line back only if the current one is still glowup's. See [Status line](statusline.md).

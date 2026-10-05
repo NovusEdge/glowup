@@ -35,7 +35,7 @@ A pack has two parts that can be changed separately: its colors (palette, row st
 
 Choosing a pack again with `/glowup pack` clears any theme or spinner you put on top of it. `/glowup pack list` shows what you have, and when your look is a mix it names where each part comes from.
 
-If one part of a pack fails to load, glowup uses `classic` for that part only and tells you why, so a broken spinner never takes your colors with it.
+If one part of a pack fails to load, glowup uses classic for that part only and tells you why. The other parts still load.
 
 ## Making your own
 
@@ -55,7 +55,7 @@ Host the pack file anywhere it can be fetched over `https://`, such as a gist or
 /glowup pack https://example.com/neon.json
 ```
 
-A pack is plain data, so installing one can only change how glowup looks.
+A pack is plain data that glowup checks before installing it. Its fields set colors, row styles, borders and the spinner.
 
 ## Limits
 

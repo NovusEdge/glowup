@@ -123,7 +123,7 @@ Four packs ship: classic (the default, which keeps Claude Code's own look), crt,
 
 <img src="docs/assets/pack-arcade.png" alt="The arcade pack: neon pink and cyan on deep purple, with bold cards around tool calls and an HP bar in the pane's status box" width="100%">
 
-You can mix parts of different packs, put one of seven color themes on top, or override single colors. To make your own, ask Claude: glowup ships a skill that writes packs from a palette, an image or a description, and adjusts existing ones ("make arcade less pink"). `/glowup import` also converts Ghostty and base16 color schemes. Packs and themes are plain JSON files you can share by URL.
+You can mix parts of different packs, put one of seven color themes on top, or override single colors. To make your own, ask Claude: glowup ships a skill that writes packs from a palette, an image or a description, and adjusts existing ones ("make arcade less pink"). `/glowup import` also converts Ghostty and base16 color schemes.
 
 See [Packs](docs/packs.md) and [Making a theme](docs/themes.md).
 
@@ -131,7 +131,7 @@ See [Packs](docs/packs.md) and [Making a theme](docs/themes.md).
 
 <img src="docs/assets/clawd/juggle/clip.gif" alt="Clawd juggling" align="right" width="184">
 
-Clawd lives at the bottom of the pane and reacts to the session. He types while Claude edits or runs commands, walks while it reads and searches, juggles when three or more subagents are running, hops on a passing test and sweats on a failing one. He waits with a `?` when Claude needs your approval, pants once context passes 80%, and falls asleep after a minute of nothing. With bubbles on he also says a short line at the end of a turn or when something fails.
+Clawd lives at the bottom of the pane and reacts to the session. He types while Claude edits or runs commands, walks while it reads and searches, juggles when three or more subagents are running, hops on a passing test and sweats on a failing one. He waits with a question mark when Claude needs your approval, pants once context passes 80%, and falls asleep after a minute of nothing. With bubbles on he also says a short line at the end of a turn or when something fails.
 
 Reduced motion hides him, as does `/glowup pet off`. [Pets](docs/pets.md) lists every reaction, the outfits, and what Haiku-written bubbles send.
 
@@ -146,8 +146,8 @@ See [Layout](docs/layout.md).
 ## Accessibility
 
 - `/glowup motion reduced` (or the `reducedMotion` setting) switches to the stock spinner, turns off the shimmer and hides Clawd. With motion on, nothing flashes more than 2.5 times a second.
-- The `high-contrast` theme uses pure white text and fully saturated colors.
-- Every state has a glyph and a word as well as a color, so nothing depends on color alone.
+- The high-contrast theme uses pure white text and fully saturated colors.
+- Every state has a glyph and a word as well as a color.
 
 See [Accessibility](docs/accessibility.md).
 

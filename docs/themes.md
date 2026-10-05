@@ -53,6 +53,6 @@ Host the file anywhere it can be fetched over `https://`, such as a gist. Anyone
 /glowup theme sunset
 ```
 
-For `theme add` the file needs a `"name"` of lowercase letters, digits and dashes that is not one of the built-in names. A theme is plain data, limited to 64 KB, and glowup rejects characters that could move the cursor or hide text, so installing one can only change how glowup looks.
+For `theme add` the file needs a `"name"` of lowercase letters, digits and dashes that is not one of the built-in names. A theme is plain data limited to 64 KB, and glowup rejects characters that could move the cursor or hide text.
 
 To get a theme included in glowup itself, open a theme submission issue on GitHub with the file and a screenshot, or a pull request that adds it.

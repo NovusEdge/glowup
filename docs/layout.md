@@ -23,7 +23,7 @@ Clawd only ever appears in the pane; see [Pets](pets.md).
 
 ### The drawer
 
-Below the docking width, `/glowup pane` opens the pane as a drawer above the prompt, and Esc or the same command closes it. The drawer never opens by itself. When the drawer is narrower than 80 columns, each tab uses its compact form.
+Below the docking width, `/glowup pane` opens the pane as a drawer above the prompt, and Esc or the same command closes it. When the drawer is narrower than 80 columns, each tab uses its compact form.
 
 ![The compact drawer in a narrow terminal](assets/compact.png)
 
@@ -45,7 +45,7 @@ When the line is too long, the action text is shortened first. If the rest of th
 
 ## The tabs
 
-The pane has three tabs, selected with their number key or by clicking. In the docked pane each tab is a box in the pack's `border` style, with the section name and its counts in the top edge; the compact drawer draws no boxes.
+The pane has three tabs, selected with their number key or by clicking. In the docked pane each tab is a box in the pack's border style, with the section name and its counts in the top edge; the compact drawer draws no boxes.
 
 Under the tabs in the wide pane, a status box shows the current action, the running subagents and a row of hearts. These hearts show account usage: whichever of the 5-hour and weekly limits has less left, for example `♥♥♡♡♡  weekly limit 38% left`. On an API key, which has no such limits, the row shows the session's spend instead, such as `$4.20 spent this session`. Until the first usage reading arrives, the hearts show context.
 
@@ -56,7 +56,7 @@ Every file that changed during the session, or `Nothing changed yet.`
 - Each file shows `+added −removed`, and new files are marked `new`.
 - The box's top edge shows the number of edited files and the total lines added and removed.
 - In a git repository the counts come from `git diff --numstat` against a snapshot taken at session start, so files you had already modified before the session are not listed, while files changed by shell commands during it are. New untracked files, and sessions outside git, use the line counts from the edit itself.
-- glowup runs git without taking locks, so it never blocks Claude's own git commands.
+- glowup runs git without taking locks, so it does not hold up Claude's own git commands.
 - The compact form lists edited files only.
 
 ### Agents

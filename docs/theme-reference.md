@@ -80,7 +80,7 @@ glowup picks one word at random at the start of each turn and uses it for the wh
 2. It follows `extends` to the end of the chain, then applies the files from the root of the chain down to your theme.
 3. Within each file, `colors` and `glyphs` replace only the keys they set. `spinner.words` and `band.hearts` replace the whole value.
 
-A theme with no `extends` still starts from `classic`, so a partial file is always complete.
+A theme with no `extends` still starts from `classic`, so any field the file leaves out takes the `classic` value.
 
 Every file in the chain is validated. Errors:
 

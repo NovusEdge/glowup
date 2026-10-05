@@ -19,7 +19,7 @@ While Claude or a subagent is working, the entry under the prompt looks like thi
 ◆ editing · ctx 48% · 5h 23% ↻2h10m · wk 61% ↻Thu
 ```
 
-It shows what Claude is doing, how much of the context window is used, and your 5-hour and weekly usage with their reset times, and you can [choose different fields](#choosing-the-fields). It stays up while background subagents run after the turn ends, and disappears when everything is idle. With the takeover on, the entry is not shown, since the status line carries the same information.
+It shows what Claude is doing, how much of the context window is used, and your 5-hour and weekly usage with their reset times, and you can [choose different fields](#choosing-the-fields). It stays up while background subagents run after the turn ends, and disappears when everything is idle. With the takeover on, the entry is not shown.
 
 Claude Code puts a `⚠ glowup:` prefix in front of every mod's status entry. It does not mean anything is wrong.
 
