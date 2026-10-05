@@ -215,13 +215,14 @@ function lifeRow(m: Model, t: Theme, width: number, now: number, look?: Look): S
   return look?.extras.hp ? hpBar(used, t, width, what) : [...hearts(used, t), { text: `  ${what} ${100 - used}% left`, color: c.dim }]
 }
 
-export function statusRows(model: Model, base: Theme, width: number, now: number, look?: Look): Seg[][] {
+// meter: a renderer plugin's rows (glowup.meter), drawn in place of the life row.
+export function statusRows(model: Model, base: Theme, width: number, now: number, look?: Look, meter?: Seg[][]): Seg[][] {
   const m = normalizeModel(model)
   const t = look?.theme ?? base, c = t.colors
   const live = m.agents.filter(a => a.state === 'running')
   const rows: Seg[][] = [
     [{ text: `${m.act.glyph} ${m.act.label}`, color: toneColor(t, m.act.tone), bold: true }, ...comboSegs(m.combo, look)],
-    lifeRow(m, t, width, now, look),
+    ...(meter ?? [lifeRow(m, t, width, now, look)]),
   ]
   if (live.length) rows.push([{ text: `◆ ${live.map(a => a.name).join(', ')} working`, color: c.agent }])
   return rows.map(r => fit(r, width))
@@ -229,7 +230,9 @@ export function statusRows(model: Model, base: Theme, width: number, now: number
 
 // The pet node is the ready Client element register.tsx builds; the pane only places it.
 // rows is the strip height: PET_ROWS, or two more while an outfit needs headroom.
-export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Mood }; friday?: boolean; minRows?: number; bodyRows?: number; onScroll?: (offset: number) => void }
+// meter and field come from a renderer plugin: rows for the status box, and a builder for the
+// field's player given the rows left open between the tab and the status box.
+export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Mood }; friday?: boolean; minRows?: number; bodyRows?: number; onScroll?: (offset: number) => void; meter?: Seg[][]; field?: (rows: number) => unknown }
 export const PET_STRIP_COLS = 46
 const BUBBLE_ROOM = 16
 
@@ -289,7 +292,7 @@ function petLine(els: { Box: any; Text: any }, t: Theme, extra: PaneExtra, width
 
 // Rows the docked status box takes: margin, border, status lines, and the pet strip with its bubble or sign.
 function footerRows(m: Model, t: Theme, extra: PaneExtra | undefined, width: number, now: number): number {
-  const status = statusRows(m, t, width - 2 - 4, now, extra?.look).length
+  const status = statusRows(m, t, width - 2 - 4, now, extra?.look, extra?.meter).length
   let pet = 0
   if (extra?.pet) {
     const { beside, cols, lines } = bubbleBox(width, false)
@@ -307,10 +310,11 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
   let rowsLeft = compact && extra?.pet ? COMPACT_ROWS - 2 : COMPACT_ROWS
   if (compact && extra?.bodyRows) rowsLeft = Math.max(1, Math.min(rowsLeft, extra.bodyRows - 1 - (extra.pet ? 1 : 0)))
   let { rows, body } = tabParts(m, t, v, inner, compact, now, rowsLeft, look?.border ?? 'round')
-  let hint: any = null
+  let hint: any = null, open = 0
   if (!compact && extra?.bodyRows) {
     // tab strip and its margin sit above, the footer below; the tab gets the rest and scrolls on its own
     const room = Math.max(2, extra.bodyRows - 2 - footerRows(m, t, extra, width, now))
+    open = Math.max(0, room - rows.length)
     if (rows.length > room) {
       // box edges and what follows the first box stay put; only that box's body rows scroll
       const bodyRoom = room - 1 - (rows.length - (body[1] - body[0]))
@@ -335,11 +339,12 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
       <Box flexDirection="column" flexGrow={1} marginTop={compact ? 0 : 1}>
         {rows.map((r, i) => renderSegs(els, r, 'r' + i))}
         {hint}
+        {open > 0 && extra?.field?.(open)}
       </Box>
       {compact && extra?.pet && petLine(els, t, extra, inner)}
       {!compact && (
         <Box flexDirection="column" width={inner} borderStyle={look?.border ?? 'round'} borderColor={look?.borderColor ?? t.colors.faint} marginTop={1} paddingX={1}>
-          {statusRows(m, t, inner - 4, now, look).map((r, i) => renderSegs(els, r, 's' + i))}
+          {statusRows(m, t, inner - 4, now, look, extra?.meter).map((r, i) => renderSegs(els, r, 's' + i))}
           {extra?.pet && petStrip(els, t, extra, width)}
         </Box>
       )}

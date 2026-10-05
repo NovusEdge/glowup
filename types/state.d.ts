@@ -23,9 +23,36 @@ export type GlowupPaneView = {
 export type GlowupBubble = { text: string; mood: string; until: number }
 export type GlowupPetInput = { working: boolean; kind?: string; needsYou: boolean; lastTest?: { passed: boolean; at: number }; doneAt?: number; doneOk?: boolean; actAt?: number }
 
+// $.glowup: each method is an event a renderer plugin hooks (list glowup under its
+// plugin.json dependencies) to draw part of a pack its own way. Answer `{ value }`;
+// glowup's own method answers null, and glowup then draws what it always draws.
+// Answers are checked (hooks/renderers.ts): a malformed one counts as null.
+export type GlowupSeg = { text: string; color?: string; bold?: boolean }
+export type GlowupColors = Record<'accent' | 'text' | 'dim' | 'faint' | 'read' | 'edit' | 'shell' | 'agent' | 'pass' | 'fail' | 'panel' | 'addBg' | 'delBg' | 'sel', string>
+// pack is the active colors pack's name, so a renderer answers only for its own pack.
+export type GlowupFieldArgs = { pack: string; cols: number; rows: number; colors: GlowupColors; reduced: boolean }
+// A loop: frames of rows, played every ms (40 to 2000). Rows past `rows` are cut from the top.
+export type GlowupFrames = { ms: number; frames: GlowupSeg[][][] }
+export type GlowupWindow = { label: string; usedPercent: number; reset: string }
+export type GlowupMeterArgs = { pack: string; width: number; windows: GlowupWindow[]; ctxPercent: number; colors: GlowupColors }
+export type GlowupDividerArgs = { pack: string; turn: number; colors: GlowupColors }
+// fill is one cell, repeated between left and right to the transcript's width.
+export type GlowupDivider = { left: GlowupSeg[]; fill: GlowupSeg; right: GlowupSeg[] }
+export type Glowup = {
+  // the docked pane's open rows, below the tab and above the status box
+  field(args: GlowupFieldArgs): Promise<GlowupFrames | null>
+  // the rows under the status line in the pane's status box (at most three)
+  meter(args: GlowupMeterArgs): Promise<GlowupSeg[][] | null>
+  // a rule drawn above each of the person's own prompts
+  divider(args: GlowupDividerArgs): Promise<GlowupDivider | null>
+}
+
 // Live data the render sites read. A get while drawing subscribes that site alone;
 // a set redraws only its readers. Values are JSON.
 declare module 'claude-code' {
+  interface EngineInterface {
+    glowup: Glowup
+  }
   interface PluginState {
     glowup: {
       band: { model: GlowupModel; at: number }
