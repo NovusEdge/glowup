@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import {
   BORDERS, FIELD_IDS, METER_STYLES, ROW_STYLES, SPINNER_IDS,
-  type ColorsLayer, type Look, type Setup,
+  type ColorsLayer, type Look,
 } from '../landing/data.ts'
 import { ColorsSection } from './ColorsSection'
 import { SetupControls } from './SetupControls'
-import { editColors, editMotion, type Draft, type Role } from './model.ts'
+import { editColors, editMotion, type Draft, type Role, type StudioSetup } from './model.ts'
 
 type Props = {
-  draft: Draft; look: Look; setup: Setup
-  onDraft(d: Draft): void; onSetup(s: Setup): void; onHover(role?: Role): void; onTier(w: 'narrow' | 'wide'): void
+  draft: Draft; look: Look; setup: StudioSetup
+  onDraft(d: Draft): void; onSetup(s: StudioSetup): void; onHover(role?: Role): void; onTier(w: 'narrow' | 'wide'): void
 }
 
 const SHIMMER = ['off', 'soft', 'strong'] as const

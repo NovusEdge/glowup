@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { BAND_ITEMS, SETUP_MOODS, TAB_IDS, type Setup } from '../landing/data.ts'
-import { editSetup, move, toggle } from './model.ts'
+import { BAND_ITEMS, SETUP_MOODS, TAB_IDS } from '../landing/data.ts'
+import { editSetup, move, toggle, type StudioSetup } from './model.ts'
 
 const MOOD_LABEL: Record<string, string> = { 'needs-you': 'needs you', fail: 'failed test', done: 'turn done' }
 
@@ -42,9 +42,9 @@ function Order<T extends string>({ title, all, active, labels, onChange }: { tit
 const BAND_LABEL = { combo: 'Combo', agents: 'Agents', meter: 'Meter', plan: 'Plan' }
 const TAB_LABEL = { changes: 'Changes', agents: 'Agents', plan: 'Plan' }
 
-export function SetupControls({ setup, onSetup, onTier }: { setup: Setup; onSetup(s: Setup): void; onTier(w: 'narrow' | 'wide'): void }) {
+export function SetupControls({ setup, onSetup, onTier }: { setup: StudioSetup; onSetup(s: StudioSetup): void; onTier(w: 'narrow' | 'wide'): void }) {
   const [notice, setNotice] = useState<string>()
-  const apply = (patch: Partial<Setup>) => {
+  const apply = (patch: Partial<StudioSetup>) => {
     const r = editSetup(setup, patch)
     setNotice(r.notice)
     if (r.notice) return

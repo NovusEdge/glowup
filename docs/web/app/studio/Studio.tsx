@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { DEFAULT_SETUP, type Setup } from '../landing/data.ts'
 import { Dither } from '../landing/Dither'
 import { PACK_NAMES } from '../landing/look.ts'
 import { PackProvider, usePack } from '../landing/PackContext'
 import { Terminal } from '../landing/Terminal'
 import { Actions } from './Actions'
 import { Controls } from './Controls'
-import { draftLook, draftProblems, focusVars, fromHash, startDraft, stateHash, type Draft, type Role } from './model.ts'
+import { DEFAULT_STUDIO_SETUP, draftLook, draftProblems, focusVars, fromHash, startDraft, stateHash, type Draft, type Role, type StudioSetup } from './model.ts'
 
 const WIDTHS = ['narrow', 'wide', 'fullscreen'] as const
 type Width = (typeof WIDTHS)[number]
@@ -18,7 +17,7 @@ function Background() {
 export function Studio() {
   const [draft, setDraft] = useState(() => startDraft('classic'))
   const [start, setStart] = useState('classic')
-  const [setup, setSetup] = useState<Setup>(DEFAULT_SETUP)
+  const [setup, setSetup] = useState<StudioSetup>(DEFAULT_STUDIO_SETUP)
   const [notices, setNotices] = useState<string[]>([])
   const [ready, setReady] = useState(false)
   const [width, setWidth] = useState<Width>('wide')

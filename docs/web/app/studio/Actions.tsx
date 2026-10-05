@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { LINK_MAX, packJson, sendCommand, shareLink, type Draft } from './model.ts'
-import type { Setup } from '../landing/data.ts'
+import { LINK_MAX, packJson, sendCommand, shareLink, type Draft, type StudioSetup } from './model.ts'
 
 type Shown = { kind: 'send' | 'link'; text: string }
 
-export function Actions({ draft, setup, blocked }: { draft: Draft; setup: Setup; blocked: boolean }) {
+export function Actions({ draft, setup, blocked }: { draft: Draft; setup: StudioSetup; blocked: boolean }) {
   const [copied, setCopied] = useState<string>()
   const [shown, setShown] = useState<Shown>()
   const box = useRef<HTMLDivElement>(null)

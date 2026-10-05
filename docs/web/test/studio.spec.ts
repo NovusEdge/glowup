@@ -1,10 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { DEFAULT_SETUP, STUDIO_URL, encodeLink, exportMix } from '../app/landing/data.ts'
+import { DEFAULT_SETUP, FIELD_KNOBS, resolveTheme, STUDIO_URL, encodeLink, exportMix } from '../app/landing/data.ts'
 import { packLook } from '../app/landing/look.ts'
 import {
-  LINK_MAX, contrast, draftLook, draftProblems, editColors, editSetup, focusVars, fromHash, move, packJson,
-  sendCommand, setRole, shareLink, startDraft, stateHash, toggle,
+  COLOR_GROUPS, DEFAULT_STUDIO_SETUP, LINK_MAX, contrast, draftLook, draftProblems, editColors, editSetup, focusVars, fromHash,
+  move, packJson, resetPet, sendCommand, setBaseTheme, setField, setGlyph, setHearts, setPetColor, setRole, setWords, shareLink,
+  startDraft, stateHash, toggle, type Draft,
 } from '../app/studio/model.ts'
 
 const hashOf = (link: string) => link.slice(STUDIO_URL.length)
@@ -47,7 +48,7 @@ test('the share link carries the pack only and round-trips through fromHash', ()
 })
 
 test('the send command carries pack and setup', () => {
-  const s = editSetup(DEFAULT_SETUP, { tabs: ['plan', 'changes'] }).setup
+  const s = editSetup(DEFAULT_STUDIO_SETUP, { tabs: ['plan', 'changes'] }).setup
   const cmd = sendCommand(startDraft('crt'), s)
   assert.ok(cmd.startsWith(`/glowup pack ${STUDIO_URL}#v=1&p=`))
   assert.deepEqual(fromHash(hashOf(cmd.slice('/glowup pack '.length))).setup!.tabs, ['plan', 'changes'])
@@ -60,7 +61,7 @@ test('a pane link named after a built-in loads renamed, with the pane descriptio
   assert.deepEqual(r.notices, [])
   assert.equal(r.draft!.name, 'my-cozy')
   assert.equal(r.draft!.description, 'cozy colors, cozy motion')
-  assert.deepEqual(r.setup, DEFAULT_SETUP)
+  assert.deepEqual(r.setup, DEFAULT_STUDIO_SETUP)
 })
 
 test('a broken pack part still loads the setup and names the pack part', () => {
@@ -106,10 +107,92 @@ test('focusVars fades every role but the one hovered', () => {
 })
 
 test('editSetup refuses what parseSetup would drop and keeps the old setup', () => {
-  const r = editSetup(DEFAULT_SETUP, { tabs: [] })
-  assert.equal(r.setup, DEFAULT_SETUP)
+  const r = editSetup(DEFAULT_STUDIO_SETUP, { tabs: [] })
+  assert.equal(r.setup, DEFAULT_STUDIO_SETUP)
   assert.match(r.notice!, /tabs must name at least one/)
-  assert.match(editSetup(DEFAULT_SETUP, { meter: { warn: 90, danger: 80 } }).notice!, /below/)
+  assert.match(editSetup(DEFAULT_STUDIO_SETUP, { meter: { warn: 90, danger: 80 } }).notice!, /below/)
+})
+
+test('editSetup keeps the status line list and refuses an empty one', () => {
+  assert.deepEqual(editSetup(DEFAULT_STUDIO_SETUP, { tabs: ['plan'] }).setup.statusline, DEFAULT_STUDIO_SETUP.statusline)
+  assert.deepEqual(editSetup(DEFAULT_STUDIO_SETUP, { statusline: ['cost', 'model'] }).setup.statusline, ['cost', 'model'])
+  const r = editSetup(DEFAULT_STUDIO_SETUP, { statusline: [] })
+  assert.equal(r.setup, DEFAULT_STUDIO_SETUP)
+  assert.equal(r.notice, 'status line needs at least one field')
+})
+
+test('status line fields travel in the setup part and unknown ids are reported', () => {
+  const s = { ...DEFAULT_STUDIO_SETUP, statusline: ['model', 'ctx'] as typeof DEFAULT_STUDIO_SETUP.statusline }
+  const back = fromHash(stateHash(startDraft('crt'), s))
+  assert.deepEqual(back.setup!.statusline, ['model', 'ctx'])
+  assert.deepEqual(back.notices, [])
+  const odd = fromHash(hashOf(encodeLink({ pack: startDraft('crt'), setup: { statusline: ['model', 'nope', 'ctx'] } })))
+  assert.deepEqual(odd.setup!.statusline, ['model', 'ctx'])
+  assert.deepEqual(odd.notices, ['setup: unknown status line field "nope"'])
+  assert.ok(sendCommand(startDraft('crt'), s).includes('/glowup pack '))
+  assert.deepEqual(fromHash(hashOf(sendCommand(startDraft('crt'), s).slice('/glowup pack '.length))).setup!.statusline, ['model', 'ctx'])
+})
+
+test('switching the base theme swaps the palette and clears glyphs, hearts and words', () => {
+  const d = setWords(setHearts(setGlyph(startDraft('arcade'), 'read', '»')!, '*', '-')!, 'A, B')!
+  const n = setBaseTheme(d, 'aurora')
+  assert.equal(n.colors.theme, 'aurora')
+  assert.equal(n.colors.palette!.accent, resolveTheme('aurora', {}).theme.colors.accent)
+  assert.notEqual(n.colors.palette!.accent, d.colors.palette!.accent)
+  assert.equal(n.colors.glyphs, undefined)
+  assert.equal(n.colors.hearts, undefined)
+  assert.equal(n.colors.words, undefined)
+  assert.deepEqual(draftProblems(n), [])
+})
+
+test('setField clamps knobs and both ends of every knob are valid', () => {
+  const d = startDraft('crt')
+  const f = (n: Draft) => n.motion.field as Record<string, unknown>
+  assert.equal(f(setField(d, { speed: 99 }))['speed'], FIELD_KNOBS.speed[1])
+  assert.equal(f(setField(d, { scale: 0 }))['scale'], FIELD_KNOBS.scale[0])
+  assert.equal(f(setField(d, { size: 2.6 }))['size'], 3)
+  for (const [k, [lo, hi]] of Object.entries(FIELD_KNOBS))
+    for (const v of [lo, hi]) assert.deepEqual(draftProblems(setField(d, { [k]: v })), [], `${k}=${v}`)
+  const str = setField({ ...d, motion: { ...(d.motion as object), field: 'simplex' as const } }, { speed: 2 })
+  assert.equal(f(str)['shape'], 'simplex')
+  assert.equal(f(str)['speed'], 2)
+  assert.equal(f(str)['fps'], 10)
+})
+
+test('glyphs, hearts and words apply only when the mod would accept them', () => {
+  const d = startDraft('classic')
+  assert.equal(setGlyph(d, 'read', 'ab'), undefined)
+  const g = setGlyph(d, 'read', '»')!
+  assert.equal(draftLook(g).look.theme.glyphs.read, '»')
+  assert.equal(setHearts(d, 'ab', '-'), undefined)
+  assert.deepEqual(setHearts(d, '*', '-')!.colors.hearts, ['*', '-'])
+  assert.deepEqual(setWords(d, ' Brewing, , Stirring ')!.colors.words, ['Brewing', 'Stirring'])
+  assert.equal(setWords(d, ' , '), undefined)
+})
+
+test('Clawd colors follow the body until light or shade is set by hand', () => {
+  const d = startDraft('classic')
+  assert.equal(setPetColor(d, 'body', '#ff'), undefined)
+  const a = setPetColor(d, 'body', '#c0392b')!
+  assert.equal(a.colors.pet!.body, '#c0392b')
+  assert.ok(a.colors.pet!.light && a.colors.pet!.shade)
+  const b = setPetColor(a, 'body', '#2980b9')!
+  assert.notEqual(b.colors.pet!.light, a.colors.pet!.light)
+  const hand = setPetColor(b, 'light', '#ffffff')!
+  const c = setPetColor(hand, 'body', '#27ae60')!
+  assert.equal(c.colors.pet!.light, '#ffffff')
+  assert.notEqual(c.colors.pet!.shade, b.colors.pet!.shade)
+  assert.deepEqual(draftProblems(c), [])
+  assert.equal(resetPet(c).colors.pet, undefined)
+})
+
+test('color groups name every drawn role once, then Clawd', () => {
+  assert.deepEqual(COLOR_GROUPS.map(g => g.name), ['Text', 'Tool rows', 'Results', 'Surfaces', 'Clawd'])
+  const roles = COLOR_GROUPS.flatMap(g => g.items.flatMap(i => ('role' in i ? [i.role] : [])))
+  assert.equal(new Set(roles).size, roles.length)
+  assert.ok(!roles.some(r => ['addBg', 'delBg', 'sel'].includes(r)))
+  assert.equal(roles.length, 13)
+  assert.deepEqual(COLOR_GROUPS[4]!.items.map(i => i.label), ['Body', 'Light', 'Shade'])
 })
 
 test('move and toggle', () => {
