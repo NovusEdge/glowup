@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A pack can come with a companion plugin that draws parts of the look in code: an animated field in the docked pane's open rows, the meters in the status box, and a rule above each of your prompts. glowup asks for them through the `glowup.field`, `glowup.meter` and `glowup.divider` events, checks every answer, and falls back to its own drawing when nothing answers. See [Drawing with a plugin](docs/packs.md#drawing-with-a-plugin).
+
 ## [0.5.0] - 2026-10-05
 
 ### Added

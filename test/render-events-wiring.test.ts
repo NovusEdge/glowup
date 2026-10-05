@@ -43,7 +43,7 @@ test('a field answer plays in the docked pane, asked once for the pack, size and
   expect(c).toBeDefined()
   expect(c.props.props.frames.length).toBe(2)
   expect(c.props.props.ms).toBe(100)
-  expect(c.props.props.rows).toBeGreaterThan(0)
+  expect(c.props.props.frames[0].length).toBe(1)
   expect(asked.length).toBe(1)
   expect(asked[0].pack).toBe('classic')
   expect(asked[0].cols).toBe(58)
@@ -102,6 +102,17 @@ test('a divider answer draws above each own prompt, numbered by turn', async ($,
   await one.drawn()
   expect(turns).toEqual([1, 2])
   await one.unmount(); await two.unmount()
+})
+
+test('the placeholder row a prompt draws before it is stored shows the next number without taking it', async ($, on) => {
+  base(on)
+  on('glowup.divider' as never, (async (_$: unknown, e: any) => ({ value: { left: [{ text: `T${e.turn} ` }], fill: { text: '━' }, right: [] } })) as never)
+  const pending = await mountPrompt($, 'placeholder')
+  expect(text(await pending.drawn())).toContain('T1 ')
+  await pending.unmount()
+  const stored = await mountPrompt($, 'u1')
+  expect(text(await stored.drawn())).toContain('T1 ')
+  await stored.unmount()
 })
 
 test('without a divider answer the prompt row is unchanged', async ($, on) => {

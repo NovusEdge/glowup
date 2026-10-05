@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { cleanFrames, cleanRows, cleanDivider, fieldTail, meterWindows, MAX_FRAMES } from '../hooks/renderers.ts'
+import { cleanFrames, cleanRows, cleanDivider, fieldTail, fitField, meterWindows, MAX_FRAMES, PROPS_BUDGET } from '../hooks/renderers.ts'
 import { initialModel, type Model } from '../hooks/model.ts'
 
 const TEXT = '#e8dcc4'
@@ -44,6 +44,19 @@ test('the field shows the bottom rows of each frame, so a short pane keeps the h
   expect(fieldTail(f, 2).map(r => r[0]!.text)).toEqual(['mid', 'low'])
   expect(fieldTail(f, 5).length).toBe(3)
   expect(fieldTail(f, 0)).toEqual([])
+})
+
+test('a field over the props budget loses every other frame and slows to match; one frame still too big is dropped', async () => {
+  const wide = (n: number) => Array.from({ length: n }, (_, i) => ({ text: '⣿', color: i % 2 ? '#e0703a' : '#a3533a' }))
+  const big = { ms: 100, frames: Array.from({ length: 32 }, () => Array.from({ length: 30 }, () => wide(58))) }
+  const fit = fitField(big, 10)!
+  expect(JSON.stringify(fit.frames).length).toBeLessThanOrEqual(PROPS_BUDGET)
+  expect(fit.frames[0]!.length).toBe(10)
+  expect(fit.frames.length).toBeLessThan(32)
+  expect(fit.ms).toBe(100 * (32 / fit.frames.length))
+  const huge = { ms: 100, frames: [Array.from({ length: 30 }, () => wide(400))] }
+  expect(fitField(huge, 30)).toBeNull()
+  expect(fitField({ ms: 100, frames: [[[{ text: 'x', color: TEXT }]]] }, 5)).toEqual({ ms: 100, frames: [[[{ text: 'x', color: TEXT }]]] })
 })
 
 test('meter windows: the live 5-hour and weekly readings with their reset, in that order', async () => {

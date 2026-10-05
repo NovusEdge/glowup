@@ -29,7 +29,7 @@ import { firstRun } from './firstrun.ts'
 import { registerCopy, touchCopy, decide, unregisterCopy, pruneStatus, safeId, HEARTBEAT_MS } from './instances.ts'
 import { staleToast, INSTALLED_FILE } from './update.ts'
 import { syncPlugin } from './pluginsync.ts'
-import { cleanFrames, cleanRows, cleanDivider, meterWindows, type Frames, type Divider } from './renderers.ts'
+import { cleanFrames, cleanRows, cleanDivider, fitField, meterWindows, type Frames, type Divider } from './renderers.ts'
 import type { FieldClientProps } from './client/field.tsx'
 import type { Seg } from './layout.tsx'
 
@@ -198,15 +198,18 @@ const turnByMessage = new Map<string, number>()
 const dividerByMessage = new Map<string, { key: string; value: Divider | null }>()
 const palette = () => ({ ...theme.colors })
 // Asked while drawing: one short call per prompt and pack, kept for its redraws.
+// A prompt first draws under the id "placeholder" until it is stored: it shows the number the
+// stored row will take, but neither claims it nor is kept.
 async function dividerFor($: Engine, messageId: string): Promise<Divider | null> {
-  if (!turnByMessage.has(messageId)) turnByMessage.set(messageId, turnByMessage.size + 1)
-  const turn = turnByMessage.get(messageId)!, pack = mix.colors, colors = palette()
+  const pending = messageId === 'placeholder'
+  if (!pending && !turnByMessage.has(messageId)) turnByMessage.set(messageId, turnByMessage.size + 1)
+  const turn = turnByMessage.get(messageId) ?? turnByMessage.size + 1, pack = mix.colors, colors = palette()
   const key = JSON.stringify([pack, colors])
-  const held = dividerByMessage.get(messageId)
+  const held = pending ? undefined : dividerByMessage.get(messageId)
   if (held?.key === key) return held.value
   let value: Divider | null = null
   try { value = cleanDivider(await $.glowup.divider({ pack, turn, colors }), colors.text) } catch { value = null }
-  dividerByMessage.set(messageId, { key, value })
+  if (!pending) dividerByMessage.set(messageId, { key, value })
   return value
 }
 
@@ -860,7 +863,9 @@ export const register: Register = (on, options) => {
       if (got) {
         const { Client } = $.ui.resolve(e)
         extra = { ...extra, field: (open: number) => {
-          const props: FieldClientProps = { frames: got.frames, ms: got.ms, rows: open, reduced }
+          const fit = fitField(got, open)
+          if (!fit) return null
+          const props: FieldClientProps = { frames: fit.frames, ms: fit.ms, reduced }
           return <Client key="glowup-field" module="./client/field.tsx" props={props} width={cols} />
         } }
       }
@@ -903,12 +908,13 @@ export const register: Register = (on, options) => {
     if (!rule) return styled
     const { Box, Text } = els
     const side = (segs: Seg[], k: string) => <Box key={k} flexShrink={0}>{segs.map(s => <Text color={s.color} bold={s.bold}>{s.text}</Text>)}</Box>
-    // the row has no width of its own, so the fill is long and the middle box truncates it to fit
+    // The row has no width of its own, so the fill is long and its one-row box clips it; a truncating
+    // Text would end it in "…". The clipping box holds no engine node, which may not sit under overflow.
     return (
       <Box flexDirection="column">
         <Box flexDirection="row">
           {side(rule.left, 'l')}
-          <Box flexGrow={1} flexShrink={1}><Text color={rule.fill.color} wrap="truncate">{rule.fill.text.repeat(400)}</Text></Box>
+          <Box flexGrow={1} flexShrink={1} height={1} overflow="hidden"><Text color={rule.fill.color}>{rule.fill.text.repeat(400)}</Text></Box>
           {side(rule.right, 'r')}
         </Box>
         {styled}

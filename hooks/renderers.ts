@@ -64,6 +64,20 @@ export function cleanDivider(v: unknown, fallback: string): Divider | null {
 
 export const fieldTail = (frame: Seg[][], rows: number): Seg[][] => rows > 0 ? frame.slice(-rows) : []
 
+// Claude Code refuses a Client whose props serialize past 100,000 characters, and with it glowup's
+// whole pane tree. Only the rows on show are sent; past the budget every other frame goes and each
+// stays up twice as long, so the loop keeps its speed.
+export const PROPS_BUDGET = 90_000
+export function fitField(f: Frames, rows: number): Frames | null {
+  let frames = f.frames.map(fr => fieldTail(fr, rows)), ms = f.ms
+  while (JSON.stringify(frames).length > PROPS_BUDGET) {
+    if (frames.length === 1) return null
+    frames = frames.filter((_, i) => i % 2 === 0)
+    ms = Math.min(2000, ms * 2)
+  }
+  return { ms, frames }
+}
+
 export function meterWindows(m: Model, now: number, tzOffset: number): Window[] {
   return ([['five_hour', '5h'], ['seven_day', 'wk']] as const).flatMap(([kind, label]) => {
     const w = liveLimit(m, kind, now)
