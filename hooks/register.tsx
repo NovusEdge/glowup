@@ -26,7 +26,7 @@ import { renderHelp } from './helpcard.tsx'
 import { loadUserThemes } from './userthemes.ts'
 import { firstRun } from './firstrun.ts'
 import { registerCopy, touchCopy, decide, unregisterCopy, pruneStatus, safeId, HEARTBEAT_MS } from './instances.ts'
-
+import { staleToast, INSTALLED_FILE } from './update.ts'
 type Engine = EngineInterface
 type SpinKey = { turnAt: number; detail: string; state: OrbState }
 
@@ -129,11 +129,21 @@ function writeStatus($: Engine, force: boolean) {
   lastStatusLine = line
   void writeStatusFile(hostOf($), sessionId, line).catch(() => {})
 }
+// Versions already announced this session; a hot reload starts it over, which only repeats a toast.
+const staleShown = new Set<string>()
+async function checkStale($: Engine) {
+  if (off || !interactive) return
+  try {
+    const text = staleToast(staleShown, JSON.parse(await hostOf($).readFile(INSTALLED_FILE(configDir))), guardRoot, configDir)
+    if (text) $.ui.toast(text)
+  } catch {}
+}
 function startBeat($: Engine) {
   beatTimer?.cancel()
   beatTimer = $.clock.every(HEARTBEAT_MS, () => {
     if (guardSid) void touchCopy(hostOf($), guardSid, guardRoot, Date.now()).catch(() => {})
     writeStatus($, true)
+    void checkStale($)
   })
 }
 // A winning copy whose store has no backup (the takeover was made by another copy
@@ -568,6 +578,7 @@ export const register: Register = (on, options) => {
       }
     }
     startBeat($)
+    void checkStale($)
     await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|restore' })
     mix = await initialMix(host, options)
     const storedPet = await host.storeGet('pet')

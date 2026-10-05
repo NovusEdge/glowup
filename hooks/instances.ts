@@ -18,10 +18,10 @@ export const safeId = (id: string) => id.replace(/[^A-Za-z0-9-]/g, '')
 type Entry = { root: string; at: number; seen?: number }
 const lastSeen = (e: Entry) => e.seen ?? e.at
 
-const tidy = (p: string) => p.replace(/\/+/g, '/').replace(/\/$/, '')
+export const tidy = (p: string) => p.replace(/\/+/g, '/').replace(/\/$/, '')
 
 // Installed copies live under the plugin cache; anything else came from --plugin-dir.
-const isDev = (configDir: string, root: string) => !`${tidy(root)}/`.startsWith(`${tidy(configDir)}/plugins/cache/`)
+export const isDev = (configDir: string, root: string) => !`${tidy(root)}/`.startsWith(`${tidy(configDir)}/plugins/cache/`)
 
 // What makes two roots the same copy. An installed copy lives in
 // plugins/cache/<marketplace>/<plugin>/<version> and the version changes on every update, so
