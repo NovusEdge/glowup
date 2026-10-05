@@ -38,15 +38,19 @@ export function TextField({ label, value, onCommit, className, size, maxLength }
 
 export function HexField({ label, value, onCommit }: { label: string; value: string; onCommit(hex: string): void }) {
   const [text, setText] = useState(value)
-  useEffect(() => setText(value), [value])
+  const input = useRef<HTMLInputElement>(null)
+  useEffect(() => { if (document.activeElement !== input.current) setText(value) }, [value])
+  // "#7dc" is a complete short form but also the start of "#7dc4e4", so it commits on blur only.
+  const commit = (raw: string, short: boolean) => {
+    const t = raw.trim()
+    const hex = normalizeHex(t)
+    if (hex && (short || t.replace('#', '').length !== 3)) onCommit(hex)
+  }
   return (
     <input
-      type="text" className="hex" size={8} maxLength={9} spellCheck={false} aria-label={`${label} hex`} value={text}
-      onChange={e => {
-        setText(e.target.value)
-        const hex = normalizeHex(e.target.value.trim())
-        if (hex) onCommit(hex)
-      }}
+      ref={input} type="text" className="hex" size={8} maxLength={9} spellCheck={false} aria-label={`${label} hex`} value={text}
+      onChange={e => { setText(e.target.value); commit(e.target.value, false) }}
+      onBlur={() => { commit(text, true); setText(value) }}
     />
   )
 }
