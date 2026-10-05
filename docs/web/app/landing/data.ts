@@ -3,6 +3,12 @@ export { newPlayer, stepPlayer, playerFrame, composeFrame, mirrored, petPalette,
 export { SPINNERS, spinnerCells, spinnerWordSpans, type Cell, type OrbState, type SpinnerId } from '../../../../hooks/motion.ts'
 export { PRESETS } from '../../../../hooks/presets.ts'
 export { PACKS } from '../../../../hooks/packpresets.ts'
-export { resolveLook, type Look } from '../../../../hooks/packs.ts'
-export { parseJsonc, resolveTheme, COLOR_KEYS, type Theme } from '../../../../hooks/themes.ts'
+export {
+  resolveLook, exportMix, exportName, packNameProblem, validatePack, normalizeHex, isNewerSpinner,
+  SPINNER_IDS, ROW_STYLES, BORDERS, METER_STYLES, FIELD_IDS,
+  type Look, type PackFile, type ColorsLayer, type MotionLayer,
+} from '../../../../hooks/packs.ts'
+export { parseJsonc, resolveTheme, COLOR_KEYS, ROLE_LABELS, type Theme } from '../../../../hooks/themes.ts'
 export { CLAWD_SAY } from '../../../../hooks/bubbles.ts'
+export { encodeLink, decodeLink, STUDIO_URL } from '../../../../hooks/link.ts'
+export { parseSetup, toneFor, DEFAULT_SETUP, BAND_ITEMS, TAB_IDS, SETUP_MOODS, type Setup, type BandItem, type TabId } from '../../../../hooks/setup.ts'
