@@ -5,7 +5,7 @@ description: Every /glowup subcommand, what it prints, and when it fails.
 
 ## The /glowup command
 
-You control glowup with `/glowup`. Run it with no arguments, or with `help`, for a short card of the five commands most people need:
+`/glowup` with no arguments, or with `help`, prints a card with the five commands most people need:
 
 ```text title="claude code"
 glowup
@@ -21,11 +21,9 @@ more: /glowup help all   docs: https://glowup.khimani.dev/
 
 `/glowup help all` lists every command in groups: Start here, Look, Pet, Comfort, Make your own and Status line. The Look group includes the `color` commands.
 
-On the terminal and desktop app the card is drawn in the colors of your current pack, with a header box, swatches and the spinner word. Elsewhere, and for the model, you get the plain text above.
+In the terminal and the desktop app, the card is drawn in your pack's colors with a header box, color swatches and the spinner word; the model, and any other client, sees the plain text above. An unknown subcommand prints `Unknown: <what you typed>` above the card.
 
-`/glowup config` asks five questions, plus two for color tweaks and three if you pick status line fields. See [config](#config).
-
-An unknown subcommand prints `Unknown: <what you typed>` followed by the short card.
+Look, pet, motion and status line choices are saved and carry over to later sessions.
 
 ## theme
 
@@ -36,7 +34,7 @@ An unknown subcommand prints `Unknown: <what you typed>` followed by the short c
 | `/glowup theme list` | List the built-in themes and your own. The active theme has a filled dot, including one chosen in the settings menu. |
 | `/glowup theme add <url>` | Download a theme file, check it, and install it. |
 
-The switch applies at once and is saved, so the next session starts with it. A theme sits on top of the current [pack](packs.md): it replaces the pack's palette and keeps its row style, border and extras. If the theme cannot load, glowup prints the reason and keeps the current theme. The built-in themes are `glowup`, `aurora`, `dusk`, `classic` (the default), `cyberpunk`, `vaporwave` and `high-contrast`. Your own themes come from `~/.claude/glowup/themes`. See [Making a theme](themes.md).
+A theme replaces the current [pack](packs.md)'s palette and keeps its row style, border and extras. If the theme fails to load, glowup prints why and stays on the current one. The built-in themes are `classic` (the default), `glowup`, `aurora`, `dusk`, `cyberpunk`, `vaporwave` and `high-contrast`; your own are read from `~/.claude/glowup/themes`. See [Making a theme](themes.md).
 
 ### theme add
 
@@ -49,19 +47,7 @@ The switch applies at once and is saved, so the next session starts with it. A t
 5. Checks the whole file, including the `extends` chain, against the [theme reference](theme-reference.md).
 6. Saves it as `<name>.json` in `~/.claude/glowup/themes`.
 
-A theme file holds data only. Nothing in it runs. Adding a theme with a name you already have replaces that file. `theme add` does not switch to the new theme; run `/glowup theme <name>` after it.
-
-| Message | Cause |
-| --- | --- |
-| `Theme URLs must start with https://` | The URL uses another scheme. |
-| `Could not download the theme (HTTP 404).` | The server answered with an error. |
-| `Could not download the theme: ...` | The request failed, for example no network. The text after the colon is the reason. |
-| `file is over 65536 bytes` | The file is larger than the limit. |
-| `not valid JSON: ...` | The file does not parse. |
-| `A theme must be a JSON object.` | The top level is an array or a plain value. |
-| `A theme needs a "name" of lowercase letters, digits and dashes.` | The name is missing or has other characters. |
-| `"cyberpunk" is a built-in theme name; pick another.` | The name is taken by a built-in theme. |
-| `theme "<name>": ...` | A field failed validation. The text after the colon names it. |
+Each refusal prints a message naming the failed check. Adding a theme whose name you already have silently replaces your file. `theme add` installs without switching, so follow it with `/glowup theme <name>`.
 
 ## pack
 
@@ -83,7 +69,7 @@ A theme file holds data only. Nothing in it runs. Adding a theme with a name you
 
 `/glowup pack <name>` clears a spinner override, so choose the pack first and the spinner after.
 
-The built-in packs are `classic` (the default), `crt`, `cozy` and `arcade`. If a pack cannot load, glowup prints the reason and keeps the current look. The file format, limits and every refusal message are in [Packs](packs.md).
+The built-in packs are `classic` (the default), `crt`, `cozy` and `arcade`. If a pack fails to load, glowup prints why and keeps the current look. The file format and limits are in [Packs](packs.md).
 
 ## color
 
@@ -96,15 +82,15 @@ The built-in packs are `classic` (the default), `crt`, `cozy` and `arcade`. If a
 
 The roles are the ones in the [theme reference](theme-reference.md): `accent`, `text`, `dim`, `faint`, `read`, `edit`, `shell`, `agent`, `pass`, `fail`, `panel`, `addBg`, `delBg` and `sel`. An unknown role or a bad hex prints the reason and changes nothing.
 
-An override is saved and applied on top of whatever pack and theme are active. It survives `/glowup pack <name>` and `/glowup theme <name>`, and `/glowup export konsole` and `/glowup pack save <name>` include it. A pack's own gradient, border color and spinner color stay as the pack set them. Overrides are not part of a pack file unless you save one.
+An override sits on top of whatever pack and theme are active and survives switching either. `/glowup export konsole` and `/glowup pack save <name>` include it. It does not touch a pack's gradient, border color or spinner color.
 
 ## import
 
-`/glowup import <file>` turns a Ghostty or base16 color scheme into a pack with a colors layer, saves it in `~/.claude/glowup/packs` and applies it. The file can be at most 64 KB. Add `--force` to replace an installed pack of the same name. See [Packs](packs.md#import-a-color-scheme).
+`/glowup import <file>` turns a Ghostty or base16 color scheme into a pack with a colors layer, saves it in `~/.claude/glowup/packs` and applies it. The file can be at most 64 KB. Add `--force` to replace an installed pack of the same name. See [Packs](packs.md#making-your-own).
 
 ## export
 
-`/glowup export konsole` writes your current colors as a Konsole color scheme to `$XDG_DATA_HOME/konsole/glowup-<pack>.colorscheme` (`~/.local/share/konsole/` when `XDG_DATA_HOME` is not set), replacing an earlier export of the same name. Then in Konsole pick it under Settings → Edit Current Profile → Appearance.
+`/glowup export konsole` writes your current colors as a Konsole color scheme to `$XDG_DATA_HOME/konsole/glowup-<pack>.colorscheme` (`~/.local/share/konsole/` when `XDG_DATA_HOME` is not set), replacing an earlier export of the same name. In Konsole it appears under Settings → Edit Current Profile → Appearance.
 
 ## pet and bubbles
 
@@ -131,19 +117,21 @@ See [Pets](pets.md).
    - **Tweak colors** asks **Color**: `accent`, `text`, `dim` or `panel`, or Other to type any role from `/glowup color list`. Then it asks **Hex**: a few colors from the current palette, or Other to type `#rgb` or `#rrggbb`. It sets the same override as `/glowup color <role> <#hex>`. An unknown role or a bad hex prints the reason and stops.
 5. **Status line fields**: `Keep`, `Default` or `Pick`. Default does what `/glowup statusline fields default` does. Pick asks three more questions, each a multi-select: Session (`activity`, `ctx`, `agents`, `plan`), Account (`5h`, `week`, `cost`, `model`) and Repo (`branch`, `changes`, `cwd`). The fields apply in that order. Picking none, or exactly the current list, changes nothing, and Esc on any of the three applies no field change. If glowup is not drawing your status line, the question says the fields show in the entry under the prompt, and that `/glowup statusline on` draws the whole line.
 
-Esc on any question stops there. Answers you already gave stay applied. The command ends with a card. At the top is the same box as `/glowup help`, in the pack's border and colors. Under it, **You picked** lists Pack, Spinner (`pack default` when you set none), Pet, Extras and Status line, and **Try next** gives three commands and the docs link. A history row keeps the pack it was drawn with. Where the card cannot draw, such as a `-p` run, the same content prints as plain text, starting with a line like `glowup · arcade · spinner comet · Clawd · bubbles on · full motion`.
+Esc on any question stops there, keeping the answers already given. The command ends with a card: the same header box as `/glowup help` in the pack's border and colors, then **You picked** (pack, spinner, pet, extras and status line) and **Try next** (three commands and the docs link). The card keeps the pack it was drawn with when it scrolls into history. Where it cannot draw, such as a `-p` run, the same content prints as plain text, starting with a line like `glowup · arcade · spinner comet · Clawd · bubbles on · full motion`.
 
-Each answer does what the matching typed command does (`pack`, `spinner`, `pet`, `bubbles`, `motion`, `color`, `statusline fields`), so the questions add nothing the commands lack. The colors and motion layers on their own, and saving a look are not in the questions: use `/glowup pack save <name>` to save the current look. In a `-p` run there is no one to ask, so `/glowup config` prints the command list instead.
+Each answer has the same effect as the matching command (`pack`, `spinner`, `pet`, `bubbles`, `motion`, `color`, `statusline fields`). Mixing layers from different packs and saving a pack are only available as commands. In a `-p` run, `/glowup config` prints the command list instead of asking.
 
 ## Settings and the store
 
-The mod's settings in Claude Code's `/plugin` menu (`pack`, `theme`, `spinner`, `pet`, `bubbles`, `statusline` and `reducedMotion`) and the `/glowup` commands change the same saved choices, and the last change wins. glowup remembers the `/plugin` values it saw last. When a value differs at the next session start or after `/reload-plugins`, glowup runs the matching command (`/glowup pack crt` for a new `pack`, and so on) and shows a toast naming what it applied. A `/glowup` command or the config questions replace that choice at once, and stay until you change that setting in `/plugin` again. If `/plugin` holds a value glowup cannot apply, such as an unknown pack, the toast says so and the value is not retried. Setting `theme` back to `classic`, `spinner` to `pack` or `statusline` to its default list clears the saved choice (`/glowup theme default`, `/glowup spinner default`, `/glowup statusline fields default`) instead of saving the default. When `pack` changes, glowup also puts the `/plugin` theme and spinner back on top of the new pack.
+The mod's settings in Claude Code's `/plugin` menu (`pack`, `theme`, `spinner`, `pet`, `bubbles`, `statusline` and `reducedMotion`) and the `/glowup` commands change the same saved choices, and the most recent change is the one in effect.
+
+glowup remembers the `/plugin` values it last saw. If one differs at the next session start or after `/reload-plugins`, glowup runs the matching command (`/glowup pack crt` for a new `pack`, and so on) and shows a toast saying what it applied. A value it cannot apply, such as an unknown pack name, gets a toast and is not retried. When `pack` changes, glowup puts the `/plugin` theme and spinner back on top of the new pack.
+
+Setting `theme` back to `classic`, `spinner` to `pack` or `statusline` to its default list clears the saved choice, as `/glowup theme default`, `/glowup spinner default` and `/glowup statusline fields default` do, rather than saving the default value.
 
 ## pane
 
-`/glowup pane` opens the glowup pane if it is closed and closes it if it is open. When the pane has no room, it prints why instead. Esc closes the pane when you opened it with this command.
-
-Where the pane appears depends on your terminal width. See [Layout](layout.md).
+`/glowup pane` toggles the pane, or prints why it cannot open when there is no room. Esc also closes a pane opened this way. Where it opens depends on terminal width; see [Layout](layout.md).
 
 ## motion
 
@@ -152,7 +140,7 @@ Where the pane appears depends on your terminal width. See [Layout](layout.md).
 | `/glowup motion reduced` | Turn glowup's animation off. |
 | `/glowup motion full` | Turn it back on. |
 
-The choice is saved. See [Accessibility](accessibility.md) for what changes.
+See [Accessibility](accessibility.md) for what reduced motion changes.
 
 ## statusline
 
@@ -166,4 +154,4 @@ The choice is saved. See [Accessibility](accessibility.md) for what changes.
 
 The fields are `activity`, `ctx`, `5h`, `week`, `cost`, `model`, `agents`, `plan`, `branch`, `changes` and `cwd`. See [Choosing the fields](statusline.md#choosing-the-fields).
 
-This is opt-in. Without it, glowup only adds its own entry under the prompt while Claude works. Restore puts your line back only if it is still glowup's. See [Status line](statusline.md).
+Without `statusline on`, glowup only adds its own entry under the prompt while Claude works. `restore` puts your line back only if the current one is still glowup's, so it never overwrites a status line you set in the meantime. See [Status line](statusline.md).

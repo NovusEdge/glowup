@@ -8,7 +8,7 @@ export function remarkGuides() {
     visit(tree, ['link', 'image'], (node: any) => {
       const page = /^([a-z0-9-]+)\.md(#.*)?$/.exec(node.url)
       if (page) node.url = `/${page[1]}${page[2] ?? ''}`
-      else if (/^assets\/[^/]+$/.test(node.url)) node.url = '/' + node.url.replace(/^assets\//, 'media/')
+      else if (/^assets\/[\w./-]+$/.test(node.url)) node.url = '/' + node.url.replace(/^assets\//, 'media/')
     })
   }
 }
