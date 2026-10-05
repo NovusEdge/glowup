@@ -21,7 +21,7 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const tone = (p: number): keyof Colors => p >= 80 ? 'fail' : p >= 50 ? 'edit' : 'pass'
 
 // Rounded down: "↻0m" would read as already reset.
-function resetIn(resetsAt: string | undefined, now: number, tzOffset: number): string {
+export function resetIn(resetsAt: string | undefined, now: number, tzOffset: number): string {
   const at = resetsAt === undefined ? NaN : Date.parse(resetsAt)
   if (Number.isNaN(at)) return ''
   const mins = Math.floor((at - now) / 60_000)
