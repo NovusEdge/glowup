@@ -13,9 +13,9 @@
 
 </div>
 
-<img src="docs/assets/hero.gif" alt="A cut of the launch video: Claude Code with the arcade pack and the glowup pane docked beside the transcript. Claude edits a file, a test fails and Clawd says 'ouch, 1 failed', then Claude starts the fix" width="100%">
+<img src="docs/assets/hero.gif" alt="A cut of the launch video: Claude Code with the arcade pack and the glowup pane docked beside the transcript. Claude edits a file, a test fails and Clawd says 'ouch, 1 failed', then the fix passes, the level bar flashes LEVEL UP and Clawd hops" width="100%">
 
-<p align="center"><sub>A cut of the launch video, in the arcade pack with the pane docked: Claude edits a file, a test fails and costs a life, and Clawd reacts. The full video also switches packs and shows the Plan &amp; context tab.</sub></p>
+<p align="center"><sub>A cut of the launch video, in the arcade pack with the pane docked: Claude edits a file, a test fails and costs a life, the fix passes, and Clawd hops as the level goes up. The full video also switches packs and shows the Plan &amp; context tab.</sub></p>
 
 glowup is a Claude Code mod. It adds to the terminal UI and leaves your transcript and prompt where they are.
 
