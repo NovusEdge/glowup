@@ -21,9 +21,9 @@ He only appears in the pane, so you see him when the pane is docked beside the t
 | ![Clawd sagging and sweating](assets/clawd/fail/clip.gif) | A failing test makes him sag and sweat, and the sweat drop stays until your next prompt. |
 | ![Clawd waiting with a question mark](assets/clawd/alert/clip.gif) | When Claude needs your approval, he startles and then waits with a question mark beside him. This happens only when Claude Code opens a permission dialog, so he does not react in auto mode, including when the auto-mode check hands a call to you. |
 | ![Clawd crumpling a sheet of paper](assets/clawd/scrunch/clip.gif) | When the context is compacted, he crumples up a sheet of paper and tosses it. |
-| ![Clawd panting](assets/clawd/pant/clip.gif) | Once the context window is 80% full, he pants. |
+| ![Clawd panting](assets/clawd/pant/clip.gif) | By default, once the context window is 80% full, he pants. |
 | ![Clawd dancing](assets/clawd/done/clip.gif) | At the end of a turn he does a little dance. |
-| ![Clawd asleep](assets/clawd/sleep/clip.gif) | After a minute with nothing happening he falls asleep, and stretches when something wakes him. |
+| ![Clawd asleep](assets/clawd/sleep/clip.gif) | By default, after a minute with nothing happening he falls asleep, and stretches when something wakes him. |
 
 On a Friday after 15:00, a deploy command gets him into a sweat outfit.
 
@@ -31,7 +31,7 @@ His frames change at most every 80 ms and nothing flashes more than 2.5 times a 
 
 ## Speech bubbles
 
-With bubbles on, Clawd says a short line (40 characters at most) when a turn ends, when a test fails and when Claude needs you, and the bubble stays for 3 seconds. Lines come from a small set of templates per mood, never the same one twice in a row, and some fill in details such as the failure count or the command. In the narrow drawer the line appears beside the one-row Clawd.
+With bubbles on, Clawd says a short line (40 characters at most) by default when a turn ends, when a test fails and when Claude needs you, and the bubble stays for 3 seconds by default. Lines come from a small set of templates per mood, never the same one twice in a row, and some fill in details such as the failure count or the command. In the narrow drawer the line appears beside the one-row Clawd. Choose which moments get a bubble and how long it stays with /glowup setup bubbles.moods and /glowup setup bubbles.ms.
 
 ```text title="claude code"
 /glowup bubbles off

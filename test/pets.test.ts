@@ -274,3 +274,11 @@ test('walking carries horizontal travel in dx', async () => {
   const left = CLAWD_SHEET.animations['walk-left']
   if (left) expect(left.frames.every(f => (f.dx ?? 0) < 0)).toBe(true)
 })
+
+test('sleep and pant follow the setup when given', () => {
+  const idle = { working: false, needsYou: false, actAt: 1000 }
+  expect(petPose({ ...idle, sleepMs: 20_000 }, 1000 + 20_000)).toBe('sleep')
+  expect(petPose({ ...idle, sleepMs: 120_000 }, 1000 + 60_000)).toBe('idle')
+  expect(petPose({ ...idle, ctx: 70, pantAt: 65 }, 2000)).toBe('pant')
+  expect(petPose({ ...idle, ctx: 70 }, 2000)).toBe('idle')
+})

@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { tabRows, statusRows, renderPane, section, BOX, MIN_BOX, COMPACT_ROWS, petStripCols, bubbleBox, type TabId } from '../hooks/pane.tsx'
+import { tabRows, statusRows, renderPane, section, BOX, MIN_BOX, COMPACT_ROWS, petStripCols, bubbleBox, visibleTabs, type TabId } from '../hooks/pane.tsx'
 import { CLAWD_SAY } from '../hooks/bubbles.ts'
 import { resolveLook, BORDERS } from '../hooks/packs.ts'
 import { PACKS } from '../hooks/packpresets.ts'
@@ -169,13 +169,13 @@ test('context breakdown draws only used categories, biggest first', async () => 
   expect(legend.indexOf('messages')).toBeLessThan(legend.indexOf('skills'))
 })
 
-test('context warning names the biggest used category, falls back to the percent, and is absent below 70', async () => {
-  const withCats = planView(75, CATS)
+test('context warning names the biggest used category, falls back to the percent, and is absent below 80', async () => {
+  const withCats = planView(85, CATS)
   expect(withCats.map(inside)).toContain('! messages is the biggest share')
   expect(withCats.join('\n')).not.toContain('Free space')
-  expect(planView(75).map(inside)).toContain('! context 75% used')
-  expect(planView(75, [{ name: 'Free space', tokens: 9, kind: 'free' }]).map(inside)).toContain('! context 75% used')
-  expect(planView(69, CATS).some(r => r.includes('!'))).toBe(false)
+  expect(planView(85).map(inside)).toContain('! context 85% used')
+  expect(planView(85, [{ name: 'Free space', tokens: 9, kind: 'free' }]).map(inside)).toContain('! context 85% used')
+  expect(planView(79, CATS).some(r => r.includes('!'))).toBe(false)
 })
 
 test('compact changes is one row per edited file', async () => {
@@ -437,4 +437,16 @@ test('a long tab keeps its box edges and scrolls only the first body', async () 
 test('the docked status box is as wide as the section boxes', async () => {
   const tree = renderPane(els, M, T, { tab: 'changes' }, 54, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE } })
   expect(walk(tree).find(n => n.props?.borderStyle).props.width).toBe(52)
+})
+
+test('the context warning follows meter.danger', () => {
+  const m = { ...initialModel(), ctxPercent: 75 }
+  const text = (meter?: { warn: number; danger: number }) => tabRows(m, T, { tab: 'plan', meter }, 80, false, 0).flat().map(s => s.text).join('')
+  expect(text()).not.toContain('context 75% used')
+  expect(text({ warn: 50, danger: 70 })).toContain('context 75% used')
+})
+
+test('tabs follow the setup and an open hidden tab falls to the first shown one', () => {
+  expect(visibleTabs(undefined, 'agents')).toEqual({ tabs: [['changes', 'Changes'], ['agents', 'Agents'], ['plan', 'Plan & context']], tab: 'agents' })
+  expect(visibleTabs(['plan', 'changes'], 'agents')).toEqual({ tabs: [['plan', 'Plan & context'], ['changes', 'Changes']], tab: 'plan' })
 })

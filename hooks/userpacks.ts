@@ -35,9 +35,14 @@ export async function addPack(host: Host, url: string, force: boolean): Promise<
   let r: Awaited<ReturnType<Host['fetchText']>>
   try { r = await host.fetchText(url) } catch (err) { return { message: `Could not download the pack: ${msg(err)}` } }
   if (!r.ok) return { message: `Could not download the pack (HTTP ${r.status}).` }
-  if (r.text.length > MAX_BYTES) return { message: 'The pack is over 64 KB.' }
+  return installPackText(host, r.text, force)
+}
+
+// The checks every installed pack passes, from a URL or a studio link.
+export async function installPackText(host: Host, text: string, force: boolean): Promise<{ name?: string; message: string }> {
+  if (text.length > MAX_BYTES) return { message: 'The pack is over 64 KB.' }
   let file: unknown
-  try { file = parseJsonc(r.text); validatePack(file) } catch (err) { return { message: msg(err) } }
+  try { file = parseJsonc(text); validatePack(file) } catch (err) { return { message: msg(err) } }
   const name = file.name.toLowerCase()
   const problem = await nameProblem(host, name, force)
   if (problem) return { message: problem }
@@ -45,7 +50,7 @@ export async function addPack(host: Host, url: string, force: boolean): Promise<
   // A spinner this build lacks is a warning: the pack was made for a newer glowup and falls back to stock.
   const fatal = check.errors.filter(e => !isNewerSpinner(e))
   if (fatal.length) return { message: fatal[0]! }
-  await host.writeFile(`${PACK_DIR(host.configDir)}/${name}.json`, r.text)
+  await host.writeFile(`${PACK_DIR(host.configDir)}/${name}.json`, text)
   return { name, message: `Installed pack "${name}". Apply it with /glowup pack ${name}` }
 }
 

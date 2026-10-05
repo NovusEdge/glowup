@@ -58,6 +58,7 @@ Each refusal prints a message naming the failed check. Adding a theme whose name
 | `/glowup pack save <name>` | Save the current look as a self-contained pack file in `~/.claude/glowup/packs`. Prints `Saved pack "<name>" to <path>.` |
 | `/glowup pack <url>` | Download, check and install a pack from an `https://` URL, then apply it. |
 | `/glowup pack <url> --force` | The same, replacing an installed pack of that name. |
+| `/glowup pack <studio link>` | Install the look in a link from the [studio](https://glowup.khimani.dev/studio). Nothing is downloaded: the pack is inside the link. If the link also carries a setup, glowup asks before applying it. Add `--force` to replace an installed pack of the same name. |
 
 ## spinner
 
@@ -75,7 +76,7 @@ The built-in packs are `classic` (the default), `crt`, `cozy` and `arcade`. If a
 
 | Command | What it does |
 | --- | --- |
-| `/glowup color` or `/glowup color list` | List the 14 color roles with their current hex. A filled dot and `(override)` mark the ones you changed. |
+| `/glowup color` or `/glowup color list` | List the 14 color roles with a swatch, their current hex and what each one paints. A filled dot and `(override)` mark the ones you changed. |
 | `/glowup color <role> <#hex>` | Override one role. The hex is `#rgb` or `#rrggbb`. Prints `Color <role>: #rrggbb`. |
 | `/glowup color reset <role>` | Clear one override. |
 | `/glowup color reset` | Clear all overrides. |
@@ -105,6 +106,26 @@ An override sits on top of whatever pack and theme are active and survives switc
 | `/glowup bubbles haiku` | Let Claude Haiku write some lines. Each one is a small call on your account. Prints `Bubbles: haiku`. |
 
 See [Pets](pets.md).
+
+## setup
+
+Your layout and behavior settings. They are yours alone: installing someone's pack never changes them.
+
+| Command | What it does |
+| --- | --- |
+| `/glowup setup` | Print every setting with its value. |
+| `/glowup setup <key> <value>` | Change one setting and print them all. |
+| `/glowup setup reset` | Go back to the defaults. |
+
+| Key | Value | Default |
+| --- | --- | --- |
+| `band` | Comma list of `combo`, `agents`, `meter`, `plan`, or `none`. The order is the order in the band. | `combo,agents,meter,plan` |
+| `tabs` | Comma list of `changes`, `agents`, `plan`; at least one. | `changes,agents,plan` |
+| `meter.warn` | Percent at which the status line's percentages turn the `edit` color. | `50` |
+| `meter.danger` | Percent at which the status line's percentages turn `fail`, the pane warns about context and the pet pants. | `80` |
+| `bubbles.moods` | Comma list of `needs-you`, `fail`, `done`, or `none`. | all three |
+| `bubbles.ms` | How long a bubble stays, 1500 to 10000. | `3000` |
+| `pet.sleepMs` | Idle time before the pet sleeps, 15000 to 600000. | `60000` |
 
 ## config
 

@@ -1,6 +1,7 @@
 import { agentsRunning, type Model, type RateLimit } from './model.ts'
 import type { Colors, Theme } from './themes.ts'
 import { localTime } from './eggs.ts'
+import { DEFAULT_SETUP, toneFor, type Meter } from './setup.ts'
 
 export const FIELD_IDS = ['activity', 'ctx', '5h', 'week', 'cost', 'model', 'agents', 'plan', 'branch', 'changes', 'cwd'] as const
 export type FieldId = (typeof FIELD_IDS)[number]
@@ -18,7 +19,6 @@ type Span = { text: string; color?: keyof Colors }
 
 const WORD: Record<string, string> = { '▸': 'reading', '⌕': 'searching', '✎': 'editing', $: 'running', '◆': 'delegating', '✗': 'failing', '✓': 'passing', '!': 'waiting' }
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const tone = (p: number): keyof Colors => p >= 80 ? 'fail' : p >= 50 ? 'edit' : 'pass'
 
 // Rounded down: "↻0m" would read as already reset.
 export function resetIn(resetsAt: string | undefined, now: number, tzOffset: number): string {
@@ -37,7 +37,8 @@ export function liveLimit(m: Model, kind: string, now: number): RateLimit | unde
   return !w || (w.resetsAt !== undefined && Date.parse(w.resetsAt) <= now) ? undefined : w
 }
 
-function field(id: FieldId, m: Model, now: number, tzOffset: number): Span[] | undefined {
+function field(id: FieldId, m: Model, now: number, tzOffset: number, meter: Meter): Span[] | undefined {
+  const tone = (p: number): keyof Colors => toneFor(p, meter)
   const window = (kind: string, label: string): Span[] | undefined => {
     const w = liveLimit(m, kind, now)
     if (!w) return undefined
@@ -80,7 +81,7 @@ function escape(hex: string, mode: Exclude<ColorMode, 'plain'>): string {
 const paint = (spans: Span[], t: Theme, mode: ColorMode) =>
   spans.map(s => mode === 'plain' || !s.color || !s.text ? s.text : `${escape(t.colors[s.color], mode)}${s.text}\x1b[39m`).join('')
 
-export function renderFields(m: Model, t: Theme, fields: readonly FieldId[], o: { now: number; tzOffset: number; color: ColorMode }): string {
-  const parts = fields.map(id => field(id, m, o.now, o.tzOffset)).filter((s): s is Span[] => s !== undefined)
+export function renderFields(m: Model, t: Theme, fields: readonly FieldId[], o: { now: number; tzOffset: number; color: ColorMode; meter?: Meter }): string {
+  const parts = fields.map(id => field(id, m, o.now, o.tzOffset, o.meter ?? DEFAULT_SETUP.meter)).filter((s): s is Span[] => s !== undefined)
   return parts.map(s => paint(s, t, o.color)).join(paint([{ text: ' · ', color: 'dim' }], t, o.color))
 }

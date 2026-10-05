@@ -57,6 +57,8 @@ Host the pack file anywhere it can be fetched over `https://`, such as a gist or
 
 A pack is plain data that glowup validates before installing, so installing one cannot run code.
 
+A studio link carries the whole pack inside it, so you can share a look without hosting a file. Paste it after /glowup pack.
+
 ## Drawing with a plugin
 
 A pack can already switch on glowup's built-in [effects](pack-reference.md#effects) from its JSON: a dithered field in the pane, dithered meters and turn dividers. The [oxide](https://github.com/NovusEdge/glowup-oxide) pack uses all three and installs from a URL like any other pack.

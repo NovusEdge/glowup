@@ -35,22 +35,22 @@ Every value must match `#rrggbb`: a hash and six hex digits, upper or lower case
 
 | Key | Used for |
 | --- | --- |
-| `accent` | The current plan item, plan progress pips, plan glyphs |
-| `text` | Main text |
-| `dim` | Secondary text, separators, empty hearts |
-| `faint` | Empty parts of bars, the status box border, pane section borders, tree lines |
-| `read` | Read and search rows, running subagent work, low context |
-| `edit` | Edit rows, medium context, the context warning |
-| `shell` | Shell rows |
-| `agent` | Subagent rows |
-| `pass` | Passing tests, finished subagents, added-line counts |
-| `fail` | Failures, full hearts, high context, removed-line counts |
-| `panel` | The background that fades blend toward, when a pack sets no `bg` |
-| `addBg` | Validated, not drawn yet |
-| `delBg` | Validated, not drawn yet |
-| `sel` | Validated, not drawn yet |
+| `accent` | plan item, progress pips, plan glyphs |
+| `text` | main text |
+| `dim` | secondary text, separators, empty hearts |
+| `faint` | empty bar parts, box and section borders |
+| `read` | read & search rows, running subagent work |
+| `edit` | edit rows, context warnings |
+| `shell` | shell rows |
+| `agent` | subagent rows |
+| `pass` | passing tests, finished subagents, added lines |
+| `fail` | failures, full hearts, removed lines |
+| `panel` | the background fades blend toward |
+| `addBg` | not drawn yet |
+| `delBg` | not drawn yet |
+| `sel` | not drawn yet |
 
-The context meter color changes with use: `read` below 60%, `edit` from 60%, `fail` from 80%.
+Percentages in the status line read in `pass` below `meter.warn`, `edit` from it, and `fail` from `meter.danger` (50 and 80 unless you change them with [`/glowup setup`](commands.md#setup)).
 
 ## Glyphs
 

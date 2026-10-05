@@ -5,6 +5,9 @@ import { SHORT_TEXT, FULL_TEXT, SECTIONS, DOCS_URL } from '../hooks/help.ts'
 import { resolveLook, cleanOverrides, type Mix } from '../hooks/packs.ts'
 import type { PetSetting } from '../hooks/pets.ts'
 import { DEFAULT_FIELDS, type FieldId } from '../hooks/fields.ts'
+import { DEFAULT_SETUP, type Setup } from '../hooks/setup.ts'
+import { encodeLink } from '../hooks/link.ts'
+import { ROLE_LABELS } from '../hooks/themes.ts'
 
 test('/glowup and /glowup help print the short card', { timeoutMs: 20000 }, async ($, on) => {
   fakeFs(on)
@@ -23,7 +26,7 @@ test('/glowup help all prints every command in groups', async ($, on) => {
   mock.store(on)
   const out = (await runGlowup($, 'help all')).text!
   expect(out).toBe(FULL_TEXT)
-  for (const s of ['Start here', 'Look', 'Pet', 'Comfort', 'Make your own', 'Status line']) expect(out).toContain(s)
+  for (const s of ['Start here', 'Look', 'Pet', 'Comfort', 'Layout', 'Make your own', 'Status line']) expect(out).toContain(s)
   for (const [, rows] of SECTIONS) for (const [c] of rows) expect(out).toContain(c)
   expect(out).toBe(USAGE)
 })
@@ -42,6 +45,7 @@ const ctl = (answer = true, current = 'classic') => {
   let mix: Mix = { colors: 'classic', motion: 'classic' }
   let pet: PetSetting = 'clawd'
   let fields: readonly FieldId[] = DEFAULT_FIELDS
+  let setup: Setup = DEFAULT_SETUP
   const c: Ctl = {
     current: () => current,
     setTheme: async name => { calls.push('theme:' + name) },
@@ -57,6 +61,8 @@ const ctl = (answer = true, current = 'classic') => {
     reduced: () => false,
     fields: () => fields,
     setFields: f => { fields = f ?? DEFAULT_FIELDS },
+    setup: () => setup,
+    setSetup: s => { setup = s; calls.push('setup') },
     ask: async () => { throw new Error('dismissed') },
     headless: async () => true,
   }
@@ -143,11 +149,12 @@ test('color lists every role with its hex and marks overrides', async () => {
   const plain = await runCommand(host, 'color', c)
   expect(plain).toBe(await runCommand(host, 'color list', c))
   expect(plain).toContain('○ accent #d77757')
+  expect(plain).toContain(`○ read   ${resolveLook({ colors: 'classic', motion: 'classic' }, {}, {}).look.theme.colors.read}  ${ROLE_LABELS.read}`)
   expect(plain.split('\n').filter(l => l.startsWith('○'))).toHaveLength(14)
   expect(plain).not.toContain('(override)')
   await runCommand(host, 'color accent #0f0', c)
   const after = await runCommand(host, 'color list', c)
-  expect(after).toContain('● accent #00ff00  (override)')
+  expect(after).toContain(`● accent #00ff00  ${ROLE_LABELS.accent}  (override)`)
   expect(after).toContain('○ text')
 })
 
@@ -199,7 +206,7 @@ test('color overrides survive pack, theme and spinner changes and apply on top o
   expect(resolveLook(c.mix(), {}, {}).look.theme.colors.accent).toBe('#123456')
   expect(resolveLook({ colors: 'arcade', motion: 'arcade' }, {}, {}).look.theme.colors.accent).toBe('#ff3ec8')
   const list = await runCommand(host, 'color list', c)
-  expect(list).toContain('● accent #123456  (override)')
+  expect(list).toContain(`● accent #123456  ${ROLE_LABELS.accent}  (override)`)
   expect(list).toContain('○ read')
 })
 
@@ -410,4 +417,98 @@ test('pet and bubbles; clawd-shiny stays locked until earned', async () => {
   expect(await runCommand(host, 'bubbles haiku', c)).toBe('Bubbles: haiku')
   expect(store.bubbles).toBe('haiku')
   expect(calls).toEqual(['pet:off', 'pet:clawd-shiny', 'bubbles:off', 'bubbles:haiku'])
+})
+
+test('setup prints every key, sets one, and resets', async () => {
+  const { host, store } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'setup', c)).toContain('meter.danger   80')
+  const out = await runCommand(host, 'setup meter.danger 90', c)
+  expect(out).toContain('meter.danger   90')
+  expect((store.setup as Setup).meter.danger).toBe(90)
+  expect(calls).toContain('setup')
+  expect(await runCommand(host, 'setup band plan,meter', c)).toContain('band           plan, meter')
+  expect(await runCommand(host, 'setup reset', c)).toContain('meter.danger   80')
+  expect(store.setup).toBeUndefined()
+})
+
+test('setup keeps a comma list that was typed with spaces', async () => {
+  const { host, store } = fakeHost()
+  const { ctl: c } = ctl()
+  await runCommand(host, 'setup band plan, meter', c)
+  expect((store.setup as Setup).band).toEqual(['plan', 'meter'])
+})
+
+test('setup refuses a bad value and keeps the old setup', async () => {
+  const { host, store } = fakeHost()
+  const { ctl: c } = ctl()
+  expect(await runCommand(host, 'setup meter.warn 95', c)).toBe('meter.warn must be below meter.danger')
+  expect(await runCommand(host, 'setup tabs none', c)).toBe('tabs must name at least one of: changes, agents, plan')
+  expect(await runCommand(host, 'setup band', c)).toBe('Use /glowup setup <key> <value>, /glowup setup, or /glowup setup reset.')
+  expect(store.setup).toBeUndefined()
+})
+
+const SUNSET = { format: 1, name: 'sunset', colors: { palette: { accent: '#ff8c42' } } }
+
+test('pack <studio link> installs and applies the pack without fetching', async () => {
+  const { host, files } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  const out = await runCommand(host, `pack ${encodeLink({ pack: SUNSET })}`, c)
+  expect(out).toBe('Pack: sunset')
+  expect(JSON.parse(files['/home/u/.claude/glowup/packs/sunset.json']!)).toEqual(SUNSET)
+  expect(calls).toContain('mix:sunset/sunset')
+})
+
+test('a studio link with a setup asks before applying it', async () => {
+  const { host, store } = fakeHost()
+  const yes = ctl(true)
+  expect(await runCommand(host, `pack ${encodeLink({ pack: SUNSET, setup: { band: ['plan'] } })}`, yes.ctl)).toBe('Pack: sunset\nSetup: applied')
+  expect(yes.questions[0]).toContain('layout setup')
+  expect((store.setup as { band: string[] }).band).toEqual(['plan'])
+  const no = ctl(false)
+  const { host: h2, store: s2 } = fakeHost()
+  expect(await runCommand(h2, `pack ${encodeLink({ setup: { band: ['plan'] } })}`, no.ctl)).toBe('Setup: kept yours')
+  expect(s2.setup).toBeUndefined()
+})
+
+test('a studio link setup with unknown ids applies like a stored one and names what it dropped', async () => {
+  const { host, store } = fakeHost()
+  const out = await runCommand(host, `pack ${encodeLink({ setup: { band: ['plan', 'weather'] } })}`, ctl(true).ctl)
+  expect(out).toBe('Setup: applied\n  dropped: unknown band item "weather"')
+  expect((store.setup as { band: string[] }).band).toEqual(['plan'])
+  expect(await runCommand(host, `pack ${encodeLink({ setup: { band: ['plan', 'weather'] } })}`, ctl(false).ctl)).toBe('Setup: kept yours')
+})
+
+test('a studio link setup that is not an object is refused without asking', async () => {
+  const { host, store } = fakeHost()
+  const q = ctl(true)
+  expect(await runCommand(host, `pack ${encodeLink({ setup: [1] })}`, q.ctl)).toBe('Setup not applied: setup must be an object')
+  expect(q.questions).toEqual([])
+  expect(store.setup).toBeUndefined()
+})
+
+test('a studio link cannot smuggle terminal escapes through a setup id', async () => {
+  const { host } = fakeHost()
+  const out = await runCommand(host, `pack ${encodeLink({ setup: { band: ['\u001b]0;pwn\u0007'] } })}`, ctl(true).ctl)
+  expect(out).toContain('unknown band item')
+  expect(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/.test(out)).toBe(false)
+})
+
+test('a studio link names the installed pack it would replace unless --force', async () => {
+  const { host } = fakeHost({ files: { '/home/u/.claude/glowup/packs/sunset.json': '{"format":1,"name":"sunset"}' } })
+  const { ctl: c } = ctl()
+  const link = encodeLink({ pack: SUNSET })
+  const refused = await runCommand(host, `pack ${link}`, c)
+  expect(refused).not.toBe('Pack: sunset')
+  expect(refused).toContain('sunset')
+  expect(await runCommand(host, `pack ${link} --force`, c)).toBe('Pack: sunset')
+})
+
+test('a cut-off studio link applies the parts that decoded and names the one that did not', async () => {
+  const { host } = fakeHost()
+  const { ctl: c } = ctl()
+  const cut = encodeLink({ pack: SUNSET, setup: { band: ['plan', 'meter', 'agents'] } }).slice(0, -6)
+  const out = await runCommand(host, `pack ${cut}`, c)
+  expect(out.split('\n')[0]).toMatch(/^setup part: /)
+  expect(out).toContain('Pack: sunset')
 })

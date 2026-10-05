@@ -6,7 +6,7 @@ import type { Theme } from './themes.ts'
 import { resolveLook, cleanOverrides, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { loadUserPacks } from './userpacks.ts'
 import { PET_ROWS, type PetSetting, type PetId, type PetInput, type PetKind } from './pets.ts'
-import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
+import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
 import { recordPass, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, refreshCounts, serial } from './changes.ts'
 import { loadTasks, taskListId } from './tasks.ts'
@@ -21,9 +21,10 @@ import type { PetClientProps } from './client/pet.tsx'
 import type { OrbState } from './motion.ts'
 import { statusText, writeStatusFile, drawsStatusLine, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
 import { parseFields, DEFAULT_FIELDS, type ColorMode, type FieldId } from './fields.ts'
+import { DEFAULT_SETUP, parseSetup, type Setup } from './setup.ts'
 import { runCommand, SUMMARY_LEAD, type Ctl } from './command.ts'
 import { SHORT_TEXT, FULL_TEXT, parsePicked } from './help.ts'
-import { renderHelp, renderConfigCard, renderHeader } from './helpcard.tsx'
+import { renderHelp, renderColorList, renderConfigCard, renderHeader } from './helpcard.tsx'
 import { loadUserThemes } from './userthemes.ts'
 import { firstRun } from './firstrun.ts'
 import { registerCopy, touchCopy, decide, unregisterCopy, pruneStatus, safeId, HEARTBEAT_MS } from './instances.ts'
@@ -72,6 +73,7 @@ let off = false
 let guardSid = '', guardRoot = ''
 let takenOver = false
 let fields: readonly FieldId[] = DEFAULT_FIELDS
+let setup: Setup = DEFAULT_SETUP
 // the installer's value; `statusline fields default` returns to it
 let configFields: readonly FieldId[] = DEFAULT_FIELDS
 let colorMode: ColorMode = '256'
@@ -87,7 +89,6 @@ let lastTemplate: string | undefined
 const haikuGate = new HaikuGate()
 let haikuAbort: AbortController | undefined
 let bubbleTimer: Timer | undefined
-const BUBBLE_MS = 3000
 let turnNo = 0
 // Characters the last drawn pane can show in a bubble; 40 until a pane has drawn.
 let bubbleCap = 40
@@ -131,7 +132,7 @@ function hostOf($: Engine): Host {
 // The takeover script falls back to the person's own command once this file is
 // 10 minutes old, so a quiet session still rewrites it every minute.
 function writeStatus($: Engine, force: boolean) {
-  const line = statusText(model, theme, { fields, now: Date.now(), tzOffset, color: colorMode })
+  const line = statusText(model, theme, { fields, now: Date.now(), tzOffset, color: colorMode, meter: setup.meter })
   if (!takenOver || !sessionId || (!force && line === lastStatusLine)) return
   lastStatusLine = line
   void writeStatusFile(hostOf($), sessionId, line).catch(() => {})
@@ -230,6 +231,8 @@ function petKind(): PetKind | undefined {
 }
 const petInput = (): PetInput => ({
   working: isBusy(model),
+  sleepMs: setup.pet.sleepMs,
+  pantAt: setup.meter.danger,
   kind: petKind(),
   needsYou: !!model.needsYou,
   lastTest: model.lastTest,
@@ -312,18 +315,18 @@ async function askHaiku($: Engine, mine: Bubble, ctx: HaikuContext) {
 }
 
 // One clear timer for the one bubble: arming again (a new bubble, or Haiku's line landing)
-// replaces it, and the bubble then shows for the full BUBBLE_MS from that moment.
+// replaces it, and the bubble then shows for the full setup's bubbles.ms from that moment.
 function armBubble($: Engine, mine: Bubble) {
-  mine.until = Date.now() + BUBBLE_MS
+  mine.until = Date.now() + setup.bubbles.ms
   bubbleTimer?.cancel()
-  bubbleTimer = $.clock.after(BUBBLE_MS + 100, () => {
+  bubbleTimer = $.clock.after(setup.bubbles.ms + 100, () => {
     bubbleTimer = undefined
     if (bubble === mine) { bubble = undefined; publishPet($) }
   })
 }
 
 async function say($: Engine, mood: Mood, vars: BubbleVars) {
-  if (bubbles === 'off' || !petOn()) return
+  if (bubbles === 'off' || !petOn() || !speaks(mood, setup.bubbles.moods)) return
   // Kind words only, never the act's label: it holds commands, paths and patterns.
   const ctx: HaikuContext = {
     mood,
@@ -556,6 +559,8 @@ function ctlOf($: Engine): Ctl {
       writeStatus($, true)
       $.ui.status(statusEntry())
     },
+    setup: () => setup,
+    setSetup: s => { setup = s; relook($); writeStatus($, true); publishPet($) },
     ask: (question, o) => $.ui.ask(question, o),
     // surfaces() is empty only in a plain -p run
     headless: async () => (await $.session.surfaces().catch(() => ['terminal'])).length === 0,
@@ -640,7 +645,7 @@ export const register: Register = (on, options) => {
     }
     startBeat($)
     void checkStale($)
-    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|restore' })
+    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|setup|restore' })
     mix = await initialMix(host, options)
     const storedPet = await host.storeGet('pet')
     const wantPet = PETS.includes(storedPet as PetSetting) ? storedPet as PetSetting : PETS.includes(options.pet as PetSetting) ? options.pet as PetSetting : 'clawd'
@@ -661,6 +666,9 @@ export const register: Register = (on, options) => {
     installed = typeof at === 'number' ? at : undefined
     configFields = parseFields(options.statusline) ?? DEFAULT_FIELDS
     fields = parseFields(await host.storeGet('statusline')) ?? configFields
+    const parsed = parseSetup(await host.storeGet('setup'))
+    setup = parsed.setup
+    if (parsed.notices.length) $.ui.toast(`glowup setup: ${parsed.notices.join('; ')}`)
     // After the saved choices are loaded: the commands read and extend them (a spinner is added to
     // the current mix), and write the new choice to the store by the same path a typed command does.
     try {
@@ -821,7 +829,7 @@ export const register: Register = (on, options) => {
     const below = await next(e)
     const els = $.ui.resolve(e)
     const live = (await $.state.get(BAND)).value as { model: Model } | undefined
-    const mine = renderBand(els, live ? normalizeModel(live.model) : model, theme, e.props.bodyColumns, tier, Date.now(), { look })
+    const mine = renderBand(els, live ? normalizeModel(live.model) : model, theme, e.props.bodyColumns, tier, Date.now(), { look, band: setup.band })
     if (!mine) return below
     // other mods draw bands here too: stack ours on top instead of replacing theirs
     const { Box } = els
@@ -840,7 +848,7 @@ export const register: Register = (on, options) => {
     const els = $.ui.resolve(e)
     // the look always applies; the pet and its words only while he is on
     const pid = pet, red = reducedMotion
-    let extra: PaneExtra = { look }
+    let extra: PaneExtra = { look, tabs: setup.tabs }
     if (pid !== 'off' && !red && (e.surface === 'terminal' || e.surface === 'desktop')) {
       const snap = ((await $.state.get(PET)).value as PetSnap | undefined) ?? petSnap()
       const { Client } = $.ui.resolve(e)
@@ -848,7 +856,7 @@ export const register: Register = (on, options) => {
       // unsized, the region shrinks to the sprite and surface.columns leaves no room to walk
       const node = <Client key="glowup-pet" module="./client/pet.tsx" props={props} width={compact ? undefined : props.width} />
       const bubbleNow = snap.bubble && snap.bubble.until > Date.now() ? snap.bubble : undefined
-      extra = { look, pet: { id: pid as PetId, node, rows: snap.overlays.some(o => HEAD_OUTFITS.includes(o)) ? PET_ROWS + 2 : undefined }, bubble: bubbleNow, friday: snap.friday }
+      extra = { ...extra, pet: { id: pid as PetId, node, rows: snap.overlays.some(o => HEAD_OUTFITS.includes(o)) ? PET_ROWS + 2 : undefined }, bubble: bubbleNow, friday: snap.friday }
     }
     // the engine scrolls the whole body, which would carry the pet off with a long tab: budget the tab to bodyRows instead
     extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onScroll: (offset: number) => { view = { ...view, offset }; publish($) } }
@@ -878,7 +886,7 @@ export const register: Register = (on, options) => {
         } }
       }
     }
-    return renderPane(els, m, theme, v, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
+    return renderPane(els, m, theme, { ...v, meter: setup.meter }, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
       view = { ...view, tab: id, offset: 0 }
       publish($)
       if (id === 'plan') void feedContext($)
@@ -957,6 +965,10 @@ export const register: Register = (on, options) => {
     const args = p.args.trim()
     if ((args === '' || args === 'help') && p.text === SHORT_TEXT) return renderHelp($.ui.resolve(e), look, false)
     if (args === 'help all' && p.text === FULL_TEXT) return renderHelp($.ui.resolve(e), look, true)
+    if (args === 'color' || args === 'color list') {
+      const card = renderColorList($.ui.resolve(e), look, p.text)
+      if (card) return card
+    }
     if (args !== 'config' || !p.text.startsWith(SUMMARY_LEAD)) return next(e)
     // The row is history: draw the pack it names, not whatever look is on now. A render hook must not
     // read disk, so a user pack resolves only while it is the live one.

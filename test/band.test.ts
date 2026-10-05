@@ -84,3 +84,20 @@ test('the band stays while a background subagent outlives the main turn', async 
   m = applyEvent(m, { type: 'agent-done', at: 50_000, agentId: 'ag-1' })
   expect(renderBand(els, m, T, 120, 'medium', 50_001)).toBeNull()
 })
+
+test('band items follow the setup order and can be hidden', () => {
+  const m = { ...busy(), ctxPercent: 30, plan: [{ id: '1', title: 'a', status: 'completed' as const }], agents: [{ key: 'a', name: 'x', task: '', state: 'running' as const, startedAt: 0 }] }
+  const text = (band?: ('combo' | 'agents' | 'meter' | 'plan')[]) => bandSegments(m, T, 160, { band }).map(s => s.text).join('')
+  const dflt = text()
+  expect(dflt.indexOf('subagent')).toBeLessThan(dflt.indexOf('♥'))
+  expect(dflt.indexOf('♥')).toBeLessThan(dflt.indexOf('◇'))
+  const flipped = text(['plan', 'meter'])
+  expect(flipped.indexOf('◇')).toBeLessThan(flipped.indexOf('♥'))
+  expect(flipped).not.toContain('subagent')
+  expect(text([])).not.toContain('♥')
+})
+
+test('combo hides when the setup leaves it out', () => {
+  const m = { ...busy(), combo: 4 }
+  expect(bandSegments(m, arcade.theme, 120, { look: arcade, band: ['meter'] }).map(s => s.text).join('')).not.toContain('COMBO')
+})

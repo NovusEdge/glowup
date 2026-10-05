@@ -38,6 +38,41 @@ export function renderConfigCard(els: Els, look: Look, picked: readonly (readonl
   )
 }
 
+const LIST_ROW = /^([●○]) (\S+)\s+(#[0-9a-fA-F]{6})  (.+?)(  \(override\))?$/
+
+// The same lines /glowup color list printed, with a swatch drawn in each role's color.
+export function renderColorList(els: Els, look: Look, text: string) {
+  const { Box, Text } = els
+  const c = look.theme.colors
+  // The engine puts the plugin's name in front of the row's first line.
+  const lines = text.replace(/^glowup: /, '').split('\n')
+  const rows = lines.map(l => LIST_ROW.exec(l))
+  if (!rows.some(Boolean)) return undefined
+  const fixed = (color: string, s: string, key: string) => <Text key={key} color={color} wrap="truncate">{s}</Text>
+  return (
+    <Box flexDirection="column">
+      {lines.map((l, i) => {
+        const m = rows[i]
+        if (!m) return renderSegs(els, [{ text: l, color: c.dim }], 'l' + i)
+        const [, mark, role, hex, label, over] = m
+        // Only the label may shrink: in a narrow column it ellipsizes while mark, swatch, role and hex stay whole.
+        return (
+          <Box key={'l' + i} flexDirection="row">
+            <Box flexShrink={0}>
+              {fixed(over ? c.accent : c.dim, mark + ' ', 'm')}
+              {fixed(hex!, '██ ', 's')}
+              {fixed(c.text, role!.padEnd(7), 'r')}
+              {fixed(c.dim, hex! + '  ', 'h')}
+            </Box>
+            <Box flexShrink={1}><Text color={c.dim} wrap="truncate">{label!}</Text></Box>
+            {over && <Box flexShrink={0}>{fixed(c.accent, over, 'o')}</Box>}
+          </Box>
+        )
+      })}
+    </Box>
+  )
+}
+
 export function renderHelp(els: Els, look: Look, full: boolean) {
   const { Box } = els
   const c = look.theme.colors

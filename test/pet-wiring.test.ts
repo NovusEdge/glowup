@@ -47,7 +47,18 @@ test('the pet region is sized to the strip so he has room to walk; the compact r
   await inline.unmount()
 })
 
-test('pet off, or reduced motion: no pet Client in the pane', async ($, on) => {
+test('the stored tab setup shapes the tab strip while the pet is on', { timeoutMs: 20000 }, async ($, on) => {
+  base(on); mock.clock(on)
+  await runGlowup($, 'setup tabs plan,changes')
+  const pane = await mountPane($)
+  const tree = await pane.drawn()
+  expect(petClient(tree)).toBeDefined()
+  const labels = walk(tree).filter(n => n?.type === 'Button' && /^\d$/.test(n.props?.hotkey ?? '')).map(n => n.props.label)
+  expect(labels).toEqual(['Plan & context', 'Changes'])
+  await pane.unmount()
+})
+
+test('pet off, or reduced motion: no pet Client in the pane',async ($, on) => {
   base(on); mock.clock(on)
   for (const cmd of ['pet off', 'motion reduced']) {
     await runGlowup($, cmd)

@@ -1,10 +1,11 @@
 import type { Host } from './host.ts'
-import { resolveTheme, PRESETS, COLOR_KEYS, shown } from './themes.ts'
+import { resolveTheme, PRESETS, COLOR_KEYS, ROLE_LABELS, shown } from './themes.ts'
 import { loadUserThemes, addTheme } from './userthemes.ts'
 import { takeOver, restore, drawsStatusLine } from './statusline.ts'
 import { resolveLook, exportMix, normalizeHex, cleanOverrides, SPINNER_IDS, type Mix } from './packs.ts'
 import { PACKS } from './packpresets.ts'
-import { loadUserPacks, addPack, savePack, SAFE_NAME } from './userpacks.ts'
+import { decodeLink, isStudioLink } from './link.ts'
+import { loadUserPacks, addPack, savePack, installPackText, SAFE_NAME } from './userpacks.ts'
 import { parseScheme } from './schemes.ts'
 import { konsoleScheme } from './konsole.ts'
 import type { PetSetting } from './pets.ts'
@@ -12,6 +13,7 @@ import type { BubbleSetting } from './bubbles.ts'
 import type { EggStore } from './eggs.ts'
 import { SHORT_TEXT, FULL_TEXT, configText } from './help.ts'
 import { FIELD_IDS, isFieldId, type FieldId } from './fields.ts'
+import { parseSetup, setSetupField, describeSetup, DEFAULT_SETUP, type Setup } from './setup.ts'
 
 // What a command that needs more input falls back to, and what a headless config run prints.
 export const USAGE = FULL_TEXT
@@ -38,6 +40,8 @@ export type Ctl = {
   fields(): readonly FieldId[]
   // undefined goes back to the installer's (userConfig) list
   setFields(f: readonly FieldId[] | undefined): void
+  setup(): Setup
+  setSetup(s: Setup): void
 }
 
 const MAX_SCHEME_BYTES = 65536
@@ -68,7 +72,7 @@ async function colorList(host: Host, ctl: Ctl): Promise<string> {
   const m = ctl.mix()
   const { look } = resolveLook(m, await loadUserPacks(host), await loadUserThemes(host))
   const over = cleanOverrides(m.overrides) ?? {}
-  const rows = COLOR_KEYS.map(k => `${k in over ? '●' : '○'} ${k.padEnd(6)} ${look.theme.colors[k]}${k in over ? '  (override)' : ''}`)
+  const rows = COLOR_KEYS.map(k => `${k in over ? '●' : '○'} ${k.padEnd(6)} ${look.theme.colors[k]}  ${ROLE_LABELS[k]}${k in over ? '  (override)' : ''}`)
   return [...rows, '', '● overridden. Set one with /glowup color <role> <#hex>; clear with /glowup color reset [role].'].join('\n')
 }
 
@@ -233,6 +237,32 @@ async function wizard(host: Host, ctl: Ctl): Promise<string> {
   return summary(ctl)
 }
 
+// Each part stands alone: one that fails is named, and the others still apply.
+async function packFromLink(host: Host, ctl: Ctl, link: string, force: boolean): Promise<string> {
+  const { parts, errors } = decodeLink(link)
+  const out = [...errors]
+  if (parts.pack !== undefined) {
+    const r = await installPackText(host, JSON.stringify(parts.pack, null, 2) + '\n', force)
+    if (!r.name) out.push(r.message)
+    else {
+      const keep = ctl.mix().overrides
+      await applyMix(host, ctl, { colors: r.name, motion: r.name, ...(keep && { overrides: keep }) })
+      out.push(`Pack: ${r.name}`)
+    }
+  }
+  if (parts.setup !== undefined) {
+    const { setup, notices } = parseSetup(parts.setup)
+    if (typeof parts.setup !== 'object' || parts.setup === null || Array.isArray(parts.setup)) out.push(`Setup not applied: ${notices[0]}`)
+    else if (await ctl.confirm('This link also carries a layout setup (band, tabs, meter, bubbles, pet sleep). Apply it?')) {
+      await host.storeSet('setup', setup)
+      ctl.setSetup(setup)
+      out.push('Setup: applied', ...notices.map(n => `  dropped: ${n}`))
+    } else out.push('Setup: kept yours')
+  }
+  if (parts.pet !== undefined) out.push('This link carries a pet; this glowup cannot install pets yet.')
+  return out.join('\n') || 'This link carries nothing to install.'
+}
+
 export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<string> {
   const [sub, a1, a2] = args.trim().split(/\s+/)
   // A bare subcommand reports where things stand instead of falling through to Unknown.
@@ -272,6 +302,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     const { look } = resolveLook(ctl.mix(), await loadUserPacks(host), await loadUserThemes(host))
     return savePack(host, exportMix(look, a2))
   }
+  if (sub === 'pack' && a1 && isStudioLink(a1)) return packFromLink(host, ctl, a1, a2 === '--force')
   if (sub === 'pack' && a1?.startsWith('https://')) {
     const r = await addPack(host, a1, a2 === '--force')
     if (!r.name) return r.message
@@ -347,6 +378,20 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   }
   if (sub === 'statusline' && a1 === 'on') return takeOver(host, q => ctl.confirm(q))
   if (sub === 'statusline' && a1 === 'restore') return restore(host)
+  if (sub === 'setup' && !a1) return describeSetup(ctl.setup())
+  if (sub === 'setup' && a1 === 'reset') {
+    await host.storeDelete('setup')
+    ctl.setSetup(DEFAULT_SETUP)
+    return describeSetup(DEFAULT_SETUP)
+  }
+  if (sub === 'setup' && a1 && a2) {
+    const r = setSetupField(ctl.setup(), a1, args.trim().split(/\s+/).slice(2).join(' '))
+    if ('error' in r) return r.error
+    await host.storeSet('setup', r.setup)
+    ctl.setSetup(r.setup)
+    return describeSetup(r.setup)
+  }
+  if (sub === 'setup') return 'Use /glowup setup <key> <value>, /glowup setup, or /glowup setup reset.'
   if (sub === 'help' && a1 === 'all') return FULL_TEXT
   return sub && sub !== 'help' ? `Unknown: ${args.trim()}\n\n${SHORT_TEXT}` : SHORT_TEXT
 }

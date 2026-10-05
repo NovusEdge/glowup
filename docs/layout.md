@@ -43,11 +43,15 @@ When the line is too long, the action text is shortened first. If the rest of th
 
 ![The band above the prompt](assets/band.png)
 
+Pick which parts show and in what order with /glowup setup band (see [setup](commands.md#setup)). combo always sits right after the activity label.
+
 ## The tabs
 
 The pane has three tabs, selected with their number key or by clicking. In the docked pane each tab is a box in the pack's border style, with the section name and its counts in the top edge; the compact drawer draws no boxes.
 
 Under the tabs in the wide pane, a status box shows the current action, the running subagents and a row of hearts. These hearts show account usage: whichever of the 5-hour and weekly limits has less left, for example `♥♥♡♡♡  weekly limit 38% left`. On an API key, which has no such limits, the row shows the session's spend instead, such as `$4.20 spent this session`. Until the first usage reading arrives, the hearts show context.
+
+Hide or reorder tabs with /glowup setup tabs; their number keys follow the order shown.
 
 ### Changes
 

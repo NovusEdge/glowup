@@ -10,13 +10,18 @@ import { wrapBubble, type Mood } from './bubbles.ts'
 import { CLAWD_ROW, PET_ROWS, type PetId } from './pets.ts'
 import { comboSegs, fit, hearts, hpBar, renderSegs, toneColor, visibleLength, type Seg } from './layout.tsx'
 import { liveLimit } from './fields.ts'
+import { DEFAULT_SETUP, type Meter, type TabId } from './setup.ts'
 
-export type TabId = 'changes' | 'agents' | 'plan'
+export type { TabId }
 // ctx comes from the context breakdown: threshold is the auto-compact point in tokens (absent when it is off),
 // window the model's window that m.ctxPercent and m.ctxHistory are measured against.
 export type CtxDetail = { autoCompact: boolean; threshold?: number; window?: number; heavy: Heavy[]; cacheHit?: number }
-export type PaneView = { tab: TabId; offset?: number; categories?: { name: string; tokens: number; kind: ContextCategoryKind }[]; maxTokens?: number; ctx?: CtxDetail; reduced?: boolean }
+export type PaneView = { tab: TabId; offset?: number; categories?: { name: string; tokens: number; kind: ContextCategoryKind }[]; maxTokens?: number; ctx?: CtxDetail; reduced?: boolean; meter?: Meter }
 export const TABS: [TabId, string][] = [['changes', 'Changes'], ['agents', 'Agents'], ['plan', 'Plan & context']]
+export function visibleTabs(order: readonly TabId[] | undefined, open: TabId): { tabs: [TabId, string][]; tab: TabId } {
+  const tabs = order ? order.map(id => TABS.find(([t]) => t === id)!).filter(Boolean) : TABS
+  return { tabs, tab: tabs.some(([id]) => id === open) ? open : tabs[0]![0] }
+}
 // The compact drawer sits under a one-row tab strip in a short space.
 export const COMPACT_ROWS = 6
 const SPIN = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
@@ -178,7 +183,7 @@ function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, limi
   if (heavy.length) ctx.push([], ...heavy.map(h => heavyRow(h, iw, t)))
   const tail = stats(m, v, iw, t)
   if (tail) ctx.push(...(chart.length || heavy.length ? [] : [[]]), tail)
-  if (used >= 70) {
+  if (used >= (v.meter ?? DEFAULT_SETUP.meter).danger) {
     const top = stack.slices[0]
     ctx.push([{ text: `! ${top && top.label !== 'used' ? `${top.label} is the biggest share` : `context ${used}% used`}`, color: c.edit }])
   }
@@ -232,7 +237,7 @@ export function statusRows(model: Model, base: Theme, width: number, now: number
 // rows is the strip height: PET_ROWS, or two more while an outfit needs headroom.
 // meter and field come from a renderer plugin: rows for the status box, and a builder for the
 // field's player given the rows left open between the tab and the status box.
-export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Mood }; friday?: boolean; minRows?: number; bodyRows?: number; onScroll?: (offset: number) => void; meter?: Seg[][]; field?: (rows: number) => unknown }
+export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Mood }; friday?: boolean; minRows?: number; bodyRows?: number; onScroll?: (offset: number) => void; meter?: Seg[][]; field?: (rows: number) => unknown; tabs?: readonly TabId[] }
 export const PET_STRIP_COLS = 46
 const BUBBLE_ROOM = 16
 
@@ -306,6 +311,8 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
   const { Box, Button } = els
   const look = extra?.look, t = look?.theme ?? base
   const inner = width - 2
+  const shown = visibleTabs(extra?.tabs, v.tab)
+  v = { ...v, tab: shown.tab }
   // the drawer shows a tab strip, the tab content and one pet row, all within COMPACT_ROWS
   let rowsLeft = compact && extra?.pet ? COMPACT_ROWS - 2 : COMPACT_ROWS
   if (compact && extra?.bodyRows) rowsLeft = Math.max(1, Math.min(rowsLeft, extra.bodyRows - 1 - (extra.pet ? 1 : 0)))
@@ -334,7 +341,7 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
     // minHeight, not height: a short tab still pushes the status box to the bottom of the body
     <Box flexDirection="column" width={width} minHeight={compact ? undefined : extra?.minRows}>
       <Box flexDirection="row" gap={1}>
-        {TABS.map(([id, label], i) => <Button key={'tab-' + id} label={label} hotkey={String(i + 1)} variant={v.tab === id ? 'primary' : undefined} dimColor={v.tab !== id} onPress={() => onTab(id)} />)}
+        {shown.tabs.map(([id, label], i) => <Button key={'tab-' + id} label={label} hotkey={String(i + 1)} variant={v.tab === id ? 'primary' : undefined} dimColor={v.tab !== id} onPress={() => onTab(id)} />)}
       </Box>
       <Box flexDirection="column" flexGrow={1} marginTop={compact ? 0 : 1}>
         {rows.map((r, i) => renderSegs(els, r, 'r' + i))}

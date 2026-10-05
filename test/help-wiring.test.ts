@@ -64,6 +64,43 @@ test('the card follows the current look', async ($, on) => {
   await ui.unmount()
 })
 
+test('the color list draws a swatch in each role color, upper-case hex included', async ($, on) => {
+  setup(on)
+  // the engine prefixes the row's first line with the plugin's name
+  const text = ['glowup: ○ read   #aabbcc  read rows', '● accent #ABCDEF  plan item  (override)', '', '● overridden. Set one with /glowup color <role> <#hex>.'].join('\n')
+  for (const args of ['color', 'color list']) {
+    const ui = await mountRow($, row(args, text))
+    const drawn = await ui.drawn()
+    expect(texts(drawn)).not.toContain('engine')
+    expect(texts(drawn)).not.toContain('glowup:')
+    expect(walk(drawn).filter(n => n?.children?.[0] === '██ ').map(n => n.props.color)).toEqual(['#aabbcc', '#ABCDEF'])
+    expect(colorOf(drawn, '  (override)')?.color).toBe(classic.theme.colors.accent)
+    await ui.unmount()
+  }
+})
+
+test('in a narrow column only the label of a color row can shrink', async ($, on) => {
+  setup(on)
+  const ui = await mountRow($, row('color list', '○ read   #5b8cf0  read & search rows, running subagent work'))
+  const drawn = await ui.drawn()
+  const boxes = walk(drawn).filter(n => n?.type === 'Box' && n.props?.flexShrink !== undefined)
+  const fixed = boxes.find(b => b.props.flexShrink === 0)
+  const shrinks = boxes.find(b => b.props.flexShrink === 1)
+  expect(texts(fixed)).toBe('○ ██ read   #5b8cf0  ')
+  expect(texts(shrinks)).toBe('read & search rows, running subagent work')
+  expect(walk(shrinks).find(n => n?.type === 'Text')?.props.wrap).toBe('truncate')
+  await ui.unmount()
+})
+
+test('a color row whose text is not the list is the engine row', async ($, on) => {
+  setup(on)
+  for (const args of ['color', 'color list']) {
+    const ui = await mountRow($, row(args, 'No color role named "x". Roles: accent, text.'))
+    expect(texts(await ui.drawn())).toBe('engine')
+    await ui.unmount()
+  }
+})
+
 test('other rows, errors and altered help text pass through', async ($, on) => {
   setup(on)
   for (const props of [

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `/glowup setup`: pick and order the band's parts and the pane's tabs, set when context and usage turn warning and danger colors, choose which moments get a speech bubble and how long it stays, and how soon the pet falls asleep. Your setup is never changed by installing a pack.
+- `/glowup pack <studio link>` installs a look straight from a glowup studio link, with nothing downloaded.
+- `/glowup color list` draws each color and says what it paints.
+
+### Changed
+
+- The pane's context warning now appears at the danger threshold, 80% by default (it was 70%).
+
 ## [0.7.0] - 2026-10-05
 
 ### Added

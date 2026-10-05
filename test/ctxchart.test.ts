@@ -179,10 +179,10 @@ test('the bar marks the auto-compact point and the heaviest sources list under t
   expect(text(tabRows(base(), T, { ...view, ctx: DETAIL }, 40, true, 0)).at(-1)).toContain('┊')
 })
 
-test('the warning appears from 70% only', async () => {
+test('the warning appears from 80% only', async () => {
   const rows = (p: number) => text(tabRows(base({ ctxPercent: p }), T, view, 60, false, 0))
-  expect(rows(70).some(r => r.includes('! messages is the biggest share'))).toBe(true)
-  expect(rows(69).some(r => r.includes('!'))).toBe(false)
+  expect(rows(80).some(r => r.includes('! messages is the biggest share'))).toBe(true)
+  expect(rows(79).some(r => r.includes('!'))).toBe(false)
 })
 
 test('compact drawer keeps its row budget and shows one stacked bar with the percent', async () => {

@@ -6,6 +6,7 @@ import type { PetSetting } from '../hooks/pets.ts'
 import type { BubbleSetting } from '../hooks/bubbles.ts'
 import { configText, parsePicked } from '../hooks/help.ts'
 import { DEFAULT_FIELDS, type FieldId } from '../hooks/fields.ts'
+import { DEFAULT_SETUP } from '../hooks/setup.ts'
 
 type Q = { question: string; header: string; options: string[]; multiSelect?: true }
 const ESC = Symbol('esc')
@@ -35,6 +36,8 @@ const rig = (answers: (string | typeof ESC)[], start: { mix?: Mix; pet?: PetSett
     reduced: () => reduced,
     fields: () => fields,
     setFields: f => { fields = f ? [...f] : DEFAULT_FIELDS; calls.push('fields:' + fields.join(' ')) },
+    setup: () => DEFAULT_SETUP,
+    setSetup: () => {},
     ask: async (question, o) => {
       asked.push({ question, header: o.header, options: [...o.options], multiSelect: o.multiSelect })
       const a = answers.shift()

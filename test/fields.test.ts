@@ -70,3 +70,13 @@ test('parseFields: arrays and strings, unknown dropped, repeats keep the first, 
   expect(parseFields('')).toBeUndefined()
   expect(parseFields(42)).toBeUndefined()
 })
+
+test('field tones follow the meter', () => {
+  // the painted line with the number blanked, so only the color differs
+  const tc = (p: number, meter?: { warn: number; danger: number }) =>
+    renderFields({ ...initialModel(), ctxPercent: p }, T, ['ctx'], { now: NOW, tzOffset: 0, color: 'truecolor', meter }).replace(`${p}%`, 'N%')
+  expect(tc(60)).toBe(tc(55))
+  expect(tc(60)).not.toBe(tc(10))
+  expect(tc(60, { warn: 70, danger: 90 })).toBe(tc(10))
+  expect(tc(60, { warn: 30, danger: 55 })).toBe(tc(95))
+})
