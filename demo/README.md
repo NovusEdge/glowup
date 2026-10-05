@@ -76,6 +76,7 @@ clears the rows and redraws the ones still on screen.
   February 2025, so Revideo wins. Remotion was dropped by the owner's choice.
 - Versions are pinned exactly in `package.json`.
 - pnpm 10+ blocks dependency build scripts by default; `pnpm-workspace.yaml` lists the ones this project needs.
+  Install with plain `pnpm -C demo install`: `--ignore-workspace` also skips that file, so the install stops on ignored build scripts.
   Puppeteer's own Chrome download is not needed when system Chromium is present
   (`PUPPETEER_SKIP_DOWNLOAD=1 pnpm install`).
 - On a fresh `node_modules` the first render fails once while vite re-optimizes its dependencies; `render.ts` retries.
