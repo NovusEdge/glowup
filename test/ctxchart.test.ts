@@ -1,6 +1,6 @@
 import { test, expect } from 'claude-code/testing'
 import { tabRows, COMPACT_ROWS } from '../hooks/pane.tsx'
-import { stackBar, legendRows, shortName, tokensK, brailleArea, growth, heaviest, cacheHit } from '../hooks/ctxchart.ts'
+import { stackBar, legendRows, shortName, tokensK, brailleArea, chartTop, growth, heaviest, cacheHit } from '../hooks/ctxchart.ts'
 import { visibleLength, type Seg } from '../hooks/layout.tsx'
 import { initialModel, type Model, type PlanItem } from '../hooks/model.ts'
 import { resolveTheme, PRESETS } from '../hooks/themes.ts'
@@ -60,7 +60,7 @@ test('more than six categories fold into other; no categories draws one used seg
 
 test('names are short and tokens are in k', async () => {
   expect(['System prompt', 'System tools', 'Memory files', 'Messages', 'MCP tools', 'Custom agents', 'Skills'].map(shortName)).toEqual(['system', 'tools', 'memory', 'messages', 'mcp', 'agents', 'skills'])
-  expect([124000, 200000, 900, 1500000].map(tokensK)).toEqual(['124k', '200k', '900', '1.5M'])
+  expect([124000, 200000, 900, 1700, 3000, 1500000].map(tokensK)).toEqual(['124k', '200k', '900', '1.7k', '3k', '1.5M'])
 })
 
 test('the legend wraps onto more rows when narrow and every row fits', async () => {
@@ -107,6 +107,16 @@ test('braille area: two samples per cell, eight levels, and a rule at the given 
   const many = brailleArea(Array.from({ length: 50 }, () => 30), 10)
   expect(many.rows.every(r => [...r].length === 10)).toBe(true)
   expect(many.data.every(Boolean)).toBe(true)
+})
+
+test('the chart scales to the session: the auto-compact point when near it, room above the peak when far', async () => {
+  expect(chartTop([20, 50], 80)).toBe(80)
+  expect(chartTop([20, 90], 80)).toBe(90)
+  expect(chartTop([3, 17], 99.7)).toBe(25)
+  expect(chartTop([3, 17])).toBe(25)
+  expect(chartTop([])).toBe(5)
+  // a 17% session on a 25% scale reaches the top row; the far-off rule is not drawn
+  expect(brailleArea([17, 17], 4, 99.7, 25).rows).toEqual(['⣀⣀  ', '⣿⣿  '])
 })
 
 test('growth is per turn since the last drop', async () => {

@@ -1,6 +1,6 @@
 import type { ContextCategoryKind } from 'claude-code'
 import { normalizeModel, type Model, type PlanItem } from './model.ts'
-import { brailleArea, growth, legendRows, markBar, stackBar, tokensK, type Heavy } from './ctxchart.ts'
+import { brailleArea, chartTop, growth, legendRows, markBar, stackBar, tokensK, type Heavy } from './ctxchart.ts'
 import { planOrder } from './tasks.ts'
 import type { Theme } from './themes.ts'
 import { shortPath } from './events.ts'
@@ -131,9 +131,10 @@ const chartRow = (row: string, data: boolean[], t: Theme): Seg[] =>
 function trend(m: Model, v: PaneView, w: number, t: Theme): Seg[][] {
   if (!m.ctxHistory.length) return []
   const win = v.ctx?.window, line = v.ctx?.threshold && win ? v.ctx.threshold / win * 100 : undefined
-  // the rule's percent sits at the right end of the top row, where the rule is
-  const label = line !== undefined && w >= 24 ? ` ${Math.round(line)}%`.padStart(5) : ''
-  const { rows, data } = brailleArea(m.ctxHistory, w - label.length, line)
+  // the chart's ceiling sits at the right end of the top row; it is the auto-compact point when the rule shows
+  const top = chartTop(m.ctxHistory, line)
+  const label = w >= 24 ? ` ${Math.round(top)}%`.padStart(5) : ''
+  const { rows, data } = brailleArea(m.ctxHistory, w - label.length, line, top)
   const rate = growth(m.ctxHistory), says: string[] = []
   if (rate !== undefined && win) says.push(rate > 0 ? `+${tokensK(rate / 100 * win)}/turn` : 'steady')
   if (v.ctx && !v.ctx.autoCompact) says.push('auto-compact off')
