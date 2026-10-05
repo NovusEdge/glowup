@@ -102,7 +102,7 @@ export function Studio() {
                   <div className="seg2" role="group" aria-label="Preview width">
                     {WIDTHS.map(w => <button key={w} type="button" aria-pressed={width === w} onClick={() => setWidth(w)}>{w}</button>)}
                   </div>
-                  <p>Band shows in narrow; pane shows in wide and fullscreen.</p>
+                  <p>Band items (combo, agents, meter) show in narrow; the pane shows in wide and fullscreen.</p>
                 </div>
                 <Terminal setup={setup} interactive scale={z} />
               </div>

@@ -13,7 +13,7 @@
 .term .ptabs b,.term .ptabs button.on{color:var(--read);font-weight:700}
 .term .ptabs span,.term .ptabs b{white-space:nowrap}
 .term .pbody{flex:1;min-height:0;display:flex;flex-direction:column;gap:.615em;position:relative}
-.term .pbody>:not(.pfield){position:relative}
+.term .pane>:not(.pfield){position:relative}
 .term .pfield{position:absolute;inset:0;overflow:hidden;pointer-events:none;font-size:.9em;line-height:1;white-space:pre}
 .term .phead{display:flex;justify-content:space-between;font-weight:700;margin-top:.462em}
 .term .phead span{color:var(--dim);font-weight:400}
@@ -90,7 +90,7 @@
 .term .status.real .gl{color:var(--dim)}
 @keyframes term-in{from{opacity:0;transform:translateY(4px)}}
 @keyframes term-blink{50%{opacity:0}}
-@media (prefers-reduced-motion:reduce){.term .row,.term .res,.term .say,.term .diff,.term .cur{animation:none}}
+@media (prefers-reduced-motion:reduce){.term .ctxbar i{transition:none}.term .row,.term .res,.term .say,.term .diff,.term .cur{animation:none}}
 
 /* Phones: the pane drops under the transcript. */
 @media (max-width:900px){

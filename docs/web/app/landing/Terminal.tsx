@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useId, useRef, useState } from 'react'
 import { CLAWD_SAY, DEFAULT_SETUP, renderFields, spinnerWordSpans, toneFor, type BandItem, type Model, type OrbState, type Setup, type StatusFieldId, type TabId } from './data.ts'
 import { useReducedMotion, useVisible } from './motion.ts'
 import { PaneField } from './PaneField.tsx'
@@ -159,6 +159,16 @@ export function Terminal({ setup = DEFAULT_SETUP, interactive = false, scale = 1
   // The body shows the selected tab; a tab the setup dropped falls back to Changes, or to the first one left.
   const active: TabId = setup.tabs.includes(tab) ? tab : setup.tabs.includes('changes') ? 'changes' : setup.tabs[0] ?? 'changes'
   const field = look.motion.field
+  const uid = useId()
+  const onTabKey = (e: React.KeyboardEvent) => {
+    const i = setup.tabs.indexOf(active)
+    const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: setup.tabs.length - 1 }[e.key]
+    if (next === undefined) return
+    e.preventDefault()
+    const t = setup.tabs[(next + setup.tabs.length) % setup.tabs.length]!
+    setTab(t)
+    document.getElementById(`${uid}-tab-${t}`)?.focus()
+  }
 
   // role="img": screen readers get one label instead of a looping transcript; crawlers still read the DOM text.
   // The studio's tabs are buttons, and an img role would hide them from the accessibility tree.
@@ -167,17 +177,17 @@ export function Terminal({ setup = DEFAULT_SETUP, interactive = false, scale = 1
       aria-label="A Claude Code session with glowup: Claude edits src/auth.ts, a test fails, the fix passes.">
       <div className="tbar"><i /><i /><i /><span className="ttl">claude — ~/shop</span></div>
       <div className="tbody">
-        <div className="tx">{state.rows.map((r, i) => <RowView key={i} r={r} />)}</div>
+        <div className="tx" aria-hidden={interactive || undefined}>{state.rows.map((r, i) => <RowView key={i} r={r} />)}</div>
         <aside className="pane">
+          {interactive && field.shape !== 'none' && <PaneField field={field} colors={look.theme.colors} />}
           {/* Landing: the body always lists changes, so that tab is drawn selected; with it hidden, the first tab is. */}
-          <div className="ptabs" role={interactive ? 'tablist' : undefined}>{setup.tabs.map((t, i) => {
+          <div className="ptabs" role={interactive ? 'tablist' : undefined} onKeyDown={interactive ? onTabKey : undefined}>{setup.tabs.map((t, i) => {
             const on = interactive ? t === active : setup.tabs.includes('changes') ? t === 'changes' : i === 0
             const label = `[${TAB_LABEL[t]}]`
-            if (interactive) return <button key={t} type="button" role="tab" aria-selected={on} className={on ? 'on' : undefined} onClick={() => setTab(t)}>{label}</button>
+            if (interactive) return <button key={t} id={`${uid}-tab-${t}`} type="button" role="tab" aria-selected={on} aria-controls={`${uid}-panel`} tabIndex={on ? 0 : -1} className={on ? 'on' : undefined} onClick={() => setTab(t)}>{label}</button>
             return on ? <b key={t}>{label}</b> : <span key={t}>{label}</span>
           })}</div>
-          <div className="pbody">
-            {interactive && field.shape !== 'none' && <PaneField field={field} colors={look.theme.colors} />}
+          <div className="pbody" role={interactive ? 'tabpanel' : undefined} id={interactive ? `${uid}-panel` : undefined} aria-labelledby={interactive ? `${uid}-tab-${active}` : undefined}>
             {!interactive || active === 'changes' ? (
               <>
                 <div className="phead">CHANGES<span className="tot">{state.files.length ? `${state.files.length} files` : ''}</span></div>
