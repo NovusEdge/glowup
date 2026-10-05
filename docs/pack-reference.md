@@ -26,7 +26,10 @@ Packs are read from `~/.claude/glowup/packs`, or `$CLAUDE_CONFIG_DIR/glowup/pack
     "extras": { "hp": true, "combo": true },
     "rowFlags": { "labels": false, "markers": true, "xp": true },
     "meters": "dither",             // default | dither
-    "dividers": true                // a numbered rule above each prompt
+    "dividers": true,               // a numbered rule above each prompt
+    "glyphs": { "read": "»" },      // tool-kind glyphs, by key
+    "hearts": ["●", "○"],           // full, then empty
+    "words": ["Brewing", "Dialing in"] // spinner words
   },
   "motion": {
     "spinner": "orb-states",        // stock | comet | eyes | orb-states | clawd | shimmer
@@ -53,6 +56,16 @@ Every field except `format` and `name` is optional. `palette` takes the color ro
 - Any other bad value refuses the layer it is in, and that layer falls back to `classic`.
 
 `/glowup pack <url>` accepts `https://` only, waits up to 10 seconds, and validates the whole file and its `extends` chain before writing. It refuses a built-in name, or the name of an installed pack unless `--force` is given.
+
+## Glyphs, hearts and spinner words
+
+A pack can carry what a [theme file](theme-reference.md) carries beyond colors, laid over the theme the pack starts from.
+
+- `colors.glyphs` is an object of glyph keys, each one width-1 character. Keys you leave out keep the theme's glyph. The keys are the ones in the theme reference.
+- `colors.hearts` is two width-1 characters, full then empty.
+- `colors.words` is a list of spinner words, each at most 24 characters. An empty list keeps the theme's words.
+
+A glowup that predates these keys refuses the pack's colors layer as an unknown key. They are ignored while `/glowup theme <name>` overrides the pack's theme. A studio link or `/glowup pack save` writes them only when they differ from the theme.
 
 ## Row styles
 

@@ -171,3 +171,29 @@ test('packNameProblem refuses unsafe and built-in names with the install wording
   expect(packNameProblem('')).toBe('A pack needs a "name" of lowercase letters, digits and dashes.')
   expect(packNameProblem('a'.repeat(41))).toBe('A pack needs a "name" of lowercase letters, digits and dashes.')
 })
+
+test('a pack can set glyphs, hearts and spinner words over its theme', () => {
+  const pack = { format: 1, name: 'g', colors: { theme: 'classic', glyphs: { read: '»' }, hearts: ['●', '○'], words: ['Brewing'] } }
+  const { look, errors } = resolveLook({ colors: 'g', motion: 'classic' }, { g: pack }, {})
+  expect(errors).toEqual([])
+  expect(look.theme.glyphs.read).toBe('»')
+  expect(look.theme.glyphs.edit).toBe(resolveTheme('classic', {}).theme.glyphs.edit)
+  expect(look.theme.hearts).toEqual(['●', '○'])
+  expect(look.theme.spinnerWords).toEqual(['Brewing'])
+})
+
+test('pack glyphs, hearts and words are checked like theme files', () => {
+  const bad = (colors: object) => () => validatePack({ format: 1, name: 'g', colors })
+  expect(bad({ glyphs: { read: 'ab' } })).toThrow('glyph "read" must be one width-1 character')
+  expect(bad({ glyphs: { nope: '»' } })).toThrow('unknown glyph "nope"')
+  expect(bad({ hearts: ['♥'] })).toThrow('colors.hearts must be two width-1 characters')
+  expect(bad({ words: ['x'.repeat(25)] })).toThrow('colors.words must be short strings of printable characters')
+})
+
+test('exportMix leaves out glyphs, hearts and words that match the base theme', () => {
+  const plain = exportMix(resolveLook({ colors: 'cozy', motion: 'cozy' }, {}, {}).look, 'x')
+  expect('glyphs' in (plain.colors as object) || 'hearts' in (plain.colors as object) || 'words' in (plain.colors as object)).toBe(false)
+  const pack = { format: 1, name: 'g', colors: { theme: 'classic', glyphs: { read: '»' } } }
+  const out = exportMix(resolveLook({ colors: 'g', motion: 'classic' }, { g: pack }, {}).look, 'g')
+  expect((out.colors as { glyphs?: object }).glyphs).toEqual({ read: '»' })
+})

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `/glowup config` opens a config pane instead of a series of questions. Enter cycles the pack, spinner, pet, meter, bubbles and motion; color rows take an exact hex; band, tabs, bubble moods and status line fields take a typed list, which can also reorder them. A preview shows the look, and the pane can copy a studio link or reset everything to defaults.
+- Packs can set `colors.glyphs`, `colors.hearts` and `colors.words`, and a studio link's setup can carry the status line fields. Older glowups refuse a pack that uses the new keys.
 
 ### Changed
 

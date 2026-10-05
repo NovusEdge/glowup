@@ -479,6 +479,13 @@ test('a studio link setup with unknown ids applies like a stored one and names w
   expect(await runCommand(host, `pack ${encodeLink({ setup: { band: ['plan', 'weather'] } })}`, ctl(false).ctl)).toBe('Setup: kept yours')
 })
 
+test('a studio link status line keeps the field ids glowup knows and names the rest', async () => {
+  const { host, store } = fakeHost()
+  const out = await runCommand(host, `pack ${encodeLink({ setup: { statusline: ['model', 'nope', 'ctx'] } })}`, ctl(true).ctl)
+  expect(store.statusline).toEqual(['model', 'ctx'])
+  expect(out).toContain('  dropped: unknown status line field "nope"')
+})
+
 test('a studio link setup that is not an object is refused without asking', async () => {
   const { host, store } = fakeHost()
   const q = ctl(true)

@@ -1,5 +1,5 @@
 // JSX-free: the docs site imports it.
-import { resolveTheme, PRESETS, COLOR_KEYS, shown, isPlain, isUnsafe, type Colors, type Theme } from './themes.ts'
+import { resolveTheme, PRESETS, COLOR_KEYS, GLYPH_KEYS, shown, isPlain, isUnsafe, checkGlyphs, checkHearts, checkWords, type Colors, type Theme } from './themes.ts'
 import { PACKS } from './packpresets.ts'
 
 export const SPINNER_IDS = ['stock', 'comet', 'eyes', 'orb-states', 'clawd', 'shimmer'] as const
@@ -21,7 +21,7 @@ export const FIELD_KEYS = ['shape', ...Object.keys(FIELD_KNOBS), 'dither', 'colo
 export type Field = { shape: FieldId; dither: (typeof DITHERS)[number]; color?: string } & Record<keyof typeof FIELD_KNOBS, number>
 export const FIELD_DEFAULTS: Omit<Field, 'shape'> = { speed: 1, scale: 1, rotation: 0, offsetX: 0, offsetY: 0, density: 1, warp: 4, size: 1, fps: 10, dither: '8x8' }
 export type RowFlags = { labels: boolean; markers: boolean; xp: boolean }
-export type ColorsLayer = { theme?: string; palette?: Partial<Colors>; bg?: string; rows?: RowStyle; border?: Border; borderColor?: string; gradient?: [string, string]; extras?: { hp?: boolean; combo?: boolean }; rowFlags?: Partial<RowFlags>; meters?: MeterStyle; dividers?: boolean }
+export type ColorsLayer = { theme?: string; palette?: Partial<Colors>; bg?: string; rows?: RowStyle; border?: Border; borderColor?: string; gradient?: [string, string]; extras?: { hp?: boolean; combo?: boolean }; rowFlags?: Partial<RowFlags>; meters?: MeterStyle; dividers?: boolean; glyphs?: Partial<Theme['glyphs']>; hearts?: [string, string]; words?: string[] }
 // spinner is any well-formed id: a pack made for a later glowup may name one this build lacks
 export type MotionLayer = { spinner?: string; shimmer?: 0 | 1 | 2; color?: string; field?: FieldId | ({ shape: FieldId } & Partial<Omit<Field, 'shape'>>) }
 export type PackFile = { format: 1; name: string; extends?: string; description?: string; colors?: ColorsLayer | string; motion?: MotionLayer | string }
@@ -37,7 +37,7 @@ export const MAX_DEPTH = 8
 const FORMAT = 1
 // sound and voice are reserved for later versions: accepted, never read
 export const PACK_KEYS = ['format', 'name', 'extends', 'description', 'colors', 'motion', 'sound', 'voice']
-export const COLORS_KEYS = ['theme', 'palette', 'bg', 'rows', 'border', 'borderColor', 'gradient', 'extras', 'rowFlags', 'meters', 'dividers']
+export const COLORS_KEYS = ['theme', 'palette', 'bg', 'rows', 'border', 'borderColor', 'gradient', 'extras', 'rowFlags', 'meters', 'dividers', 'glyphs', 'hearts', 'words']
 export const MOTION_KEYS = ['spinner', 'shimmer', 'color', 'field']
 export const EXTRAS_KEYS = ['hp', 'combo']
 export const ROW_FLAG_KEYS = ['labels', 'markers', 'xp']
@@ -120,6 +120,9 @@ function checkColors(v: unknown): void {
   }
   if (v.meters !== undefined && !oneOf(METER_STYLES, v.meters)) throw new Error(`colors.meters must be one of ${METER_STYLES.join(', ')}`)
   if (v.dividers !== undefined && typeof v.dividers !== 'boolean') throw new Error('colors.dividers must be true or false')
+  checkGlyphs(v.glyphs, 'colors.glyphs')
+  checkHearts(v.hearts, 'colors.hearts')
+  checkWords(v.words, 'colors.words')
 }
 
 function checkMotion(v: unknown): void {
@@ -154,7 +157,7 @@ export function validatePack(file: unknown): asserts file is PackFile {
 
 const merge = (a: Layer, b: Layer): Layer => {
   const out: Layer = { ...a, ...b }
-  for (const k of ['palette', 'extras', 'rowFlags']) if (a[k] || b[k]) out[k] = { ...(a[k] as object), ...(b[k] as object) }
+  for (const k of ['palette', 'extras', 'rowFlags', 'glyphs']) if (a[k] || b[k]) out[k] = { ...(a[k] as object), ...(b[k] as object) }
   return out
 }
 
@@ -182,8 +185,14 @@ function colorsOf(layer: ColorsLayer, override: string | undefined, userThemes: 
   const { theme: base, error } = resolveTheme(override ?? layer.theme ?? 'classic', userThemes)
   if (error) throw new Error(error)
   const colors = { ...(override ? base.colors : { ...base.colors, ...layer.palette }), ...cleanOverrides(overrides) }
+  // a theme override brings its own glyphs, hearts and words, as it does its own palette
+  const own = override ? {} : {
+    glyphs: { ...base.glyphs, ...layer.glyphs },
+    hearts: layer.hearts ?? base.hearts,
+    spinnerWords: layer.words?.length ? layer.words : base.spinnerWords,
+  }
   return {
-    theme: { ...base, colors },
+    theme: { ...base, ...own, colors },
     bg: (!override && layer.bg) || colors.panel,
     borderColor: (!override && layer.borderColor) || colors.faint,
     rows: layer.rows ?? 'classic',
@@ -230,7 +239,7 @@ export function resolveLook(mix: Mix, userPacks: Record<string, unknown>, userTh
   return { look: { colorsFrom, motionFrom, ...c, motion: { spinner, shimmer: m.shimmer ?? 1, color: m.color ?? c.theme.colors.accent, field: fieldOf(m.field) } }, errors }
 }
 
-// A mix based on a user theme exports only built-in theme names: that theme's glyphs and spinner words are not carried.
+// A mix based on a user theme exports no theme name; its glyphs, hearts and words are written as differences from classic.
 export function exportMix(look: Look, name: string): PackFile {
   const colors: ColorsLayer = {
     palette: { ...look.theme.colors }, bg: look.bg, rows: look.rows, border: look.border, borderColor: look.borderColor, extras: { ...look.extras }, rowFlags: { ...look.rowFlags },
@@ -238,6 +247,11 @@ export function exportMix(look: Look, name: string): PackFile {
   }
   if (Object.hasOwn(PRESETS, look.theme.name)) colors.theme = look.theme.name
   if (look.gradient) colors.gradient = [...look.gradient]
+  const base = resolveTheme(Object.hasOwn(PRESETS, look.theme.name) ? look.theme.name : 'classic', {}).theme
+  const glyphs = Object.fromEntries(GLYPH_KEYS.filter(k => look.theme.glyphs[k] !== base.glyphs[k]).map(k => [k, look.theme.glyphs[k]]))
+  if (Object.keys(glyphs).length) colors.glyphs = glyphs
+  if (look.theme.hearts.join() !== base.hearts.join()) colors.hearts = [...look.theme.hearts]
+  if (look.theme.spinnerWords.join('\n') !== base.spinnerWords.join('\n')) colors.words = [...look.theme.spinnerWords]
   // validatePack counts UTF-16 units, so cut there and drop a split surrogate pair.
   const description = `${shown(look.colorsFrom)} colors, ${shown(look.motionFrom)} motion`.slice(0, 80).replace(/[\ud800-\udbff]$/, '')
   return { format: 1, name, description, colors, motion: { ...look.motion } }
