@@ -9,7 +9,7 @@ import { loadUserPacks, addPack, savePack, installPackText, SAFE_NAME } from './
 import { parseScheme } from './schemes.ts'
 import { konsoleScheme } from './konsole.ts'
 import type { PetSetting, PetSheet } from './pets.ts'
-import { userPetNames, loadUserPet, addPet } from './userpets.ts'
+import { userPetNames, loadUserPet, addPet, installPetText } from './userpets.ts'
 import { readLocal } from './readlocal.ts'
 import type { BubbleSetting } from './bubbles.ts'
 import type { EggStore } from './eggs.ts'
@@ -158,7 +158,15 @@ async function packFromLink(host: Host, ctl: Ctl, link: string, force: boolean):
       }
     } else out.push('Setup: kept yours')
   }
-  if (parts.pet !== undefined) out.push('This link carries a pet; this glowup cannot install pets yet.')
+  if (parts.pet !== undefined) {
+    const r = await installPetText(host, JSON.stringify(parts.pet, null, 2) + '\n', force)
+    if (!r.name) out.push(`Pet not installed: ${r.message}`)
+    else {
+      await host.storeSet('pet', r.name)
+      ctl.setPet(r.name, r.sheet)
+      out.push(`Pet: ${r.name}`)
+    }
+  }
   return out.join('\n') || 'This link carries nothing to install.'
 }
 

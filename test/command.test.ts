@@ -570,3 +570,29 @@ test('pet add installs without switching; bare pet add prints usage', async () =
   expect(calls).toEqual([])
   expect(await runCommand(host, 'pet add', c)).toBe('Use /glowup pet add <file|https url> with a pet .json from the studio or the pet sprites page.')
 })
+
+const linkPet = (name: string) => ({ format: 1, name, palette: { A: '#112233' }, animations: { idle: [{ ms: 400, px: Array(12).fill('A'.repeat(24)) }] } })
+
+test('a studio link with a pet installs it and switches to it', async () => {
+  const { host, files, store } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  const out = await runCommand(host, `pack ${encodeLink({ pet: linkPet('mochi') })}`, c)
+  expect(out).toBe('Pet: mochi')
+  expect(JSON.parse(files['/home/u/.claude/glowup/pets/mochi.json']!).name).toBe('mochi')
+  expect(store.pet).toBe('mochi')
+  expect(calls).toEqual(['pet:mochi+sheet'])
+})
+
+test('a bad pet part is named and the pack in the same link still installs', async () => {
+  const { host } = fakeHost()
+  const pack = { format: 1, name: 'sunset', colors: { palette: { accent: '#ff8c42' } } }
+  const out = await runCommand(host, `pack ${encodeLink({ pack, pet: { ...linkPet('mochi'), palette: {} } })}`, ctl().ctl)
+  expect(out).toBe('Pack: sunset\nPet not installed: the palette needs at least one color')
+})
+
+test('a link pet whose name is installed needs --force', async () => {
+  const { host } = fakeHost({ files: { '/home/u/.claude/glowup/pets/mochi.json': JSON.stringify(linkPet('mochi')) } })
+  const link = encodeLink({ pet: linkPet('mochi') })
+  expect(await runCommand(host, `pack ${link}`, ctl().ctl)).toBe('Pet not installed: A pet named "mochi" is installed already. Add --force to replace it.')
+  expect(await runCommand(host, `pack ${link} --force`, ctl().ctl)).toBe('Pet: mochi')
+})
