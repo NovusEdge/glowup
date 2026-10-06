@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - After `/clear` the status line kept showing your previous one until the first prompt, because glowup only noticed the new session on the first turn. The heartbeat now picks up the new session within a minute, and glowup sets `refreshInterval: 30` on the status line it owns (a value you set yourself stays, existing installs included), so the line shows within about a minute and a half of `/clear`, and within 30 seconds of launch or a reload.
 - A glowup restart in the middle of a session (a hot reload) wrote a status line without `ctx`, `5h` and `wk` until the next tool call or turn ended. It now reads them back at start.
 - A studio link copied from `/glowup config` while on a built-in pack was refused by `/glowup pack`; the pack in it is now named `my-<pack>`.
+- Pasting a `/glowup pack` command longer than about 700 characters, which includes every studio link that carries a pet, sent it to Claude as a prompt instead of running it: Claude Code shows a long paste as `[Pasted text #N]` and does not read it as a slash command. glowup now runs a prompt that is only a `/glowup` line.
 
 ## [0.8.1] - 2026-10-05
 
