@@ -1,4 +1,4 @@
-// Hand-drawn by the artist; data only. Generated from art/clawd/clawd.art by art/clawd/build.py
+// Hand-drawn by the artist; data only. Generated from art/clawd/clawd.art by art/build.py
 import type { PetSheet } from '../pets.ts'
 
 export const CLAWD_SHEET: PetSheet = {

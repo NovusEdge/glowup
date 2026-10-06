@@ -26,10 +26,10 @@ ci: check test packs-check installer-check installsh-test
 dev *args:
     claude --plugin-dir . {{args}}
 
-# validate art/clawd/clawd.art, regenerate hooks/sprites/clawd.ts and write art/clawd/viewer.html
+# validate art/<pet>/<pet>.art, regenerate hooks/sprites/<pet>.ts, write art/<pet>/viewer.html and the PNG sheets art/<pet>/<pet>-sheet{,@8x}.png
 [group('dev')]
-clawd-build:
-    python3 art/clawd/build.py
+pet-build pet="clawd":
+    python3 art/build.py {{pet}}
 
 # write every Clawd frame as SVG and PNG to docs/assets/clawd (scale = pixels per sprite pixel)
 [group('dev')]
