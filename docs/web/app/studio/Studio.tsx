@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { PACK_NAMES } from '../landing/look.ts'
 import { PackProvider } from '../landing/PackContext'
+import { PaneField } from '../landing/PaneField'
 import { Terminal } from '../landing/Terminal'
 import { Actions } from './Actions'
 import { Controls } from './Controls'
@@ -96,6 +97,9 @@ export function Studio() {
           </aside>
           <section className="st-stage" aria-label="Preview">
             <div className="studio-preview" ref={area} data-width={width} style={hl ? (focusVars(look, hl) as React.CSSProperties) : undefined}>
+              {look.motion.field.shape !== 'none' && (
+                <div className="st-backdrop" aria-hidden="true"><PaneField field={look.motion.field} colors={look.theme.colors} maxCols={160} maxRows={80} /></div>
+              )}
               <div className="st-frame" style={{ ['--z' as string]: z }}>
                 <div className="st-view">
                   <div className="st-seg" role="group" aria-label="Preview width">
