@@ -17,6 +17,20 @@ const cols = (surface: ClientSurface<PetState | number>, p: PetClientProps) => (
 const sheetOf = (p: PetClientProps) => p.sheet ?? BUILTIN_SHEETS[p.pet] ?? CLAWD_SHEET
 const maxXOf = (surface: ClientSurface<PetState | number>, p: PetClientProps) => Math.max(0, cols(surface, p) - sheetOf(p).w)
 
+// A sprite wider than the strip is cut at its right edge here: left to the layout, a too-wide row shrinks every segment and adds an ellipsis.
+// Every cell is one column wide (half blocks and spaces).
+function cut(segs: Seg[], room: number): Seg[] {
+  const out: Seg[] = []
+  let left = Math.max(0, room)
+  for (const s of segs) {
+    if (left <= 0) break
+    const text = [...s.text].slice(0, left).join('')
+    out.push({ ...s, text })
+    left -= [...text].length
+  }
+  return out
+}
+
 // What the eye can tell apart: a new frame, a new clip, a step.
 const look = (pl: Player) => `${pl.seg?.name}:${pl.seg?.fi}:${pl.x}:${pl.dir}`
 
@@ -60,5 +74,6 @@ export default function PetClient(props: PetClientProps, surface: ClientSurface<
   stepPlayer(player, sheet, petPose(props.input, now), now, maxXOf(surface, props))
   const px = composeFrame(sheet, playerFrame(player, now), props.overlays, mirrored(player))
   const pad: Seg[] = player.x > 0 ? [{ text: ' '.repeat(player.x), color: CLAWD_COLOR }] : []
-  return <Box flexDirection="column">{halfBlock(px, petPalette(sheet, props.pet, props.tint)).map((r, i) => renderSegs(surface.elements, [...pad, ...r], 'p' + i))}</Box>
+  const room = cols(surface, props)
+  return <Box flexDirection="column">{halfBlock(px, petPalette(sheet, props.pet, props.tint)).map((r, i) => renderSegs(surface.elements, cut([...pad, ...r], room), 'p' + i))}</Box>
 }

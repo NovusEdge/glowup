@@ -365,12 +365,36 @@ test('a pet draws as many rows as its sheet is tall', () => {
   expect(rows({ pet: 'mochi', sheet, input: { working: false, needsYou: false } })).toBe(2)
 })
 
-test('narrow strip: a pet wider than the strip stands still and never wraps', () => {
-  const { s, timers } = fakeSurface(20)
-  const tree = PetClient({ ...base, pet: 'robot', width: 20 }, s) as any
+const rowText = (n: any): string => (typeof n === 'string' ? n : Array.isArray(n) ? n.map(rowText).join('') : n && typeof n === 'object' ? rowText(n.children) : '')
+
+test('a pet wider than the strip stands still', () => {
+  // 28 is between the old 24-column bound and the robot's 32, so only the sheet's own width keeps it at 0
+  const { s, timers } = fakeSurface(28)
+  const tree = PetClient({ ...base, pet: 'robot', width: 28 }, s) as any
   expect(tree.children).toHaveLength(8)
   for (const row of tree.children) for (const t of row.children) expect(t.props.wrap).toBe('truncate')
   const t0 = Date.now()
-  for (const t of [t0 + 500, t0 + 1000]) atTime(t, () => timers[0]!.fn())
+  for (let i = 1; i <= 40; i++) atTime(t0 + i * 500, () => timers[0]!.fn())
   expect(s.state.player.x).toBe(0)
+})
+
+test('a pet never walks past the strip: the robot stops at width minus its own 32', () => {
+  const { s, timers } = fakeSurface(46)
+  PetClient({ ...base, pet: 'robot', width: 46 }, s)
+  const t0 = Date.now()
+  let top = 0
+  for (let i = 1; i <= 200; i++) { atTime(t0 + i * 83, () => timers[0]!.fn()); top = Math.max(top, s.state.player.x) }
+  expect(top).toBeGreaterThan(0)
+  expect(top).toBeLessThanOrEqual(46 - 32)
+})
+
+test('a pet wider than the strip is cut at its right edge, not squeezed', () => {
+  const draw = (width: number) => atTime(1000, () => (PetClient({ ...base, pet: 'robot', width }, fakeSurface(width).s) as any).children.map(rowText) as string[])
+  // 32 leaves the robot no room to walk, so both draws are the same frame at x = 0
+  const full = draw(32), cut = draw(28)
+  expect(cut).toHaveLength(8)
+  cut.forEach((row, i) => {
+    expect([...row].length).toBeLessThanOrEqual(28)
+    expect(row).toBe([...full[i]!].slice(0, 28).join(''))
+  })
 })

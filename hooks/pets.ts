@@ -8,8 +8,8 @@ export const SHINY_COLOR = '#f2c94c'
 export type BuiltinPet = 'clawd' | 'clawd-shiny' | 'robot'
 // Built-in ids, or the name of a pet installed under <config>/glowup/pets.
 export type PetSetting = BuiltinPet | 'off' | (string & {})
-// `string & {}` absorbs Exclude, so 'off' is removed by naming the other members.
-export type PetId = BuiltinPet | (string & {})
+// `string & {}` stays in the union, so the type cannot exclude 'off'; the pane's render hook checks it.
+export type PetId = Exclude<PetSetting, 'off'>
 // 'fail' is optional in a sheet; without one it plays 'alert'. The others fall back to idle.
 export type Pose = 'idle' | 'walk' | 'working' | 'hop' | 'alert' | 'done' | 'sleep' | 'fail' | 'juggle' | 'scrunch' | 'pant' | 'pant-walk'
 export type PetSpan = { text: string; color: string; bg?: string }
