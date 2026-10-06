@@ -99,7 +99,7 @@ An override sits on top of whatever pack and theme are active and survives switc
 | --- | --- |
 | `/glowup pet clawd` | Show Clawd. Prints `Pet: clawd`. |
 | `/glowup pet robot` | Show the CRT robot. Prints `Pet: robot`. |
-| `/glowup pet <name>` | Show a pet you installed. Prints `Pet: <name>`. An unknown name prints `No pet named "<name>".` and changes nothing. |
+| `/glowup pet <name>` | Show a pet you installed. Prints `Pet: <name>`. An unknown name prints `No pet named "<name>". /glowup pet list shows the pets you have.` and changes nothing. |
 | `/glowup pet add <file\|https url> [--force]` | Install a pet file from the [studio](https://glowup.khimani.dev/studio) or your disk, without switching to it. Prints `Installed pet "<name>". Switch to it with /glowup pet <name>`. `--force` replaces an installed pet of the same name. |
 | `/glowup pet off` | Hide the pet. Prints `Pet: off`. |
 | `/glowup pet list` | List the built-in pets, then the ones you installed, then `off`. A filled dot marks the current one. |
