@@ -24,7 +24,7 @@ import type { OrbState } from './motion.ts'
 import { statusText, writeStatusFile, drawsStatusLine, ensureRefresh, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
 import { parseFields, DEFAULT_FIELDS, type ColorMode, type FieldId } from './fields.ts'
 import { DEFAULT_SETUP, parseSetup, type Setup } from './setup.ts'
-import { runCommand, type Ctl } from './command.ts'
+import { runCommand, pastedGlowup, type Ctl } from './command.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 import { renderHelp, renderColorList } from './helpcard.tsx'
 import { cycleCommands, inputCommand, inputValue, type ConfigState, type CycleId, type InputId } from './configrows.ts'
@@ -1122,5 +1122,14 @@ export const register: Register = (on, options) => {
     const text = await runCommand(hostOf($), e.args, ctlOf($))
     await syncTakeover($)
     return { text }
+  })
+
+  on('prompt.submit', async ($, e, next) => {
+    const args = off ? undefined : pastedGlowup(e.text, e.origin)
+    if (args === undefined) return next(e)
+    const text = await runCommand(hostOf($), args, ctlOf($))
+    await syncTakeover($)
+    // the engine shows this as "Prompt dropped by a hook: <reason>", on one line: a newline draws as �
+    return { drop: `glowup ran the pasted command. ${text.split('\n').map(l => l.trim()).filter(Boolean).join('; ')}` }
   })
 }

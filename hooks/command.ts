@@ -171,6 +171,17 @@ async function packFromLink(host: Host, ctl: Ctl, link: string, force: boolean):
   return out.join('\n') || 'This link carries nothing to install.'
 }
 
+// Claude Code shows a paste over about 700 characters as "[Pasted text #N]" and then sends it to the model,
+// wrapped in <pasted_content>, instead of running it as a slash command: every studio link that carries a
+// pet. A prompt of the person's own that is one /glowup line, bare or as one pasted block, is that paste.
+const PASTED = /^<pasted_content id="([^"]*)">\n?([\s\S]*?)\n?<\/pasted_content id="\1">$/
+export function pastedGlowup(text: string, origin: { kind: string }): string | undefined {
+  if (origin.kind !== 'composer') return undefined
+  const t = text.trim()
+  const m = /^\/glowup(?:[ \t]+([^\n]*))?$/.exec(PASTED.exec(t)?.[2]?.trim() ?? t)
+  return m ? (m[1] ?? '').trim() : undefined
+}
+
 export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<string> {
   const [sub, a1, a2] = args.trim().split(/\s+/)
   // A bare subcommand reports where things stand instead of falling through to Unknown.

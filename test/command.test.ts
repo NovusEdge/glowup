@@ -1,6 +1,6 @@
 import { expect, mock } from 'claude-code/testing'
 import { runGlowup, fakeHost, fakeFs, test } from './kit.ts'
-import { runCommand, USAGE, type Ctl } from '../hooks/command.ts'
+import { runCommand, pastedGlowup, USAGE, type Ctl } from '../hooks/command.ts'
 import { SHORT_TEXT, FULL_TEXT, SECTIONS, DOCS_URL } from '../hooks/help.ts'
 import { resolveLook, cleanOverrides, type Mix } from '../hooks/packs.ts'
 import type { PetSetting } from '../hooks/pets.ts'
@@ -569,6 +569,24 @@ test('pet add installs without switching; bare pet add prints usage', async () =
   expect(store.pet).toBeUndefined()
   expect(calls).toEqual([])
   expect(await runCommand(host, 'pet add', c)).toBe('Use /glowup pet add <file|https url> with a pet .json from the studio or the pet sprites page.')
+})
+
+test('a pasted /glowup line from the person is a command; anything else stays a prompt', () => {
+  const you = { kind: 'composer' }
+  const link = 'https://glowup.khimani.dev/studio#v=1&pet=eyJ9'
+  expect(pastedGlowup(`/glowup pack ${link}`, you)).toBe(`pack ${link}`)
+  expect(pastedGlowup('  /glowup pet robot \n', you)).toBe('pet robot')
+  expect(pastedGlowup('/glowup', you)).toBe('')
+  expect(pastedGlowup('/glowupx', you)).toBeUndefined()
+  expect(pastedGlowup('/glowup pet robot\nwhy is he red?', you)).toBeUndefined()
+  expect(pastedGlowup('why does /glowup pet robot fail?', you)).toBeUndefined()
+  expect(pastedGlowup('/glowup pet robot', { kind: 'peer' })).toBeUndefined()
+  expect(pastedGlowup('/glowup pet robot', { kind: 'plugin' })).toBeUndefined()
+  // how Claude Code 2.1.291 hands over an expanded paste
+  const pasted = (s: string) => `\n\n<pasted_content id="c2c5">\n${s}\n</pasted_content id="c2c5">\n`
+  expect(pastedGlowup(pasted(`/glowup pack ${link} --force`), you)).toBe(`pack ${link} --force`)
+  expect(pastedGlowup(`${pasted('/glowup pet robot')} why?`, you)).toBeUndefined()
+  expect(pastedGlowup('<pasted_content id="a">\n/glowup pet robot\n</pasted_content id="b">', you)).toBeUndefined()
 })
 
 test('pet add --force over the pet in use draws the new art at once', async () => {
