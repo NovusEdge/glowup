@@ -1,6 +1,6 @@
 import { test, expect } from 'claude-code/testing'
-import { validatePetFile, petSheet, petNameProblem, PET_ANIMS, ANIM_MS, ONCE, type PetFile } from '../hooks/petfile.ts'
-import { validateSheet } from '../hooks/pets.ts'
+import { validatePetFile, petSheet, petNameProblem, PET_ANIMS, ANIM_MS, ONCE, BUILTIN_PET_NAMES, builtinPets, type PetFile } from '../hooks/petfile.ts'
+import { validateSheet, BUILTIN_SHEETS } from '../hooks/pets.ts'
 
 const row = (s: string) => s.padEnd(24, '.')
 const frame = (k = 'A', ms = 400) => ({ ms, px: [...Array(11).fill(row('')), row(k.repeat(4))] })
@@ -45,6 +45,12 @@ test('top-level shape: object, format, name, known keys', () => {
   refuses(pet({ description: 'x'.repeat(81) }), /description/)
 })
 
+test('the built-in names and the built-in sheets list the same pets', () => {
+  expect(Object.keys(BUILTIN_SHEETS).sort()).toEqual([...BUILTIN_PET_NAMES].sort())
+  expect(builtinPets(false)).toEqual(['clawd', 'robot'])
+  expect(builtinPets(true)).toEqual(['clawd', 'clawd-shiny', 'robot'])
+})
+
 test('reserved names: built-ins and pet subcommands', () => {
   for (const n of ['clawd', 'clawd-shiny', 'robot', 'off', 'list', 'add']) expect(petNameProblem(n)).toMatch(/built-in pet name|pet command/)
   expect(petNameProblem('mochi')).toBeUndefined()
@@ -54,6 +60,8 @@ test('palette: 1 to 60 single printable characters, #rrggbb colors, no "."', () 
   refuses(pet({ palette: {} }), /palette needs at least one color/)
   refuses(pet({ palette: { '.': '#000000' } }), /palette key "." is reserved/)
   refuses(pet({ palette: { AB: '#000000' } }), /palette keys are single characters/)
+  refuses(pet({ palette: { '𝐀': '#000000' } }), /palette key "𝐀" is above U\+FFFF/)
+  refuses(pet({ palette: { '𝐀B': '#000000' } }), /palette keys are single characters/)
   refuses(pet({ palette: { A: 'red' } }), /palette color "A" must be #rrggbb/)
   const many = Object.fromEntries([...'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'].slice(0, 61).map(k => [k, '#000000']))
   refuses(pet({ palette: many }), /at most 60 colors/)

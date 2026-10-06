@@ -12,7 +12,7 @@ glowup
 
   /glowup config                       open the config pane: pack, colors, layout
   /glowup pack <name>                  switch look: arcade classic cozy crt
-  /glowup pet clawd|robot|off          Pick a pet, or none
+  /glowup pet clawd|robot|off          pick a pet, or none
   /glowup pane                         open or close the side pane
   /glowup motion reduced               calm everything down
 

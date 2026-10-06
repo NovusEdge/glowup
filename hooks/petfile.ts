@@ -15,7 +15,9 @@ export const MIN_MS = 80, MAX_MS = 10_000
 export const ANIM_MS: Record<PetAnimName, number> = { idle: 400, walk: 110, working: 120, hop: 120, alert: 180, done: 120, sleep: 450, fail: 250, juggle: 110, pant: 290, 'pant-walk': 140, scrunch: 150 }
 export const ONCE: readonly PetAnimName[] = ['hop', 'fail', 'scrunch']
 export const WALKS: readonly PetAnimName[] = ['walk', 'pant-walk']
+// Every place that lists the built-ins derives from this; BUILTIN_SHEETS in pets.ts must have the same keys (a test checks).
 export const BUILTIN_PET_NAMES = ['clawd', 'clawd-shiny', 'robot']
+export const builtinPets = (shiny: boolean) => BUILTIN_PET_NAMES.filter(n => shiny || n !== 'clawd-shiny')
 const COMMANDS = ['off', 'list', 'add']
 
 export type PetFileFrame = { px: string[]; ms: number; dx?: number; exit?: boolean }
@@ -55,6 +57,7 @@ export function validatePetFile(file: unknown): asserts file is PetFile {
   for (const k of keys) {
     if (k === '.') throw new Error('palette key "." is reserved for transparent pixels')
     if ([...k].length !== 1 || !printable(k) || k.trim() !== k) throw new Error('palette keys are single characters')
+    if (k.codePointAt(0)! > 0xffff) throw new Error(`palette key "${shown(k)}" is above U+FFFF; use a letter, digit or symbol from the basic plane`)
     if (typeof pal[k] !== 'string' || !HEX.test(pal[k] as string)) throw new Error(`palette color "${shown(k)}" must be #rrggbb`)
   }
 

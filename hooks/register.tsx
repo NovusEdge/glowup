@@ -451,7 +451,10 @@ async function readConfigLists($: Engine) {
   const user = await loadUserPacks(host)
   configPacks = [...new Set([...Object.keys(PACKS), ...Object.keys(user).filter(n => SAFE_NAME.test(n))])]
   configShiny = ((await host.storeGet('eggs')) as EggStore | undefined)?.shinyAt !== undefined
-  configUserPets = await userPetNames(host)
+  // a listed pet that does not load would be refused forever, and the Pet row would repeat it
+  const pets: string[] = []
+  for (const n of await userPetNames(host)) if ('sheet' in await loadUserPet(host, n)) pets.push(n)
+  configUserPets = pets
 }
 
 async function openConfig($: Engine): Promise<string> {
@@ -474,8 +477,8 @@ async function runConfig($: Engine, cmds: string[]) {
     const before = JSON.stringify(configState())
     text = await runCommand(hostOf($), cmd, ctlOf($))
     const moved = JSON.stringify(configState()) !== before
-    // after the compare: a pack that vanished from disk shrinks the list but was still refused
-    if (cmd.startsWith('pack ')) await readConfigLists($)
+    // after the compare: a pack or pet that vanished from disk shrinks the list but was still refused
+    if (cmd.startsWith('pack ') || cmd.startsWith('pet ')) await readConfigLists($)
     if (!moved) { stopped = true; break }
   }
   const lines = text.split('\n'), key = lastCmd.match(/^setup (\S+)/)?.[1]
@@ -744,7 +747,9 @@ export const register: Register = (on, options) => {
     else if (want === 'off' || Object.hasOwn(BUILTIN_SHEETS, want)) pet = want
     else {
       const r = await loadUserPet(host, want)
-      if ('sheet' in r) { pet = want; petSheet = r.sheet } else $.ui.toast(`glowup pet "${shown(want)}": ${r.error} Showing Clawd.`)
+      if ('sheet' in r) { pet = want; petSheet = r.sheet }
+      // every loadUserPet error already names the pet or its file
+      else if (interactive) $.ui.toast(`${/[.!?]$/.test(r.error) ? r.error : `${r.error}.`} Showing Clawd.`)
     }
     const storedBubbles = await host.storeGet('bubbles')
     bubbles = BUBBLES.includes(storedBubbles as BubbleSetting) ? storedBubbles as BubbleSetting : BUBBLES.includes(options.bubbles as BubbleSetting) ? options.bubbles as BubbleSetting : 'on'
@@ -959,7 +964,7 @@ export const register: Register = (on, options) => {
       const snap = ((await $.state.get(PET)).value as PetSnap | undefined) ?? petSnap()
       const { Client } = $.ui.resolve(e)
       const props: PetClientProps = { pet: pid, input: snap.input, overlays: snap.overlays, reduced: red, compact, width: petStripCols(e.props.bodyColumns), tint: look.pet, ...(petSheet && { sheet: petSheet }) }
-      const sheet = petSheet ?? BUILTIN_SHEETS[pid] ?? CLAWD_SHEET
+      const sheet = petSheet ?? (Object.hasOwn(BUILTIN_SHEETS, pid) ? BUILTIN_SHEETS[pid] : undefined) ?? CLAWD_SHEET
       // unsized, the region shrinks to the sprite and surface.columns leaves no room to walk
       const node = <Client key="glowup-pet" module="./client/pet.tsx" props={props} width={compact ? undefined : props.width} />
       const bubbleNow = snap.bubble && snap.bubble.until > Date.now() ? snap.bubble : undefined

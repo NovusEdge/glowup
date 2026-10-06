@@ -52,7 +52,12 @@ export function PetSection({ pet, onPet }: { pet?: StudioPet; onPet(p?: StudioPe
       <p className="hint">Draw your pet as a PNG sprite sheet: one row per animation, 32 × 16 px cells. <a href="/pet-sprites">Sprite spec</a> · <a href="/media/pet-template.png" download>template</a></p>
       <label className="fld">
         <span>Sprite sheet (PNG)</span>
-        <input ref={input} type="file" accept="image/png" onChange={e => void upload(e.target.files?.[0])} />
+        <input ref={input} type="file" accept="image/png" onChange={e => {
+          const f = e.target.files?.[0]
+          // the same file picked again fires no change event unless the input is emptied
+          e.currentTarget.value = ''
+          void upload(f)
+        }} />
       </label>
       <p className="st-err" role="status">{error ?? problem}</p>
       {pet && out && (
@@ -69,7 +74,7 @@ export function PetSection({ pet, onPet }: { pet?: StudioPet; onPet(p?: StudioPe
                   <Pet scale={2} mode={{ kind: 'pose', pose: n }} sheet={sheet} />
                   <label className="fld">
                     <span>{n}<output>{speed}×</output></span>
-                    <input type="range" min={0} max={SPEEDS.length - 1} step={1} value={SPEEDS.indexOf(speed)} aria-valuetext={`${speed}×`}
+                    <input type="range" min={0} max={SPEEDS.length - 1} step={1} value={SPEEDS.indexOf(speed)} aria-label={`${n} speed`} aria-valuetext={`${speed}×`}
                       onChange={e => onPet({ ...pet, speeds: { ...pet.speeds, [n]: SPEEDS[Number(e.target.value)] } })} />
                   </label>
                 </li>

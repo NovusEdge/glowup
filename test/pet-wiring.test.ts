@@ -180,22 +180,36 @@ test('pet robot reaches the Client by id; a user pet carries its sheet', async (
   await pane.unmount()
 })
 
-test('a stored user pet that no longer loads falls back to Clawd with one toast', async ($, on) => {
+async function brokenStoredPet($: any, on: any, isInteractive: boolean) {
   const files: Record<string, string> = { [`${PETS}/mochi.json`]: petJson('mochi') }
   const toasts: string[] = []
   base(on, undefined, { files, toasts }); mock.clock(on)
   on('command.register', async () => ({ value: undefined }) as never)
   on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
-  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive })
   await runGlowup($, 'pet mochi')
   files[`${PETS}/mochi.json`] = '{"format":1,"name":"mochi"'
-  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive })
+  return toasts
+}
+
+test('a stored user pet that no longer loads falls back to Clawd with one toast', async ($, on) => {
+  const toasts = await brokenStoredPet($, on, true)
   const pane = await mountPane($)
   const c = petClient(await pane.drawn())
   expect(c.props.props.pet).toBe('clawd')
   expect('sheet' in c.props.props).toBe(false)
-  expect(toasts.filter(t => t.includes('mochi'))).toHaveLength(1)
+  const mine = toasts.filter(t => t.includes('mochi'))
+  expect(mine).toHaveLength(1)
+  expect(mine[0]!.match(/mochi/g)!.length).toBeLessThanOrEqual(2)
+  expect(mine[0]).toMatch(/\. Showing Clawd\.$/)
+  expect(mine[0]).not.toContain('glowup pet "')
   await pane.unmount()
+})
+
+test('a non-interactive run shows no fallback toast', async ($, on) => {
+  const toasts = await brokenStoredPet($, on, false)
+  expect(toasts.filter(t => t.includes('Showing Clawd'))).toEqual([])
 })
 
 test('the robot gets an 8-row strip; Clawd keeps 6', async ($, on) => {

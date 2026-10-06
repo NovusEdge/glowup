@@ -7,14 +7,20 @@ export type PetClientProps = { pet: PetId; input: PetInput; overlays: string[]; 
 // now is wall-clock ms, the scale of the model's event times. The fields are mutated in place: the tick and
 // the draw share one player, and only a changed picture replaces the state object (which redraws).
 // props is the latest the draw saw, for the tick to read; stop cancels the timer.
-type PetState = { now: number; player: Player; props: PetClientProps; stop?: () => void }
+// sheet is the one the player's clips were cut from; the engine keeps this state across redraws, so a different sheet needs a new player.
+type PetState = { now: number; player: Player; sheet: PetSheet; props: PetClientProps; stop?: () => void }
 
 const TICK_MS = 83
 // The tests move time with this; Date.now is read-only in the test sandbox.
 export const clock = { now: () => Date.now() }
 const quiet = (p: PetClientProps) => p.reduced || p.compact
 const cols = (surface: ClientSurface<PetState | number>, p: PetClientProps) => (surface.columns > 0 ? surface.columns : p.width)
-const sheetOf = (p: PetClientProps) => p.sheet ?? BUILTIN_SHEETS[p.pet] ?? CLAWD_SHEET
+const sheetOf = (p: PetClientProps) => p.sheet ?? (Object.hasOwn(BUILTIN_SHEETS, p.pet) ? BUILTIN_SHEETS[p.pet] : undefined) ?? CLAWD_SHEET
+function resheet(st: PetState, sheet: PetSheet) {
+  if (st.sheet === sheet) return
+  st.sheet = sheet
+  st.player = newPlayer()
+}
 const maxXOf = (surface: ClientSurface<PetState | number>, p: PetClientProps) => Math.max(0, cols(surface, p) - sheetOf(p).w)
 
 // A sprite wider than the strip is cut at its right edge here: left to the layout, a too-wide row shrinks every segment and adds an ellipsis.
@@ -39,9 +45,11 @@ function startClock(surface: ClientSurface<PetState | number>, st: PetState) {
     const cur = surface.state
     if (typeof cur !== 'object') return
     if (quiet(cur.props)) { cur.stop?.(); cur.stop = undefined; return }
+    const sheet = sheetOf(cur.props)
+    resheet(cur, sheet)
     const before = look(cur.player)
     cur.now = clock.now()
-    stepPlayer(cur.player, sheetOf(cur.props), petPose(cur.props.input, cur.now), cur.now, maxXOf(surface, cur.props))
+    stepPlayer(cur.player, sheet,petPose(cur.props.input, cur.now), cur.now, maxXOf(surface, cur.props))
     if (look(cur.player) !== before) surface.setState({ ...cur })
   })
 }
@@ -55,8 +63,10 @@ export default function PetClient(props: PetClientProps, surface: ClientSurface<
     return <Box><Text color={color}>{isClawd(props.pet) ? CLAWD_ROW : CRITTER_ROW}</Text></Box>
   }
 
+  const sheet = sheetOf(props)
   let now: number, player: Player
   if (typeof st === 'object') {
+    resheet(st, sheet)
     now = st.now
     player = st.player
     if (!st.stop && !props.reduced) startClock(surface, st)
@@ -64,13 +74,12 @@ export default function PetClient(props: PetClientProps, surface: ClientSurface<
     now = typeof st === 'number' ? st : clock.now()
     player = newPlayer()
     if (st === undefined && !props.reduced) {
-      const fresh: PetState = { now, player, props }
+      const fresh: PetState = { now, player, sheet, props }
       surface.setState(fresh)
       startClock(surface, fresh)
     }
   }
 
-  const sheet = sheetOf(props)
   stepPlayer(player, sheet, petPose(props.input, now), now, maxXOf(surface, props))
   const px = composeFrame(sheet, playerFrame(player, now), props.overlays, mirrored(player))
   const pad: Seg[] = player.x > 0 ? [{ text: ' '.repeat(player.x), color: CLAWD_COLOR }] : []

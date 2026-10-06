@@ -9,6 +9,7 @@ import { loadUserPacks, addPack, savePack, installPackText, SAFE_NAME } from './
 import { parseScheme } from './schemes.ts'
 import { konsoleScheme } from './konsole.ts'
 import type { PetSetting, PetSheet } from './pets.ts'
+import { BUILTIN_PET_NAMES, builtinPets } from './petfile.ts'
 import { userPetNames, loadUserPet, addPet, installPetText } from './userpets.ts'
 import { readLocal } from './readlocal.ts'
 import type { BubbleSetting } from './bubbles.ts'
@@ -246,7 +247,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   if (sub === 'import' && a1) return importScheme(host, ctl, a1, a2 === '--force')
   if (sub === 'pet' && a1 === 'list') {
     const cur = ctl.pet()
-    const names = ['clawd', ...(await shinyUnlocked(host) ? ['clawd-shiny'] : []), 'robot', ...(await userPetNames(host)), 'off']
+    const names = [...builtinPets(await shinyUnlocked(host)), ...(await userPetNames(host)), 'off']
     return names.map(n => `${n === cur ? '●' : '○'} ${n}`).join('\n')
   }
   // the [sub, a1, a2] split stops at three words, hence index 3 for the flag
@@ -254,7 +255,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   if (sub === 'pet' && a1) {
     if (a1 === 'clawd-shiny' && !(await shinyUnlocked(host))) return 'The shiny pet is not unlocked yet.'
     let sheet: PetSheet | undefined
-    if (!['clawd', 'clawd-shiny', 'robot', 'off'].includes(a1)) {
+    if (a1 !== 'off' && !BUILTIN_PET_NAMES.includes(a1)) {
       const r = await loadUserPet(host, a1)
       if ('error' in r) return r.error
       sheet = r.sheet

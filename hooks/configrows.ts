@@ -3,6 +3,7 @@ import { normalizeHex, SPINNER_IDS, type Mix } from './packs.ts'
 import { COLOR_KEYS, shown } from './themes.ts'
 import { setSetupField, type Setup } from './setup.ts'
 import { FIELD_IDS, isFieldId, type FieldId } from './fields.ts'
+import { builtinPets } from './petfile.ts'
 import type { PetSetting } from './pets.ts'
 import type { BubbleSetting } from './bubbles.ts'
 
@@ -31,7 +32,7 @@ const BUBBLE_ORDER: readonly BubbleSetting[] = ['on', 'haiku', 'off']
 // A value not in the list (a custom mix, a meter set by command) moves to the list's first entry.
 const after = <T>(xs: readonly T[], cur: T | undefined): T => xs[(cur === undefined ? -1 : xs.indexOf(cur)) + 1] ?? xs[0]!
 const plainPack = (m: Mix) => (m.colors === m.motion && !m.theme ? m.colors : undefined)
-const petList = (s: ConfigState): PetSetting[] => ['clawd', ...(s.shiny ? ['clawd-shiny' as const] : []), 'robot', ...s.userPets, 'off']
+const petList = (s: ConfigState): PetSetting[] => [...builtinPets(s.shiny), ...s.userPets, 'off']
 const duration = (ms: number) => (ms >= 60_000 ? `${ms / 60_000} min` : `${ms / 1000} s`)
 
 export function cycleValue(id: CycleId, s: ConfigState): string {

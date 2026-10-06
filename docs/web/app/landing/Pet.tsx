@@ -15,6 +15,7 @@ export function Pet(props: { scale: number; mode: PetMode; outfit?: string; shin
   const hopUntil = useRef(0)
   const firstHop = useRef(true)
   const player = useRef(newPlayer())
+  const playerSheet = useRef<PetSheet | undefined>(undefined)
   const s = sheet ?? CLAWD_SHEET
   // A custom sheet gets the full frame height, feet on the bottom row, so pets of any height stand level.
   const w = s.w * scale, h = ((sheet ? FRAME_H : s.h) + OUTFIT_PAD) * scale
@@ -29,6 +30,8 @@ export function Pet(props: { scale: number; mode: PetMode; outfit?: string; shin
     const cv = ref.current, x = cv?.getContext('2d')
     if (!cv || !x) return
     const pal = sheet ? s.palette : petPalette(CLAWD_SHEET, shiny ? 'clawd-shiny' : 'clawd', palette)
+    // a player's clips are cut from the sheet it first stepped; another sheet needs a fresh one
+    if (playerSheet.current !== s) { playerSheet.current = s; player.current = newPlayer() }
     const p = player.current
     const draw = (pl: typeof p, now: number) => {
       const rows = composeFrame(s, playerFrame(pl, now), outfit ? [outfit] : [], mirrored(pl))

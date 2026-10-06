@@ -13,7 +13,7 @@ A pet is one PNG. Every frame sits in a cell 32 pixels wide and 16 tall, each an
 
 - The sheet is 192 px tall (12 rows of 16 px) and `32 × (your longest row)` px wide. A row can have 32 frames at most.
 - Only `idle` is required. A pet that has no row for an animation plays `idle` instead, except that a missing `fail` plays `alert` and a missing `pant-walk` plays `walk`.
-- A pixel with alpha below 50% is transparent. Every other pixel is used as it is, and the sheet can have at most 60 colors.
+- A pixel with alpha below 50% is transparent. Fully opaque pixels keep their exact color. The browser can shift the color of a semi-transparent pixel by 1 per channel when it reads the PNG, so soft edges can add near-duplicate colors; export without anti-aliasing. The sheet can have at most 60 colors.
 - Art smaller than a cell is fine. The studio trims every frame to the smallest box that holds them all, and the pane gives the pet one terminal row for every two pixel rows of that box. Clawd is 24 × 12, so he takes six rows; the robot uses the full 32 × 16.
 
 ## The rows
@@ -45,7 +45,7 @@ See [Pets](pets.md) for what each moment looks like on Clawd.
 
 1. Open the [studio](https://glowup.khimani.dev/studio) and go to the Pet section.
 2. Upload your PNG, give the pet a name, and set the speed of each row.
-3. Choose Send to my Claude to get a link that installs the pet and switches to it. A pet fits in the link when its encoded part is under 4 KB, and the studio tells you when it is too big. For a bigger one, choose Download pet instead.
+3. Choose Send to my Claude in the studio's top bar to copy a `/glowup pack …` command, and paste it into Claude Code to install the pet and switch to it. A pet fits in the link when its encoded part is under 4 KB, and the studio tells you when it is too big. For a bigger one, choose Download pet instead.
 4. For a downloaded file, run the command below with the path of your download, then switch to the pet.
 
 ```text title="claude code"

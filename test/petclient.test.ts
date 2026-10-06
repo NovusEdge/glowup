@@ -388,6 +388,27 @@ test('a pet never walks past the strip: the robot stops at width minus its own 3
   expect(top).toBeLessThanOrEqual(46 - 32)
 })
 
+test('a state kept across a sheet change gets a new player: no frame of the old sheet is drawn', () => {
+  const { s } = fakeSurface()
+  const rows = (props: object) => (PetClient({ ...idle, ...props }, s) as any).children.map(rowText) as string[]
+  const t0 = Date.now()
+  atTime(t0, () => PetClient(idle, s))
+  expect(atTime(t0 + 100, () => rows({}))).toHaveLength(6)
+  const robot = atTime(t0 + 200, () => rows({ pet: 'robot' }))
+  expect(robot).toHaveLength(8)
+  expect(Math.max(...robot.map(r => [...r].length))).toBe(32)
+  const back = atTime(t0 + 300, () => rows({}))
+  expect(back).toHaveLength(6)
+  expect(Math.max(...back.map(r => [...r].length))).toBe(24)
+  // same pet name, a different sheet object (pet add --force)
+  const a: PetSheet = { w: 2, h: 2, palette: { A: '#111111', B: '#222222' }, animations: { idle: { loop: true, frames: [{ ms: 400, px: ['AA', 'AA'] }] } } }
+  const b: PetSheet = { ...a, animations: { idle: { loop: true, frames: [{ ms: 400, px: ['BB', 'BB'] }] } } }
+  const bg = (sheet: PetSheet) => JSON.stringify(atTime(t0 + 400, () => PetClient({ ...idle, pet: 'mochi', sheet }, s)))
+  expect(bg(a)).toContain('#111111')
+  expect(bg(b)).not.toContain('#111111')
+  expect(bg(b)).toContain('#222222')
+})
+
 test('a pet wider than the strip is cut at its right edge, not squeezed', () => {
   const draw = (width: number) => atTime(1000, () => (PetClient({ ...base, pet: 'robot', width }, fakeSurface(width).s) as any).children.map(rowText) as string[])
   // 32 leaves the robot no room to walk, so both draws are the same frame at x = 0
