@@ -3,20 +3,24 @@
 // an MP4 on a dark background, a WebM with transparency, and a transparent GIF
 // for the markdown docs, which cannot play video. All are timed by each
 // frame's ms. Run: node scripts/export-pet.ts <pet> [scale]
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdirSync, writeFileSync, rmSync, readdirSync, existsSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { BUILTIN_SHEETS } from '../hooks/pets.ts'
 import { encodePng } from './png.ts'
 
 type Frame = { ms: number; px: string[] }
 const pet = process.argv[2] ?? ''
-const sheet = BUILTIN_SHEETS[pet]
+const sheet = Object.hasOwn(BUILTIN_SHEETS, pet) ? BUILTIN_SHEETS[pet] : undefined
 if (!sheet) {
   console.error(`unknown pet '${pet}'; one of: ${Object.keys(BUILTIN_SHEETS).join(', ')}`)
   process.exit(1)
 }
 const OUT = new URL(`../docs/assets/${pet}/`, import.meta.url).pathname
 const scale = Number(process.argv[3] ?? 16)
+if (!Number.isInteger(scale) || scale < 1) {
+  console.error('usage: node scripts/export-pet.ts <pet> [scale]  (scale: a positive whole number)')
+  process.exit(1)
+}
 const { w, h } = sheet
 
 const rgb = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16))
@@ -63,7 +67,8 @@ function video(dir: string, anim: { loop?: boolean; frames: Frame[] }) {
   for (const r of [mp4, webm, gif]) if (r.status !== 0) throw new Error(`ffmpeg failed in ${dir}: ${r.stderr}`)
 }
 
-rmSync(OUT, { recursive: true, force: true })
+// Only subdirectories: clawd-reel.ts keeps its tracked reels as files beside them.
+if (existsSync(OUT)) for (const e of readdirSync(OUT, { withFileTypes: true })) if (e.isDirectory()) rmSync(`${OUT}${e.name}`, { recursive: true })
 let count = 0
 for (const [vdir, pal] of variants) for (const [sdir, anims] of sets) for (const [name, anim] of Object.entries(anims)) {
   const dir = `${OUT}${vdir}${sdir}${name}/`
