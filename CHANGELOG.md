@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Packs can set `colors.glyphs`, `colors.hearts` and `colors.words`, and a studio link's setup can carry the status line fields. Older glowups refuse a pack that uses the new keys.
 - Packs can recolor Clawd with `colors.pet` (`body`, `light`, `shade`). The shiny pet keeps its gold.
 - The studio at glowup.khimani.dev/studio is a full-viewport page with collapsible Theme, Colors, Rows & meters, Motion, Status line and Setup sections. It has a color wheel, labeled color groups (Clawd's colors included), field knobs and status line fields, beside a live preview with working tabs. Copy a share link or a `/glowup pack` command, or download `pack.json`; a link from `/glowup config` opens there.
+- A CRT-monitor robot joins Clawd as a pet: `/glowup pet robot`.
+- Your own pets: draw a PNG sprite sheet (see Pet sprites), convert it in the studio's new Pet section, and install it with `/glowup pet add <file|url>` or a studio link. A studio link that carries a pet installs it and switches to it; `pet add` only installs. Installed pets show in `/glowup pet list` and the config pane.
+- The studio's stage draws the look's own field behind the preview.
 
 ### Changed
 

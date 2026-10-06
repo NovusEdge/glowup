@@ -16,7 +16,7 @@
     "reducedMotion": { "type": "boolean", "title": "Reduced motion", "description": "No shimmer or spinner animation from glowup", "default": false },
     "pack": { "type": "string", "title": "Pack", "description": "Pack name: classic, crt, cozy, arcade, or one in ~/.claude/glowup/packs", "default": "classic" },
     "spinner": { "type": "string", "title": "Spinner", "description": "Spinner name: stock, comet, eyes, orb-states, clawd, shimmer, or pack for the pack's own", "default": "pack" },
-    "pet": { "type": "string", "title": "Pet", "description": "clawd or off", "default": "clawd" },
+    "pet": { "type": "string", "title": "Pet", "description": "clawd, robot, off, or a pet in ~/.claude/glowup/pets", "default": "clawd" },
     "bubbles": { "type": "string", "title": "Speech bubbles", "description": "on (template lines), off, or haiku (Claude Haiku writes some lines; small paid calls on your account)", "default": "on" },
     "statusline": { "type": "string", "title": "Status line fields", "description": "Comma-separated, in order: activity, ctx, 5h, week, cost, model, effort, agents, plan, branch, changes, cwd", "default": "activity,ctx,effort,5h,week" }
   }
