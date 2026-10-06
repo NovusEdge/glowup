@@ -3,9 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Clawd Sprites</title>
+<title>__PET__ Sprites</title>
 <style>
-  :root { --bg:#0f0f13; --card:#17171d; --line:#2a2a33; --fg:#d8d8e0; --dim:#8a8a98; --acc:#d77757; color-scheme:dark; }
+  :root { --bg:#0f0f13; --card:#17171d; --line:#2a2a33; --fg:#d8d8e0; --dim:#8a8a98; --acc:#d77757; --stage:#1a1a20; color-scheme:dark; }
+  /* a light terminal theme, for checking the sprite's contrast */
+  body.light { --stage:#f6f5f0; }
   * { box-sizing: border-box; }
   [hidden] { display:none !important; }
   body { margin:0; background:var(--bg); color:var(--fg); font:13px/1.4 ui-monospace, "JetBrains Mono", Menlo, monospace; }
@@ -21,13 +23,13 @@
   .card { background:var(--card); border:1px solid var(--line); border-radius:6px; padding:12px; max-width:100%; overflow-x:auto; }
   .card h2 { margin:0 0 8px; font-size:13px; display:flex; justify-content:space-between; gap:16px; }
   .card h2 span { color:var(--dim); font-weight:normal; }
-  .stage { background:#1a1a20; border-radius:3px; overflow:hidden; }
+  .stage { background:var(--stage); border-radius:3px; overflow:hidden; }
   .sprite { display:grid; }
   .sprite i { display:block; }
   .ctl { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; align-items:center; }
   .ctl output { color:var(--dim); margin-left:6px; }
   .wide { flex-basis:100%; }
-  .strip { position:relative; background:#1a1a20; border-radius:3px; overflow:hidden; }
+  .strip { position:relative; background:var(--stage); border-radius:3px; overflow:hidden; }
   .strip .sprite { position:absolute; top:0; }
   .strip .ground { position:absolute; left:0; right:0; bottom:0; border-top:1px dashed #2a2a33; }
   .labels { display:flex; flex-wrap:wrap; gap:18px; margin:0 0 8px; }
@@ -38,19 +40,19 @@
 </head>
 <body>
 <header>
-  <h1>Clawd sprites</h1>
+  <h1>__PET__ sprites</h1>
   <fieldset id="scale"><legend>size</legend>
     <button data-s="1" aria-pressed="true">real</button><button data-s="2">2x</button><button data-s="4">4x</button></fieldset>
-  <fieldset id="look"><legend>look</legend><button id="shiny">shiny</button><button id="reduced">reduced motion</button></fieldset>
+  <fieldset id="look"><legend>look</legend><button id="shiny">shiny</button><button id="light">light bg</button><button id="reduced">reduced motion</button></fieldset>
   <fieldset id="outfits"><legend>outfits</legend></fieldset>
 </header>
 <main id="main"></main>
 <script id="sprites" type="application/json">__SPRITES__</script>
 <script>
-const S = JSON.parse(document.getElementById('sprites').textContent);
+const S = { shiny: {}, transitions: {}, outfits: {}, ...JSON.parse(document.getElementById('sprites').textContent) };
 const CELL_W = 8, CELL_H = 16;            // a real terminal cell; each half-block pixel is 8x8
 const PAD = 4;                            // extra pixel rows above the canvas when an outfit is worn
-const COLS = 48;                          // pane width the host walks Clawd across
+const COLS = Math.max(48, S.w * 2);       // pane width the host walks the pet across
 const state = { scale: 1, shiny: false, reduced: matchMedia('(prefers-reduced-motion: reduce)').matches, outfits: new Set() };
 
 function color(ch) {
@@ -138,11 +140,14 @@ function card(name, anim, sub) {
 // The pose rules the mod follows:
 // - every animation and transition starts at frame 0;
 // - a pose change waits for the next frame marked exit (at most 300 ms), except alert, which cuts in;
-// - leaving walk plays stop, leaving sleep plays wake-up; entering sleep plays lie-down, entering alert plays startle;
-// - x carries over between poses; walk turns into walk-left at the pane edge.
+// - leaving walk plays stop, leaving sleep plays wake-up; entering sleep plays lie-down, entering alert plays startle
+//   (each only when the sheet has that transition);
+// - x carries over between poses; walk turns into walk-left at the pane edge, or is mirrored when the sheet has
+//   no walk-left.
 const EXIT_CLIP = { walk: 'stop', 'walk-left': 'stop-left', sleep: 'wake-up' };
 const ENTRY_CLIP = { sleep: 'lie-down', alert: 'startle' };
 const MAX_WAIT = 300;
+const GAITS = ['walk', 'pant-walk'];
 
 function stateMachine() {
   const c = document.createElement('section');
@@ -153,7 +158,8 @@ function stateMachine() {
     <div class="strip"><div class="ground"></div></div>
     <div class="ctl"><button data-a="script" aria-pressed="true">script</button><span class="dim">poses:</span></div>
     <p class="note">Each pose starts at frame 0. A change waits for the next exit frame (at most 300 ms); alert cuts in at once.
-      Leaving walk plays stop, leaving sleep plays wake-up, entering sleep plays lie-down, entering alert plays startle.</p>`;
+      ${Object.keys(S.transitions).length ? 'Leaving walk plays stop, leaving sleep plays wake-up, entering sleep plays lie-down, entering alert plays startle.'
+        : 'Walking left mirrors the right-facing walk.'}</p>`;
   const strip = c.querySelector('.strip'), sp = makeSprite();
   strip.appendChild(sp);
   const L = n => c.querySelector(`[data-l=${n}]`);
@@ -170,9 +176,10 @@ function stateMachine() {
       this.applyDx();
     },
     gait: 'walk',
-    walkName() { return this.dir > 0 ? this.gait : this.gait + '-left'; },
+    walkName() { return this.dir > 0 || !S.animations[this.gait + '-left'] ? this.gait : this.gait + '-left'; },
+    mirrored() { return this.dir < 0 && this.track.kind === 'anim' && GAITS.includes(this.track.name); },
     request(target) {
-      if (target === 'walk' || target === 'pant-walk') { this.gait = target; target = this.walkName(); }
+      if (GAITS.includes(target)) { this.gait = target; target = this.walkName(); }
       if (target === this.pose && this.track.kind === 'anim' && !this.plan.length) { this.target = null; return; }
       this.target = target; this.waited = 0;
       if (target === 'alert') this.start();
@@ -183,8 +190,8 @@ function stateMachine() {
       this.target = null;
       if (to === from) return;
       const plan = [];
-      if (EXIT_CLIP[from] && to !== 'alert') plan.push(['trans', EXIT_CLIP[from]]);
-      if (ENTRY_CLIP[to]) plan.push(['trans', ENTRY_CLIP[to]]);
+      if (S.transitions[EXIT_CLIP[from]] && to !== 'alert') plan.push(['trans', EXIT_CLIP[from]]);
+      if (S.transitions[ENTRY_CLIP[to]]) plan.push(['trans', ENTRY_CLIP[to]]);
       plan.push(['anim', to]);
       const [k, n] = plan.shift();
       this.plan = plan;
@@ -198,7 +205,7 @@ function stateMachine() {
     applyDx() {
       const dx = this.track.src.frames[this.f].dx || 0;
       if (!dx) return;
-      this.x += dx;
+      this.x += this.mirrored() ? -dx : dx;
       // Turn at the pane edge: swap to the other walk set at the same step of the cycle.
       if (this.x >= COLS - S.w || this.x <= 0) {
         this.x = Math.max(0, Math.min(COLS - S.w, this.x));
@@ -242,6 +249,7 @@ function stateMachine() {
     },
     draw() {
       const fr = this.track.src.frames[this.f], g = compose(fr);
+      if (this.mirrored()) g.forEach(r => r.reverse());
       paint(sp, g);
       strip.style.width = COLS * CELL_W * state.scale + 'px';
       strip.style.height = Math.ceil(g.length / 2) * CELL_H * state.scale + 'px';
@@ -285,6 +293,7 @@ for (const [name, t] of Object.entries(S.transitions))
   main.appendChild(card(name, t, `${t.frames.length} frames · ${t.from} → ${t.to}`));
 
 const ofs = document.getElementById('outfits');
+ofs.hidden = !Object.keys(S.outfits).length;
 for (const name of Object.keys(S.outfits)) {
   const b = document.createElement('button');
   b.textContent = name;
@@ -298,7 +307,10 @@ document.querySelectorAll('#scale button').forEach(b => b.onclick = () => {
   redraw();
 });
 const shinyBtn = document.getElementById('shiny'), redBtn = document.getElementById('reduced');
+shinyBtn.hidden = !Object.keys(S.shiny).length;
 shinyBtn.onclick = () => { state.shiny = !state.shiny; shinyBtn.setAttribute('aria-pressed', state.shiny); redraw(); };
+const lightBtn = document.getElementById('light');
+lightBtn.onclick = () => lightBtn.setAttribute('aria-pressed', document.body.classList.toggle('light'));
 redBtn.setAttribute('aria-pressed', state.reduced);
 redBtn.onclick = () => { state.reduced = !state.reduced; redBtn.setAttribute('aria-pressed', state.reduced); redraw(); };
 

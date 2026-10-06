@@ -1,12 +1,17 @@
-import json, sys
+import json, struct, sys, zlib
 from pathlib import Path
 
-HERE = Path(__file__).parent
-SHEET = HERE.parent.parent / "hooks" / "sprites" / "clawd.ts"
-VIEWER = HERE / "viewer.html"
+if len(sys.argv) != 2:
+    sys.exit("usage: python3 art/build.py <pet>   (reads art/<pet>/<pet>.art)")
+PET = sys.argv[1]
+ART = Path(__file__).parent
+ROOT = ART.parent
+SRC = ART / PET / f"{PET}.art"
+SHEET = ROOT / "hooks" / "sprites" / f"{PET}.ts"
+VIEWER = ART / PET / "viewer.html"
 W, H = 24, 12
 
-lines = (HERE / "clawd.art").read_text().splitlines()
+lines = SRC.read_text().splitlines()
 palette, shiny, anims, transitions, outfits, named = {}, {}, {}, {}, {}, {}
 errors = []
 cur = None
@@ -36,7 +41,10 @@ while i < len(lines):
     i += 1
     if not p:
         continue
-    if p[0] in ("palette", "shiny"):
+    # `size WxH` must come before the first frame: frame rows are read H at a time
+    if p[0] == "size":
+        W, H = map(int, p[1].split("x"))
+    elif p[0] in ("palette", "shiny"):
         (palette if p[0] == "palette" else shiny).update(l.split() for l in block())
     elif p[0] == "anim":
         o = kv(p[3:])
@@ -77,6 +85,15 @@ while i < len(lines):
         if len({len(r) for r in px}) != 1:
             errors.append(f"outfit {p[1]} ragged rows")
         outfits[p[1]] = {"slot": o.get("slot", "head"), "anchor": xy(o["anchor"]), "px": px}
+
+if len(palette) > 60:
+    errors.append(f"palette has {len(palette)} colors, at most 60")
+for k in [*palette, *shiny]:
+    if len(k) != 1 or k == ".":
+        errors.append(f"palette key {k!r} must be one character other than '.'")
+for k in shiny:
+    if k not in palette:
+        errors.append(f"shiny key {k!r} is not in the palette")
 
 
 def check(name, a, minimum):
@@ -134,28 +151,66 @@ def frame(f):
 
 
 ts = [
-    "// Hand-drawn by the artist; data only. Generated from art/clawd/clawd.art by art/clawd/build.py",
+    f"// Hand-drawn by the artist; data only. Generated from art/{PET}/{PET}.art by art/build.py",
     "import type { PetSheet } from '../pets.ts'",
     "",
-    "export const CLAWD_SHEET: PetSheet = {",
+    f"export const {PET.upper().replace('-', '_')}_SHEET: PetSheet = {{",
     f"  w: {W},",
     f"  h: {H},",
     f"  palette: {js(palette)},",
-    f"  shiny: {js(shiny)},",
-    "  animations: {",
 ]
+if shiny:
+    ts.append(f"  shiny: {js(shiny)},")
+ts += ["  animations: {"]
 for n, a in anims.items():
     ts += [f"    {js(n)}: {{ loop: {'true' if a['loop'] else 'false'}, frames: ["] + [frame(f) for f in a["frames"]] + ["    ] },"]
-ts += ["  },", "  outfits: {"]
-for n, o in outfits.items():
-    ts.append(f"    {js(n)}: {{ slot: {js(o['slot'])}, anchor: {pt(o['anchor'])}, px: {js(o['px'])} }},")
-ts += ["  },", "  transitions: {"]
-for n, t in transitions.items():
-    ts += [f"    {js(n)}: {{ from: {js(t['from'])}, to: {js(t['to'])}, frames: ["] + [frame(f) for f in t["frames"]] + ["    ] },"]
-ts += ["  },", "}"]
+ts += ["  },"]
+if outfits:
+    ts += ["  outfits: {"]
+    for n, o in outfits.items():
+        ts.append(f"    {js(n)}: {{ slot: {js(o['slot'])}, anchor: {pt(o['anchor'])}, px: {js(o['px'])} }},")
+    ts += ["  },"]
+if transitions:
+    ts += ["  transitions: {"]
+    for n, t in transitions.items():
+        ts += [f"    {js(n)}: {{ from: {js(t['from'])}, to: {js(t['to'])}, frames: ["] + [frame(f) for f in t["frames"]] + ["    ] },"]
+    ts += ["  },"]
+ts += ["}"]
 SHEET.write_text("\n".join(ts) + "\n")
 
-blob = js({"w": W, "h": H, "palette": palette, "shiny": shiny, "animations": anims,
-           "transitions": transitions, "outfits": outfits})
-VIEWER.write_text((HERE / "viewer.template.html").read_text().replace("__SPRITES__", blob))
-print("wrote", SHEET.relative_to(HERE.parent.parent), "and", VIEWER.relative_to(HERE.parent.parent))
+sheet = {"w": W, "h": H, "palette": palette, "shiny": shiny, "animations": anims,
+         "transitions": transitions, "outfits": outfits}
+blob = js({k: v for k, v in sheet.items() if v != {}})
+VIEWER.write_text((ART / "viewer.template.html").read_text().replace("__PET__", PET.capitalize()).replace("__SPRITES__", blob))
+
+# Row order is the public PNG pet spec: a sheet made from the template is read by
+# position, so reordering breaks every custom pet. Left walks are mirrored at runtime.
+SPEC_ROWS = ["idle", "walk", "working", "hop", "alert", "done", "sleep", "fail",
+             "juggle", "pant", "pant-walk", "scrunch"]
+
+
+def png(path, w, h, rgba_rows):
+    # Only IHDR/IDAT/IEND: a gAMA, cHRM, sRGB or iCCP chunk makes browsers and the
+    # studio shift the colors, so palette hexes would no longer round-trip.
+    def chunk(tag, data):
+        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data))
+    raw = b"".join(b"\x00" + bytes(r) for r in rgba_rows)
+    path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0))
+                     + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
+
+
+rgba = {k: bytes.fromhex(v.lstrip("#")) + b"\xff" for k, v in palette.items()}
+rgba["."] = b"\x00\x00\x00\x00"
+cols = max((len(anims[n]["frames"]) for n in SPEC_ROWS if n in anims), default=1)
+grid = [bytearray(cols * W * 4) for _ in range(len(SPEC_ROWS) * H)]
+for r, n in enumerate(SPEC_ROWS):
+    for c, f in enumerate(anims.get(n, {"frames": []})["frames"]):
+        for y, row in enumerate(f["px"]):
+            grid[r * H + y][c * W * 4 : (c + 1) * W * 4] = b"".join(rgba[ch] for ch in row)
+written = []
+for scale, suffix in ((1, ""), (8, "@8x")):
+    out = ART / PET / f"{PET}-sheet{suffix}.png"
+    rows = [bytes(b for px in range(0, len(g), 4) for b in g[px : px + 4] * scale) for g in grid]
+    png(out, cols * W * scale, len(grid) * scale, [r for r in rows for _ in range(scale)])
+    written.append(out.relative_to(ROOT))
+print("wrote", SHEET.relative_to(ROOT), VIEWER.relative_to(ROOT), *written, sep="\n  ")
