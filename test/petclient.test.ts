@@ -1,6 +1,6 @@
 import { test, expect } from 'claude-code/testing'
 import PetClient, { clock } from '../hooks/client/pet.tsx'
-import { PET_ROWS, PET_COLS, CLAWD_ROW, CLAWD_SHEET, newPlayer, stepPlayer, playerFrame, mirrored, petPose, type PetSheet } from '../hooks/pets.ts'
+import { PET_ROWS, PET_COLS, CLAWD_ROW, CLAWD_SHEET, newPlayer, stepPlayer, playerFrame, mirrored, petPose, BUILTIN_SHEETS, CRITTER_ROW, mainColor, type PetSheet } from '../hooks/pets.ts'
 
 function fakeSurface(columns = 0) {
   const timers: { ms: number; fn: () => void; cancelled: boolean }[] = []
@@ -348,4 +348,29 @@ test('a sheet without transitions or exit flags switches directly', async () => 
   expect(px(p, 50)).toBe('w')
   stepPlayer(p, bare, 'alert', 60, MAX)
   expect(px(p, 60)).toBe('i')
+})
+
+test('the robot draws from its own sheet; the drawer shows the critter row in its main color', () => {
+  const robot = JSON.stringify(PetClient({ ...base, pet: 'robot' }, fakeSurface().s))
+  expect(robot).not.toBe(JSON.stringify(PetClient(base, fakeSurface().s)))
+  const small = JSON.stringify(PetClient({ ...base, pet: 'robot', compact: true }, fakeSurface().s))
+  expect(small).toContain(CRITTER_ROW)
+  expect(small).toContain(mainColor(BUILTIN_SHEETS.robot!))
+})
+
+test('a pet draws as many rows as its sheet is tall', () => {
+  const rows = (props: object) => (PetClient({ ...base, ...props }, fakeSurface().s) as any).children.length
+  expect(rows({ pet: 'robot' })).toBe(8)
+  const sheet: PetSheet = { w: 4, h: 4, palette: { A: '#abcdef' }, animations: { idle: { loop: true, frames: [{ ms: 400, px: ['AAAA', 'AAAA', 'AAAA', 'AAAA'] }] } } }
+  expect(rows({ pet: 'mochi', sheet, input: { working: false, needsYou: false } })).toBe(2)
+})
+
+test('narrow strip: a pet wider than the strip stands still and never wraps', () => {
+  const { s, timers } = fakeSurface(20)
+  const tree = PetClient({ ...base, pet: 'robot', width: 20 }, s) as any
+  expect(tree.children).toHaveLength(8)
+  for (const row of tree.children) for (const t of row.children) expect(t.props.wrap).toBe('truncate')
+  const t0 = Date.now()
+  for (const t of [t0 + 500, t0 + 1000]) atTime(t, () => timers[0]!.fn())
+  expect(s.state.player.x).toBe(0)
 })
