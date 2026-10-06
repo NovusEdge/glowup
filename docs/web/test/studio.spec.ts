@@ -1,11 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { COLOR_KEYS, DEFAULT_SETUP, FIELD_KNOBS, resolveTheme, STUDIO_URL, encodeLink, decodeLink, exportMix } from '../app/landing/data.ts'
+import { COLOR_KEYS, DEFAULT_SETUP, FIELD_KNOBS, resolveTheme, STUDIO_URL, PET_LINK_MAX, encodeLink, decodeLink, exportMix } from '../app/landing/data.ts'
 import { packLook } from '../app/landing/look.ts'
 import {
   COLOR_GROUPS, DEFAULT_STUDIO_SETUP, LINK_MAX, contrast, draftLook, draftProblems, editColors, editSetup, focusVars, fromHash,
   move, packJson, resetPet, sendCommand, setBaseTheme, setField, setGlyph, setHearts, setPetColor, setRole, setSurface, setWords, shareLink,
-  startDraft, stateHash, toggle, type Draft,
+  startDraft, stateHash, toggle, petAddCommand, petOut, petPartSize, petProblems, petRides, type Draft, type StudioPet,
 } from '../app/studio/model.ts'
 
 const hashOf = (link: string) => link.slice(STUDIO_URL.length)
@@ -226,4 +226,41 @@ test('move and toggle', () => {
   assert.deepEqual(move(['a', 'b'], 0, -1), ['a', 'b'])
   assert.deepEqual(toggle(['a', 'b'], 'a'), ['b'])
   assert.deepEqual(toggle(['b'], 'a'), ['b', 'a'])
+})
+
+const tinyPet = (name = 'mochi') => ({ format: 1 as const, name, palette: { A: '#112233' }, animations: { idle: [{ ms: 400, px: Array(12).fill('A'.repeat(24)) }] } })
+const bigPet = () => ({ ...tinyPet('chonk'), animations: { idle: Array(32).fill(0).map((_, i) => ({ ms: 400, px: Array(12).fill(String.fromCharCode(65 + (i % 26)).repeat(24)) })) }, palette: Object.fromEntries([...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].map((k, i) => [k, `#${i.toString(16).padStart(2, '0')}0000`])) })
+
+test('a small pet rides in the send command and the page hash; the share link never carries it', () => {
+  const d = startDraft('classic'), pet = tinyPet()
+  assert.ok(petRides(pet))
+  assert.match(sendCommand(d, DEFAULT_STUDIO_SETUP, pet), /&pet=/)
+  assert.deepEqual(fromHash(stateHash(d, DEFAULT_STUDIO_SETUP, pet)).pet?.file, pet)
+  assert.doesNotMatch(shareLink(d), /pet=/)
+})
+
+test('a pet over 4 KB encoded stays out of links', () => {
+  const pet = bigPet()
+  assert.ok(petPartSize(pet) > PET_LINK_MAX)
+  assert.equal(petRides(pet), false)
+  assert.doesNotMatch(sendCommand(startDraft('classic'), DEFAULT_STUDIO_SETUP, pet), /pet=/)
+  assert.equal(petAddCommand(pet), '/glowup pet add ~/Downloads/chonk.json')
+})
+
+test('a bad pet name is a problem and keeps the pet out of links', () => {
+  const pet = tinyPet('robot')
+  assert.deepEqual(petProblems(pet), ['"robot" is a built-in pet name; pick another.'])
+  assert.equal(petRides(pet), false)
+})
+
+test('petOut applies the speeds', () => {
+  const p: StudioPet = { file: tinyPet(), speeds: { idle: 2 } }
+  assert.equal(petOut(p).animations.idle![0]!.ms, 200)
+})
+
+test('a link pet that fails validation becomes a notice', () => {
+  const hash = hashOf(encodeLink({ pet: { ...tinyPet(), palette: {} } }))
+  const r = fromHash(hash)
+  assert.equal(r.pet, undefined)
+  assert.deepEqual(r.notices, ['pet part: the palette needs at least one color'])
 })

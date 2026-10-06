@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { newPlayer } from '../app/landing/data.ts'
+import { newPlayer, playerFrame } from '../app/landing/data.ts'
 import { petTick } from '../app/landing/petTick.ts'
 
 test('wander mode walks within bounds and never leaves [0, maxX]', () => {
@@ -18,4 +18,11 @@ test('pose mode settles into the pose', () => {
   const p = newPlayer()
   for (let t = 0; t < 5_000; t += 50) petTick(p, { kind: 'pose', pose: 'working' }, t, 0)
   assert.equal(p.seg!.pose, 'working')
+})
+
+test('petTick plays a given sheet', () => {
+  const sheet = { w: 2, h: 2, palette: { A: '#000000' }, animations: { idle: { loop: true, frames: [{ ms: 100, px: ['AA', 'AA'] }] } } }
+  const p = newPlayer()
+  petTick(p, { kind: 'pose', pose: 'idle' }, 0, 0, sheet)
+  assert.deepEqual(playerFrame(p, 0).px, ['AA', 'AA'])
 })

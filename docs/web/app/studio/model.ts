@@ -1,11 +1,12 @@
 // JSX-free: node --test runs it. Every rule the studio applies is the mod's own, through data.ts.
 import {
-  COLOR_KEYS, DEFAULT_FIELDS, DEFAULT_SETUP, FIELD_DEFAULTS, FIELD_KNOBS, GLYPH_KEYS, STATUS_FIELD_IDS, STUDIO_URL, checkGlyphs,
+  COLOR_KEYS, DEFAULT_FIELDS, DEFAULT_SETUP, FIELD_DEFAULTS, FIELD_KNOBS, GLYPH_KEYS, PET_LINK_MAX, STATUS_FIELD_IDS, STUDIO_URL, checkGlyphs,
   checkHearts, checkWords, decodeLink, encodeLink, exportMix, exportName, isNewerSpinner, normalizeHex, packNameProblem,
-  parseSetup, resolveLook, resolveTheme, validatePack,
-  type ColorsLayer, type Field, type Look, type MotionLayer, type PackFile, type Setup, type StatusFieldId,
+  parseSetup, petNameProblem, resolveLook, resolveTheme, validatePack, validatePetFile,
+  type ColorsLayer, type Field, type Look, type MotionLayer, type PackFile, type PetAnimName, type PetFile, type Setup, type StatusFieldId,
 } from '../landing/data.ts'
 import { mixHex, packLook } from '../landing/look.ts'
+import { retime } from './petpng.ts'
 
 export type Draft = PackFile & { colors: ColorsLayer; motion: MotionLayer }
 export type Role = (typeof COLOR_KEYS)[number]
@@ -132,8 +133,24 @@ const setupPart = (s: StudioSetup) => {
   const { statusline, ...rest } = s
   return statusline.length === DEFAULT_FIELDS.length && statusline.every((f, i) => f === DEFAULT_FIELDS[i]) ? rest : s
 }
-export const sendCommand = (d: Draft, s: StudioSetup) => `/glowup pack ${encodeLink({ pack: d, setup: setupPart(s) })}`
-export const stateHash = (d: Draft, s: StudioSetup) => hashOf(encodeLink({ pack: d, setup: setupPart(s) }))
+const linkParts = (d: Draft, s: StudioSetup, pet?: PetFile) => ({ pack: d, setup: setupPart(s), ...(pet && petRides(pet) && { pet }) })
+export const sendCommand = (d: Draft, s: StudioSetup, pet?: PetFile) => `/glowup pack ${encodeLink(linkParts(d, s, pet))}`
+export const stateHash = (d: Draft, s: StudioSetup, pet?: PetFile) => hashOf(encodeLink(linkParts(d, s, pet)))
+
+export type StudioPet = { file: PetFile; speeds: Partial<Record<PetAnimName, number>> }
+export const petOut = (p: StudioPet) => retime(p.file, p.speeds)
+export const petJson = (f: PetFile) => JSON.stringify(f, null, 2) + '\n'
+
+export function petProblems(f: PetFile): string[] {
+  const name = petNameProblem(f.name)
+  if (name) return [name]
+  try { validatePetFile(f) } catch (err) { return [(err as Error).message] }
+  return petJson(f).length > MAX_BYTES ? ['The pet is over 64 KB.'] : []
+}
+const PET_PREFIX = `${STUDIO_URL}#v=1&pet=`.length
+export const petPartSize = (f: PetFile) => encodeLink({ pet: f }).length - PET_PREFIX
+export const petRides = (f: PetFile) => !petProblems(f).length && petPartSize(f) <= PET_LINK_MAX
+export const petAddCommand = (f: PetFile) => `/glowup pet add ~/Downloads/${f.name}.json`
 
 function parseStatusline(raw: unknown): { ids: StatusFieldId[]; notices: string[] } {
   if (raw === undefined) return { ids: [...DEFAULT_FIELDS], notices: [] }
@@ -147,11 +164,11 @@ function parseStatusline(raw: unknown): { ids: StatusFieldId[]; notices: string[
 
 // A pack is flattened through resolveLook, so a link pack that extends a built-in opens with every value
 // visible. exportMix rewrites the description from the resolve key, so the link's own is kept instead.
-export function fromHash(hash: string): { draft?: Draft; setup?: StudioSetup; notices: string[] } {
+export function fromHash(hash: string): { draft?: Draft; setup?: StudioSetup; pet?: StudioPet; notices: string[] } {
   if (hash === '' || hash === '#') return { notices: [] }
   const { parts, errors } = decodeLink(STUDIO_URL + (hash.startsWith('#') ? hash : `#${hash}`))
   const notices = [...errors]
-  const out: { draft?: Draft; setup?: StudioSetup; notices: string[] } = { notices }
+  const out: { draft?: Draft; setup?: StudioSetup; pet?: StudioPet; notices: string[] } = { notices }
   if (parts.pack !== undefined) {
     try {
       validatePack(parts.pack)
@@ -173,7 +190,9 @@ export function fromHash(hash: string): { draft?: Draft; setup?: StudioSetup; no
     out.setup = { ...r.setup, statusline: sl.ids }
     notices.push(...[...r.notices, ...sl.notices].map(n => `setup: ${n}`))
   }
-  if (parts.pet !== undefined) notices.push('This link carries a pet; the studio cannot edit pets yet.')
+  if (parts.pet !== undefined) {
+    try { validatePetFile(parts.pet); out.pet = { file: parts.pet, speeds: {} } } catch (err) { notices.push(`pet part: ${(err as Error).message}`) }
+  }
   return out
 }
 

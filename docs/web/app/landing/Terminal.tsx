@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useId, useRef, useState } from 'react'
-import { CLAWD_SAY, DEFAULT_SETUP, renderFields, spinnerWordSpans, toneFor, type BandItem, type Model, type OrbState, type Setup, type StatusFieldId, type TabId } from './data.ts'
+import { CLAWD_SAY, DEFAULT_SETUP, renderFields, spinnerWordSpans, toneFor, type BandItem, type Model, type OrbState, type PetSheet, type Setup, type StatusFieldId, type TabId } from './data.ts'
 import { useReducedMotion, useVisible } from './motion.ts'
 import { PaneField } from './PaneField.tsx'
 import { Pet } from './Pet.tsx'
@@ -132,7 +132,7 @@ function PlanView({ s, meter, m }: { s: TermState; meter: Setup['meter']; m: Mar
   )
 }
 
-export function Terminal({ setup = DEFAULT_SETUP, interactive = false, scale = 1 }: { setup?: Setup & { statusline?: readonly StatusFieldId[] }; interactive?: boolean; scale?: number } = {}) {
+export function Terminal({ setup = DEFAULT_SETUP, interactive = false, scale = 1, petSheet }: { setup?: Setup & { statusline?: readonly StatusFieldId[] }; interactive?: boolean; scale?: number; petSheet?: PetSheet } = {}) {
   const { pack, look, hop } = usePack()
   const reduced = useReducedMotion()
   const visible = useVisible()
@@ -208,7 +208,7 @@ export function Terminal({ setup = DEFAULT_SETUP, interactive = false, scale = 1
             <Hearts n={state.hearts} m={marks} />
             <span className="ag">{agents && state.status.tone === 'work' ? `${marks.glyphs.agent} Explore working` : ''}</span>
             <div className="petbox">
-              <Pet scale={Math.max(3, Math.floor(3 * scale))} mode={state.pet} hopKey={hop} palette={look.pet} />
+              <Pet scale={Math.max(3, Math.floor(3 * scale))} mode={state.pet} hopKey={hop} palette={look.pet} sheet={petSheet} />
               <span className={`bub${state.bubble ? ' on' : ''}`} style={{ ['--bubc' as string]: bub.kind === 'fail' ? 'var(--fail)' : 'var(--pass)', color: 'var(--text)' }}>{lines[bub.n % lines.length]}</span>
             </div>
           </div>
