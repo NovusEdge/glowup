@@ -4,7 +4,8 @@ import { CLAWD_SHEET } from './sprites/clawd.ts'
 export { CLAWD_SHEET }
 export const CLAWD_COLOR = '#d77757'
 export const SHINY_COLOR = '#f2c94c'
-export type PetSetting = 'clawd' | 'clawd-shiny' | 'off'
+// Built-in ids, or the name of a pet installed under <config>/glowup/pets.
+export type PetSetting = 'clawd' | 'clawd-shiny' | 'robot' | 'off' | (string & {})
 export type PetId = Exclude<PetSetting, 'off'>
 // 'fail' is optional in a sheet; without one it plays 'alert'. The others fall back to idle.
 export type Pose = 'idle' | 'walk' | 'working' | 'hop' | 'alert' | 'done' | 'sleep' | 'fail' | 'juggle' | 'scrunch' | 'pant' | 'pant-walk'

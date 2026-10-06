@@ -8,7 +8,9 @@ import { decodeLink, isStudioLink } from './link.ts'
 import { loadUserPacks, addPack, savePack, installPackText, SAFE_NAME } from './userpacks.ts'
 import { parseScheme } from './schemes.ts'
 import { konsoleScheme } from './konsole.ts'
-import type { PetSetting } from './pets.ts'
+import type { PetSetting, PetSheet } from './pets.ts'
+import { userPetNames, loadUserPet, addPet } from './userpets.ts'
+import { readLocal } from './readlocal.ts'
 import type { BubbleSetting } from './bubbles.ts'
 import type { EggStore } from './eggs.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
@@ -29,7 +31,7 @@ export type Ctl = {
   // applies the mix; returns what failed to resolve
   setMix(mix: Mix): Promise<string[]>
   pet(): PetSetting
-  setPet(p: PetSetting): void
+  setPet(p: PetSetting, sheet?: PetSheet): void
   bubbles(): BubbleSetting
   setBubbles(b: BubbleSetting): void
   reduced(): boolean
@@ -110,12 +112,9 @@ async function usePack(host: Host, ctl: Ctl, name: string): Promise<string> {
 }
 
 async function importScheme(host: Host, ctl: Ctl, rawPath: string, force: boolean): Promise<string> {
-  const path = rawPath.startsWith('~/') ? `${host.home}${rawPath.slice(1)}` : rawPath
-  // head is portable and bounded, so a FIFO or device cannot hang or flood the read.
-  const head = await host.run(['head', '-c', String(MAX_SCHEME_BYTES + 1), path]).catch(() => undefined)
-  if (!head || head.exitCode !== 0) return `Could not read ${path}.`
-  if (new TextEncoder().encode(head.stdout).length > MAX_SCHEME_BYTES) return `${path} is over 64 KB.`
-  const text = head.stdout
+  const read = await readLocal(host, rawPath, MAX_SCHEME_BYTES)
+  if ('error' in read) return read.error
+  const { text, path } = read
   let scheme: ReturnType<typeof parseScheme>
   try { scheme = parseScheme(text, path) } catch (err) { return err instanceof Error ? err.message : String(err) }
   const msg = await savePack(host, {
@@ -239,12 +238,21 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   if (sub === 'import' && a1) return importScheme(host, ctl, a1, a2 === '--force')
   if (sub === 'pet' && a1 === 'list') {
     const cur = ctl.pet()
-    return ['clawd', ...(await shinyUnlocked(host) ? ['clawd-shiny'] : []), 'off'].map(n => `${n === cur ? '●' : '○'} ${n}`).join('\n')
+    const names = ['clawd', ...(await shinyUnlocked(host) ? ['clawd-shiny'] : []), 'robot', ...(await userPetNames(host)), 'off']
+    return names.map(n => `${n === cur ? '●' : '○'} ${n}`).join('\n')
   }
-  if (sub === 'pet' && (a1 === 'clawd' || a1 === 'off' || a1 === 'clawd-shiny')) {
+  // the [sub, a1, a2] split stops at three words, hence index 3 for the flag
+  if (sub === 'pet' && a1 === 'add') return a2 ? (await addPet(host, a2, args.trim().split(/\s+/)[3] === '--force')).message : 'Use /glowup pet add <file|https url> with a pet .json from the studio or the pet sprites page.'
+  if (sub === 'pet' && a1) {
     if (a1 === 'clawd-shiny' && !(await shinyUnlocked(host))) return 'The shiny pet is not unlocked yet.'
+    let sheet: PetSheet | undefined
+    if (!['clawd', 'clawd-shiny', 'robot', 'off'].includes(a1)) {
+      const r = await loadUserPet(host, a1)
+      if ('error' in r) return r.error
+      sheet = r.sheet
+    }
     await host.storeSet('pet', a1)
-    ctl.setPet(a1)
+    ctl.setPet(a1, sheet)
     return `Pet: ${a1}`
   }
   if (sub === 'bubbles' && (a1 === 'on' || a1 === 'off' || a1 === 'haiku')) {

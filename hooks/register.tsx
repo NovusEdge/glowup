@@ -634,7 +634,7 @@ function ctlOf($: Engine): Ctl {
     mix: () => mix,
     setMix: async m => { mix = m; return loadLook($) },
     pet: () => pet,
-    setPet: p => { pet = p; relook($) },
+    setPet: (p, _sheet) => { pet = p; relook($) },
     bubbles: () => bubbles,
     setBubbles: b => { bubbles = b; if (b !== 'haiku') cancelHaiku(); relook($) },
     reduced: () => reducedMotion,

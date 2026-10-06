@@ -55,7 +55,7 @@ const ctl = (answer = true, current = 'classic') => {
     mix: () => mix,
     setMix: async m => { mix = m; calls.push(`mix:${m.colors}/${m.motion}${m.theme ? '/' + m.theme : ''}`); return [] },
     pet: () => pet,
-    setPet: p => { pet = p; calls.push('pet:' + p) },
+    setPet: (p, sheet) => { pet = p; calls.push('pet:' + p + (sheet ? '+sheet' : '')) },
     bubbles: () => 'on',
     setBubbles: b => { calls.push('bubbles:' + b) },
     reduced: () => false,
@@ -534,4 +534,39 @@ test('a cut-off studio link applies the parts that decoded and names the one tha
   const out = await runCommand(host, `pack ${cut}`, c)
   expect(out.split('\n')[0]).toMatch(/^setup part: /)
   expect(out).toContain('Pack: sunset')
+})
+
+const PETS = '/home/u/.claude/glowup/pets'
+const petFile = (name: string) => JSON.stringify({ format: 1, name, palette: { A: '#112233' }, animations: { idle: [{ ms: 400, px: Array(12).fill('A'.repeat(24)) }] } })
+
+test('pet list shows built-ins, then user pets, then off', async () => {
+  const { host } = fakeHost({ files: { [`${PETS}/mochi.json`]: petFile('mochi') } })
+  expect(await runCommand(host, 'pet list', ctl().ctl)).toBe(['● clawd', '○ robot', '○ mochi', '○ off'].join('\n'))
+})
+
+test('pet robot switches with no sheet; a user pet passes its sheet', async () => {
+  const { host, store } = fakeHost({ files: { [`${PETS}/mochi.json`]: petFile('mochi') } })
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'pet robot', c)).toBe('Pet: robot')
+  expect(await runCommand(host, 'pet mochi', c)).toBe('Pet: mochi')
+  expect(store.pet).toBe('mochi')
+  expect(calls).toEqual(['pet:robot', 'pet:mochi+sheet'])
+})
+
+test('pet <unknown> is refused and nothing changes', async () => {
+  const { host, store } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'pet nope', c)).toBe('No pet named "nope". /glowup pet list shows the pets you have.')
+  expect(await runCommand(host, 'pet Nope!', c)).toBe('No pet named "Nope!". /glowup pet list shows the pets you have.')
+  expect(store.pet).toBeUndefined()
+  expect(calls).toEqual([])
+})
+
+test('pet add installs without switching; bare pet add prints usage', async () => {
+  const { host, store } = fakeHost({ fetches: { 'https://x.test/m.json': petFile('mochi') } })
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'pet add https://x.test/m.json', c)).toBe('Installed pet "mochi". Switch to it with /glowup pet mochi')
+  expect(store.pet).toBeUndefined()
+  expect(calls).toEqual([])
+  expect(await runCommand(host, 'pet add', c)).toBe('Use /glowup pet add <file|https url> with a pet .json from the studio or the pet sprites page.')
 })
