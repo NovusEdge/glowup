@@ -10,12 +10,12 @@ const BAND = { hasSurvey: false, isWorking: true, maxRows: 6, bodyColumns: 100, 
 const walk = (n: any, out: any[] = []): any[] => { if (typeof n === 'string') out.push(n); else if (n && typeof n === 'object') { out.push(n); for (const c of n.children ?? []) walk(c, out) } return out }
 const petClient = (tree: any) => walk(tree).find(n => n?.type === 'Client' && String(n.props?.module).endsWith('client/pet.tsx'))
 const text = (tree: any) => walk(tree).filter(n => typeof n === 'string').join(' ')
-function base(on: any, render: (e: any) => void = () => {}, opts: { shown?: boolean; toolText?: string; run?: (argv: string[]) => { exitCode: number; stdout: string } | void } = {}) {
-  fakeFs(on, {}, opts.run); mock.store(on)
+function base(on: any, render: (e: any) => void = () => {}, opts: { shown?: boolean; toolText?: string; run?: (argv: string[]) => { exitCode: number; stdout: string } | void; files?: Record<string, string>; toasts?: string[] } = {}) {
+  fakeFs(on, opts.files ?? {}, opts.run); mock.store(on)
   on('ui.render', async (_$: unknown, e: any) => { render(e); return ENGINE_ROW })
   on('ui.panes', async () => ({ value: [{ id: 'glowup', isShown: opts.shown ?? true, isPlaced: true }] }))
   on('ui.status', async () => ({ value: undefined }) as never)
-  on('ui.toast', async () => ({ value: undefined }) as never)
+  on('ui.toast', async (_$: unknown, e: any) => { opts.toasts?.push(e.text); return { value: undefined } as never })
   on('session.id', async () => ({ value: 's1' }))
   on('session.usage', async () => ({ value: { context: { window: 1000, percent: 10 } } as never }))
   on('turn.start', async (_$: unknown, e: any) => ({ turnId: e.turnId }))
@@ -155,6 +155,76 @@ test('date +%z runs only where the process offset is 0', async ($, on) => {
   on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
   await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
   expect(ran.includes('date +%z')).toBe(new Date().getTimezoneOffset() === 0)
+})
+
+const PETS = '/fake/.claude/glowup/pets'
+const petJson = (name: string) => JSON.stringify({ format: 1, name, palette: { A: '#abcdef' }, animations: { idle: [{ ms: 400, px: Array(12).fill('A'.repeat(24)) }] } })
+
+test('pet robot reaches the Client by id; a user pet carries its sheet', async ($, on) => {
+  base(on, undefined, { files: { [`${PETS}/mochi.json`]: petJson('mochi') } }); mock.clock(on)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
+  // the pet directory is under the config dir, which session.start reads
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  await runGlowup($, 'pet robot')
+  let pane = await mountPane($)
+  let c = petClient(await pane.drawn())
+  expect(c.props.props.pet).toBe('robot')
+  expect('sheet' in c.props.props).toBe(false)
+  await pane.unmount()
+  await runGlowup($, 'pet mochi')
+  pane = await mountPane($)
+  c = petClient(await pane.drawn())
+  expect(c.props.props.pet).toBe('mochi')
+  expect(c.props.props.sheet.palette).toEqual({ A: '#abcdef' })
+  await pane.unmount()
+})
+
+async function brokenStoredPet($: any, on: any, isInteractive: boolean) {
+  const files: Record<string, string> = { [`${PETS}/mochi.json`]: petJson('mochi') }
+  const toasts: string[] = []
+  base(on, undefined, { files, toasts }); mock.clock(on)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive })
+  await runGlowup($, 'pet mochi')
+  files[`${PETS}/mochi.json`] = '{"format":1,"name":"mochi"'
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive })
+  return toasts
+}
+
+test('a stored user pet that no longer loads falls back to Clawd with one toast', async ($, on) => {
+  const toasts = await brokenStoredPet($, on, true)
+  const pane = await mountPane($)
+  const c = petClient(await pane.drawn())
+  expect(c.props.props.pet).toBe('clawd')
+  expect('sheet' in c.props.props).toBe(false)
+  const mine = toasts.filter(t => t.includes('mochi'))
+  expect(mine).toHaveLength(1)
+  expect(mine[0]!.match(/mochi/g)!.length).toBeLessThanOrEqual(2)
+  expect(mine[0]).toMatch(/\. Showing Clawd\.$/)
+  expect(mine[0]).not.toContain('glowup pet "')
+  await pane.unmount()
+})
+
+test('a non-interactive run shows no fallback toast', async ($, on) => {
+  const toasts = await brokenStoredPet($, on, false)
+  expect(toasts.filter(t => t.includes('Showing Clawd'))).toEqual([])
+})
+
+test('the robot gets an 8-row strip; Clawd keeps 6', async ($, on) => {
+  base(on); mock.clock(on)
+  const strip = async () => {
+    const pane = await mountPane($)
+    const tree = await pane.drawn()
+    const box = walk(tree).find(n => n?.type === 'Box' && n.props?.height && walk(n).includes(petClient(tree)))
+    await pane.unmount()
+    return box.props.height
+  }
+  await runGlowup($, 'pet clawd')
+  expect(await strip()).toBe(6)
+  await runGlowup($, 'pet robot')
+  expect(await strip()).toBe(8)
 })
 
 test('the pack look reaches the band and the pane, pet on or off', async ($, on) => {

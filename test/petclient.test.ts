@@ -1,6 +1,6 @@
 import { test, expect } from 'claude-code/testing'
 import PetClient, { clock } from '../hooks/client/pet.tsx'
-import { PET_ROWS, PET_COLS, CLAWD_ROW, CLAWD_SHEET, newPlayer, stepPlayer, playerFrame, mirrored, petPose, type PetSheet } from '../hooks/pets.ts'
+import { PET_ROWS, PET_COLS, CLAWD_ROW, CLAWD_SHEET, newPlayer, stepPlayer, playerFrame, mirrored, petPose, BUILTIN_SHEETS, CRITTER_ROW, mainColor, type PetSheet } from '../hooks/pets.ts'
 
 function fakeSurface(columns = 0) {
   const timers: { ms: number; fn: () => void; cancelled: boolean }[] = []
@@ -348,4 +348,87 @@ test('a sheet without transitions or exit flags switches directly', async () => 
   expect(px(p, 50)).toBe('w')
   stepPlayer(p, bare, 'alert', 60, MAX)
   expect(px(p, 60)).toBe('i')
+})
+
+test('the robot draws from its own sheet; the drawer shows the critter row in its main color', () => {
+  const robot = JSON.stringify(PetClient({ ...base, pet: 'robot' }, fakeSurface().s))
+  expect(robot).not.toBe(JSON.stringify(PetClient(base, fakeSurface().s)))
+  const small = JSON.stringify(PetClient({ ...base, pet: 'robot', compact: true }, fakeSurface().s))
+  expect(small).toContain(CRITTER_ROW)
+  expect(small).toContain(mainColor(BUILTIN_SHEETS.robot!))
+})
+
+test('a pet draws as many rows as its sheet is tall', () => {
+  const rows = (props: object) => (PetClient({ ...base, ...props }, fakeSurface().s) as any).children.length
+  expect(rows({ pet: 'robot' })).toBe(8)
+  const sheet: PetSheet = { w: 4, h: 4, palette: { A: '#abcdef' }, animations: { idle: { loop: true, frames: [{ ms: 400, px: ['AAAA', 'AAAA', 'AAAA', 'AAAA'] }] } } }
+  expect(rows({ pet: 'mochi', sheet, input: { working: false, needsYou: false } })).toBe(2)
+})
+
+const rowText = (n: any): string => (typeof n === 'string' ? n : Array.isArray(n) ? n.map(rowText).join('') : n && typeof n === 'object' ? rowText(n.children) : '')
+
+test('a pet wider than the strip stands still', () => {
+  // 28 is between the old 24-column bound and the robot's 32, so only the sheet's own width keeps it at 0
+  const { s, timers } = fakeSurface(28)
+  const tree = PetClient({ ...base, pet: 'robot', width: 28 }, s) as any
+  expect(tree.children).toHaveLength(8)
+  for (const row of tree.children) for (const t of row.children) expect(t.props.wrap).toBe('truncate')
+  const t0 = Date.now()
+  for (let i = 1; i <= 40; i++) atTime(t0 + i * 500, () => timers[0]!.fn())
+  expect(s.state.player.x).toBe(0)
+})
+
+test('a pet never walks past the strip: the robot stops at width minus its own 32', () => {
+  const { s, timers } = fakeSurface(46)
+  PetClient({ ...base, pet: 'robot', width: 46 }, s)
+  const t0 = Date.now()
+  let top = 0
+  for (let i = 1; i <= 200; i++) { atTime(t0 + i * 83, () => timers[0]!.fn()); top = Math.max(top, s.state.player.x) }
+  expect(top).toBeGreaterThan(0)
+  expect(top).toBeLessThanOrEqual(46 - 32)
+})
+
+test('a state kept across a sheet change gets a new player: no frame of the old sheet is drawn', () => {
+  const { s } = fakeSurface()
+  const rows = (props: object) => (PetClient({ ...idle, ...props }, s) as any).children.map(rowText) as string[]
+  const t0 = Date.now()
+  atTime(t0, () => PetClient(idle, s))
+  expect(atTime(t0 + 100, () => rows({}))).toHaveLength(6)
+  const robot = atTime(t0 + 200, () => rows({ pet: 'robot' }))
+  expect(robot).toHaveLength(8)
+  expect(Math.max(...robot.map(r => [...r].length))).toBe(32)
+  const back = atTime(t0 + 300, () => rows({}))
+  expect(back).toHaveLength(6)
+  expect(Math.max(...back.map(r => [...r].length))).toBe(24)
+  // same pet name, a different sheet object (pet add --force)
+  const a: PetSheet = { w: 2, h: 2, palette: { A: '#111111', B: '#222222' }, animations: { idle: { loop: true, frames: [{ ms: 400, px: ['AA', 'AA'] }] } } }
+  const b: PetSheet = { ...a, animations: { idle: { loop: true, frames: [{ ms: 400, px: ['BB', 'BB'] }] } } }
+  const bg = (sheet: PetSheet) => JSON.stringify(atTime(t0 + 400, () => PetClient({ ...idle, pet: 'mochi', sheet }, s)))
+  expect(bg(a)).toContain('#111111')
+  expect(bg(b)).not.toContain('#111111')
+  expect(bg(b)).toContain('#222222')
+})
+
+test('a user pet keeps its frame when the pane redraws with a cloned copy of the same sheet', () => {
+  const { s, timers } = fakeSurface()
+  const sheet: PetSheet = { w: 2, h: 2, palette: { A: '#111111', B: '#222222' }, animations: { idle: { loop: true, frames: [{ ms: 400, px: ['AA', 'AA'] }, { ms: 400, px: ['BB', 'BB'] }] } } }
+  const props = { ...idle, pet: 'mochi', sheet }
+  const t0 = Date.now()
+  atTime(t0, () => PetClient(props, s))
+  atTime(t0 + 450, () => timers[0]!.fn())
+  // the engine clones a Client's props on their way to the surface module
+  const drawn = JSON.stringify(atTime(t0 + 460, () => PetClient(structuredClone(props), s)))
+  expect(drawn).toContain('#222222')
+  expect(drawn).not.toContain('#111111')
+})
+
+test('a pet wider than the strip is cut at its right edge, not squeezed', () => {
+  const draw = (width: number) => atTime(1000, () => (PetClient({ ...base, pet: 'robot', width }, fakeSurface(width).s) as any).children.map(rowText) as string[])
+  // 32 leaves the robot no room to walk, so both draws are the same frame at x = 0
+  const full = draw(32), cut = draw(28)
+  expect(cut).toHaveLength(8)
+  cut.forEach((row, i) => {
+    expect([...row].length).toBeLessThanOrEqual(28)
+    expect(row).toBe([...full[i]!].slice(0, 28).join(''))
+  })
 })

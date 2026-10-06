@@ -12,7 +12,7 @@ glowup
 
   /glowup config                       open the config pane: pack, colors, layout
   /glowup pack <name>                  switch look: arcade classic cozy crt
-  /glowup pet clawd|off                Clawd, or no pet
+  /glowup pet clawd|robot|off          pick a pet, or none
   /glowup pane                         open or close the side pane
   /glowup motion reduced               calm everything down
 
@@ -58,7 +58,7 @@ Each refusal prints a message naming the failed check. Adding a theme whose name
 | `/glowup pack save <name>` | Save the current look as a self-contained pack file in `~/.claude/glowup/packs`. Prints `Saved pack "<name>" to <path>.` |
 | `/glowup pack <url>` | Download, check and install a pack from an `https://` URL, then apply it. |
 | `/glowup pack <url> --force` | The same, replacing an installed pack of that name. |
-| `/glowup pack <studio link>` | Install the look in a link from the [studio](https://glowup.khimani.dev/studio). Nothing is downloaded: the pack is inside the link. If the link also carries a setup, glowup asks before applying it. Add `--force` to replace an installed pack of the same name. |
+| `/glowup pack <studio link>` | Install the look in a link from the [studio](https://glowup.khimani.dev/studio). Nothing is downloaded: the pack is inside the link. If the link also carries a setup, glowup asks before applying it. Add `--force` to replace an installed pack of the same name. If the link carries a pet, glowup installs it and switches to it, unlike `/glowup pet add`, which only installs. A pet you already have needs `--force` too. |
 
 ## spinner
 
@@ -98,14 +98,17 @@ An override sits on top of whatever pack and theme are active and survives switc
 | Command | What it does |
 | --- | --- |
 | `/glowup pet clawd` | Show Clawd. Prints `Pet: clawd`. |
+| `/glowup pet robot` | Show the CRT robot. Prints `Pet: robot`. |
+| `/glowup pet <name>` | Show a pet you installed. Prints `Pet: <name>`. An unknown name prints `No pet named "<name>". /glowup pet list shows the pets you have.` and changes nothing. |
+| `/glowup pet add <file\|https url> [--force]` | Install a pet file from the [studio](https://glowup.khimani.dev/studio) or your disk, without switching to it. Prints `Installed pet "<name>". Switch to it with /glowup pet <name>`. `--force` replaces an installed pet of the same name. |
 | `/glowup pet off` | Hide the pet. Prints `Pet: off`. |
-| `/glowup pet list` | List the pets you can pick. A filled dot marks the current one. |
+| `/glowup pet list` | List the built-in pets, then the ones you installed, then `off`. A filled dot marks the current one. |
 | `/glowup pet clawd-shiny` | The shiny Clawd. Prints `The shiny pet is not unlocked yet.` until you earn him. |
 | `/glowup bubbles on` | Turn speech bubbles on. Prints `Bubbles: on`. |
 | `/glowup bubbles off` | Turn them off. |
 | `/glowup bubbles haiku` | Let Claude Haiku write some lines. Each one is a small call on your account. Prints `Bubbles: haiku`. |
 
-See [Pets](pets.md).
+See [Pets](pets.md), and [Pet sprites](pet-sprites.md) for drawing your own.
 
 ## setup
 

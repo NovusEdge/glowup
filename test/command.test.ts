@@ -1,6 +1,6 @@
 import { expect, mock } from 'claude-code/testing'
 import { runGlowup, fakeHost, fakeFs, test } from './kit.ts'
-import { runCommand, USAGE, type Ctl } from '../hooks/command.ts'
+import { runCommand, pastedGlowup, USAGE, type Ctl } from '../hooks/command.ts'
 import { SHORT_TEXT, FULL_TEXT, SECTIONS, DOCS_URL } from '../hooks/help.ts'
 import { resolveLook, cleanOverrides, type Mix } from '../hooks/packs.ts'
 import type { PetSetting } from '../hooks/pets.ts'
@@ -15,7 +15,7 @@ test('/glowup and /glowup help print the short card', { timeoutMs: 20000 }, asyn
   for (const args of ['', 'help']) {
     const out = (await runGlowup($, args)).text!
     expect(out).toBe(SHORT_TEXT)
-    for (const c of ['/glowup config', '/glowup pack <name>', '/glowup pet clawd|off', '/glowup pane', '/glowup motion reduced', '/glowup help all', DOCS_URL]) expect(out).toContain(c)
+    for (const c of ['/glowup config', '/glowup pack <name>', '/glowup pet clawd|robot|off', '/glowup pane', '/glowup motion reduced', '/glowup help all', DOCS_URL]) expect(out).toContain(c)
     expect(out).toContain('arcade classic cozy crt')
     expect(out).not.toContain('theme add')
   }
@@ -55,7 +55,7 @@ const ctl = (answer = true, current = 'classic') => {
     mix: () => mix,
     setMix: async m => { mix = m; calls.push(`mix:${m.colors}/${m.motion}${m.theme ? '/' + m.theme : ''}`); return [] },
     pet: () => pet,
-    setPet: p => { pet = p; calls.push('pet:' + p) },
+    setPet: (p, sheet) => { pet = p; calls.push('pet:' + p + (sheet ? '+sheet' : '')) },
     bubbles: () => 'on',
     setBubbles: b => { calls.push('bubbles:' + b) },
     reduced: () => false,
@@ -534,4 +534,91 @@ test('a cut-off studio link applies the parts that decoded and names the one tha
   const out = await runCommand(host, `pack ${cut}`, c)
   expect(out.split('\n')[0]).toMatch(/^setup part: /)
   expect(out).toContain('Pack: sunset')
+})
+
+const PETS = '/home/u/.claude/glowup/pets'
+const petFile = (name: string) => JSON.stringify({ format: 1, name, palette: { A: '#112233' }, animations: { idle: [{ ms: 400, px: Array(12).fill('A'.repeat(24)) }] } })
+
+test('pet list shows built-ins, then user pets, then off', async () => {
+  const { host } = fakeHost({ files: { [`${PETS}/mochi.json`]: petFile('mochi') } })
+  expect(await runCommand(host, 'pet list', ctl().ctl)).toBe(['● clawd', '○ robot', '○ mochi', '○ off'].join('\n'))
+})
+
+test('pet robot switches with no sheet; a user pet passes its sheet', async () => {
+  const { host, store } = fakeHost({ files: { [`${PETS}/mochi.json`]: petFile('mochi') } })
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'pet robot', c)).toBe('Pet: robot')
+  expect(await runCommand(host, 'pet mochi', c)).toBe('Pet: mochi')
+  expect(store.pet).toBe('mochi')
+  expect(calls).toEqual(['pet:robot', 'pet:mochi+sheet'])
+})
+
+test('pet <unknown> is refused and nothing changes', async () => {
+  const { host, store } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'pet nope', c)).toBe('No pet named "nope". /glowup pet list shows the pets you have.')
+  expect(await runCommand(host, 'pet Nope!', c)).toBe('No pet named "Nope!". /glowup pet list shows the pets you have.')
+  expect(store.pet).toBeUndefined()
+  expect(calls).toEqual([])
+})
+
+test('pet add installs without switching; bare pet add prints usage', async () => {
+  const { host, store } = fakeHost({ fetches: { 'https://x.test/m.json': petFile('mochi') } })
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'pet add https://x.test/m.json', c)).toBe('Installed pet "mochi". Switch to it with /glowup pet mochi')
+  expect(store.pet).toBeUndefined()
+  expect(calls).toEqual([])
+  expect(await runCommand(host, 'pet add', c)).toBe('Use /glowup pet add <file|https url> with a pet .json from the studio or the pet sprites page.')
+})
+
+test('a pasted /glowup line from the person is a command; anything else stays a prompt', () => {
+  const you = { kind: 'composer' }
+  const link = 'https://glowup.khimani.dev/studio#v=1&pet=eyJ9'
+  expect(pastedGlowup(`/glowup pack ${link}`, you)).toBe(`pack ${link}`)
+  expect(pastedGlowup('  /glowup pet robot \n', you)).toBe('pet robot')
+  expect(pastedGlowup('/glowup', you)).toBe('')
+  expect(pastedGlowup('/glowupx', you)).toBeUndefined()
+  expect(pastedGlowup('/glowup pet robot\nwhy is he red?', you)).toBeUndefined()
+  expect(pastedGlowup('why does /glowup pet robot fail?', you)).toBeUndefined()
+  expect(pastedGlowup('/glowup pet robot', { kind: 'peer' })).toBeUndefined()
+  expect(pastedGlowup('/glowup pet robot', { kind: 'plugin' })).toBeUndefined()
+  // how Claude Code 2.1.291 hands over an expanded paste
+  const pasted = (s: string) => `\n\n<pasted_content id="c2c5">\n${s}\n</pasted_content id="c2c5">\n`
+  expect(pastedGlowup(pasted(`/glowup pack ${link} --force`), you)).toBe(`pack ${link} --force`)
+  expect(pastedGlowup(`${pasted('/glowup pet robot')} why?`, you)).toBeUndefined()
+  expect(pastedGlowup('<pasted_content id="a">\n/glowup pet robot\n</pasted_content id="b">', you)).toBeUndefined()
+})
+
+test('pet add --force over the pet in use draws the new art at once', async () => {
+  const { host } = fakeHost({ files: { [`${PETS}/mochi.json`]: petFile('mochi') }, fetches: { 'https://x.test/m.json': petFile('mochi') } })
+  const { calls, ctl: c } = ctl()
+  await runCommand(host, 'pet mochi', c)
+  expect(await runCommand(host, 'pet add https://x.test/m.json --force', c)).toBe('Installed pet "mochi".')
+  expect(calls).toEqual(['pet:mochi+sheet', 'pet:mochi+sheet'])
+})
+
+const linkPet = (name: string) => ({ format: 1, name, palette: { A: '#112233' }, animations: { idle: [{ ms: 400, px: Array(12).fill('A'.repeat(24)) }] } })
+
+test('a studio link with a pet installs it and switches to it', async () => {
+  const { host, files, store } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  const out = await runCommand(host, `pack ${encodeLink({ pet: linkPet('mochi') })}`, c)
+  expect(out).toBe('Pet: mochi')
+  expect(JSON.parse(files['/home/u/.claude/glowup/pets/mochi.json']!).name).toBe('mochi')
+  expect(store.pet).toBe('mochi')
+  expect(calls).toEqual(['pet:mochi+sheet'])
+})
+
+test('a bad pet part is named and the pack in the same link still installs', async () => {
+  const { host } = fakeHost()
+  const pack = { format: 1, name: 'sunset', colors: { palette: { accent: '#ff8c42' } } }
+  const out = await runCommand(host, `pack ${encodeLink({ pack, pet: { ...linkPet('mochi'), palette: {} } })}`, ctl().ctl)
+  expect(out).toBe('Pack: sunset\nPet not installed: the palette needs at least one color')
+})
+
+test('a link pet whose name is installed needs --force', async () => {
+  const { host } = fakeHost({ files: { '/home/u/.claude/glowup/pets/mochi.json': JSON.stringify(linkPet('mochi')) } })
+  const link = encodeLink({ pet: linkPet('mochi') })
+  expect(await runCommand(host, `pack ${link}`, ctl().ctl)).toBe('Pet not installed: A pet named "mochi" is installed already. Add --force to replace it.')
+  expect(await runCommand(host, `pack ${link} --force`, ctl().ctl)).toBe('Pet: mochi')
 })

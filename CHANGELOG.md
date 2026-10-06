@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Packs can set `colors.glyphs`, `colors.hearts` and `colors.words`, and a studio link's setup can carry the status line fields. Older glowups refuse a pack that uses the new keys.
 - Packs can recolor Clawd with `colors.pet` (`body`, `light`, `shade`). The shiny pet keeps its gold.
 - The studio at glowup.khimani.dev/studio is a full-viewport page with collapsible Theme, Colors, Rows & meters, Motion, Status line and Setup sections. It has a color wheel, labeled color groups (Clawd's colors included), field knobs and status line fields, beside a live preview with working tabs. Copy a share link or a `/glowup pack` command, or download `pack.json`; a link from `/glowup config` opens there.
+- A CRT-monitor robot joins Clawd as a pet: `/glowup pet robot`.
+- Your own pets: draw a PNG sprite sheet (see Pet sprites), convert it in the studio's new Pet section, and install it with `/glowup pet add <file|url>` or a studio link. A studio link that carries a pet installs it and switches to it; `pet add` only installs. Installed pets show in `/glowup pet list` and the config pane.
+- The studio's stage draws the look's own field behind the preview.
 
 ### Changed
 
@@ -23,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - After `/clear` the status line kept showing your previous one until the first prompt, because glowup only noticed the new session on the first turn. The heartbeat now picks up the new session within a minute, and glowup sets `refreshInterval: 30` on the status line it owns (a value you set yourself stays, existing installs included), so the line shows within about a minute and a half of `/clear`, and within 30 seconds of launch or a reload.
 - A glowup restart in the middle of a session (a hot reload) wrote a status line without `ctx`, `5h` and `wk` until the next tool call or turn ended. It now reads them back at start.
 - A studio link copied from `/glowup config` while on a built-in pack was refused by `/glowup pack`; the pack in it is now named `my-<pack>`.
+- Pasting a `/glowup pack` command longer than about 700 characters, which includes every studio link that carries a pet, sent it to Claude as a prompt instead of running it: Claude Code shows a long paste as `[Pasted text #N]` and does not read it as a slash command. glowup now runs a prompt that is only a `/glowup` line.
 
 ## [0.8.1] - 2026-10-05
 

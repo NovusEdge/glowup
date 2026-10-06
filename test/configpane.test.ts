@@ -10,7 +10,7 @@ import { COLOR_KEYS } from '../hooks/themes.ts'
 // The global `h` builds { type, props, children }, keeps map() results as nested arrays and hoists handlers onto the node (Button onPress, Input onEvent).
 const EL = { Box: 'Box', Text: 'Text', Button: 'Button', Input: 'Input', Link: 'Link' }
 const look = resolveLook(DEFAULT_MIX, {}, {}).look
-const s: ConfigState = { packs: ['classic', 'cozy'], mix: DEFAULT_MIX, colors: look.theme.colors, pet: 'clawd', shiny: false, bubbles: 'on', reduced: false, setup: DEFAULT_SETUP, fields: DEFAULT_FIELDS }
+const s: ConfigState = { packs: ['classic', 'cozy'], mix: DEFAULT_MIX, colors: look.theme.colors, pet: 'clawd', shiny: false, userPets: [], bubbles: 'on', reduced: false, setup: DEFAULT_SETUP, fields: DEFAULT_FIELDS }
 const noop: ConfigHandlers = { cycle() {}, input() {}, done() {}, reset() {}, copyLink() {} }
 const walk = (n: any, out: any[] = []): any[] => {
   if (Array.isArray(n)) for (const c of n) walk(c, out)

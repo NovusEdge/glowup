@@ -9,7 +9,7 @@ const base = (over: Partial<ConfigState> = {}): ConfigState => ({
   packs: ['classic', 'cozy', 'arcade', 'mine'],
   mix: DEFAULT_MIX,
   colors: resolveLook(DEFAULT_MIX, {}, {}).look.theme.colors,
-  pet: 'clawd', shiny: false, bubbles: 'on', reduced: false,
+  pet: 'clawd', shiny: false, userPets: [], bubbles: 'on', reduced: false,
   setup: DEFAULT_SETUP, fields: DEFAULT_FIELDS,
   ...over,
 })
@@ -34,9 +34,17 @@ test('spinner starts at the pack default and walks the spinner ids', () => {
 })
 
 test('pet offers shiny only once it is unlocked', () => {
-  expect(cycleCommands('pet', base())).toEqual(['pet off'])
+  expect(cycleCommands('pet', base())).toEqual(['pet robot'])
   expect(cycleCommands('pet', base({ shiny: true }))).toEqual(['pet clawd-shiny'])
   expect(cycleCommands('pet', base({ pet: 'off' }))).toEqual(['pet clawd'])
+})
+
+test('the pet cycle runs clawd, robot, user pets, off', () => {
+  const s = base({ userPets: ['mochi'] })
+  const seq: string[] = []
+  let cur = s.pet
+  for (let i = 0; i < 4; i++) { const cmd = cycleCommands('pet', { ...s, pet: cur })[0]!; cur = cmd.slice(4); seq.push(cur) }
+  expect(seq).toEqual(['robot', 'mochi', 'off', 'clawd'])
 })
 
 test('bubbles and motion toggle through their settings', () => {

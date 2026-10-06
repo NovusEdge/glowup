@@ -234,7 +234,7 @@ export function statusRows(model: Model, base: Theme, width: number, now: number
 }
 
 // The pet node is the ready Client element register.tsx builds; the pane only places it.
-// rows is the strip height: PET_ROWS, or two more while an outfit needs headroom.
+// rows is the strip height, from stripRows: the sheet's height, plus headroom while an outfit is worn.
 // meter and field come from a renderer plugin: rows for the status box, and a builder for the
 // field's player given the rows left open between the tab and the status box.
 export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Mood }; friday?: boolean; minRows?: number; bodyRows?: number; onScroll?: (offset: number) => void; meter?: Seg[][]; field?: (rows: number) => unknown; tabs?: readonly TabId[] }

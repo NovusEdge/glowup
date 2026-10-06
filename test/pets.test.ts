@@ -1,5 +1,6 @@
 import { test, expect } from 'claude-code/testing'
-import { petPose, halfBlock, frameAt, shiny, petPalette, composeFrame, validateSheet, animFor, newPlayer, stepPlayer, playerFrame, mirrored, type PetSheet, CLAWD_SHEET, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, PET_COLS, PET_ROWS, OUTFIT_PAD } from '../hooks/pets.ts'
+import { petPose, halfBlock, frameAt, shiny, petPalette, composeFrame, validateSheet, animFor, newPlayer, stepPlayer, playerFrame, mirrored, type PetSheet, CLAWD_SHEET, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, PET_COLS, PET_ROWS, OUTFIT_PAD, BUILTIN_SHEETS, isClawd, mainColor, stripRows, CRITTER_ROW } from '../hooks/pets.ts'
+import { PET_ANIMS, BUILTIN_PET_NAMES } from '../hooks/petfile.ts'
 import { cellWidth } from '../hooks/cells.ts'
 
 const width = (s: string) => [...s].reduce((n, c) => n + cellWidth(c.codePointAt(0)!), 0)
@@ -290,4 +291,49 @@ test('sleep and pant follow the setup when given', () => {
   expect(petPose({ ...idle, sleepMs: 120_000 }, 1000 + 60_000)).toBe('idle')
   expect(petPose({ ...idle, ctx: 70, pantAt: 65 }, 2000)).toBe('pant')
   expect(petPose({ ...idle, ctx: 70 }, 2000)).toBe('idle')
+})
+
+test('the built-in sheets are clawd and the robot, all playable', () => {
+  expect(Object.keys(BUILTIN_SHEETS)).toEqual(BUILTIN_PET_NAMES)
+  for (const s of Object.values(BUILTIN_SHEETS)) expect(() => validateSheet(s)).not.toThrow()
+})
+
+test('the robot follows the user-pet rules: the spec animations only, mirrored walks, no outfits', () => {
+  const s = BUILTIN_SHEETS.robot!
+  expect([s.w, s.h]).toEqual([32, 16])
+  expect(Object.keys(s.animations).sort()).toEqual([...PET_ANIMS].sort())
+  expect(s.outfits ?? {}).toEqual({})
+  expect(s.transitions ?? {}).toEqual({})
+  for (const f of s.animations.walk!.frames) expect(f.dx).toBe(1)
+})
+
+test('a pack tint recolors only Clawd', () => {
+  const tint = { body: '#000001' }
+  expect(petPalette(BUILTIN_SHEETS.robot!, 'robot', tint)).toEqual(BUILTIN_SHEETS.robot!.palette)
+  expect(petPalette(CLAWD_SHEET, 'clawd', tint).B).toBe('#000001')
+  expect([isClawd('clawd'), isClawd('clawd-shiny'), isClawd('robot')]).toEqual([true, true, false])
+})
+
+test('the strip is as tall as the pet; only head outfits a sheet has add two rows', () => {
+  expect(stripRows(CLAWD_SHEET, [])).toBe(6)
+  expect(stripRows(CLAWD_SHEET, ['santa'])).toBe(8)
+  expect(stripRows(CLAWD_SHEET, ['sweat'])).toBe(6)
+  expect(stripRows(BUILTIN_SHEETS.robot!, [])).toBe(8)
+  expect(stripRows(BUILTIN_SHEETS.robot!, ['santa'])).toBe(8)
+})
+
+test('a sheet without left-facing walks mirrors the panting walk too', () => {
+  const f = (c: string) => ({ ms: 100, dx: 1, px: [c] })
+  const s: PetSheet = { w: 2, h: 1, palette: {}, animations: { idle: { loop: true, frames: [{ ms: 100, px: ['..'] }] }, walk: { loop: true, frames: [f('ab')] }, 'pant-walk': { loop: true, frames: [f('cd')] } } }
+  const p = newPlayer()
+  p.dir = -1
+  p.x = 5
+  stepPlayer(p, s, 'pant-walk', 0, 10)
+  expect(mirrored(p)).toBe(true)
+})
+
+test('mainColor is the commonest color of the first idle frame', () => {
+  const s: PetSheet = { w: 3, h: 1, palette: { A: '#111111', B: '#222222' }, animations: { idle: { loop: true, frames: [{ ms: 100, px: ['ABB'] }] } } }
+  expect(mainColor(s)).toBe('#222222')
+  expect([...CRITTER_ROW]).toHaveLength(5)
 })

@@ -2,11 +2,12 @@ import type { EngineInterface, PaneOpenArgs, Register, RenderElement, RenderSurf
 import type { Host } from './host.ts'
 import { initialModel, normalizeModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
 import { approvalLabel, dialogCall, modeAsksPerson, shortPath } from './events.ts'
-import type { Theme } from './themes.ts'
+import { shown, type Theme } from './themes.ts'
 import { resolveLook, cleanOverrides, exportMix, exportName, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { PACKS } from './packpresets.ts'
 import { loadUserPacks, SAFE_NAME } from './userpacks.ts'
-import { PET_ROWS, type PetSetting, type PetId, type PetInput, type PetKind } from './pets.ts'
+import { BUILTIN_SHEETS, CLAWD_SHEET, stripRows, type PetSetting, type PetInput, type PetKind, type PetSheet } from './pets.ts'
+import { loadUserPet, userPetNames } from './userpets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
 import { recordPass, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, refreshCounts, serial } from './changes.ts'
@@ -23,7 +24,7 @@ import type { OrbState } from './motion.ts'
 import { statusText, writeStatusFile, drawsStatusLine, ensureRefresh, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
 import { parseFields, DEFAULT_FIELDS, type ColorMode, type FieldId } from './fields.ts'
 import { DEFAULT_SETUP, parseSetup, type Setup } from './setup.ts'
-import { runCommand, type Ctl } from './command.ts'
+import { runCommand, pastedGlowup, type Ctl } from './command.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 import { renderHelp, renderColorList } from './helpcard.tsx'
 import { cycleCommands, inputCommand, inputValue, type ConfigState, type CycleId, type InputId } from './configrows.ts'
@@ -55,6 +56,8 @@ let mix: Mix = DEFAULT_MIX
 let look: Look = resolveLook(DEFAULT_MIX, {}, {}).look
 let theme: Theme = look.theme
 let pet: PetSetting = 'clawd'
+// A user pet's sheet, read when it is picked: the render hook may not read disk.
+let petSheet: PetSheet | undefined
 let bubbles: BubbleSetting = 'on'
 let view: PaneView = { tab: 'changes' }
 let git: { root: string; base: string } | undefined
@@ -109,6 +112,7 @@ const CONFIG_OPEN: PaneOpenArgs = { id: CONFIG_ID, title: 'glowup config', focus
 // Read when the config pane opens and after each pack change: its render hook may not read disk.
 let configPacks: string[] = Object.keys(PACKS)
 let configShiny = false
+let configUserPets: string[] = []
 let configNote: ConfigNote | undefined
 // The element holding the config pane's focus ring, from ui.focus; the preview marks what it paints.
 let configFocus: string | undefined
@@ -250,8 +254,6 @@ async function dividerFor($: Engine, messageId: string): Promise<Divider | null>
 const petOn = () => pet !== 'off' && !reducedMotion
 
 const PET_KINDS: readonly string[] = ['read', 'search', 'edit', 'shell', 'agent', 'plan']
-// Hats sit above the canvas; held and side outfits fit inside it.
-const HEAD_OUTFITS = ['santa', 'party', 'nightcap']
 // Running subagents are work even when the main loop only waits on them or its turn already ended.
 function petKind(): PetKind | undefined {
   const own = model.working ? (PET_KINDS.includes(model.act.kind ?? '') ? model.act.kind as PetKind : 'think') : undefined
@@ -449,6 +451,10 @@ async function readConfigLists($: Engine) {
   const user = await loadUserPacks(host)
   configPacks = [...new Set([...Object.keys(PACKS), ...Object.keys(user).filter(n => SAFE_NAME.test(n))])]
   configShiny = ((await host.storeGet('eggs')) as EggStore | undefined)?.shinyAt !== undefined
+  // a listed pet that does not load would be refused forever, and the Pet row would repeat it
+  const pets: string[] = []
+  for (const n of await userPetNames(host)) if ('sheet' in await loadUserPet(host, n)) pets.push(n)
+  configUserPets = pets
 }
 
 async function openConfig($: Engine): Promise<string> {
@@ -459,7 +465,7 @@ async function openConfig($: Engine): Promise<string> {
   return r.isPlaced ? 'glowup config open (Esc closes it)' : `glowup config waits: ${r.reason}`
 }
 
-const configState = (): ConfigState => ({ packs: configPacks, mix, colors: look.theme.colors, pet, shiny: configShiny, bubbles, reduced: reducedMotion, setup, fields })
+const configState = (): ConfigState => ({ packs: configPacks, mix, colors: look.theme.colors, pet, shiny: configShiny, userPets: configUserPets, bubbles, reduced: reducedMotion, setup, fields })
 
 // Every change runs as the typed command would; the last command's first line, or its setting's row for a setup, becomes the pane's note.
 // A command that leaves the state unchanged was refused, so the rest of the run is dropped: the
@@ -471,8 +477,8 @@ async function runConfig($: Engine, cmds: string[]) {
     const before = JSON.stringify(configState())
     text = await runCommand(hostOf($), cmd, ctlOf($))
     const moved = JSON.stringify(configState()) !== before
-    // after the compare: a pack that vanished from disk shrinks the list but was still refused
-    if (cmd.startsWith('pack ')) await readConfigLists($)
+    // after the compare: a pack or pet that vanished from disk shrinks the list but was still refused
+    if (cmd.startsWith('pack ') || cmd.startsWith('pet ')) await readConfigLists($)
     if (!moved) { stopped = true; break }
   }
   const lines = text.split('\n'), key = lastCmd.match(/^setup (\S+)/)?.[1]
@@ -604,7 +610,6 @@ async function askFirstRun($: Engine) {
   }
 }
 
-const PETS: readonly PetSetting[] = ['clawd', 'clawd-shiny', 'off']
 const BUBBLES = BUBBLE_SETTINGS
 
 // The store wins only once a command wrote it. Without a stored mix, the
@@ -634,7 +639,7 @@ function ctlOf($: Engine): Ctl {
     mix: () => mix,
     setMix: async m => { mix = m; return loadLook($) },
     pet: () => pet,
-    setPet: p => { pet = p; relook($) },
+    setPet: (p, sheet) => { pet = p; petSheet = sheet; relook($) },
     bubbles: () => bubbles,
     setBubbles: b => { bubbles = b; if (b !== 'haiku') cancelHaiku(); relook($) },
     reduced: () => reducedMotion,
@@ -734,9 +739,18 @@ export const register: Register = (on, options) => {
     await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|setup|restore' })
     mix = await initialMix(host, options)
     const storedPet = await host.storeGet('pet')
-    const wantPet = PETS.includes(storedPet as PetSetting) ? storedPet as PetSetting : PETS.includes(options.pet as PetSetting) ? options.pet as PetSetting : 'clawd'
     const eggs = await host.storeGet('eggs') as EggStore | undefined
-    pet = wantPet === 'clawd-shiny' && eggs?.shinyAt === undefined ? 'clawd' : wantPet
+    const want = typeof storedPet === 'string' ? storedPet : typeof options.pet === 'string' && options.pet ? options.pet : 'clawd'
+    pet = 'clawd'
+    petSheet = undefined
+    if (want === 'clawd-shiny') pet = eggs?.shinyAt === undefined ? 'clawd' : want
+    else if (want === 'off' || Object.hasOwn(BUILTIN_SHEETS, want)) pet = want
+    else {
+      const r = await loadUserPet(host, want)
+      if ('sheet' in r) { pet = want; petSheet = r.sheet }
+      // every loadUserPet error already names the pet or its file
+      else if (interactive) $.ui.toast(`${/[.!?]$/.test(r.error) ? r.error : `${r.error}.`} Showing Clawd.`)
+    }
     const storedBubbles = await host.storeGet('bubbles')
     bubbles = BUBBLES.includes(storedBubbles as BubbleSetting) ? storedBubbles as BubbleSetting : BUBBLES.includes(options.bubbles as BubbleSetting) ? options.bubbles as BubbleSetting : 'on'
     await loadLook($)
@@ -949,11 +963,12 @@ export const register: Register = (on, options) => {
     if (pid !== 'off' && !red && (e.surface === 'terminal' || e.surface === 'desktop')) {
       const snap = ((await $.state.get(PET)).value as PetSnap | undefined) ?? petSnap()
       const { Client } = $.ui.resolve(e)
-      const props: PetClientProps = { pet: pid as PetId, input: snap.input, overlays: snap.overlays, reduced: red, compact, width: petStripCols(e.props.bodyColumns), tint: look.pet }
+      const props: PetClientProps = { pet: pid, input: snap.input, overlays: snap.overlays, reduced: red, compact, width: petStripCols(e.props.bodyColumns), tint: look.pet, ...(petSheet && { sheet: petSheet }) }
+      const sheet = petSheet ?? (Object.hasOwn(BUILTIN_SHEETS, pid) ? BUILTIN_SHEETS[pid] : undefined) ?? CLAWD_SHEET
       // unsized, the region shrinks to the sprite and surface.columns leaves no room to walk
       const node = <Client key="glowup-pet" module="./client/pet.tsx" props={props} width={compact ? undefined : props.width} />
       const bubbleNow = snap.bubble && snap.bubble.until > Date.now() ? snap.bubble : undefined
-      extra = { ...extra, pet: { id: pid as PetId, node, rows: snap.overlays.some(o => HEAD_OUTFITS.includes(o)) ? PET_ROWS + 2 : undefined }, bubble: bubbleNow, friday: snap.friday }
+      extra = { ...extra, pet: { id: pid, node, rows: stripRows(sheet, snap.overlays) }, bubble: bubbleNow, friday: snap.friday }
     }
     // the engine scrolls the whole body, which would carry the pet off with a long tab: budget the tab to bodyRows instead
     extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onScroll: (offset: number) => { view = { ...view, offset }; publish($) } }
@@ -1107,5 +1122,14 @@ export const register: Register = (on, options) => {
     const text = await runCommand(hostOf($), e.args, ctlOf($))
     await syncTakeover($)
     return { text }
+  })
+
+  on('prompt.submit', async ($, e, next) => {
+    const args = off ? undefined : pastedGlowup(e.text, e.origin)
+    if (args === undefined) return next(e)
+    const text = await runCommand(hostOf($), args, ctlOf($))
+    await syncTakeover($)
+    // the engine shows this as "Prompt dropped by a hook: <reason>", on one line: a newline draws as �
+    return { drop: `glowup ran the pasted command. ${text.split('\n').map(l => l.trim()).filter(Boolean).join('; ')}` }
   })
 }

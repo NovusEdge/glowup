@@ -6,7 +6,7 @@ import { useReducedMotion, useVisible } from './motion.ts'
 const CELL_W = 0.6
 const MAX_COLS = 120, MAX_ROWS = 60
 
-export function PaneField({ field, colors }: { field: Field; colors: Theme['colors'] }) {
+export function PaneField({ field, colors, maxCols = MAX_COLS, maxRows = MAX_ROWS }: { field: Field; colors: Theme['colors']; maxCols?: number; maxRows?: number }) {
   const box = useRef<HTMLDivElement>(null)
   const reduced = useReducedMotion()
   const visible = useVisible()
@@ -18,14 +18,14 @@ export function PaneField({ field, colors }: { field: Field; colors: Theme['colo
     if (!el) return
     const measure = () => {
       const fs = parseFloat(getComputedStyle(el).fontSize) || 13
-      const cols = Math.min(MAX_COLS, Math.floor(el.clientWidth / (fs * CELL_W))), rows = Math.min(MAX_ROWS, Math.floor(el.clientHeight / fs))
+      const cols = Math.min(maxCols, Math.floor(el.clientWidth / (fs * CELL_W))), rows = Math.min(maxRows,Math.floor(el.clientHeight / fs))
       setGrid(g => (g.cols === cols && g.rows === rows ? g : { cols, rows }))
     }
     measure()
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [])
+  }, [maxCols, maxRows])
 
   useEffect(() => {
     if (!grid.cols || !grid.rows) { setFrame([]); return }

@@ -1,13 +1,13 @@
 ---
 title: Pets
-description: Clawd, the pixel pet at the bottom of the glowup pane. Where he appears, how he reacts, speech bubbles, and the shiny one.
+description: Clawd and the robot at the bottom of the glowup pane, how they react, speech bubbles, the shiny one, and your own pets.
 ---
 
 ## Clawd
 
-Clawd is a pixel pet who sits at the bottom of the glowup pane and reacts to what Claude is doing. He is drawn in half-block characters in Claude Code's orange and keeps his colors under every pack and theme. He is the only pet so far, and he is on by default.
+Clawd is a pixel pet who sits at the bottom of the glowup pane and reacts to what Claude is doing. He is drawn in half-block characters in Claude Code's orange and keeps his colors under every pack and theme. He is on by default. The [robot](#the-robot) and [pets you draw yourself](#your-own-pet) are the alternatives.
 
-He only appears in the pane, so you see him when the pane is docked beside the transcript or opened as a drawer with `/glowup pane`. A drawer narrower than 80 columns shows a one-row Clawd, `▐▛█▜▌`, instead of the full sprite. Reduced motion and `/glowup pet off` both hide him.
+He only appears in the pane, so you see him when the pane is docked beside the transcript or opened as a drawer with `/glowup pane`. A drawer narrower than 80 columns shows a one-row Clawd, `▐▛█▜▌`, instead of the full sprite. Other pets show `▗▟█▙▖` in their main color. Reduced motion and `/glowup pet off` both hide him.
 
 ## What he does
 
@@ -28,6 +28,14 @@ He only appears in the pane, so you see him when the pane is docked beside the t
 On a Friday after 15:00, a deploy command gets him into a sweat outfit.
 
 His frames change at most every 80 ms and nothing flashes more than 2.5 times a second. In the narrow drawer he does not animate.
+
+## The robot
+
+The robot is the CRT monitor that is the mascot of the crt pack, drawn at 32 × 16 pixels. Pick it with `/glowup pet robot`.
+
+![The robot standing idle](assets/robot/idle/clip.gif)
+
+It reacts to the same moments as Clawd, without his outfits.
 
 ## Speech bubbles
 
@@ -51,7 +59,11 @@ glowup makes one call at a time, at most one per turn, at least 90 seconds apart
 
 ## Choosing a pet
 
-`/glowup pet off` hides Clawd and `/glowup pet clawd` brings him back. `/glowup pet list` shows the pets you can pick, which for now means Clawd and, once you have earned him, the shiny one. The Pet and Bubbles rows in `/glowup config` change the same settings.
+`/glowup pet clawd|robot|off` picks Clawd, the robot, or no pet. `/glowup pet list` shows the pets you can pick: Clawd, the robot, the shiny one once you have earned him, and any pet you have installed. The Pet row in `/glowup config` cycles through the same list, and the Bubbles row changes the bubbles.
+
+## Your own pet
+
+You can draw a pet as a PNG sprite sheet, convert it in the [studio](https://glowup.khimani.dev/studio), and install it with `/glowup pet add` or a studio link. The sheet layout, the animation rows and the install steps are in [Pet sprites](pet-sprites.md).
 
 ## The shiny pet
 

@@ -21,6 +21,12 @@
 .st-root .st-err,.st-root .warn{margin:0;font-size:12.5px;color:var(--fail)}
 .st-root .warn{color:var(--edit)}
 .st-root :is(.st-err,.warn):empty{position:absolute;width:1px;height:1px;overflow:hidden}
+.st-root .petrows{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.st-root .petrows li{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px}
+.st-root .petrows li>canvas{background:var(--panel);border-radius:6px}
+.st-root .petrows .fld>span{display:flex;justify-content:space-between;gap:8px}
+.st-root .petrows output{font-family:'JetBrains Mono',monospace;color:var(--text)}
+.st-root .cmd{display:block;font:12px/1.5 'JetBrains Mono',monospace;background:var(--bg);border:1px solid var(--faint);border-radius:8px;padding:8px 10px;overflow-wrap:anywhere;user-select:all}
 .st-root .glyphs{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px 10px}
 
 .st-root select,.st-root input[type=text],.st-root input[type=number]{appearance:none;-webkit-appearance:none;font:13px 'JetBrains Mono',monospace;color:var(--text);background-color:var(--panel);border:1px solid var(--faint);border-radius:8px;padding:0 10px;min-height:44px;min-width:0;max-width:100%;width:100%}

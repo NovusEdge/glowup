@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import type { PetFile } from '../landing/data.ts'
 import { LINK_MAX, packJson, sendCommand, shareLink, type Draft, type StudioSetup } from './model.ts'
 
 type Shown = { kind: 'send' | 'link'; text: string }
 
-export function Actions({ draft, setup, blocked }: { draft: Draft; setup: StudioSetup; blocked: boolean }) {
+export function Actions({ draft, setup, pet, blocked }: { draft: Draft; setup: StudioSetup; pet?: PetFile; blocked: boolean }) {
   const [copied, setCopied] = useState<string>()
   const [shown, setShown] = useState<Shown>()
   const box = useRef<HTMLDivElement>(null)
@@ -52,13 +53,13 @@ export function Actions({ draft, setup, blocked }: { draft: Draft; setup: Studio
   return (
     <div className="st-actions" ref={box}>
       <button type="button" className="primary" disabled={blocked} onClick={() => copy('link', shareLink(draft))}>{copied === 'link' ? 'Copied' : 'Copy share link'}</button>
-      <button type="button" disabled={blocked} aria-expanded={shown?.kind === 'send'} onClick={() => (shown?.kind === 'send' ? setShown(undefined) : copy('send', sendCommand(draft, setup)))}>{copied === 'send' ? 'Copied' : 'Send to my Claude'}</button>
+      <button type="button" disabled={blocked} aria-expanded={shown?.kind === 'send'} onClick={() => (shown?.kind === 'send' ? setShown(undefined) : copy('send', sendCommand(draft, setup, pet)))}>{copied === 'send' ? 'Copied' : 'Send to my Claude'}</button>
       <button type="button" disabled={blocked} onClick={download}>Download pack.json</button>
       {shown && (
         <div className="st-pop" role="dialog" aria-label={shown.kind === 'send' ? 'Send to my Claude' : 'Share link'}>
           <p>{shown.kind === 'send' ? 'Paste this into Claude Code' : 'Copy this link'}</p>
           <code ref={code}>{shown.text}</code>
-          {shown.text.length > LINK_MAX && <p className="note">This link is long; some chat apps cut it. Download pack.json instead if it fails.</p>}
+          {shown.kind === 'link' && shown.text.length > LINK_MAX &&<p className="note">This link is long; some chat apps cut it. Download pack.json instead if it fails.</p>}
         </div>
       )}
     </div>

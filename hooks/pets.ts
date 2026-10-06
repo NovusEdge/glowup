@@ -1,10 +1,14 @@
 // JSX-free: the docs site imports it.
 import { CLAWD_SHEET } from './sprites/clawd.ts'
+import { CRT_SHEET } from './sprites/crt.ts'
 
 export { CLAWD_SHEET }
 export const CLAWD_COLOR = '#d77757'
 export const SHINY_COLOR = '#f2c94c'
-export type PetSetting = 'clawd' | 'clawd-shiny' | 'off'
+export type BuiltinPet = 'clawd' | 'clawd-shiny' | 'robot'
+// Built-in ids, or the name of a pet installed under <config>/glowup/pets.
+export type PetSetting = BuiltinPet | 'off' | (string & {})
+// `string & {}` stays in the union, so the type cannot exclude 'off'; the pane's render hook checks it.
 export type PetId = Exclude<PetSetting, 'off'>
 // 'fail' is optional in a sheet; without one it plays 'alert'. The others fall back to idle.
 export type Pose = 'idle' | 'walk' | 'working' | 'hop' | 'alert' | 'done' | 'sleep' | 'fail' | 'juggle' | 'scrunch' | 'pant' | 'pant-walk'
@@ -37,6 +41,11 @@ export const PET_COLS = 24
 export const PET_ROWS = 6
 // hats rise up to 4 px above the canvas
 export const OUTFIT_PAD = 4
+// Outfits that rise above the canvas and so need OUTFIT_PAD more rows; sweat is a head outfit too, but sits beside the head.
+export const HEAD_OUTFITS = ['santa', 'party', 'nightcap']
+// Rows the pane gives the pet: half its pixel height, plus the outfit pad while a hat it has is worn.
+export const stripRows = (sheet: PetSheet, overlays: readonly string[]) =>
+  Math.ceil(sheet.h / 2) + (overlays.some(o => HEAD_OUTFITS.includes(o) && sheet.outfits?.[o]) ? OUTFIT_PAD / 2 : 0)
 // the compact pane drawer's one-row Clawd
 export const CLAWD_ROW = '▐▛█▜▌'
 
@@ -65,13 +74,28 @@ export function petPose(p: PetInput, now: number): Pose {
 export const shiny = (palette: Record<string, string>, tint: Record<string, string> = CLAWD_SHEET.shiny ?? {}): Record<string, string> => ({ ...palette, ...tint })
 export type PetTint = { body?: string; light?: string; shade?: string }
 // shiny is an earned reward, so it wins over a pack's tint
+// The tint keys B, L, D are Clawd's; another sheet may use those letters for other parts.
 export const petPalette = (sheet: PetSheet, pet: PetId, tint: PetTint = {}): Record<string, string> => {
   if (pet === 'clawd-shiny') return shiny(sheet.palette, sheet.shiny)
   const out = { ...sheet.palette }
+  if (pet !== 'clawd') return out
   if (tint.body) out.B = tint.body
   if (tint.light) out.L = tint.light
   if (tint.shade) out.D = tint.shade
   return out
+}
+
+// Keys match BUILTIN_PET_NAMES in petfile.ts; clawd-shiny is Clawd's sheet with the shiny palette.
+export const BUILTIN_SHEETS: Record<string, PetSheet> = { clawd: CLAWD_SHEET, 'clawd-shiny': CLAWD_SHEET, robot: CRT_SHEET }
+export const isClawd = (p: string) => p === 'clawd' || p === 'clawd-shiny'
+// The drawer's one-row pet for anything but Clawd, whose own row is CLAWD_ROW.
+export const CRITTER_ROW = '▗▟█▙▖'
+
+export function mainColor(sheet: PetSheet): string {
+  const n = new Map<string, number>()
+  for (const r of sheet.animations.idle?.frames[0]?.px ?? []) for (const k of r) if (k !== '.' && sheet.palette[k]) n.set(k, (n.get(k) ?? 0) + 1)
+  const top = [...n].sort((a, b) => b[1] - a[1])[0]
+  return top ? sheet.palette[top[0]]! : CLAWD_COLOR
 }
 
 type Cell = { text: string; color?: string; bg?: string }
@@ -202,7 +226,7 @@ const segOf = (sheet: PetSheet, pose: string, start: number, dir: number): Seg =
 const clipSeg = (pose: string, name: string, clip: PetClip, start: number): Seg => ({ pose, anim: { loop: false, frames: clip.frames }, start, fi: -1, clip: true, name, to: clip.to === '*' ? pose : clip.to })
 
 // True when the frame must be flipped to face left: a left-facing walk with no hand-drawn left animation.
-export const mirrored = (p: Player): boolean => p.dir < 0 && !!p.seg && !p.seg.clip && p.seg.pose === 'walk' && !p.seg.name.endsWith('-left')
+export const mirrored = (p: Player): boolean => p.dir < 0 && !!p.seg && !p.seg.clip && (p.seg.pose === 'walk' || p.seg.pose === 'pant-walk') && !p.seg.name.endsWith('-left')
 
 // Walking x follows the dx of every frame entered, so a slow tick still covers the ground.
 function travel(p: Player, s: Seg, t: number, maxX: number, sheet: PetSheet) {

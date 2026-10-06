@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { PACK_NAMES } from '../landing/look.ts'
 import { PackProvider } from '../landing/PackContext'
+import { PaneField } from '../landing/PaneField'
 import { Terminal } from '../landing/Terminal'
 import { Actions } from './Actions'
 import { Controls } from './Controls'
-import { DEFAULT_STUDIO_SETUP, draftLook, draftProblems, focusVars, fromHash, startDraft, stateHash, type Draft, type Role, type StudioSetup } from './model.ts'
+import { petSheet } from '../landing/data.ts'
+import { DEFAULT_STUDIO_SETUP, draftLook, draftProblems, focusVars, fromHash, petOut, petProblems, startDraft, stateHash, type Draft, type Role, type StudioPet, type StudioSetup } from './model.ts'
 
 const WIDTHS = ['narrow', 'wide', 'fullscreen'] as const
 type Width = (typeof WIDTHS)[number]
@@ -15,6 +17,7 @@ export function Studio() {
   const [draft, setDraft] = useState(() => startDraft('classic'))
   const [start, setStart] = useState('classic')
   const [setup, setSetup] = useState<StudioSetup>(DEFAULT_STUDIO_SETUP)
+  const [pet, setPet] = useState<StudioPet>()
   const [notices, setNotices] = useState<string[]>([])
   const [ready, setReady] = useState(false)
   const [width, setWidth] = useState<Width>('wide')
@@ -23,6 +26,8 @@ export function Studio() {
   const area = useRef<HTMLDivElement>(null)
   const { look } = useMemo(() => draftLook(draft), [draft])
   const problem = useMemo(() => draftProblems(draft)[0], [draft])
+  const out = useMemo(() => pet && petOut(pet), [pet])
+  const sheet = useMemo(() => out && !petProblems(out).length ? petSheet(out) : undefined, [out])
 
   // The mock is sized for its natural width and scales up with the preview area. Phones keep 1 because the stage
   // there is a short scrolling strip, and measuring its height would feed back into the size.
@@ -48,14 +53,15 @@ export function Studio() {
     const r = fromHash(location.hash)
     if (r.draft) { setDraft(r.draft); setStart('') }
     if (r.setup) setSetup(r.setup)
+    if (r.pet) setPet(r.pet)
     setNotices(r.notices)
     setReady(true)
   }, [])
 
   // Waits for the hash read: StrictMode runs the mount effect twice, and a write first would erase the link.
   useEffect(() => {
-    if (ready) history.replaceState(null, '', stateHash(draft, setup))
-  }, [ready, draft, setup])
+    if (ready) history.replaceState(null, '', stateHash(draft, setup, out))
+  }, [ready, draft, setup, out])
 
   return (
     <PackProvider look={look}>
@@ -80,7 +86,7 @@ export function Studio() {
               {PACK_NAMES.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </label>
-          <Actions draft={draft} setup={setup} blocked={!!problem} />
+          <Actions draft={draft} setup={setup} pet={out} blocked={!!problem} />
         </header>
         <div role="status">
           {notices.length > 0 && (
@@ -92,10 +98,13 @@ export function Studio() {
         </div>
         <div className="st-main">
           <aside className="st-side" aria-label="Controls">
-            <Controls draft={draft} look={look} setup={setup} onDraft={edit} onSetup={setSetup} onHover={setHl} onTier={setWidth} />
+            <Controls draft={draft} look={look} setup={setup} pet={pet} onPet={setPet} onDraft={edit} onSetup={setSetup} onHover={setHl} onTier={setWidth} />
           </aside>
           <section className="st-stage" aria-label="Preview">
             <div className="studio-preview" ref={area} data-width={width} style={hl ? (focusVars(look, hl) as React.CSSProperties) : undefined}>
+              {look.motion.field.shape !== 'none' && (
+                <div className="st-backdrop" aria-hidden="true"><PaneField field={look.motion.field} colors={look.theme.colors} maxCols={160} maxRows={80} /></div>
+              )}
               <div className="st-frame" style={{ ['--z' as string]: z }}>
                 <div className="st-view">
                   <div className="st-seg" role="group" aria-label="Preview width">
@@ -103,7 +112,7 @@ export function Studio() {
                   </div>
                   <p>Band items (combo, agents, meter) show in narrow; the pane shows in wide and fullscreen.</p>
                 </div>
-                <Terminal setup={setup} interactive scale={z} />
+                <Terminal setup={setup} interactive scale={z} petSheet={sheet} />
               </div>
             </div>
           </section>

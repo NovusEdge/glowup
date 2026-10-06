@@ -2,21 +2,22 @@ import { useState } from 'react'
 import { BORDERS, METER_STYLES, ROW_STYLES, type ColorsLayer, type Look } from '../landing/data.ts'
 import { ColorsSection } from './ColorsSection'
 import { MotionSection } from './MotionSection'
+import { PetSection } from './PetSection'
 import { SetupControls } from './SetupControls'
 import { StatusSection } from './StatusSection'
 import { ThemeSection } from './ThemeSection'
-import { editColors, type Draft, type Role, type StudioSetup } from './model.ts'
+import { editColors, type Draft, type Role, type StudioPet, type StudioSetup } from './model.ts'
 import { Check, Select } from './ui'
 
 type Props = {
-  draft: Draft; look: Look; setup: StudioSetup
-  onDraft(d: Draft): void; onSetup(s: StudioSetup): void; onHover(role?: Role): void; onTier(w: 'narrow' | 'wide'): void
+  draft: Draft; look: Look; setup: StudioSetup; pet?: StudioPet
+  onPet(p?: StudioPet): void; onDraft(d: Draft): void; onSetup(s: StudioSetup): void; onHover(role?: Role): void; onTier(w: 'narrow' | 'wide'): void
 }
 
-const SECTIONS = ['Theme', 'Colors', 'Rows & meters', 'Motion', 'Status line', 'Setup'] as const
+const SECTIONS = ['Theme', 'Colors', 'Rows & meters', 'Motion', 'Status line', 'Setup', 'Pet'] as const
 type Section = (typeof SECTIONS)[number]
 
-export function Controls({ draft, look, setup, onDraft, onSetup, onHover, onTier }: Props) {
+export function Controls({ draft, look, setup, pet, onPet, onDraft, onSetup, onHover, onTier }: Props) {
   const [open, setOpen] = useState<Section | undefined>('Theme')
   const colors = (patch: Partial<ColorsLayer>) => onDraft(editColors(draft, patch))
 
@@ -43,6 +44,7 @@ export function Controls({ draft, look, setup, onDraft, onSetup, onHover, onTier
     Motion: <MotionSection draft={draft} look={look} onDraft={onDraft} />,
     'Status line': <StatusSection setup={setup} onSetup={onSetup} onTier={onTier} />,
     Setup: <SetupControls setup={setup} onSetup={onSetup} onTier={onTier} />,
+    Pet: <PetSection pet={pet} onPet={onPet} />,
   }
 
   return (

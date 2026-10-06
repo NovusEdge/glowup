@@ -113,6 +113,40 @@ test('a pack deleted after the pane opened shows the error and the pane keeps dr
   await ui.unmount()
 })
 
+const PETS = '/fake/.claude/glowup/pets'
+const petJson = (name: string) => JSON.stringify({ format: 1, name, palette: { A: '#abcdef' }, animations: { idle: [{ ms: 400, px: Array(12).fill('A'.repeat(24)) }] } })
+const petSetup = async ($: any, on: any, files: Record<string, string>) => {
+  setup(on, ['terminal'], files)
+  mock.clock(on)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+}
+
+test('the Pet row skips a pet file that does not load', async ($, on) => {
+  await petSetup($, on, { [`${PETS}/broken.json`]: '{"format":1', [`${PETS}/mochi.json`]: petJson('mochi') })
+  await runGlowup($, 'config')
+  const ui = await mountConfig($)
+  await ui.press({ key: 'cycle-pet' })
+  await ui.press({ key: 'cycle-pet' })
+  expect((await runGlowup($, 'pet list')).text).toContain('● mochi')
+  await ui.unmount()
+})
+
+test('a pet deleted after the pane opened is refused once, then dropped from the Pet row', async ($, on) => {
+  const files = { [`${PETS}/mochi.json`]: petJson('mochi') }
+  await petSetup($, on, files)
+  await runGlowup($, 'pet robot')
+  await runGlowup($, 'config')
+  const ui = await mountConfig($)
+  delete (files as Record<string, string>)[`${PETS}/mochi.json`]
+  await ui.press({ key: 'cycle-pet' })
+  expect((await runGlowup($, 'pet list')).text).toContain('● robot')
+  await ui.press({ key: 'cycle-pet' })
+  expect((await runGlowup($, 'pet list')).text).toContain('● off')
+  await ui.unmount()
+})
+
 test('Done closes the config pane only', async ($, on) => {
   const s = setup(on)
   await runGlowup($, 'config')
