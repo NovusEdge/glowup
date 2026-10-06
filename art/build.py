@@ -1,9 +1,12 @@
-import json, struct, sys, zlib
+import json, re, struct, sys, zlib
 from pathlib import Path
 
 if len(sys.argv) != 2:
     sys.exit("usage: python3 art/build.py <pet>   (reads art/<pet>/<pet>.art)")
 PET = sys.argv[1]
+# The name becomes a path component and the TS export <NAME>_SHEET.
+if not re.fullmatch(r"[a-z][a-z0-9-]*", PET):
+    sys.exit(f"pet name {PET!r}: use lowercase letters, digits and dashes, starting with a letter")
 ART = Path(__file__).parent
 ROOT = ART.parent
 SRC = ART / PET / f"{PET}.art"
@@ -44,6 +47,8 @@ while i < len(lines):
     # `size WxH` must come before the first frame: frame rows are read H at a time
     if p[0] == "size":
         W, H = map(int, p[1].split("x"))
+        if W < 1 or H < 1:
+            sys.exit(f"{SRC}: size {p[1]} must be positive")
     elif p[0] in ("palette", "shiny"):
         (palette if p[0] == "palette" else shiny).update(l.split() for l in block())
     elif p[0] == "anim":
