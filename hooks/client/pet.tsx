@@ -8,7 +8,8 @@ export type PetClientProps = { pet: PetId; input: PetInput; overlays: string[]; 
 // the draw share one player, and only a changed picture replaces the state object (which redraws).
 // props is the latest the draw saw, for the tick to read; stop cancels the timer.
 // sheet is the one the player's clips were cut from; the engine keeps this state across redraws, so a different sheet needs a new player.
-type PetState = { now: number; player: Player; sheet: PetSheet; props: PetClientProps; stop?: () => void }
+// sig is that sheet's content: props are cloned on their way here, so a user pet's sheet is a new object on every pane redraw.
+type PetState = { now: number; player: Player; sheet: PetSheet; sig: string; props: PetClientProps; stop?: () => void }
 
 const TICK_MS = 83
 // The tests move time with this; Date.now is read-only in the test sandbox.
@@ -19,6 +20,9 @@ const sheetOf = (p: PetClientProps) => p.sheet ?? (Object.hasOwn(BUILTIN_SHEETS,
 function resheet(st: PetState, sheet: PetSheet) {
   if (st.sheet === sheet) return
   st.sheet = sheet
+  const sig = JSON.stringify(sheet)
+  if (sig === st.sig) return
+  st.sig = sig
   st.player = newPlayer()
 }
 const maxXOf = (surface: ClientSurface<PetState | number>, p: PetClientProps) => Math.max(0, cols(surface, p) - sheetOf(p).w)
@@ -49,7 +53,7 @@ function startClock(surface: ClientSurface<PetState | number>, st: PetState) {
     resheet(cur, sheet)
     const before = look(cur.player)
     cur.now = clock.now()
-    stepPlayer(cur.player, sheet,petPose(cur.props.input, cur.now), cur.now, maxXOf(surface, cur.props))
+    stepPlayer(cur.player, sheet, petPose(cur.props.input, cur.now), cur.now, maxXOf(surface, cur.props))
     if (look(cur.player) !== before) surface.setState({ ...cur })
   })
 }
@@ -74,7 +78,7 @@ export default function PetClient(props: PetClientProps, surface: ClientSurface<
     now = typeof st === 'number' ? st : clock.now()
     player = newPlayer()
     if (st === undefined && !props.reduced) {
-      const fresh: PetState = { now, player, sheet, props }
+      const fresh: PetState = { now, player, sheet, sig: JSON.stringify(sheet), props }
       surface.setState(fresh)
       startClock(surface, fresh)
     }

@@ -409,6 +409,19 @@ test('a state kept across a sheet change gets a new player: no frame of the old 
   expect(bg(b)).toContain('#222222')
 })
 
+test('a user pet keeps its frame when the pane redraws with a cloned copy of the same sheet', () => {
+  const { s, timers } = fakeSurface()
+  const sheet: PetSheet = { w: 2, h: 2, palette: { A: '#111111', B: '#222222' }, animations: { idle: { loop: true, frames: [{ ms: 400, px: ['AA', 'AA'] }, { ms: 400, px: ['BB', 'BB'] }] } } }
+  const props = { ...idle, pet: 'mochi', sheet }
+  const t0 = Date.now()
+  atTime(t0, () => PetClient(props, s))
+  atTime(t0 + 450, () => timers[0]!.fn())
+  // the engine clones a Client's props on their way to the surface module
+  const drawn = JSON.stringify(atTime(t0 + 460, () => PetClient(structuredClone(props), s)))
+  expect(drawn).toContain('#222222')
+  expect(drawn).not.toContain('#111111')
+})
+
 test('a pet wider than the strip is cut at its right edge, not squeezed', () => {
   const draw = (width: number) => atTime(1000, () => (PetClient({ ...base, pet: 'robot', width }, fakeSurface(width).s) as any).children.map(rowText) as string[])
   // 32 leaves the robot no room to walk, so both draws are the same frame at x = 0

@@ -571,6 +571,14 @@ test('pet add installs without switching; bare pet add prints usage', async () =
   expect(await runCommand(host, 'pet add', c)).toBe('Use /glowup pet add <file|https url> with a pet .json from the studio or the pet sprites page.')
 })
 
+test('pet add --force over the pet in use draws the new art at once', async () => {
+  const { host } = fakeHost({ files: { [`${PETS}/mochi.json`]: petFile('mochi') }, fetches: { 'https://x.test/m.json': petFile('mochi') } })
+  const { calls, ctl: c } = ctl()
+  await runCommand(host, 'pet mochi', c)
+  expect(await runCommand(host, 'pet add https://x.test/m.json --force', c)).toBe('Installed pet "mochi".')
+  expect(calls).toEqual(['pet:mochi+sheet', 'pet:mochi+sheet'])
+})
+
 const linkPet = (name: string) => ({ format: 1, name, palette: { A: '#112233' }, animations: { idle: [{ ms: 400, px: Array(12).fill('A'.repeat(24)) }] } })
 
 test('a studio link with a pet installs it and switches to it', async () => {

@@ -251,7 +251,13 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     return names.map(n => `${n === cur ? '●' : '○'} ${n}`).join('\n')
   }
   // the [sub, a1, a2] split stops at three words, hence index 3 for the flag
-  if (sub === 'pet' && a1 === 'add') return a2 ? (await addPet(host, a2, args.trim().split(/\s+/)[3] === '--force')).message : 'Use /glowup pet add <file|https url> with a pet .json from the studio or the pet sprites page.'
+  if (sub === 'pet' && a1 === 'add') {
+    if (!a2) return 'Use /glowup pet add <file|https url> with a pet .json from the studio or the pet sprites page.'
+    const r = await addPet(host, a2, args.trim().split(/\s+/)[3] === '--force')
+    if (!r.name || !r.sheet || r.name !== ctl.pet()) return r.message
+    ctl.setPet(r.name, r.sheet)
+    return `Installed pet "${r.name}".`
+  }
   if (sub === 'pet' && a1) {
     if (a1 === 'clawd-shiny' && !(await shinyUnlocked(host))) return 'The shiny pet is not unlocked yet.'
     let sheet: PetSheet | undefined
