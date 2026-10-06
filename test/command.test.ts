@@ -15,7 +15,7 @@ test('/glowup and /glowup help print the short card', { timeoutMs: 20000 }, asyn
   for (const args of ['', 'help']) {
     const out = (await runGlowup($, args)).text!
     expect(out).toBe(SHORT_TEXT)
-    for (const c of ['/glowup config', '/glowup pack <name>', '/glowup pet clawd|off', '/glowup pane', '/glowup motion reduced', '/glowup help all', DOCS_URL]) expect(out).toContain(c)
+    for (const c of ['/glowup config', '/glowup pack <name>', '/glowup pet clawd|robot|off', '/glowup pane', '/glowup motion reduced', '/glowup help all', DOCS_URL]) expect(out).toContain(c)
     expect(out).toContain('arcade classic cozy crt')
     expect(out).not.toContain('theme add')
   }

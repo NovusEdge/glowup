@@ -9,7 +9,7 @@ export const COMMAND_COLS = 36
 export const SHORT_ROWS: HelpRow[] = [
   ['/glowup config', 'open the config pane: pack, colors, layout'],
   ['/glowup pack <name>', `switch look: ${Object.keys(PACKS).sort().join(' ')}`],
-  ['/glowup pet clawd|off', 'Clawd, or no pet'],
+  ['/glowup pet clawd|robot|off', 'Pick a pet, or none'],
   ['/glowup pane', 'open or close the side pane'],
   ['/glowup motion reduced', 'calm everything down'],
 ]
@@ -29,7 +29,8 @@ export const SECTIONS: readonly (readonly [title: string, rows: HelpRow[]])[] = 
     ['/glowup color reset [role]', 'clear one override, or all'],
   ]],
   ['Pet', [
-    ['/glowup pet clawd|off', 'Clawd, or no pet'],
+    ['/glowup pet clawd|robot|off', 'Pick a pet, or none'],
+    ['/glowup pet add <file|url>', 'Install a pet from the studio'],
     ['/glowup bubbles on|off|haiku', 'his speech bubbles, templates or Haiku lines'],
   ]],
   ['Comfort', [
