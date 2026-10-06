@@ -34,7 +34,7 @@ pet-build pet="clawd":
 # write every Clawd frame as SVG and PNG to docs/assets/clawd (scale = pixels per sprite pixel)
 [group('dev')]
 clawd-export scale="16":
-    node scripts/export-clawd.ts {{scale}}
+    node scripts/export-pet.ts clawd {{scale}}
 
 # cut the exported clips into captioned square and wide reels for social posts
 [group('dev')]
