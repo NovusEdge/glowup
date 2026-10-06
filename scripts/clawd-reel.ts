@@ -1,4 +1,4 @@
-// Cuts the per-animation clips from export-clawd.ts into one captioned reel per
+// Cuts the per-animation clips from export-pet.ts into one captioned reel per
 // aspect ratio for social posts: docs/assets/clawd/reel-square.mp4 (1080x1080)
 // and reel-wide.mp4 (1920x1080). Run after `just clawd-export`.
 import { writeFileSync, rmSync, mkdtempSync } from 'node:fs'
