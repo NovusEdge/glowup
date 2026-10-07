@@ -18,6 +18,7 @@ import { renderBand } from './band.tsx'
 import { renderPane, bubbleBox, petStripCols, type PaneExtra, type PaneView, type TabId } from './pane.tsx'
 import { spinnerWord, newTurnWord } from './restyle.ts'
 import { styleRow } from './rows.tsx'
+import { makeTurns } from './turns.ts'
 import { orbStateOf, usesOwnSpinner, checkedSpinnerProps } from './spinner.ts'
 import type { PetClientProps } from './client/pet.tsx'
 import type { OrbState } from './motion.ts'
@@ -227,20 +228,16 @@ function ask<T>($: Engine, slot: Asked<T>, key: string, call: () => Promise<T | 
     publish($)
   })
 }
-// Turns are numbered in the order their prompts are first drawn, which is transcript order.
-const turnByMessage = new Map<string, number>()
+const turns = makeTurns()
 const dividerByMessage = new Map<string, { key: string; value: Divider | null }>()
 const palette = () => ({ ...theme.colors })
 // What a held answer was asked under: both layers' packs and the effects the look picked,
 // since a mix can take its colors and its motion from different packs.
 const lookKey = () => JSON.stringify([mix.colors, mix.motion, look.meters, look.dividers, look.motion.field])
 // Asked while drawing: one short call per prompt and pack, kept for its redraws.
-// A prompt first draws under the id "placeholder" until it is stored: it shows the number the
-// stored row will take, but neither claims it nor is kept.
 async function dividerFor($: Engine, messageId: string): Promise<Divider | null> {
   const pending = messageId === 'placeholder'
-  if (!pending && !turnByMessage.has(messageId)) turnByMessage.set(messageId, turnByMessage.size + 1)
-  const turn = turnByMessage.get(messageId) ?? turnByMessage.size + 1, pack = mix.colors, colors = palette()
+  const turn = turns.turnFor(messageId), pack = mix.colors, colors = palette()
   const key = JSON.stringify([lookKey(), colors])
   const held = pending ? undefined : dividerByMessage.get(messageId)
   if (held?.key === key) return held.value
