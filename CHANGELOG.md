@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Official packs: `/glowup pack oxide` installs a pack from glowup.khimani.dev/packs.json on first use. The config pane and the installer list them, and `/glowup pack update` fetches them again without touching files you changed.
+
+## [0.11.0] - 2026-10-07
+
+### Added
+
 - Four spinners: `scanline` sweeps a bright column across a checkered bar and on through the spinner word, `ring` circles nine dots round an ellipse, `glitch` flickers the spinner word's letters into blocks in the pack's `read` and `agent` colors, and `signal` scrolls an oscilloscope trace. Each speeds up or changes shape while commands run or subagents work. Pick one with `motion.spinner` or `/glowup spinner <name>`.
 - A `slab` row style: your prompt is a full-width bar in the pack's accent, numbered by turn; tool calls are numbered within the turn with the tool in capitals and `OK` or `FAIL` on the right; a short rule opens each reply.
 - Hints that a secret pet exists: `???` in `/glowup pet list`, and now and then a line from Clawd.
