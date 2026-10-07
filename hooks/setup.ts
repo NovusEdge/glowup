@@ -4,7 +4,7 @@ import { shown } from './themes.ts'
 
 export const BAND_ITEMS = ['combo', 'agents', 'meter', 'plan'] as const
 export type BandItem = (typeof BAND_ITEMS)[number]
-export const TAB_IDS = ['changes', 'agents', 'plan'] as const
+export const TAB_IDS = ['plan', 'agents', 'diff', 'changes'] as const
 export type TabId = (typeof TAB_IDS)[number]
 export const SETUP_MOODS: readonly Mood[] = ['needs-you', 'fail', 'done']
 export type Meter = { warn: number; danger: number }
@@ -13,7 +13,7 @@ export type Setup = { format: 1; band: BandItem[]; tabs: TabId[]; meter: Meter; 
 export const DEFAULT_SETUP: Setup = {
   format: 1,
   band: ['combo', 'agents', 'meter', 'plan'],
-  tabs: ['changes', 'agents', 'plan'],
+  tabs: ['plan', 'agents', 'diff', 'changes'],
   meter: { warn: 50, danger: 80 },
   bubbles: { moods: ['needs-you', 'fail', 'done'], ms: 3000 },
   pet: { sleepMs: 60_000 },

@@ -24,11 +24,17 @@ test('bad values fall back per field with a notice', () => {
   expect(r.setup).toEqual(DEFAULT_SETUP)
   expect(r.notices).toEqual([
     'band must be a list of: combo, agents, meter, plan',
-    'tabs must name at least one of: changes, agents, plan',
+    'tabs must name at least one of: plan, agents, diff, changes',
     'meter.warn must be below meter.danger',
     'bubbles.ms must be a whole number from 1500 to 10000',
     'pet.sleepMs must be a whole number from 15000 to 600000',
   ])
+})
+
+test('the default tabs open on plan and the diff tab is a valid choice', () => {
+  expect(DEFAULT_SETUP.tabs).toEqual(['plan', 'agents', 'diff', 'changes'])
+  expect(parseSetup({ tabs: ['diff', 'changes'] })).toEqual({ setup: { ...DEFAULT_SETUP, tabs: ['diff', 'changes'] }, notices: [] })
+  expect(setSetupField(DEFAULT_SETUP, 'tabs', 'diff,plan')).toMatchObject({ setup: { tabs: ['diff', 'plan'] } })
 })
 
 test('a non-object stored setup is the default with a notice', () => {
@@ -61,7 +67,7 @@ test('setSetupField refuses what parseSetup would only warn about', () => {
 test('describeSetup lists every key with its value', () => {
   expect(describeSetup(DEFAULT_SETUP)).toBe([
     'band           combo, agents, meter, plan',
-    'tabs           changes, agents, plan',
+    'tabs           plan, agents, diff, changes',
     'meter.warn     50',
     'meter.danger   80',
     'bubbles.moods  needs-you, fail, done',

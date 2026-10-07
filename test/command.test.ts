@@ -458,7 +458,7 @@ test('setup refuses a bad value and keeps the old setup', async () => {
   const { host, store } = fakeHost()
   const { ctl: c } = ctl()
   expect(await runCommand(host, 'setup meter.warn 95', c)).toBe('meter.warn must be below meter.danger')
-  expect(await runCommand(host, 'setup tabs none', c)).toBe('tabs must name at least one of: changes, agents, plan')
+  expect(await runCommand(host, 'setup tabs none', c)).toBe('tabs must name at least one of: plan, agents, diff, changes')
   expect(await runCommand(host, 'setup band', c)).toBe('Use /glowup setup <key> <value>, /glowup setup, or /glowup setup reset.')
   expect(store.setup).toBeUndefined()
 })

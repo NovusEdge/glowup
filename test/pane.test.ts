@@ -28,7 +28,7 @@ const M: Model = {
 }
 const many = (n: number): Model => ({
   ...M,
-  files: Array.from({ length: n }, (_, i) => ({ path: `/r/src/f${i}.ts`, add: 1, del: 0, how: 'edit' as const, at: i })),
+  files: Array.from({ length: n }, (_, i) => ({ path: `/r/src/f${i}.ts`, add: 1, del: 0, how: 'edit' as const, at: n - i })),
   agents: Array.from({ length: n }, (_, i) => ({ key: 'k' + i, name: 'a' + i, task: 't', state: 'running' as const, startedAt: 0 })),
   plan: Array.from({ length: n }, (_, i) => ({ id: String(i), title: 'step ' + i, status: 'pending' as const })),
 })
@@ -325,14 +325,86 @@ test('HP and COMBO show in the status box under an arcade look', async () => {
   expect(text(statusRows({ ...M, limits: [{ kind: 'seven_day', percentUsed: 20 }] }, T, 54, 0, arcade))[1]).toContain('80% weekly limit left')
 })
 
-test('renderPane draws three tab buttons with hotkeys 1-3 and presses switch tab', async () => {
+test('renderPane draws four tab buttons with hotkeys 1-4 and presses switch tab', async () => {
   const picked: TabId[] = []
   const tree = renderPane(els, M, T, { tab: 'agents' }, 54, false, 0, id => picked.push(id))
   const buttons = walk(tree).filter(n => n.type === 'Button')
-  expect(buttons.map(b => [b.props.key, b.props.hotkey])).toEqual([['tab-changes', '1'], ['tab-agents', '2'], ['tab-plan', '3']])
-  expect(buttons.map(b => b.props.variant)).toEqual([undefined, 'primary', undefined])
+  expect(buttons.map(b => [b.props.key, b.props.hotkey])).toEqual([['tab-plan', '1'], ['tab-agents', '2'], ['tab-diff', '3'], ['tab-changes', '4']])
+  expect(buttons.map(b => b.props.variant)).toEqual([undefined, 'primary', undefined, undefined])
   buttons[2].onPress({})
-  expect(picked).toEqual(['plan'])
+  expect(picked).toEqual(['diff'])
+})
+
+test('the Changes tab lists the most recently touched file first, ties in their given order', async () => {
+  const file = (name: string, at: number): Model['files'][number] => ({ path: `/r/${name}`, add: 1, del: 0, how: 'edit', at })
+  const m: Model = { ...M, files: [file('old.ts', 1), file('new.ts', 5), file('tie1.ts', 3), file('tie2.ts', 3)] }
+  const names = (rows: string[]) => rows.map(r => r.match(/(old|new|tie\d)\.ts/)?.[1]).filter(Boolean)
+  expect(names(text(tabRows(m, T, { tab: 'changes' }, 54, false, 0)))).toEqual(['new', 'tie1', 'tie2', 'old'])
+  expect(names(text(tabRows(m, T, { tab: 'changes' }, 54, true, 0)))).toEqual(['new', 'tie1', 'tie2', 'old'])
+  const diff = Object.fromEntries(m.files.map(f => [f.path, [{ kind: 'add' as const, text: '+x' }]]))
+  expect(names(text(tabRows(m, T, { tab: 'diff', diff }, 54, false, 0)))).toEqual(['new', 'tie1', 'tie2', 'old'])
+})
+
+const DIFF_FILES: Model['files'] = [
+  { path: '/r/src/a.ts', add: 1, del: 1, how: 'edit', at: 2 },
+  { path: '/r/src/n.ts', add: 1, del: 0, how: 'new', at: 1 },
+]
+const DIFF: Record<string, { kind: 'hunk' | 'add' | 'del' | 'ctx' | 'note'; text: string }[]> = {
+  '/r/src/a.ts': [{ kind: 'hunk', text: '@@ -1,2 +1,2 @@ f' }, { kind: 'ctx', text: ' keep' }, { kind: 'del', text: '-old' }, { kind: 'add', text: '+new' }],
+  '/r/src/n.ts': [{ kind: 'hunk', text: '@@ -0,0 +1 @@' }, { kind: 'add', text: '+fresh' }],
+}
+
+test('the Diff tab is one box with a header per file and the hunks under it, colored by the theme', async () => {
+  const m = { ...M, files: DIFF_FILES }
+  const segs = tabRows(m, T, { tab: 'diff', diff: DIFF }, 54, false, 0)
+  const rows = text(segs)
+  expect(rows[0]).toMatch(/^╭─ DIFF ─+ 2 files  \+2 −1 ─╮$/)
+  expect(rows.at(-1)).toBe('╰' + '─'.repeat(52) + '╯')
+  expect(rows.some(r => /^✎ src\/a\.ts +\+1 −1$/.test(inside(r)))).toBe(true)
+  expect(rows.some(r => /^✎ src\/n\.ts  new +\+1 −0$/.test(inside(r)))).toBe(true)
+  const row = (frag: string) => segs[rows.findIndex(r => r.includes(frag))]!
+  const c = T.colors
+  expect(row('@@ -1,2').find(s => s.text.includes('@@'))).toMatchObject({ color: c.dim })
+  expect(row('+new').find(s => s.text.includes('+new'))).toMatchObject({ color: c.pass, bg: c.addBg })
+  expect(row('-old').find(s => s.text.includes('-old'))).toMatchObject({ color: c.fail, bg: c.delBg })
+  expect(row(' keep').find(s => s.text.includes('keep'))).toMatchObject({ color: c.text })
+  expect(row(' keep').some(s => s.bg)).toBe(false)
+  // the colored bar runs the full inner width
+  expect(row('+new').filter(s => s.bg).reduce((n, s) => n + s.text.length, 0)).toBe(50)
+  expect(rows.slice(1, -1).every(r => cellsOf(r) === 54)).toBe(true)
+})
+
+test('the Diff tab cuts long lines at the pane width and says when no file has changed', async () => {
+  const m = { ...M, files: [DIFF_FILES[0]!] }
+  const long = { '/r/src/a.ts': [{ kind: 'add' as const, text: '+' + 'x'.repeat(200) }] }
+  const rows = text(tabRows(m, T, { tab: 'diff', diff: long }, 54, false, 0))
+  expect(rows.every(r => cellsOf(r) <= 54)).toBe(true)
+  expect(rows.some(r => r.includes('xxx…'))).toBe(true)
+  expect(text(tabRows({ ...M, files: [] }, T, { tab: 'diff' }, 54, false, 0)).some(r => r.includes('Nothing changed yet.'))).toBe(true)
+})
+
+test('the Diff tab stops at 2000 diff lines and counts the rest in a dim line', async () => {
+  const lines = Array.from({ length: 2500 }, (_, i) => ({ kind: 'add' as const, text: '+line ' + i }))
+  const m = { ...M, files: [DIFF_FILES[0]!] }
+  const segs = tabRows(m, T, { tab: 'diff', diff: { '/r/src/a.ts': lines } }, 54, false, 0)
+  const rows = text(segs)
+  expect(rows.some(r => r.includes('+line 1999'))).toBe(true)
+  expect(rows.some(r => r.includes('+line 2000'))).toBe(false)
+  const more = rows.findIndex(r => r.includes('… 500 more lines'))
+  expect(more).toBeGreaterThan(0)
+  expect(segs[more]!.find(s => s.text.includes('more lines'))).toMatchObject({ color: T.colors.dim })
+})
+
+test('the Diff tab scrolls with the pane window, pet and status box in place', async () => {
+  const lines = Array.from({ length: 80 }, (_, i) => ({ kind: 'add' as const, text: '+line ' + i }))
+  const m = { ...M, files: [DIFF_FILES[0]!] }
+  const draw = (offset?: number) => renderPane(els, m, T, { tab: 'diff', offset, diff: { '/r/src/a.ts': lines } }, 54, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, bodyRows: 30 }) as any
+  const all = (t: any) => textRows(t).join('\n')
+  expect(all(draw())).toContain('+line 0')
+  expect(all(draw())).not.toContain('+line 60')
+  expect(all(draw(1000))).toContain('+line 79')
+  expect(rowsOf(draw(1000))).toBeLessThanOrEqual(30)
+  expect(walk(draw())).toContain(PETNODE)
 })
 
 test('renderPane drops the status section when compact', async () => {
@@ -447,6 +519,6 @@ test('the context warning follows meter.danger', () => {
 })
 
 test('tabs follow the setup and an open hidden tab falls to the first shown one', () => {
-  expect(visibleTabs(undefined, 'agents')).toEqual({ tabs: [['changes', 'Changes'], ['agents', 'Agents'], ['plan', 'Plan & context']], tab: 'agents' })
+  expect(visibleTabs(undefined, 'agents')).toEqual({ tabs: [['plan', 'Plan & context'], ['agents', 'Agents'], ['diff', 'Diff'], ['changes', 'Changes']], tab: 'agents' })
   expect(visibleTabs(['plan', 'changes'], 'agents')).toEqual({ tabs: [['plan', 'Plan & context'], ['changes', 'Changes']], tab: 'plan' })
 })

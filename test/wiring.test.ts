@@ -61,10 +61,11 @@ test('/clear starts the model over under the new session id', async ($, on) => {
   await cleared.unmount()
 })
 
-test('pane draws three tab buttons', async ($, on) => {
+test('pane draws four tab buttons and opens on Plan & context', async ($, on) => {
   fakeFs(on)
   const ui = await $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'Pane', requestId: 'glowup', props: { title: 'glowup', isFocused: false, bodyColumns: 54, placement: 'dock', scroll, view: {} } })
-  for (const label of ['Changes', 'Agents', 'Plan & context']) expect(await ui.find({ text: label })).toBeDefined()
+  for (const label of ['Plan & context', 'Agents', 'Diff', 'Changes']) expect(await ui.find({ text: label })).toBeDefined()
+  expect(await ui.find({ text: /PLAN/ })).toBeDefined()
   await ui.press({ key: 'tab-agents' })
   expect(await ui.find({ text: /AGENTS/ })).toBeDefined()
   await ui.unmount()

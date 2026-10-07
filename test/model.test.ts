@@ -122,8 +122,23 @@ test('mergeCounts keeps files added after the git snapshot and adds files only g
   const later = applyEvent(snap, { type: 'tool-end', at: 2, tool: 'Write', toolUseId: 'w1', input: { file_path: '/r/b.ts', content: 'q' }, isError: false, text: '', writeType: 'create' })
   const m = mergeCounts(later, [...refreshed, { path: '/r/sed.ts', add: 9, del: 9, how: 'edit', at: 3 }])
   expect(m.files.map(f => [f.path, f.how, f.add, f.del])).toEqual([['/r/sed.ts', 'edit', 9, 9], ['/r/b.ts', 'new', 1, 0], ['/r/a.ts', 'edit', 5, 2]])
-  // a later refresh leaves its first-seen time alone
-  expect(mergeCounts(m, [{ path: '/r/sed.ts', add: 10, del: 9, how: 'edit', at: 7 }]).files[0]).toMatchObject({ path: '/r/sed.ts', add: 10, at: 3 })
+  // a refresh that finds new counts touches the file at the refresh time
+  expect(mergeCounts(m, [{ path: '/r/sed.ts', add: 10, del: 9, how: 'edit', at: 7 }]).files[0]).toMatchObject({ path: '/r/sed.ts', add: 10, at: 7 })
+  // a refresh that started before a later edit does not move that edit back
+  expect(mergeCounts(m, [{ path: '/r/b.ts', add: 2, del: 0, how: 'new', at: 1 }]).files.map(f => [f.path, f.at])).toEqual([['/r/sed.ts', 3], ['/r/b.ts', 2], ['/r/a.ts', 1]])
+})
+
+test('mergeCounts drops a file the refresh was given and did not return, but not one added meanwhile', async () => {
+  const edit = (at: number, file: string): Ev => ({ type: 'tool-end', at, tool: 'Edit', toolUseId: 'e' + at, input: { file_path: file, old_string: 'x', new_string: 'y' }, isError: false, text: '' })
+  const m = run([edit(1, '/r/a.ts'), edit(2, '/r/b.ts'), edit(3, '/r/late.ts')])
+  const out = mergeCounts(m, [{ path: '/r/b.ts', add: 1, del: 1, how: 'edit', at: 2 }], ['/r/a.ts', '/r/b.ts'])
+  expect(out.files.map(f => f.path)).toEqual(['/r/late.ts', '/r/b.ts'])
+})
+
+test('editing an older file again puts it first', async () => {
+  const edit = (at: number, file: string): Ev => ({ type: 'tool-end', at, tool: 'Edit', toolUseId: 'e' + at, input: { file_path: file, old_string: 'x', new_string: 'y' }, isError: false, text: '' })
+  const m = run([edit(1, '/r/a.ts'), edit(2, '/r/b.ts'), edit(3, '/r/a.ts')])
+  expect(m.files.map(f => f.path)).toEqual(['/r/a.ts', '/r/b.ts'])
 })
 
 test('failed edits do not count', async () => {

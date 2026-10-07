@@ -69,7 +69,7 @@ export function normalizeModel(raw: unknown): Model {
   for (const k of NUMBERS) if (typeof m[k] !== 'number' || !Number.isFinite(m[k])) (m as Record<string, unknown>)[k] = base[k]
   if (!m.act || typeof m.act !== 'object') m.act = base.act
   // before 0.3.5 reads were stored here too
-  m.files = m.files.filter(f => (f.how as string) !== 'read')
+  m.files = m.files.filter(f => (f.how as string) !== 'read').sort((a, b) => b.at - a.at)
   return m
 }
 export const agentsRunning = (m: Model) => m.agents.some(a => a.state === 'running')
@@ -89,13 +89,16 @@ const answered = (m: Model, toolUseId: string): Model =>
   m.needsYou?.toolUseId === toolUseId ? { ...m, act: m.needsYou.before, needsYou: undefined } : m
 
 // git runs while later tool calls land, so its answer may lack files added since
-// it started; those keep their own counts. Files only git knows join the list.
-export function mergeCounts(m: Model, refreshed: FileTouch[]): Model {
+// it started; those keep their own counts. Files only git knows join the list. A path in
+// `asked` (what the refresh was given) that did not come back was dropped by it.
+export function mergeCounts(m: Model, refreshed: FileTouch[], asked: readonly string[] = []): Model {
   const byPath = new Map(refreshed.map(f => [f.path, f]))
   const have = new Set(m.files.map(f => f.path))
-  const merged = m.files.map(f => {
+  const gone = new Set(asked.filter(p => !byPath.has(p)))
+  const merged = m.files.filter(f => !gone.has(f.path)).map(f => {
     const r = byPath.get(f.path)
-    return r ? { ...f, add: r.add, del: r.del } : f
+    // refreshCounts stamps a file whose counts changed; max keeps an edit that landed while git ran
+    return r ? { ...f, add: r.add, del: r.del, at: Math.max(f.at, r.at) } : f
   })
   return { ...m, files: [...merged, ...refreshed.filter(f => !have.has(f.path))].sort((a, b) => b.at - a.at) }
 }

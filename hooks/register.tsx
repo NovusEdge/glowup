@@ -10,12 +10,13 @@ import { BUILTIN_SHEETS, CLAWD_SHEET, eggSheet, stripRows, type PetSetting, type
 import { loadUserPet, userPetNames, PET_DIR } from './userpets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
 import { recordPass, unlockEgg, eggUnlocked, hintDue, EGG_HINTS, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
-import { branchOf, gitBase, refreshCounts, serial } from './changes.ts'
+import { branchOf, gitBase, rebase, refreshCounts, serial, type Repo } from './changes.ts'
+import { readDiff } from './diff.ts'
 import { loadTasks, taskListId } from './tasks.ts'
 import { cacheHit, heaviest } from './ctxchart.ts'
 import { tierFor } from './layout.tsx'
 import { renderBand } from './band.tsx'
-import { renderPane, bubbleBox, petStripCols, type PaneExtra, type PaneView, type TabId } from './pane.tsx'
+import { renderPane, bubbleBox, petStripCols, visibleTabs, type PaneExtra, type PaneView, type TabId } from './pane.tsx'
 import { spinnerWord, newTurnWord } from './restyle.ts'
 import { styleRow } from './rows.tsx'
 import { orbStateOf, usesOwnSpinner, checkedSpinnerProps } from './spinner.ts'
@@ -59,8 +60,8 @@ let pet: PetSetting = 'clawd'
 // A user pet's sheet, read when it is picked: the render hook may not read disk.
 let petSheet: PetSheet | undefined
 let bubbles: BubbleSetting = 'on'
-let view: PaneView = { tab: 'changes' }
-let git: { root: string; base: string } | undefined
+let view: PaneView = { tab: DEFAULT_SETUP.tabs[0]! }
+let git: Repo | undefined
 let cwd = ''
 let configDir = ''
 let home = ''
@@ -535,11 +536,22 @@ async function copyStudioLink($: Engine, link: string, surface: RenderSurface) {
 function refresh($: Engine) {
   refreshQueue(async () => {
     const seq = refreshSeq
-    const files = await refreshCounts(hostOf($), model.files, git, Date.now())
+    const host = hostOf($)
+    const repo = git && await rebase(host, git)
+    const asked = model.files
+    const files = await refreshCounts(host, asked, repo, Date.now())
     if (seq !== refreshSeq) return
-    model = mergeCounts(model, files)
+    git = repo
+    model = mergeCounts(model, files, asked.map(f => f.path))
     redraw($)
     void readBranch($)
+    // the Diff tab is the only reader, so git only produces hunks while it is on screen
+    if (visibleTabs(setup.tabs, view.tab).tab === 'diff') {
+      const diff = await readDiff(host, repo, model.files)
+      if (seq !== refreshSeq || !diff) return
+      view = { ...view, diff }
+      publish($)
+    }
   })
 }
 
@@ -598,7 +610,7 @@ async function adoptSession($: Engine, endedId: string) {
   const id = await $.session.id()
   const { limits } = model
   model = { ...initialModel(), limits }
-  view = { tab: 'changes' }
+  view = { tab: setup.tabs[0]! }
   bubble = undefined
   xpByMessage.clear()
   cancelHaiku()
@@ -797,6 +809,7 @@ export const register: Register = (on, options) => {
     fields = parseFields(await host.storeGet('statusline')) ?? configFields
     const parsed = parseSetup(await host.storeGet('setup'))
     setup = parsed.setup
+    view = { ...view, tab: setup.tabs[0]! }
     if (parsed.notices.length) $.ui.toast(`glowup setup: ${parsed.notices.join('; ')}`)
     // After the saved choices are loaded: the commands read and extend them (a spinner is added to
     // the current mix), and write the new choice to the store by the same path a typed command does.
@@ -1035,6 +1048,7 @@ export const register: Register = (on, options) => {
       view = { ...view, tab: id, offset: 0 }
       publish($)
       if (id === 'plan') void feedContext($)
+      if (id === 'diff') refresh($)
     }, extra)
   })
 
