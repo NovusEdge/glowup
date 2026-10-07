@@ -1,13 +1,28 @@
-export type EggStore = { passRuns: number; shinyAt?: number }
+export type EggStore = { passRuns: number; shinyAt?: number; eggAt?: number; eggRuns?: number }
 export type LocalTime = { year: number; month: number; date: number; day: number; hour: number }
 export type Overlay = 'santa' | 'pumpkin' | 'party' | 'nightcap' | 'sweat' | 'friday'
 
 export const SHINY_RUNS = 100
+export const EGG_RUNS_PER_CRACK = 10, EGG_STAGES = 3
 
 export function recordPass(s: EggStore | undefined, now: number): { next: EggStore; unlocked: boolean } {
   const passRuns = (s?.passRuns ?? 0) + 1
   const unlocked = passRuns >= SHINY_RUNS && s?.shinyAt === undefined
-  return { next: unlocked ? { passRuns, shinyAt: now } : { ...s, passRuns }, unlocked }
+  return { next: unlocked ? { ...s, passRuns, shinyAt: now } : { ...s, passRuns }, unlocked }
+}
+
+export const eggUnlocked = (s: EggStore | undefined): boolean => s?.eggAt !== undefined
+
+// eggRuns is the pass count at the unlock, so cracks count only runs after it.
+export function unlockEgg(s: EggStore | undefined, now: number): EggStore | undefined {
+  if (eggUnlocked(s)) return undefined
+  const passRuns = s?.passRuns ?? 0
+  return { ...s, passRuns, eggAt: now, eggRuns: passRuns }
+}
+
+export function crackStage(s: EggStore | undefined): 0 | 1 | 2 | 3 {
+  if (!eggUnlocked(s)) return 0
+  return Math.min(EGG_STAGES, Math.floor((s!.passRuns - (s!.eggRuns ?? 0)) / EGG_RUNS_PER_CRACK)) as 0 | 1 | 2 | 3
 }
 
 const DEPLOY: RegExp[] = [

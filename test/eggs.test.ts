@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { recordPass, isDeployCommand, fridayDeploy, parseOffset, localOffset, localTime, overlays, SHINY_RUNS, type LocalTime } from '../hooks/eggs.ts'
+import { recordPass, isDeployCommand, fridayDeploy, parseOffset, localOffset, localTime, overlays, unlockEgg, crackStage, eggUnlocked, SHINY_RUNS, type LocalTime } from '../hooks/eggs.ts'
 
 test('recordPass counts and unlocks once at 100', async () => {
   let s = { passRuns: SHINY_RUNS - 2 }
@@ -7,6 +7,27 @@ test('recordPass counts and unlocks once at 100', async () => {
   r = recordPass(s, 2); expect(r.unlocked).toBe(true); expect(r.next).toEqual({ passRuns: 100, shinyAt: 2 })
   r = recordPass(r.next, 3); expect(r.unlocked).toBe(false); expect(r.next.shinyAt).toBe(2)
   expect(recordPass(undefined, 0).next.passRuns).toBe(1)
+})
+
+test('the egg unlocks once, at the current pass count', () => {
+  const s = unlockEgg({ passRuns: 7 }, 1000)!
+  expect(s).toEqual({ passRuns: 7, eggAt: 1000, eggRuns: 7 })
+  expect(eggUnlocked(s)).toBe(true)
+  expect(unlockEgg(s, 2000)).toBeUndefined()
+  expect(unlockEgg(undefined, 5)).toEqual({ passRuns: 0, eggAt: 5, eggRuns: 0 })
+  expect(eggUnlocked(undefined)).toBe(false)
+})
+
+test('a crack every 10 passing runs after the unlock, up to 3', () => {
+  const at = (runs: number) => crackStage({ passRuns: 7 + runs, eggAt: 1, eggRuns: 7 })
+  expect([0, 9, 10, 19, 20, 29, 30, 100].map(at)).toEqual([0, 0, 1, 1, 2, 2, 3, 3])
+  expect(crackStage({ passRuns: 500 })).toBe(0)
+  expect(crackStage(undefined)).toBe(0)
+})
+
+test('the shiny unlock keeps the egg fields', () => {
+  const r = recordPass({ passRuns: 99, eggAt: 1, eggRuns: 3 }, 50)
+  expect(r.next).toEqual({ passRuns: 100, eggAt: 1, eggRuns: 3, shinyAt: 50 })
 })
 
 test('deploy commands', async () => {
