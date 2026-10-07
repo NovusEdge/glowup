@@ -1,0 +1,177 @@
+import { expect, mock } from 'claude-code/testing'
+import { runGlowup, fakeFs, test } from './kit.ts'
+
+const R = '/fake/.claude/glowup/remote'
+const ENV = { KONSOLE_VERSION: '260801', DISPLAY: ':0', GLOWUP_BIN: '/bin/gi' }
+
+function boot(on: any, files: Record<string, string> = {}, surfaces = ['terminal'], env: Record<string, string> = ENV) {
+  const ran: string[][] = []
+  const fs = fakeFs(on, { '/bin/gi': '', ...files }, argv => {
+    ran.push(argv)
+    if (argv.join(' ') === 'uname -s') return { exitCode: 0, stdout: 'Linux\n' }
+    if (argv[0] === 'sh' && argv[1] === '-c' && argv[2]!.startsWith('setsid')) return { exitCode: 0, stdout: '' }
+  }, env)
+  mock.store(on)
+  const clock = mock.clock(on)
+  const opens: any[] = []
+  on('ui.open', async (_$: unknown, e: unknown) => { opens.push(e); return { value: { isPlaced: true } } as never })
+  on('ui.panes', async () => ({ value: [] }))
+  on('ui.status', async () => ({ value: undefined }) as never)
+  on('session.surfaces', async () => ({ value: surfaces }) as never)
+  on('session.id', async () => ({ value: 's1' }))
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
+  return { ...fs, ran, clock, opens }
+}
+const start = ($: any) => $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+const runDir = (files: Record<string, string>) => Object.keys(files).find(f => f.startsWith(R + '/') && f.endsWith('/owner'))!.slice(0, -'/owner'.length)
+const state = (files: Record<string, string>, dir: string) => JSON.parse(files[`${dir}/state.json`]!)
+
+test('/glowup config launches the TUI detached in Konsole and writes the first state', async ($, on) => {
+  const b = boot(on)
+  await start($)
+  const out = await runGlowup($, 'config')
+  const dir = runDir(b.files)
+  expect(b.files[`${dir}/owner`]).toBe('s1')
+  expect(b.ran).toContainEqual(['sh', '-c', 'setsid -f "$@" </dev/null >/dev/null 2>&1', 'sh', 'konsole', '-e', '/bin/gi', 'config', '--run', dir])
+  expect(out.text).toMatch(/^glowup config is opening in Konsole\. If no window appears, run this in a terminal: \/bin\/gi config --run /)
+  expect(state(b.files, dir).seq).toBe(0)
+  expect(b.opens).toEqual([])
+})
+
+test('a line the TUI appends applies within one poll and comes back in state.json', async ($, on) => {
+  const b = boot(on)
+  await start($)
+  await runGlowup($, 'config')
+  const dir = runDir(b.files)
+  b.files[`${dir}/open`] = ''
+  b.files[`${dir}/commands.jsonl`] = '{"seq":1,"cmds":["pack crt"]}\n'
+  await b.clock.advance(250)
+  expect((await runGlowup($, 'pack list')).text).toContain('● crt')
+  const s = state(b.files, dir)
+  expect([s.seq, s.lines, s.state.mix.colors, s.note.text]).toEqual([1, 1, 'crt', 'Pack: crt'])
+})
+
+test('undo puts the stored settings back, and keys that were absent stay absent', async ($, on) => {
+  const b = boot(on)
+  await start($)
+  await runGlowup($, 'config')
+  const dir = runDir(b.files)
+  b.files[`${dir}/open`] = ''
+  b.files[`${dir}/commands.jsonl`] = '{"seq":1,"cmds":["pack crt"]}\n{"seq":2,"cmds":["setup tabs plan"]}\n'
+  await b.clock.advance(250)
+  b.files[`${dir}/commands.jsonl`] += '{"seq":3,"undo":true}\n'
+  await b.clock.advance(250)
+  expect((await runGlowup($, 'pack list')).text).toContain('● classic')
+  expect((await runGlowup($, 'setup')).text).toContain('tabs           plan, agents, diff, changes')
+  expect(state(b.files, dir).seq).toBe(3)
+})
+
+test('a command outside the allowlist is refused with a note and does not run', async ($, on) => {
+  const b = boot(on)
+  await start($)
+  await runGlowup($, 'config')
+  const dir = runDir(b.files)
+  b.files[`${dir}/open`] = ''
+  b.files[`${dir}/commands.jsonl`] = '{"seq":1,"cmds":["statusline on"]}\n'
+  await b.clock.advance(250)
+  expect(state(b.files, dir).note).toEqual({ text: 'glowup config cannot run "statusline on".', tone: 'error' })
+  expect(b.ran.some(a => a.join(' ').includes('statusline'))).toBe(false)
+})
+
+test('a half-written line waits for its newline', async ($, on) => {
+  const b = boot(on)
+  await start($)
+  await runGlowup($, 'config')
+  const dir = runDir(b.files)
+  b.files[`${dir}/open`] = ''
+  b.files[`${dir}/commands.jsonl`] = '{"seq":1,"cmds":["pack c'
+  await b.clock.advance(250)
+  b.files[`${dir}/commands.jsonl`] += 'rt"]}\n'
+  await b.clock.advance(250)
+  expect((await runGlowup($, 'pack list')).text).toContain('● crt')
+})
+
+test('once open goes stale the poll stops', async ($, on) => {
+  const b = boot(on)
+  await start($)
+  await runGlowup($, 'config')
+  const dir = runDir(b.files)
+  b.files[`${dir}/open`] = ''
+  b.mtimes[`${dir}/open`] = Date.now() - 11_000
+  b.files[`${dir}/commands.jsonl`] = '{"seq":1,"cmds":["pack crt"]}\n'
+  await b.clock.advance(250)
+  b.mtimes[`${dir}/open`] = Date.now()
+  await b.clock.advance(250)
+  expect((await runGlowup($, 'pack list')).text).not.toContain('● crt')
+})
+
+test('a second /glowup config while the window is open says so', async ($, on) => {
+  const b = boot(on)
+  await start($)
+  await runGlowup($, 'config')
+  b.files[`${runDir(b.files)}/open`] = ''
+  expect((await runGlowup($, 'config')).text).toBe('glowup config is already open.')
+})
+
+test('a second /glowup config after a window that never opened starts a new run', async ($, on) => {
+  const b = boot(on)
+  await start($)
+  await runGlowup($, 'config')
+  const first = runDir(b.files)
+  await runGlowup($, 'config')
+  const owners = Object.keys(b.files).filter(f => f.endsWith('/owner'))
+  expect(owners).toHaveLength(2)
+  expect(owners.some(f => !f.startsWith(first))).toBe(true)
+})
+
+test('a second /glowup config after the window went stale starts a new run', async ($, on) => {
+  const b = boot(on)
+  await start($)
+  await runGlowup($, 'config')
+  const first = runDir(b.files)
+  b.files[`${first}/open`] = ''
+  b.mtimes[`${first}/open`] = Date.now() - 11_000
+  expect((await runGlowup($, 'config')).text).toMatch(/^glowup config is opening in Konsole/)
+  expect(Object.keys(b.files).filter(f => f.endsWith('/owner'))).toHaveLength(2)
+})
+
+test('with no terminal found it prints the command, and a hand-started TUI still gets a live run', async ($, on) => {
+  const b = boot(on, {}, ['terminal'], { GLOWUP_BIN: '/bin/gi' })
+  await start($)
+  const out = await runGlowup($, 'config')
+  const dir = runDir(b.files)
+  expect(out.text).toBe(`Run this in a terminal: /bin/gi config --run ${dir}`)
+  b.mtimes[`${dir}/owner`] = Date.now() - 60_000
+  b.files[`${dir}/open`] = ''
+  b.files[`${dir}/commands.jsonl`] = '{"seq":1,"cmds":["pack crt"]}\n'
+  await b.clock.advance(250)
+  expect((await runGlowup($, 'pack list')).text).toContain('● crt')
+})
+
+test('the desktop gets the pane; config pane opens it anywhere', async ($, on) => {
+  const b = boot(on, {}, ['desktop'])
+  await start($)
+  await runGlowup($, 'config')
+  expect(b.opens.map(o => o.id)).toEqual(['glowup-config'])
+})
+
+test('a hot reload resumes a live run from the seq in state.json', async ($, on) => {
+  const dir = `${R}/r1`
+  const b = boot(on, {
+    [`${dir}/owner`]: 's1', [`${dir}/open`]: '', [`${dir}/undo.json`]: '{}',
+    [`${dir}/state.json`]: JSON.stringify({ format: 1, seq: 1, lines: 1 }),
+    [`${dir}/commands.jsonl`]: '{"seq":1,"cmds":["pack arcade"]}\n{"seq":2,"cmds":["pack crt"]}\n',
+  })
+  await start($)
+  await b.clock.advance(250)
+  expect((await runGlowup($, 'pack list')).text).toContain('● crt')
+  expect(state(b.files, dir).seq).toBe(2)
+})
+
+test('session start removes day-old runs', async ($, on) => {
+  const b = boot(on, { [`${R}/old/owner`]: 's9' })
+  b.mtimes[`${R}/old/owner`] = Date.now() - 86_400_001
+  await start($)
+  expect(b.ran).toContainEqual(['rm', '-rf', `${R}/old`])
+})

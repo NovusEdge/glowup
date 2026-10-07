@@ -38,6 +38,8 @@ export type Ctl = {
   reduced(): boolean
   // opens the config pane; returns what to print
   openConfig(): Promise<string>
+  // opens the config TUI in a terminal, or the pane where there is none; returns what to print
+  openConfigTui(): Promise<string>
   // a -p run: nobody is attached to any surface
   headless(): Promise<boolean>
   fields(): readonly FieldId[]
@@ -292,7 +294,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     return `Bubbles: ${a1}`
   }
   if (sub === 'pane') return ctl.togglePane()
-  if (sub === 'config') return (await ctl.headless()) ? USAGE : ctl.openConfig()
+  if (sub === 'config') return (await ctl.headless()) ? USAGE : a1 === 'pane' ? ctl.openConfig() : ctl.openConfigTui()
   if (sub === 'motion' && (a1 === 'reduced' || a1 === 'full')) {
     await host.storeSet('reducedMotion', a1 === 'reduced')
     ctl.setMotion(a1 === 'reduced')

@@ -7,7 +7,7 @@ export type HelpRow = readonly [command: string, what: string]
 export const COMMAND_COLS = 36
 
 export const SHORT_ROWS: HelpRow[] = [
-  ['/glowup config', 'open the config pane: pack, colors, layout'],
+  ['/glowup config', 'open the config TUI in a new terminal window'],
   ['/glowup pack <name>', `switch look: ${Object.keys(PACKS).sort().join(' ')}`],
   ['/glowup pet clawd|robot|off', 'pick a pet, or none'],
   ['/glowup pane', 'open or close the side pane'],
@@ -16,7 +16,8 @@ export const SHORT_ROWS: HelpRow[] = [
 
 export const SECTIONS: readonly (readonly [title: string, rows: HelpRow[]])[] = [
   ['Start here', [
-    ['/glowup config', 'open the config pane: pack, colors, layout'],
+    ['/glowup config', 'open the config TUI in a new terminal window'],
+    ['/glowup config pane', 'the same settings in a pane inside Claude'],
     ['/glowup pane', 'open or close the side pane'],
   ]],
   ['Look', [

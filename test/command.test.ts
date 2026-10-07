@@ -64,6 +64,7 @@ const ctl = (answer = true, current = 'classic') => {
     setup: () => setup,
     setSetup: s => { setup = s; calls.push('setup') },
     openConfig: async () => 'glowup config open (Esc closes it)',
+    openConfigTui: async () => 'glowup config is opening',
     headless: async () => true,
   }
   return { calls, questions, ctl: c }

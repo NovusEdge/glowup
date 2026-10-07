@@ -24,7 +24,7 @@ const mountConfig = ($: any, surface = 'terminal') => $.ui.mount({ plugin: 'glow
 
 test('/glowup config opens the focused config pane and asks nothing', async ($, on) => {
   const s = setup(on)
-  const out = await runGlowup($, 'config')
+  const out = await runGlowup($, 'config pane')
   expect(s.opens.map(o => o.id)).toEqual(['glowup-config'])
   expect(s.opens[0].focus).toBe(true)
   expect(s.opens[0].closeOnEscape).toBe(true)
@@ -38,7 +38,7 @@ test('a headless /glowup config prints the usage', async ($, on) => {
 
 test('Enter on Pack applies the next pack through the pack command', async ($, on) => {
   setup(on)
-  await runGlowup($, 'config')
+  await runGlowup($, 'config pane')
   const ui = await mountConfig($)
   await ui.press({ key: 'cycle-pack' })
   expect((await runGlowup($, 'pack list')).text).toMatch(/● \S+/)
@@ -48,7 +48,7 @@ test('Enter on Pack applies the next pack through the pack command', async ($, o
 
 test('a submitted hex sets the override; a bad one leaves it and says why', async ($, on) => {
   setup(on)
-  await runGlowup($, 'config')
+  await runGlowup($, 'config pane')
   const ui = await mountConfig($)
   await ui.input({ key: 'input-color:accent', text: '112233', kind: 'submit' })
   expect((await runGlowup($, 'color list')).text).toContain('● accent #112233')
@@ -60,7 +60,7 @@ test('a submitted hex sets the override; a bad one leaves it and says why', asyn
 
 test('submitting a field unchanged runs nothing and draws no note', async ($, on) => {
   setup(on)
-  await runGlowup($, 'config')
+  await runGlowup($, 'config pane')
   const ui = await mountConfig($)
   const accent = resolveLook(DEFAULT_MIX, {}, {}).look.theme.colors.accent
   await ui.input({ key: 'input-color:accent', text: accent, kind: 'submit' })
@@ -71,7 +71,7 @@ test('submitting a field unchanged runs nothing and draws no note', async ($, on
 
 test('tabs typed in a new order reorder the main pane', async ($, on) => {
   setup(on)
-  await runGlowup($, 'config')
+  await runGlowup($, 'config pane')
   const ui = await mountConfig($)
   await ui.input({ key: 'input-tabs', text: 'plan, changes', kind: 'submit' })
   expect((await runGlowup($, 'setup')).text).toContain('tabs           plan, changes')
@@ -80,7 +80,7 @@ test('tabs typed in a new order reorder the main pane', async ($, on) => {
 
 test('a setup change names its own setting in the note, not the first row', async ($, on) => {
   setup(on)
-  await runGlowup($, 'config')
+  await runGlowup($, 'config pane')
   const ui = await mountConfig($)
   await ui.input({ key: 'input-tabs', text: 'plan, changes', kind: 'submit' })
   const note = await ui.find({ type: 'Text', text: /plan, changes/ })
@@ -101,7 +101,7 @@ test('a pack deleted after the pane opened shows the error and the pane keeps dr
   expect((await runGlowup($, 'pack zzz')).text).toBe('Pack: zzz')
   // the last built-in is followed by zzz in the cycle
   await runGlowup($, `pack ${Object.keys(PACKS).at(-1)}`)
-  await runGlowup($, 'config')
+  await runGlowup($, 'config pane')
   delete (files as Record<string, string>)['/fake/.claude/glowup/packs/zzz.json']
   const ui = await mountConfig($)
   const last = Object.keys(PACKS).at(-1)!
@@ -125,7 +125,7 @@ const petSetup = async ($: any, on: any, files: Record<string, string>) => {
 
 test('the Pet row skips a pet file that does not load', async ($, on) => {
   await petSetup($, on, { [`${PETS}/broken.json`]: '{"format":1', [`${PETS}/mochi.json`]: petJson('mochi') })
-  await runGlowup($, 'config')
+  await runGlowup($, 'config pane')
   const ui = await mountConfig($)
   await ui.press({ key: 'cycle-pet' })
   await ui.press({ key: 'cycle-pet' })
@@ -137,7 +137,7 @@ test('a pet deleted after the pane opened is refused once, then dropped from the
   const files = { [`${PETS}/mochi.json`]: petJson('mochi') }
   await petSetup($, on, files)
   await runGlowup($, 'pet robot')
-  await runGlowup($, 'config')
+  await runGlowup($, 'config pane')
   const ui = await mountConfig($)
   delete (files as Record<string, string>)[`${PETS}/mochi.json`]
   await ui.press({ key: 'cycle-pet' })
@@ -149,7 +149,7 @@ test('a pet deleted after the pane opened is refused once, then dropped from the
 
 test('Done closes the config pane only', async ($, on) => {
   const s = setup(on)
-  await runGlowup($, 'config')
+  await runGlowup($, 'config pane')
   const ui = await mountConfig($)
   await ui.press({ key: 'done' })
   expect(s.closes.map(c => c.id)).toEqual(['glowup-config'])
@@ -158,7 +158,7 @@ test('Done closes the config pane only', async ($, on) => {
 
 test('the meter cycle runs both of its commands', async ($, on) => {
   setup(on)
-  await runGlowup($, 'config')
+  await runGlowup($, 'config pane')
   const ui = await mountConfig($)
   await ui.press({ key: 'cycle-meter' })
   const text = (await runGlowup($, 'setup')).text!
@@ -169,7 +169,7 @@ test('the meter cycle runs both of its commands', async ($, on) => {
 
 test('/glowup config output is no longer drawn as a card', async ($, on) => {
   setup(on)
-  const text = (await runGlowup($, 'config')).text!
+  const text = (await runGlowup($, 'config pane')).text!
   const ui = await $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'CommandOutput', props: { command: 'glowup', args: 'config', text, isErrored: false } })
   expect(await ui.find({ text: 'engine' })).toBeDefined()
   await ui.unmount()
@@ -184,7 +184,7 @@ test('Reset asks, then clears color overrides and the setup', async ($, on) => {
   answer(on, 'Yes')
   await runGlowup($, 'color accent #112233')
   await runGlowup($, 'setup tabs plan')
-  await runGlowup($, 'config')
+  await runGlowup($, 'config pane')
   const ui = await mountConfig($)
   await ui.press({ key: 'reset' })
   expect((await runGlowup($, 'color list')).text).not.toContain('● accent')
@@ -197,7 +197,7 @@ test('Reset with only a setup change still resets it', async ($, on) => {
   setup(on)
   answer(on, 'Yes')
   await runGlowup($, 'setup tabs plan')
-  await runGlowup($, 'config')
+  await runGlowup($, 'config pane')
   const ui = await mountConfig($)
   await ui.press({ key: 'reset' })
   expect((await runGlowup($, 'setup')).text).toContain('tabs           plan, agents, diff, changes')
@@ -209,7 +209,7 @@ test('Reset with only a color override still resets it', async ($, on) => {
   setup(on)
   answer(on, 'Yes')
   await runGlowup($, 'color accent #112233')
-  await runGlowup($, 'config')
+  await runGlowup($, 'config pane')
   const ui = await mountConfig($)
   await ui.press({ key: 'reset' })
   expect((await runGlowup($, 'color list')).text).not.toContain('● accent')
@@ -221,7 +221,7 @@ test('Reset answered No changes nothing', async ($, on) => {
   answer(on, 'No')
   await runGlowup($, 'color accent #112233')
   await runGlowup($, 'setup tabs plan')
-  await runGlowup($, 'config')
+  await runGlowup($, 'config pane')
   const ui = await mountConfig($)
   await ui.press({ key: 'reset' })
   expect((await runGlowup($, 'color list')).text).toContain('● accent #112233')
@@ -235,7 +235,7 @@ test('Copy studio link copies the whole link, not a clipped one', async ($, on) 
   await runGlowup($, 'pack arcade')
   const roles = ['accent', 'text', 'dim', 'faint', 'read', 'edit', 'shell', 'agent', 'pass', 'fail', 'panel', 'addBg', 'delBg', 'sel']
   for (const role of roles) await runGlowup($, `color ${role} #123456`)
-  await runGlowup($, 'config')
+  await runGlowup($, 'config pane')
   const ui = await mountConfig($)
   await ui.press({ key: 'copy-link' })
   expect(s.copies).toHaveLength(1)
@@ -248,7 +248,7 @@ test('Copy studio link copies the whole link, not a clipped one', async ($, on) 
 test('the copied studio link names a built-in pack my-<pack>, since /glowup pack refuses built-in names', async ($, on) => {
   const s = setup(on)
   await runGlowup($, 'pack arcade')
-  await runGlowup($, 'config')
+  await runGlowup($, 'config pane')
   const ui = await mountConfig($)
   await ui.press({ key: 'copy-link' })
   expect((decodeLink(s.copies[0]!).parts.pack as { name: string }).name).toBe('my-arcade')
@@ -258,7 +258,7 @@ test('the copied studio link names a built-in pack my-<pack>, since /glowup pack
 test('a copy that throws is reported as an error, not success', async ($, on) => {
   const s = setup(on)
   s.copyResult.value = new Error('clipboard blocked')
-  await runGlowup($, 'config')
+  await runGlowup($, 'config pane')
   const ui = await mountConfig($)
   await ui.press({ key: 'copy-link' })
   expect(await ui.find({ text: /Could not copy the studio link: \S/ })).toBeDefined()
@@ -269,7 +269,7 @@ test('a copy that throws is reported as an error, not success', async ($, on) =>
 test('a copy that did not happen says why instead of claiming success', async ($, on) => {
   const s = setup(on)
   s.copyResult.value = { isCopied: false, reason: 'no-clipboard' }
-  await runGlowup($, 'config')
+  await runGlowup($, 'config pane')
   const ui = await mountConfig($)
   await ui.press({ key: 'copy-link' })
   expect(await ui.find({ text: /Could not copy the studio link: no-clipboard/ })).toBeDefined()
