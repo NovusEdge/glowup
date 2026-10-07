@@ -117,6 +117,8 @@ To install from inside Claude Code instead:
 /plugin install glowup@glowup
 ```
 
+This path does not check your Claude Code version. If you see `Failed to load hooks ... expected record, received undefined`, or glowup does not show up, see [If glowup does not load](docs/install.md#if-glowup-does-not-load).
+
 To run from a clone:
 
 ```sh
