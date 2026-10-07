@@ -22,7 +22,7 @@ function NumField({ label, value, min, max, step = 1, onCommit }: { label: strin
 }
 
 const BAND_LABEL = { combo: 'Combo', agents: 'Agents', meter: 'Meter', plan: 'Plan' }
-const TAB_LABEL = { changes: 'Changes', agents: 'Agents', plan: 'Plan' }
+const TAB_LABEL = { changes: 'Changes', diff: 'Diff', agents: 'Agents', plan: 'Plan' }
 
 export function SetupControls({ setup, onSetup, onTier }: { setup: StudioSetup; onSetup(s: StudioSetup): void; onTier(w: 'narrow' | 'wide'): void }) {
   const [notice, setNotice] = useState<string>()
