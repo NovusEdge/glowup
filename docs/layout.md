@@ -36,7 +36,7 @@ From left to right it shows:
 - The current action with its glyph and color, for example `✎ Editing auth.ts`. Failures show in the `fail` color and passes in the `pass` color.
 - The number of running subagents, for example `◆ 2 subagents`.
 - Five hearts for the context you have left, each worth 20% of the window.
-- Plan progress as pips, `●●○○`, when Claude has a task list.
+- Plan progress as pips, `●●○○`, when Claude has a task list. A finished plan drops out at your next prompt.
 - With a pack that turns them on, an HP bar in place of the hearts and a `COMBO x3` tag. See [Extras](pack-reference.md#extras).
 
 When the line is too long, the action text is shortened first. If the rest of the line would leave the action fewer than 8 columns, the band drops everything but the action. The band is also hidden while Claude Code's feedback survey is open and while you view a subagent's transcript.
@@ -52,6 +52,8 @@ The pane has four tabs, selected with their number key or by clicking. They open
 Under the tabs in the wide pane, a status box shows the current action, the running subagents and a row of hearts. These hearts show account usage: whichever of the 5-hour and weekly limits has less left, for example `♥♥♡♡♡  weekly limit 38% left`. On an API key, which has no such limits, the row shows the session's spend instead, such as `$4.20 spent this session`. Until the first usage reading arrives, the hearts show context.
 
 Hide or reorder tabs with /glowup setup tabs; their number keys follow the order shown.
+
+A tab longer than the pane scrolls with the mouse wheel and the scroll keys while the pane has the keyboard. Only the tab's rows move, so Clawd and the status box stay at the bottom. A dim `↑ 4 more` above and `↓ 12 more` below say how many rows are out of view.
 
 ### Changes
 
@@ -89,6 +91,7 @@ Each subagent started this session, or `No subagents this session.` The tab keep
 The tab has two boxes, `PLAN` and `CONTEXT`, one blank row apart.
 
 - `PLAN` is Claude's task list. `◉` is in progress (bold, with its active wording when the task has one), `○` is next, `✓` is done. In progress comes first, then next, then the last three done, dimmed, with `+N more done` for the rest. The top edge shows done over total.
+- When every task is done, the next prompt folds the box to one line, `✓ plan done · 5 tasks`, in the `pass` color. A new task, or one that goes back to pending or in progress, opens the list again. `CONTEXT` is not affected.
 - The list is Claude Code's saved one, read from `tasks/<list>/*.json` under your config directory when the session starts and again after each `TaskCreate` or `TaskUpdate` Claude makes. `<list>` is `CLAUDE_CODE_TASK_LIST_ID` when that is set, otherwise the working directory with every character outside letters and digits turned into `-` and the leading `-` dropped (`/home/you/Projects` is `home-you-Projects`). Deleted and unreadable tasks are skipped. Subagent task calls do not count. A `TodoWrite` list still shows too.
 - `CONTEXT` has one stacked bar: each part of the context that uses tokens is its own colored segment, biggest first, and free space is a faint `░` track (`·` when the theme gives no usable colors). Segment colors come from your theme's `read`, `agent`, `shell`, `edit` and `accent` colors, so they follow the pack. If the theme gives no usable colors, the segments use the block shades `█▓▒░` instead. The top edge shows the percent and tokens, such as `62% · 124k / 200k`.
 - Under the bar, a legend names each part with its share (`● messages 31%`) and wraps onto more lines when the pane is narrow. Up to five parts get their own segment and the rest join as `other`.

@@ -21,6 +21,8 @@ export type Model = {
   combo: number
   lastTest?: { passed: boolean; at: number }
   limits: RateLimit[]
+  // task ids the plan covered when it folded at a prompt; read through planFold, which says whether the fold still holds
+  planFolded?: string[]
   costUsd?: number
   modelName?: string
   effort?: string
@@ -68,10 +70,19 @@ export function normalizeModel(raw: unknown): Model {
   for (const k of ARRAYS) if (!Array.isArray(m[k])) (m as Record<string, unknown>)[k] = base[k]
   for (const k of NUMBERS) if (typeof m[k] !== 'number' || !Number.isFinite(m[k])) (m as Record<string, unknown>)[k] = base[k]
   if (!m.act || typeof m.act !== 'object') m.act = base.act
+  if (!Array.isArray(m.planFolded)) m.planFolded = undefined
   // before 0.3.5 reads were stored here too
   m.files = m.files.filter(f => (f.how as string) !== 'read').sort((a, b) => b.at - a.at)
   return m
 }
+// The task count while the plan shows as one line: it finished before the last prompt and nothing has
+// been added or reopened since.
+export const planFold = (m: Model): number | undefined =>
+  m.planFolded && m.plan.length && m.plan.every(p => p.status === 'completed' && m.planFolded!.includes(p.id)) ? m.plan.length : undefined
+
+// A plan that stops matching its fold forgets it, so finishing the same tasks again waits for the next prompt.
+const settleFold = (m: Model): Model => (m.planFolded && planFold(m) === undefined ? { ...m, planFolded: undefined } : m)
+
 export const agentsRunning = (m: Model) => m.agents.some(a => a.state === 'running')
 // Subagents run in the background, so the main turn usually ends while they work.
 export const isBusy = (m: Model) => m.working || agentsRunning(m)
@@ -113,7 +124,10 @@ function touch(files: FileTouch[], path: string, at: number, how: FileTouch['how
 
 export function applyEvent(m: Model, ev: Ev): Model {
   switch (ev.type) {
-    case 'turn-start': return { ...m, working: true, doneAt: undefined, needsYou: undefined, turnAt: ev.at, actAt: ev.at, combo: 0, lastTest: undefined, act: { glyph: '✻', label: 'Thinking', tone: 'text' } }
+    case 'turn-start': {
+      const finished = m.plan.length > 0 && m.plan.every(p => p.status === 'completed')
+      return { ...m, planFolded: finished ? m.plan.map(p => p.id) : undefined, working: true, doneAt: undefined, needsYou: undefined, turnAt: ev.at, actAt: ev.at, combo: 0, lastTest: undefined, act: { glyph: '✻', label: 'Thinking', tone: 'text' } }
+    }
     case 'turn-done': return { ...m, working: false, doneAt: ev.at, actAt: ev.at, needsYou: undefined, act: ENDED[ev.reason], ctxHistory: [...m.ctxHistory, m.ctxPercent].slice(-CTX_SAMPLES), ctxSampledAt: ev.at }
     case 'context': {
       const ctxPercent = Math.max(0, Math.min(100, Math.round(ev.percent)))
@@ -121,7 +135,7 @@ export function applyEvent(m: Model, ev: Ev): Model {
       return { ...m, ctxPercent, ctxPeak: Math.max(m.ctxPeak, ctxPercent), ctxHistory: fresh ? [...m.ctxHistory.slice(0, -1), ctxPercent] : m.ctxHistory }
     }
     case 'compact': return { ...m, compactions: m.compactions + 1, compactAt: ev.at }
-    case 'plan-load': return ev.plan.length ? { ...m, plan: ev.plan } : m
+    case 'plan-load': return ev.plan.length ? settleFold({ ...m, plan: ev.plan }) : m
     case 'usage': return { ...m, limits: ev.limits, costUsd: ev.costUsd ?? m.costUsd }
     case 'session-info': return { ...m, modelName: ev.modelName ?? m.modelName, root: ev.root ?? m.root }
     case 'effort': return { ...m, effort: ev.effort }
@@ -166,7 +180,7 @@ export function applyEvent(m: Model, ev: Ev): Model {
       }
       // a subagent's own todo list is not Claude's plan
       const plan = ev.isError || ev.agentId ? undefined : planFrom(ev.tool, ev.input, next.plan, ev.resultTaskId)
-      if (plan) next = { ...next, plan }
+      if (plan) next = settleFold({ ...next, plan })
       if (!ev.agentId) next = { ...next, combo: ev.isError ? 0 : next.combo + 1 }
       if (!ev.agentId && d.isTest) {
         const o = testOutcome(ev.text, ev.isError)

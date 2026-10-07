@@ -1,5 +1,5 @@
 import type { Model } from './model.ts'
-import { bandVisible, normalizeModel } from './model.ts'
+import { bandVisible, normalizeModel, planFold } from './model.ts'
 import type { Theme } from './themes.ts'
 import type { Look } from './packs.ts'
 import { comboSegs, fit, hearts, hpBar, renderSegs, toneColor, visibleLength, type Seg, type Tier } from './layout.tsx'
@@ -26,7 +26,7 @@ export function bandSegments(model: Model, base: Theme, columns: number, extra?:
     } else if (item === 'meter') {
       // the life bar needs room for its words; a narrow band keeps the hearts
       tail.push(sep(), ...(extra?.look?.extras.hp && columns >= 80 ? hpBar(m.ctxPercent, t, Math.min(34, Math.floor(columns * 0.3))) : hearts(m.ctxPercent, t)))
-    } else if (item === 'plan' && m.plan.length) {
+    } else if (item === 'plan' && m.plan.length && planFold(m) === undefined) {
       const done = m.plan.filter(p => p.status === 'completed').length
       tail.push(sep(), { text: '◇ ', color: c.dim }, { text: '●'.repeat(done) + '○'.repeat(m.plan.length - done), color: c.accent })
     }

@@ -61,6 +61,8 @@ let pet: PetSetting = 'clawd'
 let petSheet: PetSheet | undefined
 let bubbles: BubbleSetting = 'on'
 let view: PaneView = { tab: DEFAULT_SETUP.tabs[0]! }
+// the open tab's last window offset and window height, as the pane drew them; ui.scroll clamps and pages by them
+let scroll = { last: 0, win: 0 }
 let git: Repo | undefined
 let cwd = ''
 let configDir = ''
@@ -1017,7 +1019,7 @@ export const register: Register = (on, options) => {
       extra = { ...extra, pet: { id: pid, node, rows: stripRows(sheet, snap.overlays) }, bubble: bubbleNow, friday: snap.friday }
     }
     // the engine scrolls the whole body, which would carry the pet off with a long tab: budget the tab to bodyRows instead
-    extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onScroll: (offset: number) => { view = { ...view, offset }; publish($) } }
+    extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onRange: (last, win) => { scroll = { last, win } } }
     if (e.props.placement === 'dock') extra = { ...extra, minRows: e.props.scroll.bodyRows }
     const m = live ? normalizeModel(live.model) : model, pack = mix.colors, colors = palette(), picked = lookKey()
     if (!compact) {
@@ -1050,6 +1052,18 @@ export const register: Register = (on, options) => {
       if (id === 'plan') void feedContext($)
       if (id === 'diff') refresh($)
     }, extra)
+  })
+
+  // No next(): the pane draws its own window, and the engine moving the whole body would carry the pet and status box off.
+  on('ui.scroll', { component: 'Pane', requestId: 'glowup' }, async ($, e, next) => {
+    if (off) return next(e)
+    // The engine sizes the person's page keys, Home and End by its own body, which the tab's window is shorter
+    // than, and they arrive alike here (the pane fills its body): each pages by the tab's window.
+    const page = e.origin.kind === 'person' && Math.abs(e.by) >= e.bodyRows && scroll.win > 0
+    const by = page ? Math.sign(e.by) * scroll.win : e.by
+    const offset = Math.max(0, Math.min(Math.min(view.offset ?? 0, scroll.last) + by, scroll.last))
+    if (offset !== view.offset) { view = { ...view, offset }; publish($) }
+    return {}
   })
 
   on('ui.render', { component: 'Pane', requestId: CONFIG_ID }, async ($, e, next) => {
