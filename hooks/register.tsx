@@ -2,10 +2,11 @@ import type { EngineInterface, PaneOpenArgs, Register, RenderElement, RenderSurf
 import type { Host } from './host.ts'
 import { initialModel, normalizeModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
 import { approvalLabel, dialogCall, modeAsksPerson, shortPath } from './events.ts'
-import { shown, type Theme } from './themes.ts'
+import { shown, parseJsonc, type Theme } from './themes.ts'
+import { loadCatalog, refreshCatalog, installEntry, canRun, type CatalogEntry } from './catalog.ts'
 import { resolveLook, cleanOverrides, exportMix, exportName, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { PACKS } from './packpresets.ts'
-import { loadUserPacks, SAFE_NAME } from './userpacks.ts'
+import { loadUserPacks, SAFE_NAME, PACK_DIR } from './userpacks.ts'
 import { BUILTIN_SHEETS, CLAWD_SHEET, eggSheet, stripRows, type PetSetting, type PetInput, type PetKind, type PetSheet } from './pets.ts'
 import { loadUserPet, userPetNames, PET_DIR } from './userpets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
@@ -102,6 +103,9 @@ let turnNo = 0
 let bubbleCap = 40
 // false in a plain -p run, where nobody sees a bubble
 let interactive = true
+// glowup's own version from plugin.json, read at session start; catalog packs are gated on it
+let ownVersion: string | undefined
+let catalog: CatalogEntry[] = []
 let friday = false
 let failed = false
 let tzOffset = 0
@@ -146,6 +150,7 @@ function hostOf($: Engine): Host {
     configDir,
     dataHome,
     home,
+    version: ownVersion,
   }
 }
 
@@ -631,6 +636,23 @@ async function initialMix(host: Host, options: Readonly<Record<string, unknown>>
   return { ...DEFAULT_MIX, colors: pack, motion: pack, theme, spinner }
 }
 
+// A pack the installer chose arrives as a name only; its files come from the catalog in the background.
+async function installConfigured($: Engine, host: Host, name: string) {
+  let entry = catalog.find(e => e.name === name)
+  if (!entry) { const fresh = await refreshCatalog(host).catch(() => undefined); if (fresh) catalog = fresh; entry = catalog.find(e => e.name === name) }
+  const r = !entry ? { message: `${name} is not an installed or official pack.` }
+    : !canRun(entry, ownVersion) ? { message: `${name} needs glowup ${entry.minGlowup}.` }
+    : await installEntry(host, entry, { force: false })
+  if ('name' in r && r.name) {
+    await host.storeDelete('catalogMissing')
+    mix = { ...mix, colors: name, motion: name }
+    await loadLook($)
+    return
+  }
+  if (interactive && (await host.storeGet('catalogMissing')) !== name) $.ui.toast(`${r.message} Showing the default look.`)
+  await host.storeSet('catalogMissing', name)
+}
+
 function ctlOf($: Engine): Ctl {
   return {
     current: () => theme.name,
@@ -718,6 +740,7 @@ export const register: Register = (on, options) => {
     configDir = (await $.env.get('CLAUDE_CONFIG_DIR')) || `${home}/.claude`
     const xdg = await $.env.get('XDG_DATA_HOME')
     dataHome = xdg?.startsWith('/') ? xdg : `${home}/.local/share`
+    try { const v = (parseJsonc(await $.fs.read(`${$.plugin.root}/.claude-plugin/plugin.json`)) as { version?: unknown }).version; ownVersion = typeof v === 'string' ? v : undefined } catch { ownVersion = undefined }
     const host = hostOf($)
     off = false
     guardSid = safeId(await $.session.id())
@@ -741,6 +764,20 @@ export const register: Register = (on, options) => {
     void checkStale($)
     await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|setup|restore' })
     mix = await initialMix(host, options)
+    catalog = await loadCatalog(host)
+    const wanted = mix.colors
+    const configured = (await host.storeGet('mix')) === undefined && wanted !== DEFAULT_MIX.colors && !Object.hasOwn(PACKS, wanted) &&
+      !(await host.exists(`${PACK_DIR(configDir)}/${wanted}.json`))
+    if (configured) {
+      mix = { ...mix, colors: DEFAULT_MIX.colors, motion: DEFAULT_MIX.motion }
+      void installConfigured($, host, wanted).catch(() => {})
+    }
+    const last = await host.storeGet('catalogFetchedAt')
+    const nowMs = await $.clock.now()
+    if (interactive && !(typeof last === 'number' && nowMs - last < 86_400_000)) {
+      await host.storeSet('catalogFetchedAt', nowMs)
+      void refreshCatalog(host).then(e => { if (e) catalog = e }).catch(() => {})
+    }
     const storedPet = await host.storeGet('pet')
     const eggs = await host.storeGet('eggs') as EggStore | undefined
     const want = typeof storedPet === 'string' ? storedPet : typeof options.pet === 'string' && options.pet ? options.pet : 'clawd'
