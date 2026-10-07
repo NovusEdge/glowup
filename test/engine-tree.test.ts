@@ -2,7 +2,7 @@ import { expect, mock } from 'claude-code/testing'
 import { fakeFs, runGlowup, test } from './kit.ts'
 import { REFUSED_ABOVE_ENGINE, engineViolations } from './engine-tree.ts'
 import { styleRow, type RowInput } from '../hooks/rows.tsx'
-import { resolveLook, type Look } from '../hooks/packs.ts'
+import { ROW_STYLES, resolveLook, type Look } from '../hooks/packs.ts'
 import { PACKS } from '../hooks/packpresets.ts'
 
 const ENGINE = { type: 'engine', ref: 0 }
@@ -58,7 +58,7 @@ test('no row style, site or pack puts a refused Box prop above the engine node',
   let checked = 0
   for (const name of Object.keys(PACKS)) {
     const base = resolveLook({ colors: name, motion: name }, {}, {}).look
-    for (const rows of ['classic', 'cards', 'minimal', 'retro'] as const) {
+    for (const rows of ROW_STYLES) {
       const look: Look = { ...base, rows }
       for (const prefixCards of [false, true]) {
         for (const row of rowsFor()) {
@@ -69,7 +69,7 @@ test('no row style, site or pack puts a refused Box prop above the engine node',
       }
     }
   }
-  expect(checked).toBe(Object.keys(PACKS).length * 4 * 2 * rowsFor().length)
+  expect(checked).toBe(Object.keys(PACKS).length * ROW_STYLES.length * 2 * rowsFor().length)
 })
 
 // The engine's own validator over the whole hook: what the owner's session ran.

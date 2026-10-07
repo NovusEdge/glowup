@@ -179,7 +179,7 @@ test('prefixCards leaves message rows as they are without it', async () => {
 
 test('non-classic styles indent every row one column, classic does not', async () => {
   const rows: RowInput[] = [user(), user({ own: false }), asst(), asst(false), tool(), tool({ isErrored: true }), { site: 'ToolResult' }]
-  for (const style of ['cards', 'minimal', 'retro'] as const) {
+  for (const style of ['cards', 'minimal', 'retro', 'slab'] as const) {
     const l: Look = { ...look('arcade'), rows: style }
     for (const r of rows) {
       const s = styleRow(els, l, r, ENGINE) as any
@@ -226,7 +226,7 @@ function beside(n: any): number {
 
 test('width budget: ToolResult and UserMessage rows add at most 4 columns beside the engine', async () => {
   for (const name of ['cozy', 'arcade', 'crt']) {
-    for (const rows of ['cards', 'retro', 'minimal'] as const) {
+    for (const rows of ['cards', 'retro', 'minimal', 'slab'] as const) {
       const l: Look = { ...look(name), rows }
       for (const r of [user(), asst(), asst(false), { site: 'ToolResult' } as RowInput]) {
         const s = styleRow(els, l, r, ENGINE)
@@ -277,6 +277,8 @@ test('slab: your prompt is an accent bar with its own text and the turn number',
   expect(text(u)).toContain('PROMPT 03')
   const prompt = walk(u).find(x => x.type === 'Text' && text(x).includes('fix the test'))
   expect(prompt.props.color).toBe(l.bg)
+  expect(text(prompt)).toBe('fix the test')
+  expect(walk(u).find(x => x.type === 'Box' && x.children?.includes(prompt)).props.paddingX).toBe(1)
 })
 
 test('slab: a long prompt keeps all its text and is never truncated', async () => {
@@ -312,7 +314,7 @@ test('slab: tool rows carry the number, the upper-case tool in its role color, t
 
 test('slab: tool results sit indented under their call', async () => {
   const r = inner(styleRow(els, slab(), { site: 'ToolResult' }, ENGINE)) as any
-  expect(r.props.paddingLeft).toBe(4)
+  expect(r.props.paddingLeft).toBe(3)
   expect(hasEngine(r)).toBe(true)
 })
 

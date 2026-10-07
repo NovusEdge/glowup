@@ -147,12 +147,12 @@ function draw(els: Els, look: Look, row: RowInput, engine: unknown, opts: { pref
           // where a divider overlay can still sit.
           return (
             <Box flexDirection="row" marginTop={1} backgroundColor={c.accent}>
-              <Box flexGrow={1} flexShrink={1}><Text color={look.bg} backgroundColor={c.accent} bold>{' ' + row.text}</Text></Box>
+              <Box flexGrow={1} flexShrink={1} paddingX={1}><Text color={look.bg} backgroundColor={c.accent} bold>{row.text}</Text></Box>
               {row.turn ? <Box flexShrink={0}><Text color={mix(look.bg, c.accent, 0.3)} backgroundColor={c.accent}>{` PROMPT ${String(row.turn).padStart(2, '0')} `}</Text></Box> : null}
             </Box>
           )
         }
-        if (row.site === 'ToolResult') return <Box paddingLeft={4}>{engine}</Box>
+        if (row.site === 'ToolResult') return <Box paddingLeft={3}>{engine}</Box>
         if (row.site === 'AssistantMessage') {
           if (!row.isFirstOfReply) return engine
           return (
