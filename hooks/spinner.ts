@@ -12,7 +12,7 @@ export type SpinLook = {
   bg: string
   gradient?: [string, string]
   motion: { spinner: SpinnerId; shimmer: 0 | 1 | 2; color: string }
-  theme: { colors: { text: string; accent: string; dim: string } }
+  theme: { colors: { text: string; accent: string; dim: string; read: string; agent: string } }
 }
 export type SpinnerProps = { look: SpinLook; input: SpinInput; reduced: boolean }
 
@@ -36,15 +36,16 @@ export function spinnerLine(look: SpinLook, input: SpinInput, now: number): { ba
   const { spinner, color } = look.motion
   const c = look.theme.colors
   const t = now - input.turnAt
-  const badge = cellsToSpans(spinnerCells(spinner, t, { color, bg: look.bg, fg: c.text }, input.state))
-  const word = spinnerWordSpans(look, input.word + '…', now)
-  return { badge, word, tail: `(${elapsed(t)} · esc to interrupt)`, ...(SPINNERS[spinner].rows >= 2 ? { detail: input.detail } : {}) }
+  const word = input.word + '…'
+  const badge = cellsToSpans(spinnerCells(spinner, t, { color, bg: look.bg, fg: c.text, wordLen: [...word].length }, input.state))
+  const spans = spinnerWordSpans(look, word, now, { t, st: input.state })
+  return { badge, word: spans, tail: `(${elapsed(t)} · esc to interrupt)`, ...(SPINNERS[spinner].rows >= 2 ? { detail: input.detail } : {}) }
 }
 
 export function spinnerProps(look: Look, input: SpinInput, reduced: boolean): SpinnerProps {
-  const { text, accent, dim } = look.theme.colors
+  const { text, accent, dim, read, agent } = look.theme.colors
   return {
-    look: { bg: look.bg, ...(look.gradient ? { gradient: look.gradient } : {}), motion: look.motion, theme: { colors: { text, accent, dim } } },
+    look: { bg: look.bg, ...(look.gradient ? { gradient: look.gradient } : {}), motion: look.motion, theme: { colors: { text, accent, dim, read, agent } } },
     input,
     reduced,
   }

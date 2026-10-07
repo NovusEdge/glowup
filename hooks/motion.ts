@@ -193,13 +193,53 @@ export type WordLook = {
   bg: string
   gradient?: [string, string]
   motion: { spinner: SpinnerId; shimmer: number; color: string }
-  theme: { colors: { text: string; accent: string } }
+  theme: { colors: { text: string; accent: string; read?: string; agent?: string } }
 }
 
-export function spinnerWordSpans(look: WordLook, text: string, now: number): Span[] {
+// One span per run of equal style: each span is an element the surface diffs every frame.
+function runs(spans: Span[]): Span[] {
+  const out: Span[] = []
+  for (const s of spans) {
+    const last = out.at(-1)
+    if (last && last.color === s.color && last.bg === s.bg && !!last.bold === !!s.bold) last.text += s.text
+    else out.push({ ...s })
+  }
+  return out
+}
+
+function scanWord(look: WordLook, text: string, t: number, st: OrbState): Span[] {
+  const chars = [...text], pos = scanPos(t, chars.length, st), c = look.theme.colors
+  return runs(chars.map((ch, i) => {
+    const d = pos - (SCAN_BAR + 1 + i)
+    return d >= 0 && d < 2 ? { text: ch, color: look.bg, bg: c.accent, bold: true } : { text: ch, color: c.text, bold: true }
+  }))
+}
+
+// Seeded by the 70 ms frame, so every redraw within a frame draws the same glitch. A tear repeats
+// the first letter in front and drops the trailing space: the line never changes length.
+function glitchWord(look: WordLook, text: string, t: number, st: OrbState): Span[] {
+  const c = look.theme.colors, a = c.read ?? c.accent, b = c.agent ?? c.text
+  let seed = (Math.floor(Math.max(0, t || 0) / 70) * 9301 + 49297) % 233280
+  const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280
+  const k = st === 'run' || st === 'agents' ? 2 : 1, chars = [...text], out: Span[] = []
+  const tear = rnd() < 0.12
+  if (tear) out.push({ text: chars[0] ?? ' ', color: b })
+  for (const ch of chars) {
+    const r = rnd(), pick = rnd() < 0.5 ? a : b, block = '▓▒░█▚'[Math.floor(rnd() * 5)]!
+    if (r < 0.10 * k) out.push({ text: block, color: pick })
+    else if (r < 0.16 * k) out.push({ text: ch, color: look.bg, bg: pick })
+    else out.push({ text: ch, color: c.text, bold: true })
+  }
+  if (!tear) out.push({ text: ' ', color: c.text })
+  return runs(out)
+}
+
+export function spinnerWordSpans(look: WordLook, text: string, now: number, at?: { t: number; st: OrbState }): Span[] {
   const { spinner, shimmer, color } = look.motion
   const c = look.theme.colors
   const [c1, c2] = look.gradient ?? [c.accent, c.text]
+  if (spinner === 'scanline') return scanWord(look, text, at?.t ?? now, at?.st ?? 'think')
+  if (spinner === 'glitch') return glitchWord(look, text, at?.t ?? now, at?.st ?? 'think')
   if (spinner === 'shimmer') return wave3(text, mix(color, look.bg, 0.45), mix(color, '#ffffff', 0.6), now, Math.max(1, shimmer))
   if (shimmer > 0) return wave(text, c1, c2, now, shimmer * 1.2).map(s => ({ ...s, bold: true }))
   if (look.gradient) return gradient(text, c1, c2).map(s => ({ ...s, bold: true }))

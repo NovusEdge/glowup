@@ -1,6 +1,6 @@
 import { test, expect } from 'claude-code/testing'
 import { mix, gradient, wave } from '../hooks/color.ts'
-import { SPINNERS, spinnerCells, scanPos, cellsToSpans, type SpinnerId } from '../hooks/motion.ts'
+import { SPINNERS, spinnerCells, scanPos, cellsToSpans, spinnerWordSpans, SCAN_BAR, type SpinnerId, type WordLook } from '../hooks/motion.ts'
 import { cellWidth } from '../hooks/cells.ts'
 
 const O = { color: '#38e8ff', bg: '#1a0b33', fg: '#f0e6ff' }
@@ -126,4 +126,47 @@ test('clawd keeps his own color', async () => {
 test('cellsToSpans merges runs of one color', async () => {
   const spans = cellsToSpans([[{ ch: 'a', fg: '#111111' }, { ch: 'b', fg: '#111111' }, { ch: 'c', fg: '#222222', bg: '#000000' }]])
   expect(spans[0]).toEqual([{ text: 'ab', color: '#111111' }, { text: 'c', color: '#222222', bg: '#000000' }])
+})
+
+const WL = (spinner: SpinnerId): WordLook => ({
+  bg: '#0d0d24', motion: { spinner, shimmer: 1, color: '#8080ff' },
+  theme: { colors: { text: '#e5e5ee', accent: '#8080ff', read: '#00f2f2', agent: '#af66f7' } },
+})
+const joined = (s: { text: string }[]) => s.map(x => x.text).join('')
+
+test('scanline word: every character comes back in order, the two under the scan lit', async () => {
+  const word = 'Ünïcode…'
+  for (const t of [0, 500, 1000, 1700]) expect(joined(spinnerWordSpans(WL('scanline'), word, 0, { t, st: 'think' }))).toBe(word)
+  // the scan reaches the word's first letter after the bar and the one-cell gap
+  const lit = spinnerWordSpans(WL('scanline'), word, 0, { t: (SCAN_BAR + 1) * 45, st: 'think' })
+  expect(lit[0]).toMatchObject({ color: '#0d0d24', bg: '#8080ff' })
+  expect(spinnerWordSpans(WL('scanline'), word, 0, { t: 0, st: 'think' }).every(s => !s.bg)).toBe(true)
+})
+
+test('glitch word: never changes the line length and keeps letters in place', async () => {
+  const word = 'Thinking…', n = [...word].length
+  let tore = 0, swapped = 0
+  for (let f = 0; f < 400; f++) {
+    const spans = spinnerWordSpans(WL('glitch'), word, 0, { t: f * 70, st: 'run' })
+    const chars = [...joined(spans)]
+    expect(chars.length).toBe(n + 1)
+    const torn = chars.at(-1) !== ' '
+    if (torn) tore++
+    const body = torn ? chars.slice(1) : chars.slice(0, n)
+    body.forEach((ch, i) => { if (ch !== [...word][i]) { expect('▓▒░█▚').toContain(ch); swapped++ } })
+  }
+  expect(tore).toBeGreaterThan(0)
+  expect(swapped).toBeGreaterThan(0)
+})
+
+test('glitch word: a frame is the same on every redraw within its 70 ms', async () => {
+  const at = (t: number) => JSON.stringify(spinnerWordSpans(WL('glitch'), 'Thinking…', 0, { t, st: 'think' }))
+  expect(at(140)).toBe(at(209))
+})
+
+test('word effects fall back to accent and text without read and agent colors', async () => {
+  const bare: WordLook = { ...WL('glitch'), theme: { colors: { text: '#e5e5ee', accent: '#8080ff' } } }
+  for (let f = 0; f < 50; f++) for (const s of spinnerWordSpans(bare, 'Thinking…', 0, { t: f * 70, st: 'run' })) {
+    expect(['#e5e5ee', '#8080ff', '#0d0d24']).toContain(s.color)
+  }
 })
