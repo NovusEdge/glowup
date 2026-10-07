@@ -19,10 +19,12 @@ export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<s
   const store: Record<string, unknown> = {}
   const ran: string[] = []
   const envs: (Record<string, string> | undefined)[] = []
+  const timeouts: (number | undefined)[] = []
   const host: Host = {
-    run: async (argv, env) => {
+    run: async (argv, env, timeoutMs) => {
       ran.push(argv.join(' '))
       envs.push(env)
+      timeouts.push(timeoutMs)
       const hit = opts.runs?.[argv.join(' ')]
       if (!hit) return { exitCode: 127, stdout: '', stderr: 'not found' }
       return { ...hit, stderr: '' }
@@ -42,7 +44,7 @@ export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<s
     dataHome: '/home/u/.local/share',
     home: '/home/u',
   }
-  return { host, files, store, ran, envs, mtimes }
+  return { host, files, store, ran, envs, timeouts, mtimes }
 }
 
 // Answers $.env, $.fs and $.process from memory, so a wiring test can never reach

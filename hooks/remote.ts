@@ -23,7 +23,7 @@ export function allowed(cmd: string): boolean {
   switch (w[0]) {
     case 'pack': return w.length === 2 && SAFE_NAME.test(w[1]!)
     case 'spinner': case 'motion': case 'bubbles': return w.length === 2
-    case 'pet': return w.length === 2 && w[1] !== 'add' && w[1] !== 'list'
+    case 'pet': return w.length === 2 && SAFE_NAME.test(w[1]!) && w[1] !== 'add' && w[1] !== 'list'
     case 'color': return w.length === 3
     case 'setup': return w.length >= 3 && w[1] !== 'reset'
     case 'statusline': return w[1] === 'fields' && w.length >= 3
@@ -69,8 +69,10 @@ export async function restoreUndo(host: Host, undo: Undo) {
 
 export async function createRun(host: Host, owner: string, id: string): Promise<string> {
   const dir = `${REMOTE_DIR(host.configDir)}/${id}`
-  await host.writeFile(`${dir}/undo.json`, JSON.stringify(await saveUndo(host)))
+  const undo = JSON.stringify(await saveUndo(host))
+  // owner first: a folder with no times looks abandoned to another session's prune
   await host.writeFile(`${dir}/owner`, owner)
+  await host.writeFile(`${dir}/undo.json`, undo)
   return dir
 }
 
@@ -89,6 +91,8 @@ export async function scanRuns(host: Host, owner: string, now: number): Promise<
   for (const id of await host.listDir(root)) {
     const dir = `${root}/${id}`
     const t = await runTimes(host, dir)
+    // createRun is mid-write, or the folder is not a run; neither is ours to delete
+    if (t.open === undefined && t.owner === undefined) continue
     if (now - Math.max(t.open ?? 0, t.owner ?? 0) > PRUNE_MS) stale.push(dir)
     else if (isLive(t.open, t.owner, now) && (await host.readFile(`${dir}/owner`).catch(() => '')) === owner) live.push(dir)
   }

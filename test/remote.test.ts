@@ -4,10 +4,17 @@ import { allowed, newLines, createRun, isLive, restoreUndo, saveUndo, scanRuns, 
 import { resolveLook, DEFAULT_MIX } from '../hooks/packs.ts'
 import { DEFAULT_SETUP } from '../hooks/setup.ts'
 import { DEFAULT_FIELDS } from '../hooks/fields.ts'
+import { builtinPets } from '../hooks/petfile.ts'
 
 test('the allowlist takes the TUI commands and refuses the rest', () => {
   for (const c of ['pack crt', 'spinner comet', 'spinner default', 'motion reduced', 'bubbles haiku', 'pet robot', 'color accent #112233', 'color reset accent', 'setup meter.warn 60', 'setup band combo,agents', 'statusline fields ctx cost']) expect(allowed(c)).toBe(true)
   for (const c of ['pack https://x.test/p.json', 'pack save mine', 'pet add /tmp/p.json', 'setup reset', 'statusline on', 'statusline restore', 'export konsole', 'import a.toml', 'config', 'theme aurora', 'color list', 'pack']) expect(allowed(c)).toBe(false)
+  for (const c of ['statusline fields', 'statusline', 'setup', 'setup band', 'color', 'color accent', 'spinner', 'spinner a b', 'motion', 'bubbles', 'pet', 'pet a b', 'pack a b']) expect(allowed(c)).toBe(false)
+})
+
+test('pet takes every built-in name and off, and refuses names a file path could use', () => {
+  for (const n of [...builtinPets(true, true), 'off']) expect(allowed(`pet ${n}`)).toBe(true)
+  for (const c of ['pet ../x', 'pet /tmp/p.json', 'pet A', 'pet a.b', 'pet -x', 'pet add', 'pet list']) expect(allowed(c)).toBe(false)
 })
 
 test('newLines returns complete lines past the consumed count', () => {
@@ -40,10 +47,14 @@ test('undo writes stored keys back and deletes the ones that were absent', async
   expect('statusline' in store).toBe(false)
 })
 
-test('createRun writes owner and the undo point under the remote dir', async () => {
+test('createRun writes owner and the undo point under the remote dir, owner first', async () => {
   const { host, files, store } = fakeHost()
   store.pet = 'robot'
+  const order: string[] = []
+  const write = host.writeFile
+  host.writeFile = async (p, t) => { order.push(p.split('/').pop()!); await write(p, t) }
   const dir = await createRun(host, 's1', 'abc')
+  expect(order).toEqual(['owner', 'undo.json'])
   expect(dir).toBe('/home/u/.claude/glowup/remote/abc')
   expect(files[`${dir}/owner`]).toBe('s1')
   expect(JSON.parse(files[`${dir}/undo.json`]!).pet).toBe('robot')
@@ -64,6 +75,15 @@ test('scanRuns finds this session\'s live run and day-old runs', async () => {
     mtimes: { [`${R}/mine/owner`]: now - 5000, [`${R}/mine/open`]: now - 1000, [`${R}/theirs/owner`]: now, [`${R}/theirs/open`]: now, [`${R}/old/owner`]: now - PRUNE_MS - 1 },
   })
   expect(await scanRuns(host, 's1', now)).toEqual({ live: [`${R}/mine`], stale: [`${R}/old`] })
+})
+
+test('scanRuns keeps a run that has owner and no open yet, and leaves a folder with no times alone', async () => {
+  const now = 10 * PRUNE_MS, R = '/home/u/.claude/glowup/remote'
+  const { host } = fakeHost({
+    files: { [`${R}/new/owner`]: 's1', [`${R}/half/undo.json`]: '{}' },
+    mtimes: { [`${R}/new/owner`]: now - START_MS + 1000 },
+  })
+  expect(await scanRuns(host, 's1', now)).toEqual({ live: [`${R}/new`], stale: [] })
 })
 
 test('scanRuns with no remote dir finds nothing', async () => {

@@ -17,9 +17,17 @@ const BY_NAME: Record<string, (cmd: string[]) => string[]> = {
   'gnome-terminal': c => ['--', ...c],
   foot: c => c,
   alacritty: c => ['-e', ...c],
+  // their -e takes one command string; -x takes the rest of argv
+  'xfce4-terminal': c => ['-x', ...c],
+  'mate-terminal': c => ['-x', ...c],
+  terminator: c => ['-x', ...c],
 }
-// -e is xterm's convention, which st, urxvt and most other terminals accept
-const named = (bin: string, label: string, cmd: string[]) => ({ name: label, argv: [bin, ...(BY_NAME[bin.split('/').pop()!] ?? ((c: string[]) => ['-e', ...c]))(cmd)] })
+// -e is xterm's convention, which st, urxvt and most other terminals accept.
+// $TERMINAL is user input, so a name like toString must not find an Object.prototype method.
+const named = (bin: string, label: string, cmd: string[]) => {
+  const b = bin.split('/').pop()!
+  return { name: label, argv: [bin, ...(Object.hasOwn(BY_NAME, b) ? BY_NAME[b]! : (c: string[]) => ['-e', ...c])(cmd)] }
+}
 
 export const platformOf = (unameS: string): Platform | undefined => ({ Linux: 'linux', Darwin: 'darwin' } as const)[unameS.trim() as 'Linux' | 'Darwin']
 
@@ -29,6 +37,8 @@ export function pickTerminal(env: TermEnv, platform: Platform, has: { xdgTermina
     const line = appleString(shellLine(cmd))
     if (env.TERM_PROGRAM === 'ghostty') return { name: 'Ghostty', argv: ['open', '-na', 'Ghostty', '--args', '-e', ...cmd] }
     if (env.TERM_PROGRAM === 'iTerm.app') return { name: 'iTerm', argv: ['osascript', '-e', `tell application "iTerm" to create window with default profile command "${line}"`] }
+    if (env.KITTY_WINDOW_ID) return { name: 'kitty', argv: ['open', '-na', 'kitty', '--args', ...cmd] }
+    if (env.WEZTERM_PANE) return { name: 'WezTerm', argv: ['open', '-na', 'WezTerm', '--args', 'start', '--', ...cmd] }
     // Terminal.app ships with every Mac, so it is the answer for any terminal we do not drive
     return { name: 'Terminal', argv: ['osascript', '-e', `tell application "Terminal" to do script "${line}"`] }
   }
@@ -40,7 +50,7 @@ export function pickTerminal(env: TermEnv, platform: Platform, has: { xdgTermina
   if (env.GHOSTTY_RESOURCES_DIR) return named('ghostty', 'Ghostty', cmd)
   if (env.WEZTERM_PANE) return named('wezterm', 'WezTerm', cmd)
   if (env.GNOME_TERMINAL_SCREEN) return named('gnome-terminal', 'GNOME Terminal', cmd)
-  if (has.xdgTerminalExec) return { name: 'xdg-terminal-exec', argv: ['xdg-terminal-exec', ...cmd] }
+  if (has.xdgTerminalExec) return { name: 'your default terminal', argv: ['xdg-terminal-exec', ...cmd] }
   if (has.xTerminalEmulator) return { name: 'your default terminal', argv: ['x-terminal-emulator', '-e', ...cmd] }
   return undefined
 }
@@ -59,7 +69,8 @@ export function releaseTarget(unameS: string, unameM: string): { os: string; arc
 export const assetName = (version: string, t: { os: string; arch: string }) => `glowup-installer_v${version}_${t.os}_${t.arch}.tar.gz`
 
 // the same match install.sh makes: the asset's own line, with or without the binary-mode star
-const CHECK = 'cd "$1" && awk -v f="$2" \'$2 == f || $2 == "*" f { print $1 "  " f }\' checksums.txt > want.txt && test -s want.txt && { sha256sum -c want.txt || shasum -a 256 -c want.txt; } >/dev/null 2>&1'
+const FIND = 'cd "$1" && awk -v f="$2" \'$2 == f || $2 == "*" f { print $1 "  " f }\' checksums.txt > want.txt && test -s want.txt'
+const CHECK = 'cd "$1" && { sha256sum -c want.txt || shasum -a 256 -c want.txt; } >/dev/null 2>&1'
 
 export async function ensureBinary(host: Host, o: { glowupBin?: string; pluginRoot: string; version: string; target?: { os: string; arch: string } }, id = Math.random().toString(36).slice(2, 8)): Promise<{ path: string } | { error: string }> {
   for (const p of [o.glowupBin, `${o.pluginRoot}/installer/glowup-installer`]) if (p && (await host.exists(p))) return { path: p }
@@ -71,14 +82,16 @@ export async function ensureBinary(host: Host, o: { glowupBin?: string; pluginRo
   // a part folder of its own, so two sessions downloading at once never share half a file
   const tmp = `${dir}.part-${id}`
   const step = async (argv: string[], what: string) => {
-    const r = await host.run(argv, undefined, 120_000)
+    // run() rejects when the command cannot start or times out
+    const r = await host.run(argv, undefined, 120_000).catch((err: unknown) => { throw new Error(`${what}: ${err instanceof Error ? err.message : String(err)}`) })
     if (r.exitCode !== 0) throw new Error(`${what}: ${r.stderr.trim().split('\n').pop() || `exit ${r.exitCode}`}`)
   }
   try {
     await step(['mkdir', '-p', tmp], 'could not make a folder')
     await step(['curl', '-fsSL', '-o', `${tmp}/${asset}`, `${url}/${asset}`], `could not download ${asset}`)
     await step(['curl', '-fsSL', '-o', `${tmp}/checksums.txt`, `${url}/checksums.txt`], 'could not download checksums.txt')
-    await step(['sh', '-c', CHECK, 'sh', tmp, asset], `checksum mismatch for ${asset}`)
+    await step(['sh', '-c', FIND, 'sh', tmp, asset], `checksums.txt has no entry for ${asset}`)
+    await step(['sh', '-c', CHECK, 'sh', tmp], `checksum mismatch for ${asset}`)
     await step(['tar', '-xzf', `${tmp}/${asset}`, '-C', tmp, 'glowup-installer'], `could not unpack ${asset}`)
     await step(['mkdir', '-p', dir], 'could not make a folder')
     await step(['mv', `${tmp}/glowup-installer`, path], 'could not move the binary into place')
