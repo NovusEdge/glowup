@@ -71,6 +71,14 @@ Keep your tests green and see what happens. When it does, glowup tells you, and 
 
 ![The shiny gold Clawd](assets/clawd/shiny/idle/clip.gif)
 
+## The egg
+
+There is a secret egg. Click the pet in the pane and it hops. After a click, type the secret code at the pet to unlock the egg, then pick it with `/glowup pet egg`. Until then the command prints `The egg is not unlocked yet.`, and the egg stays out of `/glowup pet list` and the Pet row in `/glowup config`.
+
+The egg wobbles while Claude works. After the unlock it gets a crack every 10 passing test runs, up to three. It does not hatch.
+
+Clicking and typing at the pet needs a terminal where Claude Code receives mouse clicks, and the pet has to be in the pane: docked, or in the drawer from `/glowup pane`.
+
 ## Outfits
 
 Clawd dresses up on some dates and at some hours, by your computer's local time:
