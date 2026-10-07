@@ -9,13 +9,14 @@ import { loadUserPacks, SAFE_NAME } from './userpacks.ts'
 import { BUILTIN_SHEETS, CLAWD_SHEET, eggSheet, stripRows, type PetSetting, type PetInput, type PetKind, type PetSheet } from './pets.ts'
 import { loadUserPet, userPetNames, PET_DIR } from './userpets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
-import { recordPass, unlockEgg, eggUnlocked, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
-import { branchOf, gitBase, refreshCounts, serial } from './changes.ts'
+import { recordPass, unlockEgg, eggUnlocked, hintDue, EGG_HINTS, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
+import { branchOf, gitBase, rebase, refreshCounts, serial, type Repo } from './changes.ts'
+import { readDiff } from './diff.ts'
 import { loadTasks, taskListId } from './tasks.ts'
 import { cacheHit, heaviest } from './ctxchart.ts'
 import { tierFor } from './layout.tsx'
 import { renderBand } from './band.tsx'
-import { renderPane, bubbleBox, petStripCols, type PaneExtra, type PaneView, type TabId } from './pane.tsx'
+import { renderPane, bubbleBox, petStripCols, visibleTabs, type PaneExtra, type PaneView, type TabId } from './pane.tsx'
 import { spinnerWord, newTurnWord } from './restyle.ts'
 import { styleRow } from './rows.tsx'
 import { makeTurns } from './turns.ts'
@@ -60,8 +61,10 @@ let pet: PetSetting = 'clawd'
 // A user pet's sheet, read when it is picked: the render hook may not read disk.
 let petSheet: PetSheet | undefined
 let bubbles: BubbleSetting = 'on'
-let view: PaneView = { tab: 'changes' }
-let git: { root: string; base: string } | undefined
+let view: PaneView = { tab: DEFAULT_SETUP.tabs[0]! }
+// the open tab's last window offset and window height, as the pane drew them; ui.scroll clamps and pages by them
+let scroll = { last: 0, win: 0 }
+let git: Repo | undefined
 let cwd = ''
 let configDir = ''
 let home = ''
@@ -371,13 +374,29 @@ async function say($: Engine, mood: Mood, vars: BubbleVars) {
     // a closed pane shows nobody the bubble
     if (!(await $.ui.panes()).some(p => p.id === 'glowup' && p.isShown)) return
   } catch { return }
-  const line = bubbleFor(mood, vars, lastTemplate, Math.random)
-  lastTemplate = line.template
-  const mine: Bubble = { text: line.text, mood, until: 0 }
+  const hint = mood === 'done' ? await eggHint($) : undefined
+  const line = hint === undefined ? bubbleFor(mood, vars, lastTemplate, Math.random) : undefined
+  if (line) lastTemplate = line.template
+  const mine: Bubble = { text: hint ?? line!.text, mood, until: 0 }
   bubble = mine
   armBubble($, mine)
   publishPet($)
-  void askHaiku($, mine, ctx)
+  // Haiku never sees a hint turn: it could improvise the code.
+  if (hint === undefined) void askHaiku($, mine, ctx)
+}
+async function eggHint($: Engine): Promise<string | undefined> {
+  try {
+    const host = hostOf($)
+    const eggs = await host.storeGet('eggs') as EggStore | undefined
+    const now = await $.clock.now()
+    if (!hintDue(eggs, now)) return undefined
+    const hints = eggs?.hints ?? 0
+    await host.storeSet('eggs', { ...eggs, passRuns: eggs?.passRuns ?? 0, hintAt: now, hints: hints + 1 })
+    return EGG_HINTS[hints % EGG_HINTS.length]
+  } catch (err) {
+    $.ui.log(`egg hint failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
+    return undefined
+  }
 }
 function moodOf(old: Model, now: Model, ev: Ev): { mood: Mood; vars: BubbleVars } | undefined {
   if (now.needsYou && !old.needsYou) return { mood: 'needs-you', vars: { command: now.needsYou.what.replace(/^approve /, '').split(/\s+/)[0] } }
@@ -516,11 +535,22 @@ async function copyStudioLink($: Engine, link: string, surface: RenderSurface) {
 function refresh($: Engine) {
   refreshQueue(async () => {
     const seq = refreshSeq
-    const files = await refreshCounts(hostOf($), model.files, git, Date.now())
+    const host = hostOf($)
+    const repo = git && await rebase(host, git)
+    const asked = model.files
+    const files = await refreshCounts(host, asked, repo, Date.now())
     if (seq !== refreshSeq) return
-    model = mergeCounts(model, files)
+    git = repo
+    model = mergeCounts(model, files, asked.map(f => f.path))
     redraw($)
     void readBranch($)
+    // the Diff tab is the only reader, so git only produces hunks while it is on screen
+    if (visibleTabs(setup.tabs, view.tab).tab === 'diff') {
+      const diff = await readDiff(host, repo, model.files)
+      if (seq !== refreshSeq || !diff) return
+      view = { ...view, diff }
+      publish($)
+    }
   })
 }
 
@@ -579,7 +609,7 @@ async function adoptSession($: Engine, endedId: string) {
   const id = await $.session.id()
   const { limits } = model
   model = { ...initialModel(), limits }
-  view = { tab: 'changes' }
+  view = { tab: setup.tabs[0]! }
   bubble = undefined
   xpByMessage.clear()
   cancelHaiku()
@@ -778,6 +808,7 @@ export const register: Register = (on, options) => {
     fields = parseFields(await host.storeGet('statusline')) ?? configFields
     const parsed = parseSetup(await host.storeGet('setup'))
     setup = parsed.setup
+    view = { ...view, tab: setup.tabs[0]! }
     if (parsed.notices.length) $.ui.toast(`glowup setup: ${parsed.notices.join('; ')}`)
     // After the saved choices are loaded: the commands read and extend them (a spinner is added to
     // the current mix), and write the new choice to the store by the same path a typed command does.
@@ -985,7 +1016,7 @@ export const register: Register = (on, options) => {
       extra = { ...extra, pet: { id: pid, node, rows: stripRows(sheet, snap.overlays) }, bubble: bubbleNow, friday: snap.friday }
     }
     // the engine scrolls the whole body, which would carry the pet off with a long tab: budget the tab to bodyRows instead
-    extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onScroll: (offset: number) => { view = { ...view, offset }; publish($) } }
+    extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onRange: (last, win) => { scroll = { last, win } } }
     if (e.props.placement === 'dock') extra = { ...extra, minRows: e.props.scroll.bodyRows }
     const m = live ? normalizeModel(live.model) : model, pack = mix.colors, colors = palette(), picked = lookKey()
     if (!compact) {
@@ -1016,7 +1047,20 @@ export const register: Register = (on, options) => {
       view = { ...view, tab: id, offset: 0 }
       publish($)
       if (id === 'plan') void feedContext($)
+      if (id === 'diff') refresh($)
     }, extra)
+  })
+
+  // No next(): the pane draws its own window, and the engine moving the whole body would carry the pet and status box off.
+  on('ui.scroll', { component: 'Pane', requestId: 'glowup' }, async ($, e, next) => {
+    if (off) return next(e)
+    // The engine sizes the person's page keys, Home and End by its own body, which the tab's window is shorter
+    // than, and they arrive alike here (the pane fills its body): each pages by the tab's window.
+    const page = e.origin.kind === 'person' && Math.abs(e.by) >= e.bodyRows && scroll.win > 0
+    const by = page ? Math.sign(e.by) * scroll.win : e.by
+    const offset = Math.max(0, Math.min(Math.min(view.offset ?? 0, scroll.last) + by, scroll.last))
+    if (offset !== view.offset) { view = { ...view, offset }; publish($) }
+    return {}
   })
 
   on('ui.render', { component: 'Pane', requestId: CONFIG_ID }, async ($, e, next) => {

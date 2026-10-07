@@ -82,7 +82,7 @@ test('hex input accepts #rgb, #rrggbb, a bare hex and spaces, and refuses a name
 
 test('list inputs take commas or spaces and reorder', () => {
   const s = base()
-  expect(inputValue('tabs', s)).toBe('changes, agents, plan')
+  expect(inputValue('tabs', s)).toBe('plan, agents, diff, changes')
   expect(inputCommand('tabs', 'plan, changes', s)).toEqual({ cmd: 'setup tabs plan,changes' })
   expect(inputCommand('band', 'meter plan', s)).toEqual({ cmd: 'setup band meter,plan' })
   expect(inputCommand('moods', 'fail', s)).toEqual({ cmd: 'setup bubbles.moods fail' })

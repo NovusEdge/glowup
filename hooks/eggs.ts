@@ -1,4 +1,4 @@
-export type EggStore = { passRuns: number; shinyAt?: number; eggAt?: number; eggRuns?: number }
+export type EggStore = { passRuns: number; shinyAt?: number; eggAt?: number; eggRuns?: number; hintAt?: number; hints?: number }
 export type LocalTime = { year: number; month: number; date: number; day: number; hour: number }
 export type Overlay = 'santa' | 'pumpkin' | 'party' | 'nightcap' | 'sweat' | 'friday'
 
@@ -12,6 +12,12 @@ export function recordPass(s: EggStore | undefined, now: number): { next: EggSto
 }
 
 export const eggUnlocked = (s: EggStore | undefined): boolean => s?.eggAt !== undefined
+
+export const EGG_HINTS = ['psst… try clicking me', 'I remember an old cheat code…']
+const HINT_EVERY_MS = 86_400_000
+
+export const hintDue = (s: EggStore | undefined, now: number): boolean =>
+  !eggUnlocked(s) && (s?.hintAt === undefined || now - s.hintAt >= HINT_EVERY_MS)
 
 // eggRuns is the pass count at the unlock, so cracks count only runs after it.
 export function unlockEgg(s: EggStore | undefined, now: number): EggStore | undefined {
