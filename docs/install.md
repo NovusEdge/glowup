@@ -36,7 +36,7 @@ curl -fsSL https://glowup.khimani.dev/install.sh | sh -s -- --yes --pack crt
 | `--yes` | Install without the picker, with the defaults or the options below. The script adds it when there is no terminal. |
 | `--pack NAME` | `classic`, `crt`, `cozy` or `arcade`. Default `classic`. |
 | `--theme NAME` | A theme on top of the pack: `classic`, `glowup`, `aurora`, `dusk`, `cyberpunk`, `vaporwave` or `high-contrast`. `classic` keeps the pack's own colors. Default: not set. |
-| `--spinner NAME` | `stock`, `comet`, `eyes`, `orb-states`, `clawd`, `shimmer`, or `pack` for the pack's own. Default `pack`. |
+| `--spinner NAME` | `stock`, `comet`, `eyes`, `orb-states`, `clawd`, `shimmer`, `scanline`, `ring`, `glitch`, `signal`, or `pack` for the pack's own. Default `pack`. |
 | `--pet clawd\|off` | Default `clawd`. |
 | `--bubbles on\|off\|haiku` | Speech bubbles. `haiku` lets Claude Haiku write some lines, as small calls on your account. Default `on`. |
 | `--reduced-motion` | Turn off glowup's animation. |
@@ -92,7 +92,7 @@ The installer sets every setting except `statusline`. To change them afterwards,
 | `pet` | `clawd` or `off` | `clawd` | Shows Clawd, or no pet. |
 | `bubbles` | `on`, `off` or `haiku` | `on` | Speech bubbles from templates, none, or lines written by Haiku. |
 | `theme` | A theme name | `classic` | A theme on top of the pack. `classic` keeps the pack's own colors. |
-| `spinner` | A spinner name | `pack` | A spinner on top of the pack: `stock`, `comet`, `eyes`, `orb-states`, `clawd` or `shimmer`. `pack` keeps the pack's own spinner. |
+| `spinner` | A spinner name | `pack` | A spinner on top of the pack: `stock`, `comet`, `eyes`, `orb-states`, `clawd`, `shimmer`, `scanline`, `ring`, `glitch` or `signal`. `pack` keeps the pack's own spinner. |
 | `statusline` | Comma-separated field ids | `activity,ctx,effort,5h,week` | The status line fields and their order. Unknown ids are dropped. See [Status line](statusline.md#choosing-the-fields). |
 | `reducedMotion` | `true` or `false` | `false` | Turns off glowup's animation. |
 

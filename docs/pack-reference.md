@@ -33,7 +33,7 @@ Packs are read from `~/.claude/glowup/packs`, or `$CLAUDE_CONFIG_DIR/glowup/pack
     "pet": { "body": "#7aa2f7", "light": "#a9c1ff", "shade": "#4a6fc4" } // Clawd's colors
   },
   "motion": {
-    "spinner": "orb-states",        // stock | comet | eyes | orb-states | clawd | shimmer
+    "spinner": "orb-states",        // stock | comet | eyes | orb-states | clawd | shimmer | scanline | ring | glitch | signal
     "shimmer": 2,                   // 0 none, 1 soft, 2 fast
     "color": "#38e8ff",             // defaults to the palette's accent
     "field": { "shape": "simplex", "speed": 0.3, "scale": 0.36, "dither": "4x4" }
@@ -132,6 +132,10 @@ A [renderer plugin](packs.md#drawing-with-a-plugin) that answers for the pack dr
 | `orb-states` | 4×2 | A braille orb whose motion follows the activity: thinking, searching, working, running, agents. |
 | `clawd` | 5×2 | Clawd waving, in his own color. |
 | `shimmer` | 1×1 | A still `✻` with a shimmering word. |
+| `scanline` | 10×1 | A bright sweep across a bar, and the spinner word lights as it passes. |
+| `ring` | 6×2 | A bright braille arc with a fading tail circling an oval. |
+| `glitch` | 1×1 | A still `◆` with a glitching word. |
+| `signal` | 10×2 | A braille wave trace that scrolls and is brightest at its right edge. |
 
 The shimmer is a wave of color across the spinner word, between the gradient's two colors, or the accent and text colors when there is no gradient. `1` is soft and `2` is fast.
 

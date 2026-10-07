@@ -52,7 +52,7 @@ func TestThemesSpinnersAndClawd(t *testing.T) {
 	if d, ok := ThemeByName("dusk"); !ok || d.Colors.Accent != "#b69cff" || d.Colors.Panel == "" {
 		t.Fatalf("dusk = %+v", d)
 	}
-	if want := []string{"stock", "comet", "eyes", "orb-states", "clawd", "shimmer"}; !slices.Equal(SpinnerIDs(), want) {
+	if want := []string{"stock", "comet", "eyes", "orb-states", "clawd", "shimmer", "scanline", "ring", "glitch", "signal"}; !slices.Equal(SpinnerIDs(), want) {
 		t.Fatalf("SpinnerIDs() = %v, want %v", SpinnerIDs(), want)
 	}
 	for _, s := range Spinners() {

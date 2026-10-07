@@ -306,7 +306,7 @@ test('an unknown spinner is refused and lists the valid ones', async () => {
   const { host, store } = fakeHost()
   const { calls, ctl: c } = ctl()
   const out = await runCommand(host, 'spinner nope', c)
-  for (const n of ['stock', 'comet', 'eyes', 'orb-states', 'clawd', 'shimmer']) expect(out).toContain(n)
+  for (const n of ['stock', 'comet', 'eyes', 'orb-states', 'clawd', 'shimmer', 'scanline', 'ring', 'glitch', 'signal']) expect(out).toContain(n)
   expect(store.mix).toBeUndefined()
   expect(calls).toEqual([])
 })

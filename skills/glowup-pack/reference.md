@@ -48,7 +48,7 @@ A pack is a JSON file at `~/.claude/glowup/packs/<name>.json` (`$CLAUDE_CONFIG_D
 
 | Field | Values | Meaning |
 | --- | --- | --- |
-| `spinner` | `stock`, `comet`, `eyes`, `orb-states`, `clawd`, `shimmer` | The spinner. `stock` is Claude Code's own. Use only these: an id glowup lacks falls back to `stock` with a notice. Default `stock`. |
+| `spinner` | `stock`, `comet`, `eyes`, `orb-states`, `clawd`, `shimmer`, `scanline`, `ring`, `glitch`, `signal` | The spinner. `stock` is Claude Code's own. Use only these: an id glowup lacks falls back to `stock` with a notice. Default `stock`. `scanline` and `glitch` also light or glitch the spinner word. |
 | `shimmer` | `0`, `1`, `2` | Shimmer across the spinner word: none, soft, fast. Default `1`. |
 | `color` | `#rrggbb` | Spinner color. Default: the palette's `accent`. |
 | `field` | `none`, `warp`, `simplex`, or an object | An animated texture in the docked pane's open rows, between the tab and the status box, dithered into braille dots of one color, the palette's `faint` unless `field.color` sets it. `simplex` is Paper's dithering shader's simplex shape, and Paper settings for it carry over as they are, except `size`; `warp` is noise folded through itself. A name uses the default knobs; an object takes a `shape` and any of the knobs below. It holds still under reduced motion. Default `none`. |

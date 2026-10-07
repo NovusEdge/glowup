@@ -154,7 +154,7 @@ test('exportMix description is built from shown names and fits 80 characters', a
 
 test('stockMotion freezes motion', async () => {
   expect(stockMotion(look(pack('arcade')).look).motion).toEqual({ spinner: 'stock', shimmer: 0, color: '#38e8ff', field: { shape: 'none', ...FIELD_DEFAULTS } })
-  expect(SPINNER_IDS).toHaveLength(6)
+  expect([...SPINNER_IDS]).toEqual(['stock', 'comet', 'eyes', 'orb-states', 'clawd', 'shimmer', 'scanline', 'ring', 'glitch', 'signal'])
 })
 
 test('exportName prefixes a built-in name and keeps any other', () => {
