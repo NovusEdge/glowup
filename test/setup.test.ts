@@ -37,6 +37,11 @@ test('the default tabs open on plan and the diff tab is a valid choice', () => {
   expect(setSetupField(DEFAULT_SETUP, 'tabs', 'diff,plan')).toMatchObject({ setup: { tabs: ['diff', 'plan'] } })
 })
 
+test('a stored setup holding the old default tabs gets the new default; a custom order stays', () => {
+  expect(parseSetup({ tabs: ['changes', 'agents', 'plan'] }).setup.tabs).toEqual(DEFAULT_SETUP.tabs)
+  expect(parseSetup({ tabs: ['agents', 'changes', 'plan'] }).setup.tabs).toEqual(['agents', 'changes', 'plan'])
+})
+
 test('a non-object stored setup is the default with a notice', () => {
   expect(parseSetup('band=plan')).toEqual({ setup: DEFAULT_SETUP, notices: ['setup must be an object'] })
 })

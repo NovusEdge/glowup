@@ -35,6 +35,8 @@ function ids<T extends string>(v: unknown, known: readonly T[], what: string, no
   return out
 }
 
+const OLD_DEFAULT_TABS = 'changes,agents,plan'
+
 export function parseSetup(raw: unknown): { setup: Setup; notices: string[] } {
   const d = DEFAULT_SETUP, notices: string[] = []
   if (raw === undefined) return { setup: d, notices }
@@ -50,7 +52,8 @@ export function parseSetup(raw: unknown): { setup: Setup; notices: string[] } {
   let tabs = d.tabs
   if (raw.tabs !== undefined) {
     const got = ids(raw.tabs, TAB_IDS, 'tab', notices)
-    if (got?.length) tabs = got
+    // Saving any setup field stored the tabs too, so the pre-0.11 default order is the default, not a choice.
+    if (got?.length) tabs = got.join() === OLD_DEFAULT_TABS ? d.tabs : got
     else notices.push(`tabs must name at least one of: ${TAB_IDS.join(', ')}`)
   }
 
