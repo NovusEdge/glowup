@@ -3,7 +3,7 @@ import { resolveTheme, PRESETS, COLOR_KEYS, GLYPH_KEYS, shown, isPlain, isUnsafe
 import { PACKS } from './packpresets.ts'
 import type { PetTint } from './pets.ts'
 
-export const SPINNER_IDS = ['stock', 'comet', 'eyes', 'orb-states', 'clawd', 'shimmer'] as const
+export const SPINNER_IDS = ['stock', 'comet', 'eyes', 'orb-states', 'clawd', 'shimmer', 'scanline', 'ring', 'glitch', 'signal'] as const
 export type SpinnerId = (typeof SPINNER_IDS)[number]
 export const ROW_STYLES = ['classic', 'cards', 'minimal', 'retro'] as const
 export type RowStyle = (typeof ROW_STYLES)[number]

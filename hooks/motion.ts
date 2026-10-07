@@ -3,12 +3,14 @@ import { gradient, mix, wave, wave3, type Span } from './color.ts'
 
 export type Cell = { ch: string; fg: string; bg?: string }
 export type OrbState = 'think' | 'search' | 'work' | 'run' | 'agents'
-export type SpinnerId = 'stock' | 'comet' | 'eyes' | 'orb-states' | 'clawd' | 'shimmer'
+export type SpinnerId = 'stock' | 'comet' | 'eyes' | 'orb-states' | 'clawd' | 'shimmer' | 'scanline' | 'ring' | 'glitch' | 'signal'
 type Canvas = { w: number; h: number; d: number[] }
 type Spec = { name: string; cols: number; rows: number } & (
   | { kind: 'glyph'; frames: string }
   | { kind: 'dots' | 'half'; draw: (cv: Canvas, t: number, st: OrbState) => void; useFg?: boolean }
-  | { kind: 'art'; art: string[][] })
+  | { kind: 'art'; art: string[][] }
+  | { kind: 'scan' })
+type CellOpts = { color: string; bg: string; fg: string; wordLen?: number }
 
 const CLAWD = '#d77757'
 const canvas = (w: number, h: number): Canvas => ({ w, h, d: new Array<number>(w * h).fill(0) })
@@ -103,6 +105,53 @@ function eyes(cv: Canvas, t: number) {
   }
 }
 
+// One sweep crosses the bar, the one-cell gap the spinner leaves before the word, the word and a
+// pause. spinnerWordSpans lights the word from the same position, so both must use this.
+export const SCAN_BAR = 10
+const SCAN_MS = 45, SCAN_PAUSE = 6
+export function scanPos(tMs: number, wordLen: number, st: OrbState): number {
+  const speed = st === 'run' || st === 'agents' ? 1.5 : 1
+  return ((Math.max(0, tMs || 0) * speed) / SCAN_MS) % (SCAN_BAR + 1 + wordLen + SCAN_PAUSE)
+}
+
+const isLight = (hex: string) => {
+  const n = parseInt(hex.slice(1), 16)
+  return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 140
+}
+
+function scanCells(tMs: number, st: OrbState, o: CellOpts): Cell[][] {
+  const pos = scanPos(tMs, o.wordLen ?? 12, st), shift = Math.floor(tMs / 400)
+  // Toward white reads on a dark pack; on a light one it fades into the background, so text itself.
+  const hi = isLight(o.bg) ? o.fg : mix(o.fg, '#ffffff', 0.5), faint = mix(o.bg, o.color, 0.25)
+  return [Array.from({ length: SCAN_BAR }, (_, i) => {
+    const d = pos - i
+    if (d >= 0 && d < 1) return { ch: '█', fg: hi }
+    return { ch: (i + shift) % 2 ? '▚' : '▞', fg: d >= 1 && d < 3 ? o.color : faint }
+  })]
+}
+
+function ringDraw(cv: Canvas, t: number, st: OrbState) {
+  const cx = (cv.w - 1) / 2, cy = (cv.h - 1) / 2
+  const speed = st === 'work' || st === 'run' ? 1.5 : 1
+  const [arcs, n] = st === 'agents' ? [[0, 2.094, 4.189], 3] : [[0], 9]
+  for (const off of arcs) for (let i = 0; i < n; i++) {
+    const a = t * Math.PI * speed + off - i * 0.55
+    plot(cv, cx + Math.cos(a) * 5.2, cy + Math.sin(a) * 3.2, 1 - i / n)
+  }
+}
+
+function signalDraw(cv: Canvas, t: number, st: OrbState) {
+  const amp = st === 'think' ? 0.55 : st === 'run' ? 1 : 0.8
+  const trace = (a: number, off: number, v: (x: number) => number) => {
+    for (let x = 0; x < cv.w; x++) {
+      const p = t / 0.16 + x * 0.55 + off
+      plot(cv, x, 3.5 + a * 3.4 * (0.65 * Math.sin(p) + 0.35 * Math.sin(p * 2.7 + 1)), v(x))
+    }
+  }
+  trace(amp, 0, x => (x >= cv.w - 3 ? 1 : 0.7))
+  if (st === 'agents') trace(amp / 2, Math.PI, () => 0.45)
+}
+
 export const SPINNERS: Record<SpinnerId, Spec> = {
   stock: { name: 'stock ✻ cycle', cols: 1, rows: 1, kind: 'glyph', frames: '·✢✳✶✻✽' },
   comet: { name: 'comet', cols: 3, rows: 2, kind: 'dots', draw: (cv, t) => {
@@ -114,13 +163,18 @@ export const SPINNERS: Record<SpinnerId, Spec> = {
   'orb-states': { name: 'orb states', cols: 4, rows: 2, kind: 'dots', draw: orbDraw },
   clawd: { name: 'Clawd', cols: 5, rows: 2, kind: 'art', art: [['▐▛█▜▌', '▝▛█▜▘'], ['▐▛█▜▌', '▝▜█▛▘'], ['▐▛█▜▌', '▝▛█▜▘'], ['▐▛█▜▌', '▗▛█▜▖']] },
   shimmer: { name: 'text shimmer wave', cols: 1, rows: 1, kind: 'glyph', frames: '✻' },
+  scanline: { name: 'scanline sweep', cols: SCAN_BAR, rows: 1, kind: 'scan' },
+  ring: { name: 'angel ring', cols: 6, rows: 2, kind: 'dots', draw: ringDraw },
+  glitch: { name: 'glitch word', cols: 1, rows: 1, kind: 'glyph', frames: '◆' },
+  signal: { name: 'signal trace', cols: 10, rows: 2, kind: 'dots', draw: signalDraw },
 }
 
-export function spinnerCells(id: SpinnerId, tMs: number, o: { color: string; bg: string; fg: string }, st: OrbState = 'think'): Cell[][] {
+export function spinnerCells(id: SpinnerId, tMs: number, o: CellOpts, st: OrbState = 'think'): Cell[][] {
   tMs = Math.max(0, tMs || 0)
   const s = SPINNERS[id]
   if (s.kind === 'glyph') { const f = [...s.frames]; return [[{ ch: f[Math.floor(tMs / 120) % f.length]!, fg: o.color }]] }
   if (s.kind === 'art') return s.art[Math.floor(tMs / 220) % s.art.length]!.map(r => [...r].map(ch => ({ ch, fg: CLAWD })))
+  if (s.kind === 'scan') return scanCells(tMs, st, o)
   if (s.kind === 'dots') { const cv = canvas(s.cols * 2, s.rows * 4); s.draw(cv, tMs / 1000, st); return dotCells(cv, s.cols, s.rows, o.color, o.bg) }
   const cv = canvas(s.cols, s.rows * 2); s.draw(cv, tMs / 1000, st)
   return halfCells(cv, s.cols, s.rows, s.useFg ? o.fg : o.color, o.bg)

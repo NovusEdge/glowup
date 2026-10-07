@@ -1,6 +1,6 @@
 import { test, expect } from 'claude-code/testing'
 import { mix, gradient, wave } from '../hooks/color.ts'
-import { SPINNERS, spinnerCells, cellsToSpans, type SpinnerId } from '../hooks/motion.ts'
+import { SPINNERS, spinnerCells, scanPos, cellsToSpans, type SpinnerId } from '../hooks/motion.ts'
 import { cellWidth } from '../hooks/cells.ts'
 
 const O = { color: '#38e8ff', bg: '#1a0b33', fg: '#f0e6ff' }
@@ -25,8 +25,8 @@ test('wave moves with time', async () => {
   expect(at(0)).not.toBe(at(400))
 })
 
-test('the 0.2 library is exactly these six', async () => {
-  expect(ids.sort()).toEqual(['clawd', 'comet', 'eyes', 'orb-states', 'shimmer', 'stock'])
+test('the library is exactly these ten', async () => {
+  expect(ids.sort()).toEqual(['clawd', 'comet', 'eyes', 'glitch', 'orb-states', 'ring', 'scanline', 'shimmer', 'signal', 'stock'])
 })
 
 test('every frame has its declared size and only width-1 BMP cells', async () => {
@@ -46,11 +46,50 @@ test('every frame has its declared size and only width-1 BMP cells', async () =>
 })
 
 test('frames are deterministic and move over time', async () => {
-  for (const id of ['comet', 'eyes', 'orb-states', 'clawd'] as const) {
+  for (const id of ['comet', 'eyes', 'orb-states', 'clawd', 'scanline', 'ring', 'signal'] as const) {
     const at = (t: number) => JSON.stringify(spinnerCells(id, t, O))
     expect(at(1000)).toBe(at(1000))
     expect(new Set([0, 250, 1000, 3450].map(at)).size).toBeGreaterThan(1)
   }
+})
+
+test('every new spinner keeps its size in every state and is never blank', async () => {
+  for (const id of ['scanline', 'ring', 'glitch', 'signal'] as const) for (const st of ['think', 'search', 'work', 'run', 'agents'] as const) for (const t of [0, 1000, 10_000]) {
+    const rows = spinnerCells(id, t, O, st)
+    expect(rows.length).toBe(SPINNERS[id].rows)
+    for (const r of rows) expect(r.length).toBe(SPINNERS[id].cols)
+    expect(rows.flat().some(c => c.ch !== ' ')).toBe(true)
+  }
+})
+
+test('scanline: the scan cell is a full block that crosses the bar left to right', async () => {
+  const at = (t: number) => spinnerCells('scanline', t, { ...O, wordLen: 10 }).flat().findIndex(c => c.ch === '█')
+  expect(at(0)).toBe(0)
+  expect(at(45 * 4)).toBe(4)
+  expect(at(45 * 12)).toBe(-1) // past the bar, scanning the word
+})
+
+test('scanline: run and agents scan faster than think', async () => {
+  expect(scanPos(450, 10, 'run')).toBeGreaterThan(scanPos(450, 10, 'think'))
+  expect(scanPos(450, 10, 'agents')).toBe(scanPos(450, 10, 'run'))
+})
+
+test('scanline: the scan cell reads on a light pack', async () => {
+  const light = { color: '#0000f2', bg: '#f2f2f2', fg: '#000091' }
+  const hi = spinnerCells('scanline', 0, light).flat()[0]!
+  expect(hi.ch).toBe('█')
+  expect(hi.fg).toBe('#000091')
+})
+
+test('ring and signal react to the activity state', async () => {
+  for (const id of ['ring', 'signal'] as const) {
+    const frames = (['think', 'run', 'agents'] as const).map(st => JSON.stringify(spinnerCells(id, 1000, O, st)))
+    expect(new Set(frames).size).toBe(3)
+  }
+})
+
+test('glitch draws one diamond in the spinner color', async () => {
+  expect(spinnerCells('glitch', 500, O)).toEqual([[{ ch: '◆', fg: O.color }]])
 })
 
 test('orb states draw differently', async () => {
