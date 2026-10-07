@@ -29,7 +29,7 @@ import { DEFAULT_SETUP, parseSetup, type Setup } from './setup.ts'
 import { runCommand, pastedGlowup, type Ctl } from './command.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 import { renderHelp, renderColorList } from './helpcard.tsx'
-import { cycleCommands, inputCommand, inputValue, type ConfigState, type CycleId, type InputId } from './configrows.ts'
+import { cycleCommands, nextPack, inputCommand, inputValue, type ConfigState, type CycleId, type InputId } from './configrows.ts'
 import { renderConfig, type ConfigNote } from './configpane.tsx'
 import { encodeLink } from './link.ts'
 import { loadUserThemes } from './userthemes.ts'
@@ -118,6 +118,10 @@ const CONFIG_ID = 'glowup-config'
 const CONFIG_OPEN: PaneOpenArgs = { id: CONFIG_ID, title: 'glowup config', focus: true, closeOnEscape: true, rows: 40 }
 // Read when the config pane opens and after each pack change: its render hook may not read disk.
 let configPacks: string[] = Object.keys(PACKS)
+let configOfficial: string[] = []
+let configPick: string | undefined
+// Set while runConfig runs: a second press during a slow install must not start a second command.
+let configBusy = false
 let configShiny = false
 let configEgg = false
 let configUserPets: string[] = []
@@ -456,6 +460,8 @@ async function readConfigLists($: Engine) {
   const host = hostOf($)
   const user = await loadUserPacks(host)
   configPacks = [...new Set([...Object.keys(PACKS), ...Object.keys(user).filter(n => SAFE_NAME.test(n))])]
+  configOfficial = catalog.filter(e => canRun(e, ownVersion) && !configPacks.includes(e.name)).map(e => e.name)
+  if (configPick && !configOfficial.includes(configPick)) configPick = undefined
   const eggs = (await host.storeGet('eggs')) as EggStore | undefined
   configShiny = eggs?.shinyAt !== undefined
   configEgg = eggUnlocked(eggs)
@@ -473,28 +479,53 @@ async function openConfig($: Engine): Promise<string> {
   return r.isPlaced ? 'glowup config open (Esc closes it)' : `glowup config waits: ${r.reason}`
 }
 
-const configState = (): ConfigState => ({ packs: configPacks, mix, colors: look.theme.colors, pet, shiny: configShiny, egg: configEgg, userPets: configUserPets, bubbles, reduced: reducedMotion, setup, fields })
+const configState = (): ConfigState => ({ packs: configPacks, official: configOfficial, pick: configPick, mix, colors: look.theme.colors, pet, shiny: configShiny, egg: configEgg, userPets: configUserPets, bubbles, reduced: reducedMotion, setup, fields })
 
 // Every change runs as the typed command would; the last command's first line, or its setting's row for a setup, becomes the pane's note.
 // A command that leaves the state unchanged was refused, so the rest of the run is dropped: the
 // meter cycle's second command must not follow a refused first.
 async function runConfig($: Engine, cmds: string[]) {
-  let text = '', lastCmd = '', stopped = false
-  for (const cmd of cmds) {
-    lastCmd = cmd
-    const before = JSON.stringify(configState())
-    text = await runCommand(hostOf($), cmd, ctlOf($))
-    const moved = JSON.stringify(configState()) !== before
-    // after the compare: a pack or pet that vanished from disk shrinks the list but was still refused
-    if (cmd.startsWith('pack ') || cmd.startsWith('pet ')) await readConfigLists($)
-    if (!moved) { stopped = true; break }
+  if (configBusy) return
+  configBusy = true
+  try {
+    let text = '', lastCmd = '', stopped = false
+    for (const cmd of cmds) {
+      lastCmd = cmd
+      const official = cmd.match(/^pack (\S+)$/)?.[1]
+      if (official && configOfficial.includes(official)) {
+        configNote = { text: `Installing ${shown(official)}…`, tone: 'ok' }
+        relook($)
+      }
+      const before = JSON.stringify(configState())
+      text = await runCommand(hostOf($), cmd, ctlOf($))
+      const moved = JSON.stringify(configState()) !== before
+      // after the compare: a pack or pet that vanished from disk shrinks the list but was still refused
+      if (cmd.startsWith('pack ') || cmd.startsWith('pet ')) await readConfigLists($)
+      if (!moved) { stopped = true; break }
+    }
+    const lines = text.split('\n'), key = lastCmd.match(/^setup (\S+)/)?.[1]
+    // every setup command prints the whole table, whose first row is always band
+    const line = key ? lines.find(l => l.startsWith(`${key} `)) : undefined
+    configNote = { text: line ?? lines[0]!, tone: stopped ? 'error' : 'ok' }
+    await syncTakeover($)
+    relook($)
+  } finally {
+    configBusy = false
   }
-  const lines = text.split('\n'), key = lastCmd.match(/^setup (\S+)/)?.[1]
-  // every setup command prints the whole table, whose first row is always band
-  const line = key ? lines.find(l => l.startsWith(`${key} `)) : undefined
-  configNote = { text: line ?? lines[0]!, tone: stopped ? 'error' : 'ok' }
-  await syncTakeover($)
-  relook($)
+}
+
+// Landing on an official pack only shows it; Install is what downloads.
+function cyclePack($: Engine) {
+  if (configBusy) return
+  const s = configState(), next = nextPack(s)
+  if (s.official.includes(next)) { configPick = next; configNote = undefined; relook($); return }
+  configPick = undefined
+  void runConfig($, cycleCommands('pack', s))
+}
+
+function installPick($: Engine, name: string) {
+  if (configBusy) return
+  void runConfig($, [`pack ${name}`]).finally(() => { configPick = undefined; relook($) })
 }
 
 // runConfig is no use here: it drops the rest of a run after a command that changed nothing, and
@@ -1062,7 +1093,8 @@ export const register: Register = (on, options) => {
     const s = configState()
     const link = encodeLink({ pack: exportMix(look, exportName(mix.colors)), setup })
     return renderConfig(els, s, look, e.props.bodyColumns, {
-      cycle: (id: CycleId) => void runConfig($, cycleCommands(id, configState())),
+      cycle: (id: CycleId) => id === 'pack' ? cyclePack($) : void runConfig($, cycleCommands(id, configState())),
+      install: (name: string) => installPick($, name),
       input: (id: InputId, text: string) => {
         const now = configState()
         const r = inputCommand(id, text, now)

@@ -1,12 +1,12 @@
 import { expect } from 'claude-code/testing'
 import { test } from './kit.ts'
-import { cycleValue, cycleCommands, inputValue, inputCommand, type ConfigState } from '../hooks/configrows.ts'
+import { cycleValue, cycleCommands, nextPack, inputValue, inputCommand, type ConfigState } from '../hooks/configrows.ts'
 import { DEFAULT_SETUP } from '../hooks/setup.ts'
 import { DEFAULT_FIELDS } from '../hooks/fields.ts'
 import { resolveLook, DEFAULT_MIX, SPINNER_IDS } from '../hooks/packs.ts'
 
 const base = (over: Partial<ConfigState> = {}): ConfigState => ({
-  packs: ['classic', 'cozy', 'arcade', 'mine'],
+  packs: ['classic', 'cozy', 'arcade', 'mine'], official: [],
   mix: DEFAULT_MIX,
   colors: resolveLook(DEFAULT_MIX, {}, {}).look.theme.colors,
   pet: 'clawd', shiny: false, egg: false, userPets: [], bubbles: 'on', reduced: false,
@@ -18,6 +18,17 @@ test('pack cycles through the installed packs and wraps', () => {
   expect(cycleValue('pack', base())).toBe('classic')
   expect(cycleCommands('pack', base())).toEqual(['pack cozy'])
   expect(cycleCommands('pack', base({ mix: { colors: 'mine', motion: 'mine' } }))).toEqual(['pack classic'])
+})
+
+test('after the last installed pack the cycle picks the first official one without a command', () => {
+  const s = base({ official: ['oxide', 'ember'], mix: { colors: 'mine', motion: 'mine' } })
+  expect(cycleCommands('pack', s)).toEqual([])
+  expect(nextPack(s)).toBe('oxide')
+  const picked = { ...s, pick: 'oxide' }
+  expect(cycleValue('pack', picked)).toBe('oxide  not installed')
+  expect(nextPack(picked)).toBe('ember')
+  expect(cycleCommands('pack', picked)).toEqual([])
+  expect(cycleCommands('pack', { ...s, pick: 'ember' })).toEqual(['pack classic'])
 })
 
 test('a custom mix shows as one and cycles to the first pack', () => {

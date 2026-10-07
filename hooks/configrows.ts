@@ -10,6 +10,10 @@ import type { BubbleSetting } from './bubbles.ts'
 export type Role = (typeof COLOR_KEYS)[number]
 export type ConfigState = {
   packs: readonly string[]
+  // Catalog packs that can run here and are not installed; cycling lands on them without installing.
+  official: readonly string[]
+  // An official pack the Pack row is showing, not applied.
+  pick?: string | undefined
   mix: Mix
   colors: Record<Role, string>
   pet: PetSetting
@@ -36,9 +40,11 @@ const plainPack = (m: Mix) => (m.colors === m.motion && !m.theme ? m.colors : un
 const petList = (s: ConfigState): PetSetting[] => [...builtinPets(s.shiny, s.egg), ...s.userPets, 'off']
 const duration = (ms: number) => (ms >= 60_000 ? `${ms / 60_000} min` : `${ms / 1000} s`)
 
+export const nextPack = (s: ConfigState): string => after([...s.packs, ...s.official], s.pick ?? plainPack(s.mix))
+
 export function cycleValue(id: CycleId, s: ConfigState): string {
   switch (id) {
-    case 'pack': return plainPack(s.mix) ?? 'custom mix'
+    case 'pack': return s.pick ? `${shown(s.pick)}  not installed` : plainPack(s.mix) ?? 'custom mix'
     case 'spinner': return s.mix.spinner ?? 'pack default'
     case 'pet': return s.pet
     case 'bubbles': return s.bubbles
@@ -51,7 +57,7 @@ export function cycleValue(id: CycleId, s: ConfigState): string {
 
 export function cycleCommands(id: CycleId, s: ConfigState): string[] {
   switch (id) {
-    case 'pack': return [`pack ${after(s.packs, plainPack(s.mix))}`]
+    case 'pack': { const n = nextPack(s); return s.official.includes(n) ? [] : [`pack ${n}`] }
     case 'spinner': return [`spinner ${after(['default', ...SPINNER_IDS], s.mix.spinner ?? 'default')}`]
     case 'pet': return [`pet ${after(petList(s), s.pet)}`]
     case 'bubbles': return [`bubbles ${after(BUBBLE_ORDER, s.bubbles)}`]

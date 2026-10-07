@@ -113,6 +113,73 @@ test('a pack deleted after the pane opened shows the error and the pane keeps dr
   await ui.unmount()
 })
 
+const ROOT = decodeURIComponent(new URL('..', import.meta.url).pathname).replace(/\/$/, '')
+const CONFIG = '/fake/.claude/glowup'
+const OXIDE = { name: 'oxide', description: 'bone text and red oxide on warm ink', pack: 'https://example.com/oxide.json', themes: ['https://example.com/oxide-theme.json'], minGlowup: '0.1.0' }
+const SERVED: Record<string, string> = {
+  [OXIDE.pack]: JSON.stringify({ format: 1, name: 'oxide', colors: { theme: 'oxide' } }),
+  [OXIDE.themes[0]!]: JSON.stringify({ name: 'oxide', extends: 'classic' }),
+}
+
+// Every download waits on the returned gate; `fetched` records each url asked for.
+async function catalogSetup($: any, on: any) {
+  const files: Record<string, string> = {
+    [`${ROOT}/.claude-plugin/plugin.json`]: '{"name":"glowup","version":"0.9.0"}',
+    [`${CONFIG}/catalog.json`]: JSON.stringify({ format: 1, packs: [OXIDE] }),
+  }
+  setup(on, ['terminal'], files)
+  const clock = mock.clock(on)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
+  const fetched: string[] = []
+  let release!: () => void
+  const gate = new Promise<void>(r => { release = r })
+  on('http.fetch', async (_$: unknown, e: any) => {
+    fetched.push(e.url)
+    await gate
+    return { value: { ok: e.url in SERVED, status: e.url in SERVED ? 200 : 404, headers: {}, text: SERVED[e.url] ?? '' } } as never
+  })
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  // the cycle reaches the official packs after the last installed pack
+  await runGlowup($, `pack ${Object.keys(PACKS).at(-1)}`)
+  await runGlowup($, 'config')
+  return { files, fetched, clock, release: async () => { release(); for (let i = 0; i < 5; i++) await clock.advance(1) } }
+}
+
+test('cycling onto an official pack downloads nothing; Install writes it and applies it', async ($, on) => {
+  const s = await catalogSetup($, on)
+  const ui = await mountConfig($)
+  await ui.press({ key: 'cycle-pack' })
+  expect(await ui.find({ key: 'install' })).toBeDefined()
+  expect(await ui.find({ key: 'cycle-pack' })).toBeDefined()
+  expect(s.fetched).toEqual([])
+  expect(`${CONFIG}/packs/oxide.json` in s.files).toBe(false)
+  const press = ui.press({ key: 'install' })
+  await s.release()
+  await press
+  expect(`${CONFIG}/packs/oxide.json` in s.files).toBe(true)
+  expect((await runGlowup($, 'pack list')).text).toContain('● oxide')
+  expect(await ui.find({ type: 'Text', text: 'Pack: oxide' })).toBeDefined()
+  expect(await ui.find({ key: 'install' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('a Pack or Install press while an install is pending runs nothing', async ($, on) => {
+  const s = await catalogSetup($, on)
+  const ui = await mountConfig($)
+  await ui.press({ key: 'cycle-pack' })
+  const first = ui.press({ key: 'install' })
+  await s.clock.advance(1)
+  expect(await ui.find({ type: 'Text', text: 'Installing oxide…' })).toBeDefined()
+  await ui.press({ key: 'install' })
+  await ui.press({ key: 'cycle-pack' })
+  expect(s.fetched).toEqual([OXIDE.pack])
+  await s.release()
+  await first
+  expect(s.fetched).toEqual([OXIDE.pack, OXIDE.themes[0]])
+  await ui.unmount()
+})
+
 const PETS = '/fake/.claude/glowup/pets'
 const petJson = (name: string) => JSON.stringify({ format: 1, name, palette: { A: '#abcdef' }, animations: { idle: [{ ms: 400, px: Array(12).fill('A'.repeat(24)) }] } })
 const petSetup = async ($: any, on: any, files: Record<string, string>) => {
