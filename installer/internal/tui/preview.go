@@ -22,6 +22,7 @@ const inner = PreviewWidth - 4
 // Look is what the preview draws: a pack, with a theme's colors and a spinner on top when picked.
 type Look struct {
 	Pack        packs.Pack
+	Catalog     *packs.CatalogEntry // set for an official pack, whose own colors the installer does not have
 	Colors      packs.Colors
 	Bg          string
 	BorderColor string
@@ -34,13 +35,23 @@ type Look struct {
 
 // LookOf resolves the look the mod would show for pack, theme and spinner, the way
 // hooks/packs.ts resolveLook does. An empty or "classic" theme and an empty or "pack"
-// spinner mean the pack's own. An unknown pack falls back to classic.
+// spinner mean the pack's own. An unknown pack falls back to classic. A catalog pack
+// is drawn on classic's frame and ignores the theme and spinner.
 func LookOf(pack, theme, spinner string) Look {
 	p, ok := packs.ByName(pack)
+	var entry *packs.CatalogEntry
 	if !ok {
 		p, _ = packs.ByName("classic")
+		for _, e := range packs.Catalog() {
+			if e.Name == pack {
+				// The colors arrive with the download, so the frame is classic's under the entry's name.
+				p.Name, p.Description = e.Name, e.Description
+				entry = &e
+				theme, spinner = "", ""
+			}
+		}
 	}
-	l := Look{Pack: p, Colors: p.Colors, Bg: p.Bg, BorderColor: p.BorderColor, Word: p.Spinner.Word, OwnColors: true, OwnSpinner: true}
+	l := Look{Pack: p, Catalog: entry, Colors: p.Colors, Bg: p.Bg, BorderColor: p.BorderColor, Word: p.Spinner.Word, OwnColors: true, OwnSpinner: true}
 	if t, ok := packs.ThemeByName(theme); ok && theme != "classic" {
 		l.Colors, l.Bg, l.BorderColor, l.Word, l.OwnColors = t.Colors, t.Colors.Panel, t.Colors.Faint, t.Word, false
 	}
@@ -198,9 +209,13 @@ func Preview(l Look, c claude.Choice, tick int) string {
 	spin := l.spinnerLines(p, tick, c.ReducedMotion)
 	spin[0] += sp + p.on(l.SpinColor, l.Word+"…")
 
-	var sw []string
-	for _, hex := range []string{col.Accent, col.Text, col.Read, col.Edit, col.Shell, col.Agent, col.Pass, col.Fail} {
-		sw = append(sw, p.on(hex, "██"))
+	swatches := p.on(col.Dim, "downloads in your first session")
+	if l.Catalog == nil {
+		var sw []string
+		for _, hex := range []string{col.Accent, col.Text, col.Read, col.Edit, col.Shell, col.Agent, col.Pass, col.Fail} {
+			sw = append(sw, p.on(hex, "██"))
+		}
+		swatches = strings.Join(sw, sp)
 	}
 
 	pet := "Clawd"
@@ -211,7 +226,7 @@ func Preview(l Look, c claude.Choice, tick int) string {
 
 	rows := []string{title, "", user, reply, "", top, del, add, bottom, ""}
 	rows = append(rows, spin...)
-	rows = append(rows, "", strings.Join(sw, sp), footer)
+	rows = append(rows, "", swatches, footer)
 
 	line := func(s string) string {
 		return bd.Render(box.Left) + p.blank(1) + p.fit(s, inner) + p.blank(1) + bd.Render(box.Right)

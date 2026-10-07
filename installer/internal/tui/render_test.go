@@ -89,7 +89,7 @@ func TestPackListStaysVisibleUnderEveryProfile(t *testing.T) {
 	for name, p := range profiles {
 		t.Run(name, func(t *testing.T) {
 			runs := styledRuns(downsample(view, p))
-			for _, item := range packs.Names() {
+			for _, item := range append(packs.Names(), catalogNames()...) {
 				var found []styled
 				for _, r := range runs {
 					if strings.Contains(r.text, item) {
