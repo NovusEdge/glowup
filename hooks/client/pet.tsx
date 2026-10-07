@@ -1,5 +1,5 @@
 import type { ClientSurface } from 'claude-code'
-import { CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, CLAWD_SHEET, BUILTIN_SHEETS, CRITTER_ROW, composeFrame, halfBlock, isClawd, mainColor, mirrored, newPlayer, petPalette, petPose, playerFrame, stepPlayer, type PetId, type PetInput, type PetSheet, type PetTint, type Player } from '../pets.ts'
+import { HOP_MS, KONAMI, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, CLAWD_SHEET, BUILTIN_SHEETS, CRITTER_ROW, composeFrame, halfBlock, isClawd, mainColor, mirrored, newPlayer, petPalette, petPose, playerFrame, stepPlayer, type PetId, type PetInput, type PetSheet, type PetTint, type Player } from '../pets.ts'
 import { renderSegs, type Seg } from '../layout.tsx'
 
 // sheet is present only for a user pet; a built-in is looked up by id.
@@ -9,9 +9,12 @@ export type PetClientProps = { pet: PetId; input: PetInput; overlays: string[]; 
 // props is the latest the draw saw, for the tick to read; stop cancels the timer.
 // sheet is the one the player's clips were cut from; the engine keeps this state across redraws, so a different sheet needs a new player.
 // sig is that sheet's content: props are cloned on their way here, so a user pet's sheet is a new object on every pane redraw.
-type PetState = { now: number; player: Player; sheet: PetSheet; sig: string; props: PetClientProps; stop?: () => void }
+type PetState = { now: number; player: Player; sheet: PetSheet; sig: string; props: PetClientProps; keys: string[]; hopAt?: number; stop?: () => void }
 
 const TICK_MS = 83
+// a click's hop is the Client's own: the hooks module never hears of it
+const poseOf = (st: { hopAt?: number } | undefined, p: PetClientProps, now: number) =>
+  st?.hopAt !== undefined && now - st.hopAt >= 0 && now - st.hopAt <= HOP_MS ? 'hop' : petPose(p.input, now)
 // The tests move time with this; Date.now is read-only in the test sandbox.
 export const clock = { now: () => Date.now() }
 const quiet = (p: PetClientProps) => p.reduced || p.compact
@@ -53,7 +56,7 @@ function startClock(surface: ClientSurface<PetState | number>, st: PetState) {
     resheet(cur, sheet)
     const before = look(cur.player)
     cur.now = clock.now()
-    stepPlayer(cur.player, sheet, petPose(cur.props.input, cur.now), cur.now, maxXOf(surface, cur.props))
+    stepPlayer(cur.player, sheet, poseOf(cur, cur.props, cur.now), cur.now, maxXOf(surface, cur.props))
     if (look(cur.player) !== before) surface.setState({ ...cur })
   })
 }
@@ -78,13 +81,29 @@ export default function PetClient(props: PetClientProps, surface: ClientSurface<
     now = typeof st === 'number' ? st : clock.now()
     player = newPlayer()
     if (st === undefined && !props.reduced) {
-      const fresh: PetState = { now, player, sheet, sig: JSON.stringify(sheet), props }
+      const fresh: PetState = { now, player, sheet, sig: JSON.stringify(sheet), props, keys: [] }
       surface.setState(fresh)
       startClock(surface, fresh)
+      // keys reach the Client only after the person clicks it; the code is matched here so keystrokes never leave it
+      surface.onPointer(ev => {
+        const cur = surface.state
+        if (ev.type !== 'down' || typeof cur !== 'object' || quiet(cur.props)) return
+        const t = clock.now()
+        // the draw reads cur.now, which only the tick refreshes: without it a draw before the next tick would see the click in its future
+        surface.setState({ ...cur, now: t, hopAt: t })
+      })
+      surface.onKey(ev => {
+        const cur = surface.state
+        if (typeof cur !== 'object' || quiet(cur.props)) return
+        const keys = [...cur.keys, ev.key].slice(-KONAMI.length)
+        const hit = keys.join(' ') === KONAMI.join(' ')
+        cur.keys = hit ? [] : keys
+        if (hit) surface.post({ konami: true })
+      })
     }
   }
 
-  stepPlayer(player, sheet, petPose(props.input, now), now, maxXOf(surface, props))
+  stepPlayer(player, sheet, poseOf(typeof st === 'object' ? st : undefined, props, now), now, maxXOf(surface, props))
   const px = composeFrame(sheet, playerFrame(player, now), props.overlays, mirrored(player))
   const pad: Seg[] = player.x > 0 ? [{ text: ' '.repeat(player.x), color: CLAWD_COLOR }] : []
   const room = cols(surface, props)

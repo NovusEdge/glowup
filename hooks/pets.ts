@@ -49,7 +49,10 @@ export const stripRows = (sheet: PetSheet, overlays: readonly string[]) =>
 // the compact pane drawer's one-row Clawd
 export const CLAWD_ROW = '▐▛█▜▌'
 
-const ALERT_MS = 1500, HOP_MS = 1200, DONE_MS = 4000, SCRUNCH_MS = 1500
+const ALERT_MS = 1500, DONE_MS = 4000, SCRUNCH_MS = 1500
+export const HOP_MS = 1200
+// ClientKeyEvent names, as the pet Client receives them after a click
+export const KONAMI = ['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'b', 'a']
 export const SLEEP_MS = 60_000
 export const JUGGLE_AGENTS = 3, PANT_CTX = 80
 // the longest a pose change waits for an exit frame

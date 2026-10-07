@@ -5,12 +5,17 @@ import { PET_ROWS, PET_COLS, CLAWD_ROW, CLAWD_SHEET, newPlayer, stepPlayer, play
 function fakeSurface(columns = 0) {
   const timers: { ms: number; fn: () => void; cancelled: boolean }[] = []
   const calls = { setState: 0 }
+  const posts: unknown[] = []
+  const on: { key?: (e: { key: string }) => void; pointer?: (e: { type: string; x: number; y: number }) => void } = {}
   const s: any = {
     state: undefined, columns, elements: { Box: 'Box', Text: 'Text' },
     setState(v: unknown) { calls.setState++; s.state = typeof v === 'function' ? (v as (p: unknown) => unknown)(s.state) : v },
     every(ms: number, fn: () => void) { const t = { ms, fn, cancelled: false }; timers.push(t); return () => { t.cancelled = true } },
+    onKey(fn: typeof on.key) { on.key = fn; return () => { on.key = undefined } },
+    onPointer(fn: typeof on.pointer) { on.pointer = fn; return () => { on.pointer = undefined } },
+    post(d: unknown) { posts.push(d) },
   }
-  return { s, timers, calls }
+  return { s, timers, calls, posts, on }
 }
 const atTime = <T,>(t: number, run: () => T): T => {
   const real = clock.now
@@ -54,6 +59,45 @@ test('a hop ends on its own: the pose comes from input and the clock, not a repu
 })
 
 const idle = { ...base, input: { working: false, needsYou: false } }
+
+const CODE = ['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'b', 'a']
+
+test('the code posts konami once, after stray keys too, for any pet', () => {
+  for (const pet of ['clawd', 'robot'] as const) {
+    const { s, posts, on } = fakeSurface()
+    atTime(1000, () => PetClient({ ...idle, pet }, s))
+    for (const key of ['x', 'up', ...CODE]) on.key!({ key })
+    expect(posts).toEqual([{ konami: true }])
+    for (const key of CODE.slice(0, 9)) on.key!({ key })
+    expect(posts).toHaveLength(1)
+  }
+})
+
+test('a wrong key inside the code posts nothing', () => {
+  const { s, posts, on } = fakeSurface()
+  atTime(1000, () => PetClient(idle, s))
+  for (const key of [...CODE.slice(0, 5), 'up', ...CODE.slice(5)]) on.key!({ key })
+  expect(posts).toEqual([])
+})
+
+test('a click hops at once', () => {
+  const { s, on, timers } = fakeSurface()
+  atTime(1000, () => PetClient(idle, s))
+  atTime(1100, () => on.pointer!({ type: 'down', x: 3, y: 1 }))
+  expect(atTime(1200, () => { PetClient(idle, s); return s.state.player.seg?.pose })).toBe('hop')
+  // the draw reads the time the tick last stored
+  atTime(5000, timers[0]!.fn)
+  expect(atTime(5000, () => { PetClient(idle, s); return s.state.player.seg?.pose })).not.toBe('hop')
+})
+
+test('reduced motion and the compact drawer take no keys', () => {
+  for (const p of [{ ...idle, reduced: true }, { ...idle, compact: true }]) {
+    const { s, on } = fakeSurface()
+    atTime(1000, () => PetClient(p, s))
+    expect(on.key).toBeUndefined()
+    expect(on.pointer).toBeUndefined()
+  }
+})
 
 test('the tick redraws only when the picture changes', async () => {
   const { s, timers, calls } = fakeSurface()
