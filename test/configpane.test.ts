@@ -10,8 +10,8 @@ import { COLOR_KEYS } from '../hooks/themes.ts'
 // The global `h` builds { type, props, children }, keeps map() results as nested arrays and hoists handlers onto the node (Button onPress, Input onEvent).
 const EL = { Box: 'Box', Text: 'Text', Button: 'Button', Input: 'Input', Link: 'Link' }
 const look = resolveLook(DEFAULT_MIX, {}, {}).look
-const s: ConfigState = { packs: ['classic', 'cozy'], mix: DEFAULT_MIX, colors: look.theme.colors, pet: 'clawd', shiny: false, egg: false, userPets: [], bubbles: 'on', reduced: false, setup: DEFAULT_SETUP, fields: DEFAULT_FIELDS }
-const noop: ConfigHandlers = { cycle() {}, input() {}, done() {}, reset() {}, copyLink() {} }
+const s: ConfigState = { packs: ['classic', 'cozy'], official: ['oxide'], mix: DEFAULT_MIX, colors: look.theme.colors, pet: 'clawd', shiny: false, egg: false, userPets: [], bubbles: 'on', reduced: false, setup: DEFAULT_SETUP, fields: DEFAULT_FIELDS }
+const noop: ConfigHandlers = { cycle() {}, install() {}, input() {}, done() {}, reset() {}, copyLink() {} }
 const walk = (n: any, out: any[] = []): any[] => {
   if (Array.isArray(n)) for (const c of n) walk(c, out)
   else if (n && typeof n === 'object') { out.push(n); walk(n.children, out) }
@@ -30,6 +30,16 @@ test('every cycle and every role has its element, and Pack takes the first focus
   expect(byKey(tree, 'cycle-pack').props.autoFocus).toBe(true)
   const others = walk(tree).filter(n => keyOf(n)?.startsWith('cycle-') && keyOf(n) !== 'cycle-pack')
   expect(others.every(n => !('autoFocus' in n.props))).toBe(true)
+})
+
+test('a picked official pack shows as not installed beside an Install button', () => {
+  const picked = renderConfig(EL, { ...s, pick: 'oxide' }, look, 90, noop, {})
+  expect(JSON.stringify(byKey(picked, 'cycle-pack'))).toContain('oxide  not installed')
+  expect(byKey(picked, 'install')).toBeDefined()
+  expect(byKey(renderConfig(EL, s, look, 90, noop, {}), 'install')).toBeUndefined()
+  const got: string[] = []
+  byKey(renderConfig(EL, { ...s, pick: 'oxide' }, look, 90, { ...noop, install: n => got.push(n) }, {}), 'install').onPress({})
+  expect(got).toEqual(['oxide'])
 })
 
 test('a color Input holds the hex and its swatch paints in it', () => {

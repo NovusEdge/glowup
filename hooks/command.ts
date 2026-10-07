@@ -5,7 +5,8 @@ import { takeOver, restore } from './statusline.ts'
 import { resolveLook, exportMix, normalizeHex, cleanOverrides, SPINNER_IDS, type Mix } from './packs.ts'
 import { PACKS } from './packpresets.ts'
 import { decodeLink, isStudioLink } from './link.ts'
-import { loadUserPacks, addPack, savePack, installPackText, SAFE_NAME } from './userpacks.ts'
+import { loadUserPacks, addPack, savePack, installPackText, SAFE_NAME, PACK_DIR } from './userpacks.ts'
+import { loadCatalog, canRun, installEntry, loadRecord, textHash } from './catalog.ts'
 import { parseScheme } from './schemes.ts'
 import { konsoleScheme } from './konsole.ts'
 import { eggSheet, type PetSetting, type PetSheet } from './pets.ts'
@@ -64,6 +65,9 @@ async function packList(host: Host, ctl: Ctl): Promise<string> {
   const { look } = resolveLook(m, user, await loadUserThemes(host))
   const whole = m.colors === m.motion && m.theme === undefined && m.spinner === undefined && look.colorsFrom === m.colors && look.motionFrom === m.motion
   const lines = names.map(n => `${whole && n === m.colors ? '●' : '○'} ${n}`)
+  for (const e of await loadCatalog(host)) {
+    if (!names.includes(e.name)) lines.push(`○ ${e.name}  (${canRun(e, host.version) ? 'not installed' : `needs glowup ${e.minGlowup}`}) ${e.description}`)
+  }
   if (!whole) lines.push(`custom mix: colors ${m.colors}, motion ${m.motion}${m.theme ? `, theme ${m.theme}` : ''}${m.spinner ? `, spinner ${m.spinner}` : ''}`)
   return lines.join('\n')
 }
@@ -103,13 +107,43 @@ async function resetColor(host: Host, ctl: Ctl, role: string | undefined): Promi
   return `Color ${role}: back to the look's own.`
 }
 
-async function usePack(host: Host, ctl: Ctl, name: string): Promise<string> {
+async function usePack(host: Host, ctl: Ctl, name: string, force = false): Promise<string> {
+  const user = await loadUserPacks(host)
+  const local = Object.hasOwn(PACKS, name) || Object.hasOwn(user, name)
+  const entry = !Object.hasOwn(PACKS, name) && (force || !local) ? (await loadCatalog(host)).find(e => e.name === name) : undefined
+  if (entry) {
+    if (!canRun(entry, host.version)) return `${name} needs glowup ${entry.minGlowup}; this is ${host.version ?? 'an unknown version'}.`
+    const r = await installEntry(host, entry, { force })
+    if (!r.name) return r.message
+  }
   const keep = ctl.mix().overrides
   const mix: Mix = { colors: name, motion: name, ...(keep && { overrides: keep }) }
   const { errors } = resolveLook(mix, await loadUserPacks(host), await loadUserThemes(host))
-  if (errors.length) return errors.join('\n')
+  if (errors.length) {
+    const official = local || entry ? [] : (await loadCatalog(host)).map(e => e.name)
+    return [...errors, ...(official.length ? [`Official packs: ${official.join(', ')}`] : [])].join('\n')
+  }
   await applyMix(host, ctl, mix)
   return `Pack: ${name}`
+}
+
+export async function updatePacks(host: Host, only: string | undefined): Promise<string> {
+  const record = await loadRecord(host), catalog = await loadCatalog(host)
+  if (only !== undefined && !Object.hasOwn(record.packs, only)) return `${only} was not installed from the catalog.`
+  const names = only !== undefined ? [only] : Object.keys(record.packs)
+  if (!names.length) return 'No packs were installed from the catalog.'
+  const lines: string[] = []
+  for (const n of names) {
+    const e = catalog.find(x => x.name === n)
+    if (!e) { lines.push(`${n} is no longer in the catalog.`); continue }
+    if (!canRun(e, host.version)) { lines.push(`${n} needs glowup ${e.minGlowup}; not updated.`); continue }
+    let current: string
+    try { current = await host.readFile(`${PACK_DIR(host.configDir)}/${n}.json`) } catch { lines.push(`${n} is not installed; use /glowup pack ${n}.`); continue }
+    if (textHash(current) !== record.packs[n]!.hash) { lines.push(`${n} changed since glowup installed it; not updated. Use /glowup pack ${n} --force to replace it.`); continue }
+    const r = await installEntry(host, e, { force: true })
+    lines.push(r.name ? `Updated ${n}.` : r.message)
+  }
+  return lines.join('\n')
 }
 
 async function importScheme(host: Host, ctl: Ctl, rawPath: string, force: boolean): Promise<string> {
@@ -229,7 +263,8 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     await applyMix(host, ctl, { colors: r.name, motion: r.name, ...(keep && { overrides: keep }) })
     return `Pack: ${r.name}`
   }
-  if (sub === 'pack' && a1) return usePack(host, ctl, a1)
+  if (sub === 'pack' && a1 === 'update') return updatePacks(host, a2)
+  if (sub === 'pack' && a1) return usePack(host, ctl, a1, a2 === '--force')
   if (sub === 'spinner' && a1 === 'list') {
     const { look } = resolveLook(ctl.mix(), await loadUserPacks(host), await loadUserThemes(host))
     return SPINNER_IDS.map(n => `${n === look.motion.spinner ? '●' : '○'} ${n}`).join('\n')

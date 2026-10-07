@@ -36,7 +36,7 @@ func Parse(args []string, out io.Writer) (Options, error) {
 		fs.PrintDefaults()
 	}
 	fs.BoolVar(&o.Yes, "yes", false, "install without asking: the defaults, or the values of the flags below")
-	fs.StringVar(&o.Choice.Pack, "pack", o.Choice.Pack, "pack: "+strings.Join(packs.Names(), ", "))
+	fs.StringVar(&o.Choice.Pack, "pack", o.Choice.Pack, "pack: "+strings.Join(allPackNames(), ", "))
 	fs.StringVar(&o.Choice.Theme, "theme", "", "theme colors on top of the pack: "+strings.Join(packs.ThemeNames(), ", ")+" (classic keeps the pack's own)")
 	fs.StringVar(&o.Choice.Spinner, "spinner", "", "spinner: "+strings.Join(packs.SpinnerIDs(), ", ")+", or pack for the pack's own")
 	fs.StringVar(&o.Choice.Pet, "pet", o.Choice.Pet, "pet: clawd or off")
@@ -62,8 +62,8 @@ func Parse(args []string, out io.Writer) (Options, error) {
 	o.Choice.Bubbles = strings.ToLower(o.Choice.Bubbles)
 	o.Choice.Theme = strings.ToLower(o.Choice.Theme)
 	o.Choice.Spinner = strings.ToLower(o.Choice.Spinner)
-	if !slices.Contains(packs.Names(), o.Choice.Pack) {
-		return o, usageErr(out, "there is no pack called %q. Pick one of: %s", o.Choice.Pack, strings.Join(packs.Names(), ", "))
+	if !packs.Known(o.Choice.Pack) {
+		return o, usageErr(out, "there is no pack called %q. Pick one of: %s", o.Choice.Pack, strings.Join(allPackNames(), ", "))
 	}
 	if o.Choice.Pet != "clawd" && o.Choice.Pet != "off" {
 		return o, usageErr(out, "--pet takes clawd or off, not %q", o.Choice.Pet)
@@ -78,6 +78,15 @@ func Parse(args []string, out io.Writer) (Options, error) {
 		return o, usageErr(out, "there is no spinner called %q. Pick one of: %s, or pack for the pack's own", sp, strings.Join(packs.SpinnerIDs(), ", "))
 	}
 	return o, nil
+}
+
+// allPackNames is the built-in packs, then the official catalog's.
+func allPackNames() []string {
+	names := packs.Names()
+	for _, e := range packs.Catalog() {
+		names = append(names, e.Name)
+	}
+	return names
 }
 
 func usageErr(out io.Writer, format string, a ...any) error {

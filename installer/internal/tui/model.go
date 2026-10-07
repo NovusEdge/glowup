@@ -65,6 +65,9 @@ func NewModel(in claude.Choice, installed bool) Model {
 	for _, n := range packs.Names() {
 		packOpts = append(packOpts, huh.NewOption(n, n))
 	}
+	for _, e := range packs.Catalog() {
+		packOpts = append(packOpts, huh.NewOption(e.Name, e.Name))
+	}
 	themeOpts := []huh.Option[string]{huh.NewOption("Pack's own", "classic")}
 	for _, n := range packs.ThemeNames() {
 		if n != "classic" {
@@ -75,7 +78,8 @@ func NewModel(in claude.Choice, installed bool) Model {
 	for _, id := range packs.SpinnerIDs() {
 		spinOpts = append(spinOpts, huh.NewOption(id, id))
 	}
-	custom := func() bool { return mode != "custom" }
+	// A catalog pack's colors and spinner come with the download, so there is nothing to customize.
+	custom := func() bool { return mode != "custom" || packs.InCatalog(c.Pack) }
 
 	groups := []*huh.Group{
 		huh.NewGroup(huh.NewSelect[string]().Key("pack").Title("Pick a pack").
@@ -86,7 +90,7 @@ func NewModel(in claude.Choice, installed bool) Model {
 			Description("Customize picks colors and spinner on their own.").
 			OptionsFunc(func() []huh.Option[string] {
 				return []huh.Option[string]{huh.NewOption("Use "+c.Pack+" as is", "asis"), huh.NewOption("Customize", "custom")}
-			}, &c.Pack).Value(&mode)),
+			}, &c.Pack).Value(&mode)).WithHideFunc(func() bool { return packs.InCatalog(c.Pack) }),
 		huh.NewGroup(huh.NewSelect[string]().Key("colors").Title("Pick the colors").
 			Description("The pack's own, or a theme.").
 			Options(themeOpts...).Value(&colors)).WithHideFunc(custom),
@@ -137,7 +141,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // Customize is the pick.
 func (m Model) current() claude.Choice {
 	c := *m.choice
-	if *m.mode == "custom" {
+	if *m.mode == "custom" && !packs.InCatalog(c.Pack) {
 		c.Theme, c.Spinner = *m.colors, *m.spinner
 	}
 	return c

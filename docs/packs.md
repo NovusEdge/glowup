@@ -25,6 +25,22 @@ A pack decides how glowup looks: the colors, how your prompts and Claude's repli
 
 ![The arcade pack](assets/pack-arcade.png)
 
+## Official packs
+
+More packs are listed at [glowup.khimani.dev/packs.json](https://glowup.khimani.dev/packs.json). They are not bundled with glowup, so a new one needs no release. `/glowup pack <name>` downloads one the first time you use it and applies it:
+
+```text title="claude code"
+/glowup pack oxide
+```
+
+`/glowup pack list` shows the official packs you have not installed yet, marked `not installed`. A pack that needs a newer glowup than yours is marked `needs glowup <version>` and is never installed.
+
+- Every file passes the same checks as a pack from a URL, and nothing is written unless all of them pass.
+- Packs do not update by themselves. `/glowup pack update [name]` fetches them again. It skips a pack file you changed or replaced, and says so.
+- If you made a pack with the same name, yours wins and nothing is downloaded. `/glowup pack <name> --force` replaces it with the official one.
+- glowup refreshes its copy of the list at most once a day, in interactive sessions only. Without a network it uses the copy it has.
+- The [config pane](commands.md#config) lists official packs you have not installed. Cycling onto one downloads nothing; press its Install button to install and apply it.
+
 ## Mixing and adjusting
 
 A pack has two parts that can be changed separately: its colors (palette, row style, borders) and its motion (the spinner and its shimmer). You can keep one pack and change pieces of it:

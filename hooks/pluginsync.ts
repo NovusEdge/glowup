@@ -43,9 +43,10 @@ const label = (key: Key, value: string | boolean) => key === 'reducedMotion' ? `
 
 // A /plugin edit and a /glowup command both write the same saved choice, and the later one wins:
 // an edit is detected by comparing /plugin's values with the ones seen last session. Returns the toast.
-export async function syncPlugin(host: Host, options: Readonly<Record<string, unknown>>, run: (cmd: string) => Promise<string>): Promise<string | undefined> {
+// A `pack` value that `deferPack` claims is recorded as seen but not run: the caller installs it in the background.
+export async function syncPlugin(host: Host, options: Readonly<Record<string, unknown>>, run: (cmd: string) => Promise<string>, deferPack: (name: string) => boolean = () => false): Promise<string | undefined> {
   const seen = await host.storeGet(SEEN_KEY)
-  const changes = changedOptions(seen, options)
+  const changes = changedOptions(seen, options).filter(c => !(c.key === 'pack' && typeof c.value === 'string' && deferPack(c.value)))
   // recorded even when a command fails, so a bad value is reported once and not every session
   await host.storeSet(SEEN_KEY, { ...normalize(seen as Record<string, unknown> | undefined), ...normalize(options) })
   const applied: string[] = [], failed: string[] = []

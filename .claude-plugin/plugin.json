@@ -14,7 +14,7 @@
   "userConfig": {
     "theme": { "type": "string", "title": "Theme", "description": "Theme name: glowup, aurora, dusk, classic, cyberpunk, vaporwave, high-contrast, or one in ~/.claude/glowup/themes", "default": "classic" },
     "reducedMotion": { "type": "boolean", "title": "Reduced motion", "description": "No shimmer or spinner animation from glowup", "default": false },
-    "pack": { "type": "string", "title": "Pack", "description": "Pack name: classic, crt, cozy, arcade, or one in ~/.claude/glowup/packs", "default": "classic" },
+    "pack": { "type": "string", "title": "Pack", "description": "Pack name: classic, crt, cozy, arcade, one in ~/.claude/glowup/packs, or an official pack", "default": "classic" },
     "spinner": { "type": "string", "title": "Spinner", "description": "Spinner name: stock, comet, eyes, orb-states, clawd, shimmer, scanline, ring, glitch, signal, or pack for the pack's own", "default": "pack" },
     "pet": { "type": "string", "title": "Pet", "description": "clawd, robot, off, or a pet in ~/.claude/glowup/pets", "default": "clawd" },
     "bubbles": { "type": "string", "title": "Speech bubbles", "description": "on (template lines), off, or haiku (Claude Haiku writes some lines; small paid calls on your account)", "default": "on" },

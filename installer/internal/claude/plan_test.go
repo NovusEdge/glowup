@@ -110,7 +110,7 @@ func TestDeclared(t *testing.T) {
 	const cmd = "claude plugin configure glowup@glowup --json"
 	old := `{"pluginId":"glowup@glowup","schema":{"theme":{"type":"string"},"reducedMotion":{"type":"boolean"},"pack":{},"pet":{},"bubbles":{}},"inputs":{}}`
 	got, err := Declared(context.Background(), &fakeRunner{answers: map[string]Result{cmd: {Stdout: old}}})
-	if err != nil || !slices.Equal(got, []string{"bubbles", "bubbles=haiku", "pack", "pet", "reducedMotion", "theme"}) {
+	if err != nil || !slices.Equal(got, []string{"bubbles", "bubbles=haiku", "pack", "pack=official", "pet", "reducedMotion", "theme"}) {
 		t.Fatalf("got %q, %v", got, err)
 	}
 	for name, res := range map[string]Result{
@@ -150,6 +150,39 @@ func TestDeclaredValueGate(t *testing.T) {
 	}
 	if got, _ := Restrict(Step{Stdin: `{"bubbles":"on"}`}, []string{"bubbles"}); got.Stdin != `{"bubbles":"on"}` {
 		t.Fatalf("on stays: %s", got.Stdin)
+	}
+}
+
+func TestDeclaredOfficialPack(t *testing.T) {
+	const cmd = "claude plugin configure glowup@glowup --json"
+	for name, c := range map[string]struct {
+		schema string
+		want   bool
+	}{
+		"old":     {`{"schema":{"pack":{"description":"Pack name: classic, crt, cozy, arcade, or one in ~/.claude/glowup/packs"}}}`, false},
+		"new":     {`{"schema":{"pack":{"description":"Pack name: classic, or an Official Pack"}}}`, true},
+		"no text": {`{"schema":{"pack":{"type":"string"}}}`, true},
+		"no pack": {`{"schema":{"pet":{}}}`, false},
+	} {
+		got, err := Declared(context.Background(), &fakeRunner{answers: map[string]Result{cmd: {Stdout: c.schema}}})
+		if err != nil || slices.Contains(got, "pack=official") != c.want {
+			t.Errorf("%s: got %q, %v", name, got, err)
+		}
+	}
+}
+
+func TestRestrictCatalogPack(t *testing.T) {
+	st := Step{Argv: []string{"x"}, Stdin: `{"pack":"oxide","pet":"clawd"}`, Configure: true}
+	got, dropped := Restrict(st, []string{"pack", "pet"})
+	if got.Stdin != `{"pet":"clawd"}` || len(dropped) != 1 || dropped[0] != (Dropped{"pack", "oxide"}) {
+		t.Fatalf("an older glowup drops a catalog pack: %s %+v", got.Stdin, dropped)
+	}
+	if got, dropped := Restrict(st, []string{"pack", "pack=official", "pet"}); got.Stdin != st.Stdin || len(dropped) != 0 {
+		t.Fatalf("a glowup that declares official packs keeps it: %s %+v", got.Stdin, dropped)
+	}
+	builtin := Step{Stdin: `{"pack":"crt"}`}
+	if got, dropped := Restrict(builtin, []string{"pack"}); got.Stdin != builtin.Stdin || len(dropped) != 0 {
+		t.Fatalf("a built-in pack is never dropped: %s %+v", got.Stdin, dropped)
 	}
 }
 

@@ -53,8 +53,10 @@ Each refusal prints a message naming the failed check. Adding a theme whose name
 
 | Command | What it does |
 | --- | --- |
-| `/glowup pack <name>` | Apply a pack to both layers. Prints `Pack: <name>`. |
-| `/glowup pack list` | List built-in and installed packs. A filled dot marks the active one. If the look is a mix of packs or has a theme or spinner on top, a last line starts `custom mix:` and names each layer. |
+| `/glowup pack <name>` | Apply a pack to both layers. Prints `Pack: <name>`. An [official pack](packs.md#official-packs) is installed on first use. |
+| `/glowup pack <name> --force` | The same, but an official pack replaces an installed pack of that name. |
+| `/glowup pack update [name]` | Fetch the named official pack, or every one you installed, again. A pack file you changed is skipped. |
+| `/glowup pack list` | List built-in and installed packs, then official packs you have not installed. A filled dot marks the active one. If the look is a mix of packs or has a theme or spinner on top, a last line starts `custom mix:` and names each layer. |
 | `/glowup pack save <name>` | Save the current look as a self-contained pack file in `~/.claude/glowup/packs`. Prints `Saved pack "<name>" to <path>.` |
 | `/glowup pack <url>` | Download, check and install a pack from an `https://` URL, then apply it. |
 | `/glowup pack <url> --force` | The same, replacing an installed pack of that name. |
@@ -135,7 +137,7 @@ Your layout and behavior settings. They are yours alone: installing someone's pa
 
 `/glowup config` opens a pane with a row for each choice, a preview of the look under them, and Done, Copy studio link and Reset at the bottom. Up and down move between rows.
 
-The rows are Pack, Spinner, one for each color role, Band, Tabs, Meter, Pet, Sleeps, Bubbles, Bubble, Moods, Motion and Status. A row shown as ‹ value › cycles to its next value when you press Enter and applies it at once. The other rows are fields you type into and submit with Enter. A field you have not edited does nothing on Enter.
+The rows are Pack, Spinner, one for each color role, Band, Tabs, Meter, Pet, Sleeps, Bubbles, Bubble, Moods, Motion and Status. A row shown as ‹ value › cycles to its next value when you press Enter and applies it at once, except that an official pack on the Pack row applies only when you press the Install button. The other rows are fields you type into and submit with Enter. A field you have not edited does nothing on Enter.
 
 A color field takes a hex such as `#8ecbff` or `8ecbff`, and an empty one clears that role's override. Band, Tabs, Moods and Status take a list separated by commas or spaces, and the order you type is the order glowup draws them. An empty Band or Moods field means none, an empty Status field means the default fields, and Tabs needs at least one. The pane says what it did, or why it refused, on the line under the buttons.
 

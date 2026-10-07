@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/novusedge/glowup/installer/internal/packs"
 )
 
 // Step is one claude command the installer runs.
@@ -75,9 +77,14 @@ func PlanKeys(c Choice, s State, keys []string) []Step {
 // count as declared only through a "key=value" entry in Declared's result.
 var ValueGated = map[string]string{"bubbles": "haiku"}
 
+// officialPack is Declared's entry for a glowup whose pack option takes catalog names.
+// An older one accepts any text for pack but falls back to classic on a name it lacks.
+const officialPack = "pack=official"
+
 // Declared asks the installed glowup which userConfig options it has: the keys of
 // `plugin configure --json`'s "schema", plus "key=value" for each ValueGated value
-// the option's description names. A schema that carries no description for the
+// the option's description names, plus "pack=official" when the pack option's
+// description names official packs. A schema that carries no description for the
 // option is given the benefit of the doubt.
 func Declared(ctx context.Context, r Runner) ([]string, error) {
 	var out struct {
@@ -97,6 +104,9 @@ func Declared(ctx context.Context, r Runner) ([]string, error) {
 		if v, ok := ValueGated[k]; ok && (o.Description == nil || strings.Contains(strings.ToLower(*o.Description), v)) {
 			keys = append(keys, k+"="+v)
 		}
+		if k == "pack" && (o.Description == nil || strings.Contains(strings.ToLower(*o.Description), "official pack")) {
+			keys = append(keys, officialPack)
+		}
 	}
 	slices.Sort(keys)
 	return keys, nil
@@ -112,7 +122,8 @@ func Restrict(st Step, declared []string) (Step, []Dropped) {
 	var dropped []Dropped
 	for _, k := range slices.Sorted(maps.Keys(m)) {
 		gated := ValueGated[k] != "" && ValueGated[k] == m[k]
-		if !slices.Contains(declared, k) || (gated && !slices.Contains(declared, k+"="+m[k])) {
+		catalog := k == "pack" && packs.InCatalog(m[k]) && !slices.Contains(declared, officialPack)
+		if !slices.Contains(declared, k) || catalog || (gated && !slices.Contains(declared, k+"="+m[k])) {
 			dropped = append(dropped, Dropped{k, m[k]})
 			delete(m, k)
 		}

@@ -2,10 +2,11 @@ import type { EngineInterface, PaneOpenArgs, Register, RenderElement, RenderSurf
 import type { Host } from './host.ts'
 import { initialModel, normalizeModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
 import { approvalLabel, dialogCall, modeAsksPerson, shortPath } from './events.ts'
-import { shown, type Theme } from './themes.ts'
+import { shown, parseJsonc, type Theme } from './themes.ts'
+import { loadCatalog, refreshCatalog, installEntry, canRun, type CatalogEntry } from './catalog.ts'
 import { resolveLook, cleanOverrides, exportMix, exportName, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { PACKS } from './packpresets.ts'
-import { loadUserPacks, SAFE_NAME } from './userpacks.ts'
+import { loadUserPacks, SAFE_NAME, PACK_DIR } from './userpacks.ts'
 import { BUILTIN_SHEETS, CLAWD_SHEET, eggSheet, stripRows, type PetSetting, type PetInput, type PetKind, type PetSheet } from './pets.ts'
 import { loadUserPet, userPetNames, PET_DIR } from './userpets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
@@ -29,14 +30,14 @@ import { DEFAULT_SETUP, parseSetup, type Setup } from './setup.ts'
 import { runCommand, pastedGlowup, type Ctl } from './command.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 import { renderHelp, renderColorList } from './helpcard.tsx'
-import { cycleCommands, inputCommand, inputValue, type ConfigState, type CycleId, type InputId } from './configrows.ts'
+import { cycleCommands, nextPack, inputCommand, inputValue, type ConfigState, type CycleId, type InputId } from './configrows.ts'
 import { renderConfig, type ConfigNote } from './configpane.tsx'
 import { encodeLink } from './link.ts'
 import { loadUserThemes } from './userthemes.ts'
 import { firstRun } from './firstrun.ts'
 import { registerCopy, touchCopy, decide, unregisterCopy, pruneStatus, safeId, HEARTBEAT_MS } from './instances.ts'
 import { staleToast, INSTALLED_FILE } from './update.ts'
-import { syncPlugin } from './pluginsync.ts'
+import { syncPlugin, changedOptions, SEEN_KEY } from './pluginsync.ts'
 import { cleanFrames, cleanRows, cleanDivider, fitField, meterWindows, type Frames, type Divider } from './renderers.ts'
 import { ditherMeters, turnDivider } from './effects.ts'
 import type { FieldClientProps } from './client/field.tsx'
@@ -105,6 +106,9 @@ let turnNo = 0
 let bubbleCap = 40
 // false in a plain -p run, where nobody sees a bubble
 let interactive = true
+// glowup's own version from plugin.json, read at session start; catalog packs are gated on it
+let ownVersion: string | undefined
+let catalog: CatalogEntry[] = []
 let friday = false
 let failed = false
 let tzOffset = 0
@@ -117,6 +121,10 @@ const CONFIG_ID = 'glowup-config'
 const CONFIG_OPEN: PaneOpenArgs = { id: CONFIG_ID, title: 'glowup config', focus: true, closeOnEscape: true, rows: 40 }
 // Read when the config pane opens and after each pack change: its render hook may not read disk.
 let configPacks: string[] = Object.keys(PACKS)
+let configOfficial: string[] = []
+let configPick: string | undefined
+// Set while runConfig runs: a second press during a slow install must not start a second command.
+let configBusy = false
 let configShiny = false
 let configEgg = false
 let configUserPets: string[] = []
@@ -149,6 +157,7 @@ function hostOf($: Engine): Host {
     configDir,
     dataHome,
     home,
+    version: ownVersion,
   }
 }
 
@@ -470,6 +479,8 @@ async function readConfigLists($: Engine) {
   const host = hostOf($)
   const user = await loadUserPacks(host)
   configPacks = [...new Set([...Object.keys(PACKS), ...Object.keys(user).filter(n => SAFE_NAME.test(n))])]
+  configOfficial = catalog.filter(e => canRun(e, ownVersion) && !configPacks.includes(e.name)).map(e => e.name)
+  if (configPick && !configOfficial.includes(configPick)) configPick = undefined
   const eggs = (await host.storeGet('eggs')) as EggStore | undefined
   configShiny = eggs?.shinyAt !== undefined
   configEgg = eggUnlocked(eggs)
@@ -487,28 +498,53 @@ async function openConfig($: Engine): Promise<string> {
   return r.isPlaced ? 'glowup config open (Esc closes it)' : `glowup config waits: ${r.reason}`
 }
 
-const configState = (): ConfigState => ({ packs: configPacks, mix, colors: look.theme.colors, pet, shiny: configShiny, egg: configEgg, userPets: configUserPets, bubbles, reduced: reducedMotion, setup, fields })
+const configState = (): ConfigState => ({ packs: configPacks, official: configOfficial, pick: configPick, mix, colors: look.theme.colors, pet, shiny: configShiny, egg: configEgg, userPets: configUserPets, bubbles, reduced: reducedMotion, setup, fields })
 
 // Every change runs as the typed command would; the last command's first line, or its setting's row for a setup, becomes the pane's note.
 // A command that leaves the state unchanged was refused, so the rest of the run is dropped: the
 // meter cycle's second command must not follow a refused first.
 async function runConfig($: Engine, cmds: string[]) {
-  let text = '', lastCmd = '', stopped = false
-  for (const cmd of cmds) {
-    lastCmd = cmd
-    const before = JSON.stringify(configState())
-    text = await runCommand(hostOf($), cmd, ctlOf($))
-    const moved = JSON.stringify(configState()) !== before
-    // after the compare: a pack or pet that vanished from disk shrinks the list but was still refused
-    if (cmd.startsWith('pack ') || cmd.startsWith('pet ')) await readConfigLists($)
-    if (!moved) { stopped = true; break }
+  if (configBusy) return
+  configBusy = true
+  try {
+    let text = '', lastCmd = '', stopped = false
+    for (const cmd of cmds) {
+      lastCmd = cmd
+      const official = cmd.match(/^pack (\S+)$/)?.[1]
+      if (official && configOfficial.includes(official)) {
+        configNote = { text: `Installing ${shown(official)}…`, tone: 'ok' }
+        relook($)
+      }
+      const before = JSON.stringify(configState())
+      text = await runCommand(hostOf($), cmd, ctlOf($))
+      const moved = JSON.stringify(configState()) !== before
+      // after the compare: a pack or pet that vanished from disk shrinks the list but was still refused
+      if (cmd.startsWith('pack ') || cmd.startsWith('pet ')) await readConfigLists($)
+      if (!moved) { stopped = true; break }
+    }
+    const lines = text.split('\n'), key = lastCmd.match(/^setup (\S+)/)?.[1]
+    // every setup command prints the whole table, whose first row is always band
+    const line = key ? lines.find(l => l.startsWith(`${key} `)) : undefined
+    configNote = { text: line ?? lines[0]!, tone: stopped ? 'error' : 'ok' }
+    await syncTakeover($)
+    relook($)
+  } finally {
+    configBusy = false
   }
-  const lines = text.split('\n'), key = lastCmd.match(/^setup (\S+)/)?.[1]
-  // every setup command prints the whole table, whose first row is always band
-  const line = key ? lines.find(l => l.startsWith(`${key} `)) : undefined
-  configNote = { text: line ?? lines[0]!, tone: stopped ? 'error' : 'ok' }
-  await syncTakeover($)
-  relook($)
+}
+
+// Landing on an official pack only shows it; Install is what downloads.
+function cyclePack($: Engine) {
+  if (configBusy) return
+  const s = configState(), next = nextPack(s)
+  if (s.official.includes(next)) { configPick = next; configNote = undefined; relook($); return }
+  configPick = undefined
+  void runConfig($, cycleCommands('pack', s))
+}
+
+function installPick($: Engine, name: string) {
+  if (configBusy) return
+  void runConfig($, [`pack ${name}`]).finally(() => { configPick = undefined; relook($) })
 }
 
 // runConfig is no use here: it drops the rest of a run after a command that changed nothing, and
@@ -661,6 +697,29 @@ async function initialMix(host: Host, options: Readonly<Record<string, unknown>>
   return { ...DEFAULT_MIX, colors: pack, motion: pack, theme, spinner }
 }
 
+// A pack the installer chose arrives as a name only; its files come from the catalog in the background.
+// `persist` writes the choice to the store the way a /glowup pack command does; the first-run path leaves it unset.
+async function installConfigured($: Engine, host: Host, name: string, persist = false) {
+  const { colors, motion } = mix
+  let entry = catalog.find(e => e.name === name)
+  if (!entry) { const fresh = await refreshCatalog(host).catch(() => undefined); if (fresh) catalog = fresh; entry = catalog.find(e => e.name === name) }
+  const r = !entry ? { message: `${name} is not an installed or official pack.` }
+    : !canRun(entry, ownVersion) ? { message: `${name} needs glowup ${entry.minGlowup}.` }
+    : await installEntry(host, entry, { force: false })
+  if ('name' in r && r.name) {
+    await host.storeDelete('catalogMissing')
+    // a command run while the download was going already chose a look
+    if (mix.colors !== colors || mix.motion !== motion) return
+    const { overrides: _, ...rest } = mix
+    mix = persist ? { ...rest, colors: name, motion: name } : { ...mix, colors: name, motion: name }
+    if (persist) await host.storeSet('mix', mix)
+    await loadLook($)
+    return
+  }
+  if (interactive && (await host.storeGet('catalogMissing')) !== name) $.ui.toast(`${r.message} ${persist ? 'Keeping your current look.' : 'Showing the default look.'}`)
+  await host.storeSet('catalogMissing', name)
+}
+
 function ctlOf($: Engine): Ctl {
   return {
     current: () => theme.name,
@@ -748,6 +807,7 @@ export const register: Register = (on, options) => {
     configDir = (await $.env.get('CLAUDE_CONFIG_DIR')) || `${home}/.claude`
     const xdg = await $.env.get('XDG_DATA_HOME')
     dataHome = xdg?.startsWith('/') ? xdg : `${home}/.local/share`
+    try { const v = (parseJsonc(await $.fs.read(`${$.plugin.root}/.claude-plugin/plugin.json`)) as { version?: unknown }).version; ownVersion = typeof v === 'string' ? v : undefined } catch { ownVersion = undefined }
     const host = hostOf($)
     off = false
     guardSid = safeId(await $.session.id())
@@ -771,6 +831,26 @@ export const register: Register = (on, options) => {
     void checkStale($)
     await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|setup|restore' })
     mix = await initialMix(host, options)
+    catalog = await loadCatalog(host)
+    const wanted = mix.colors
+    const configured = (await host.storeGet('mix')) === undefined && wanted !== DEFAULT_MIX.colors && !Object.hasOwn(PACKS, wanted) &&
+      !(await host.exists(`${PACK_DIR(configDir)}/${wanted}.json`))
+    if (configured) {
+      mix = { ...mix, colors: DEFAULT_MIX.colors, motion: DEFAULT_MIX.motion }
+      void installConfigured($, host, wanted).catch(() => {})
+    }
+    // A /plugin edit or an installer re-run naming a pack this machine lacks: syncPlugin would run
+    // `pack <name>` inside session.start, where the download blocks it or an empty cache fails it for good.
+    const pluginPack = changedOptions(await host.storeGet(SEEN_KEY), options).find(c => c.key === 'pack')?.value
+    const deferPack = async (name: string) => !Object.hasOwn(PACKS, name) && !(await host.exists(`${PACK_DIR(configDir)}/${name}.json`))
+    const deferred = typeof pluginPack === 'string' && pluginPack !== '' && await deferPack(pluginPack) ? pluginPack : undefined
+    if (deferred !== undefined && !configured) void installConfigured($, host, deferred, true).catch(() => {})
+    const last = await host.storeGet('catalogFetchedAt')
+    const nowMs = await $.clock.now()
+    if (interactive && !(typeof last === 'number' && nowMs - last < 86_400_000)) {
+      await host.storeSet('catalogFetchedAt', nowMs)
+      void refreshCatalog(host).then(e => { if (e) catalog = e }).catch(() => {})
+    }
     const storedPet = await host.storeGet('pet')
     const eggs = await host.storeGet('eggs') as EggStore | undefined
     const want = typeof storedPet === 'string' ? storedPet : typeof options.pet === 'string' && options.pet ? options.pet : 'clawd'
@@ -813,7 +893,7 @@ export const register: Register = (on, options) => {
     // After the saved choices are loaded: the commands read and extend them (a spinner is added to
     // the current mix), and write the new choice to the store by the same path a typed command does.
     try {
-      const toast = await syncPlugin(host, options, cmd => runCommand(host, cmd, ctlOf($)))
+      const toast = await syncPlugin(host, options, cmd => runCommand(host, cmd, ctlOf($)), name => name === deferred)
       if (toast) $.ui.toast(toast)
     } catch (err) {
       $.ui.log(`/plugin sync failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
@@ -1069,7 +1149,8 @@ export const register: Register = (on, options) => {
     const s = configState()
     const link = encodeLink({ pack: exportMix(look, exportName(mix.colors)), setup })
     return renderConfig(els, s, look, e.props.bodyColumns, {
-      cycle: (id: CycleId) => void runConfig($, cycleCommands(id, configState())),
+      cycle: (id: CycleId) => id === 'pack' ? cyclePack($) : void runConfig($, cycleCommands(id, configState())),
+      install: (name: string) => installPick($, name),
       input: (id: InputId, text: string) => {
         const now = configState()
         const r = inputCommand(id, text, now)

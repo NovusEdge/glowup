@@ -16,6 +16,14 @@ import (
 	"github.com/novusedge/glowup/installer/internal/packs"
 )
 
+func catalogNames() []string {
+	var out []string
+	for _, e := range packs.Catalog() {
+		out = append(out, e.Name)
+	}
+	return out
+}
+
 func previewOf(pack, theme, spinner string, c claude.Choice) string {
 	return Preview(LookOf(pack, theme, spinner), c, 0)
 }
@@ -67,6 +75,9 @@ func looks() [][3]string {
 			}
 		}
 	}
+	for _, n := range catalogNames() {
+		all = append(all, [3]string{n, "", ""})
+	}
 	return all
 }
 
@@ -81,6 +92,9 @@ func looksOneAtATime() [][3]string {
 		for _, sp := range packs.SpinnerIDs() {
 			all = append(all, [3]string{p, "", sp})
 		}
+	}
+	for _, n := range catalogNames() {
+		all = append(all, [3]string{n, "", ""})
 	}
 	return all
 }
@@ -345,9 +359,52 @@ func TestPickerInstalledLeaveItDoesNotProceed(t *testing.T) {
 	}
 }
 
+func TestCatalogPackPreview(t *testing.T) {
+	e := packs.Catalog()[0]
+	l := LookOf(e.Name, "", "")
+	if l.Catalog == nil || *l.Catalog != e {
+		t.Fatalf("look carries %+v, want %+v", l.Catalog, e)
+	}
+	if LookOf("crt", "", "").Catalog != nil {
+		t.Fatal("a built-in pack has a catalog entry")
+	}
+	plain := ansi.Strip(Preview(l, claude.Defaults(), 0))
+	if !strings.Contains(plain, "downloads in your first session") {
+		t.Errorf("preview lacks the download note:\n%s", plain)
+	}
+	if strings.Contains(plain, "██") {
+		t.Errorf("a catalog pack has no swatches to draw:\n%s", plain)
+	}
+}
+
+func TestPickerCatalogPack(t *testing.T) {
+	e := packs.Catalog()[0]
+	m := resize(start(NewModel(claude.Defaults(), false)), 120, 40)
+	for range len(packs.Names()) {
+		m = down(m)
+	}
+	if m.choice.Pack != e.Name {
+		t.Fatalf("pack %q after moving past the built-ins, want %q", m.choice.Pack, e.Name)
+	}
+	// the bubble wraps the caption, so only its first words are checked
+	if v := view(m); !strings.Contains(v, e.Name+" — "+strings.Fields(e.Description)[0]) {
+		t.Errorf("caption lacks the description:\n%s", v)
+	}
+	m = enter(m)
+	if got := steps[m.stepIndex()]; got != "Pet" {
+		t.Fatalf("Customize is offered for a catalog pack: the form is on %s", got)
+	}
+	m = enter(down(m)) // no pet
+	m = enter(enter(m))
+	c, ok := m.Result()
+	if !ok || c != (claude.Choice{Pack: e.Name, Pet: "off", Bubbles: "on"}) {
+		t.Fatalf("got %+v ok=%v", c, ok)
+	}
+}
+
 func TestPickerShowsEveryPackOnARealTerminal(t *testing.T) {
 	m := resize(start(NewModel(claude.Defaults(), false)), 120, 40)
-	for _, name := range packs.Names() {
+	for _, name := range append(packs.Names(), catalogNames()...) {
 		if !strings.Contains(view(m), name) {
 			t.Errorf("pack %s not listed:\n%s", name, view(m))
 		}

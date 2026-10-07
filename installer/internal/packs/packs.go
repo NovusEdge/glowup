@@ -83,11 +83,19 @@ type Pack struct {
 	Spinner     Spinner  `json:"spinner"`
 }
 
+// CatalogEntry is an official pack the mod downloads on a person's first session. The
+// installer knows only its name and description; the colors arrive with the download.
+type CatalogEntry struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
 type file struct {
-	Packs    []Pack        `json:"packs"`
-	Themes   []Theme       `json:"themes"`
-	Spinners []SpinnerAnim `json:"spinners"`
-	Clawd    Clawd         `json:"clawd"`
+	Packs    []Pack         `json:"packs"`
+	Catalog  []CatalogEntry `json:"catalog"`
+	Themes   []Theme        `json:"themes"`
+	Spinners []SpinnerAnim  `json:"spinners"`
+	Clawd    Clawd          `json:"clawd"`
 }
 
 var data = mustParse(raw)
@@ -117,7 +125,26 @@ func Names() []string {
 	return out
 }
 
-// ByName returns the named pack, or false when there is none.
+// Catalog returns the official packs from docs/web/public/packs.json, in index order.
+func Catalog() []CatalogEntry { return append([]CatalogEntry(nil), data.Catalog...) }
+
+// InCatalog reports whether name is an official catalog pack.
+func InCatalog(name string) bool {
+	for _, e := range data.Catalog {
+		if e.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+// Known reports whether name is a built-in or a catalog pack.
+func Known(name string) bool {
+	_, ok := ByName(name)
+	return ok || InCatalog(name)
+}
+
+// ByName returns the named built-in pack, or false when there is none.
 func ByName(name string) (Pack, bool) {
 	for _, p := range all {
 		if p.Name == name {

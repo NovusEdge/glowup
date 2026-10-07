@@ -7,7 +7,7 @@
   "engines": { "node": ">=24" },
   "scripts": {
     "check": "claude plugin validate --strict . && claude plugin validate --strict .claude-plugin/plugin.json && tsc -p .",
-    "test": "claude plugin test . && node test/pack-skill.check.ts && node test/statusline-script.check.ts"
+    "test": "claude plugin test . && node test/pack-skill.check.ts && node test/statusline-script.check.ts && node test/catalog-index.check.ts"
   },
   "devDependencies": { "typescript": "^7.0.2" }
 }

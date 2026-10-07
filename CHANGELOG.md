@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Official packs: `/glowup pack oxide` installs a pack from glowup.khimani.dev/packs.json on first use. The config pane and the installer list them, and `/glowup pack update` fetches them again without touching files you changed.
+
 ## [0.11.0] - 2026-10-07
 
 ### Added

@@ -10796,5 +10796,15 @@
         }
       ]
     ]
-  }
+  },
+  "catalog": [
+    {
+      "name": "oxide",
+      "description": "bone text and red oxide on warm ink"
+    },
+    {
+      "name": "oxide-paper",
+      "description": "red oxide and ink on bone, with a dithered orb"
+    }
+  ]
 }

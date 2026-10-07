@@ -71,6 +71,29 @@ func TestThemesSpinnersAndClawd(t *testing.T) {
 	}
 }
 
+func TestCatalog(t *testing.T) {
+	if len(Catalog()) == 0 {
+		t.Fatal("the catalog is empty")
+	}
+	for _, e := range Catalog() {
+		if e.Name == "" || e.Description == "" {
+			t.Errorf("incomplete catalog entry %+v", e)
+		}
+		if !InCatalog(e.Name) || !Known(e.Name) {
+			t.Errorf("%s is not found as a catalog pack", e.Name)
+		}
+	}
+	if InCatalog("classic") || InCatalog("nosuch") {
+		t.Error("InCatalog accepts a built-in or an unknown name")
+	}
+	if !Known("classic") || !Known("oxide") || Known("nosuch") {
+		t.Error("Known should accept built-ins and catalog names only")
+	}
+	if slices.Contains(Names(), "oxide") {
+		t.Error("Names() lists a catalog pack")
+	}
+}
+
 func TestAllReturnsACopy(t *testing.T) {
 	a := All()
 	a[0].Name = "changed"

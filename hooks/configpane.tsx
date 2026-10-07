@@ -4,7 +4,7 @@ import { fit, hearts, renderSegs, type Seg } from './layout.tsx'
 import { cycleValue, inputValue, type ConfigState, type CycleId, type InputId, type Role } from './configrows.ts'
 
 export type ConfigNote = { text: string; tone: 'ok' | 'error' }
-export type ConfigHandlers = { cycle(id: CycleId): void; input(id: InputId, text: string): void; done(): void; reset(): void; copyLink(): void }
+export type ConfigHandlers = { cycle(id: CycleId): void; install(name: string): void; input(id: InputId, text: string): void; done(): void; reset(): void; copyLink(): void }
 type Els = { Box: any; Text: any; Button: any; Input?: any; Link?: any }
 
 const LABEL = 11
@@ -57,7 +57,9 @@ export function renderConfig(els: Els, s: ConfigState, look: Look, width: number
   return (
     <Box flexDirection="column" width={width}>
       {title('LOOK')}
-      {cycle('pack', 'Pack', true)}
+      {s.pick
+        ? <Box key="pack-row" flexDirection="row" gap={2}>{cycle('pack', 'Pack', true)}<Button key="install" variant="primary" label="Install" onPress={() => act.install(s.pick!)} /></Box>
+        : cycle('pack', 'Pack', true)}
       {cycle('spinner', 'Spinner')}
       {COLOR_KEYS.map(colorRow)}
       {title('SETUP')}

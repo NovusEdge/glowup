@@ -39,18 +39,26 @@ export async function addPack(host: Host, url: string, force: boolean): Promise<
 
 // The checks every installed pack passes, from a URL or a studio link.
 export async function installPackText(host: Host, text: string, force: boolean): Promise<{ name?: string; message: string }> {
+  const checked = await checkPackText(host, text, force)
+  if ('message' in checked) return checked
+  const { name } = checked
+  await host.writeFile(`${PACK_DIR(host.configDir)}/${name}.json`, text)
+  return { name, message: `Installed pack "${name}". Apply it with /glowup pack ${name}` }
+}
+
+// `themes`: themes downloaded alongside the pack, not on disk yet, that its look may name.
+export async function checkPackText(host: Host, text: string, force: boolean, themes: Record<string, unknown> = {}): Promise<{ name: string } | { message: string }> {
   if (text.length > MAX_BYTES) return { message: 'The pack is over 64 KB.' }
   let file: unknown
   try { file = parseJsonc(text); validatePack(file) } catch (err) { return { message: msg(err) } }
   const name = file.name.toLowerCase()
   const problem = await nameProblem(host, name, force)
   if (problem) return { message: problem }
-  const check = resolveLook({ colors: name, motion: name }, { ...(await loadUserPacks(host)), [name]: file }, await loadUserThemes(host))
+  const check = resolveLook({ colors: name, motion: name }, { ...(await loadUserPacks(host)), [name]: file }, { ...(await loadUserThemes(host)), ...themes })
   // A spinner this build lacks is a warning: the pack was made for a newer glowup and falls back to stock.
   const fatal = check.errors.filter(e => !isNewerSpinner(e))
   if (fatal.length) return { message: fatal[0]! }
-  await host.writeFile(`${PACK_DIR(host.configDir)}/${name}.json`, text)
-  return { name, message: `Installed pack "${name}". Apply it with /glowup pack ${name}` }
+  return { name }
 }
 
 export async function savePack(host: Host, file: PackFile, force = false): Promise<string> {

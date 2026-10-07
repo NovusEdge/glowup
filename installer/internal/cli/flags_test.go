@@ -43,6 +43,16 @@ func TestParseThemeAndSpinner(t *testing.T) {
 	}
 }
 
+func TestParseCatalogPack(t *testing.T) {
+	if o, err := Parse([]string{"--yes", "--pack", "oxide"}, io.Discard); err != nil || o.Choice.Pack != "oxide" {
+		t.Fatalf("a catalog pack is refused: %+v, %v", o, err)
+	}
+	var out strings.Builder
+	if _, err := Parse([]string{"--pack", "nosuch"}, &out); err == nil || !strings.Contains(out.String(), "classic, crt, cozy, arcade, oxide") {
+		t.Fatalf("the refusal should list built-in and catalog names: %v, %q", err, out.String())
+	}
+}
+
 func TestParseRejects(t *testing.T) {
 	for _, c := range []struct {
 		args []string

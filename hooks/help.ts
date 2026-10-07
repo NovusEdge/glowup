@@ -22,6 +22,7 @@ export const SECTIONS: readonly (readonly [title: string, rows: HelpRow[]])[] = 
   ['Look', [
     ['/glowup pack <name>', 'switch the whole look'],
     ['/glowup pack list', 'packs you have'],
+    ['/glowup pack update [name]', 'fetch official packs again'],
     ['/glowup spinner <name|list|default>', 'just the spinner'],
     ['/glowup theme <name|list|default>', 'just the colors'],
     ['/glowup color <role> <#hex>', 'override one color, kept across packs'],
