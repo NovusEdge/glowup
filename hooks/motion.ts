@@ -1,14 +1,17 @@
 // JSX-free: the docs site and Client modules import it.
+import { cellWidth } from './cells.ts'
 import { gradient, mix, wave, wave3, type Span } from './color.ts'
 
 export type Cell = { ch: string; fg: string; bg?: string }
 export type OrbState = 'think' | 'search' | 'work' | 'run' | 'agents'
-export type SpinnerId = 'stock' | 'comet' | 'eyes' | 'orb-states' | 'clawd' | 'shimmer'
+export type SpinnerId = 'stock' | 'comet' | 'eyes' | 'orb-states' | 'clawd' | 'shimmer' | 'scanline' | 'ring' | 'glitch' | 'signal'
 type Canvas = { w: number; h: number; d: number[] }
 type Spec = { name: string; cols: number; rows: number } & (
   | { kind: 'glyph'; frames: string }
   | { kind: 'dots' | 'half'; draw: (cv: Canvas, t: number, st: OrbState) => void; useFg?: boolean }
-  | { kind: 'art'; art: string[][] })
+  | { kind: 'art'; art: string[][] }
+  | { kind: 'scan' })
+type CellOpts = { color: string; bg: string; fg: string; wordLen?: number }
 
 const CLAWD = '#d77757'
 const canvas = (w: number, h: number): Canvas => ({ w, h, d: new Array<number>(w * h).fill(0) })
@@ -103,6 +106,53 @@ function eyes(cv: Canvas, t: number) {
   }
 }
 
+// One sweep crosses the bar, the one-cell gap the spinner leaves before the word, the word and a
+// pause. spinnerWordSpans lights the word from the same position, so both must use this.
+export const SCAN_BAR = 10
+const SCAN_MS = 45, SCAN_PAUSE = 6
+export function scanPos(tMs: number, wordLen: number, st: OrbState): number {
+  const speed = st === 'run' || st === 'agents' ? 1.5 : 1
+  return ((Math.max(0, tMs || 0) * speed) / SCAN_MS) % (SCAN_BAR + 1 + wordLen + SCAN_PAUSE)
+}
+
+const isLight = (hex: string) => {
+  const n = parseInt(hex.slice(1), 16)
+  return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 140
+}
+
+function scanCells(tMs: number, st: OrbState, o: CellOpts): Cell[][] {
+  const pos = scanPos(tMs, o.wordLen ?? 12, st), shift = Math.floor(tMs / 400)
+  // Toward white reads on a dark pack; on a light one it fades into the background, so text itself.
+  const hi = isLight(o.bg) ? o.fg : mix(o.fg, '#ffffff', 0.5), faint = mix(o.bg, o.color, 0.25)
+  return [Array.from({ length: SCAN_BAR }, (_, i) => {
+    const d = pos - i
+    if (d >= 0 && d < 1) return { ch: '█', fg: hi }
+    return { ch: (i + shift) % 2 ? '▚' : '▞', fg: d >= 1 && d < 3 ? o.color : faint }
+  })]
+}
+
+function ringDraw(cv: Canvas, t: number, st: OrbState) {
+  const cx = (cv.w - 1) / 2, cy = (cv.h - 1) / 2
+  const speed = st === 'work' || st === 'run' ? 1.5 : 1
+  const [arcs, n] = st === 'agents' ? [[0, 2.094, 4.189], 3] : [[0], 9]
+  for (const off of arcs) for (let i = 0; i < n; i++) {
+    const a = t * Math.PI * speed + off - i * 0.55
+    plot(cv, cx + Math.cos(a) * 5.2, cy + Math.sin(a) * 3.2, 1 - i / n)
+  }
+}
+
+function signalDraw(cv: Canvas, t: number, st: OrbState) {
+  const amp = st === 'think' ? 0.55 : st === 'run' ? 1 : 0.8
+  const trace = (a: number, off: number, v: (x: number) => number) => {
+    for (let x = 0; x < cv.w; x++) {
+      const p = t / 0.16 + x * 0.55 + off
+      plot(cv, x, 3.5 + a * 3.4 * (0.65 * Math.sin(p) + 0.35 * Math.sin(p * 2.7 + 1)), v(x))
+    }
+  }
+  trace(amp, 0, x => (x >= cv.w - 3 ? 1 : 0.7))
+  if (st === 'agents') trace(amp / 2, Math.PI, () => 0.45)
+}
+
 export const SPINNERS: Record<SpinnerId, Spec> = {
   stock: { name: 'stock ✻ cycle', cols: 1, rows: 1, kind: 'glyph', frames: '·✢✳✶✻✽' },
   comet: { name: 'comet', cols: 3, rows: 2, kind: 'dots', draw: (cv, t) => {
@@ -114,13 +164,18 @@ export const SPINNERS: Record<SpinnerId, Spec> = {
   'orb-states': { name: 'orb states', cols: 4, rows: 2, kind: 'dots', draw: orbDraw },
   clawd: { name: 'Clawd', cols: 5, rows: 2, kind: 'art', art: [['▐▛█▜▌', '▝▛█▜▘'], ['▐▛█▜▌', '▝▜█▛▘'], ['▐▛█▜▌', '▝▛█▜▘'], ['▐▛█▜▌', '▗▛█▜▖']] },
   shimmer: { name: 'text shimmer wave', cols: 1, rows: 1, kind: 'glyph', frames: '✻' },
+  scanline: { name: 'scanline sweep', cols: SCAN_BAR, rows: 1, kind: 'scan' },
+  ring: { name: 'angel ring', cols: 6, rows: 2, kind: 'dots', draw: ringDraw },
+  glitch: { name: 'glitch word', cols: 1, rows: 1, kind: 'glyph', frames: '◆' },
+  signal: { name: 'signal trace', cols: 10, rows: 2, kind: 'dots', draw: signalDraw },
 }
 
-export function spinnerCells(id: SpinnerId, tMs: number, o: { color: string; bg: string; fg: string }, st: OrbState = 'think'): Cell[][] {
+export function spinnerCells(id: SpinnerId, tMs: number, o: CellOpts, st: OrbState = 'think'): Cell[][] {
   tMs = Math.max(0, tMs || 0)
   const s = SPINNERS[id]
   if (s.kind === 'glyph') { const f = [...s.frames]; return [[{ ch: f[Math.floor(tMs / 120) % f.length]!, fg: o.color }]] }
   if (s.kind === 'art') return s.art[Math.floor(tMs / 220) % s.art.length]!.map(r => [...r].map(ch => ({ ch, fg: CLAWD })))
+  if (s.kind === 'scan') return scanCells(tMs, st, o)
   if (s.kind === 'dots') { const cv = canvas(s.cols * 2, s.rows * 4); s.draw(cv, tMs / 1000, st); return dotCells(cv, s.cols, s.rows, o.color, o.bg) }
   const cv = canvas(s.cols, s.rows * 2); s.draw(cv, tMs / 1000, st)
   return halfCells(cv, s.cols, s.rows, s.useFg ? o.fg : o.color, o.bg)
@@ -139,13 +194,54 @@ export type WordLook = {
   bg: string
   gradient?: [string, string]
   motion: { spinner: SpinnerId; shimmer: number; color: string }
-  theme: { colors: { text: string; accent: string } }
+  theme: { colors: { text: string; accent: string; read?: string; agent?: string } }
 }
 
-export function spinnerWordSpans(look: WordLook, text: string, now: number): Span[] {
+// One span per run of equal style: each span is an element the surface diffs every frame.
+function runs(spans: Span[]): Span[] {
+  const out: Span[] = []
+  for (const s of spans) {
+    const last = out.at(-1)
+    if (last && last.color === s.color && last.bg === s.bg && !!last.bold === !!s.bold) last.text += s.text
+    else out.push({ ...s })
+  }
+  return out
+}
+
+function scanWord(look: WordLook, text: string, t: number, st: OrbState): Span[] {
+  const chars = [...text], pos = scanPos(t, chars.length, st), c = look.theme.colors
+  return runs(chars.map((ch, i) => {
+    const d = pos - (SCAN_BAR + 1 + i)
+    return d >= 0 && d < 2 ? { text: ch, color: look.bg, bg: c.accent, bold: true } : { text: ch, color: c.text, bold: true }
+  }))
+}
+
+// Seeded by the 70 ms frame, so every redraw within a frame draws the same glitch. A tear repeats
+// the first letter in front and drops the trailing space: the line never changes width. Only
+// width-1 letters become blocks or get torn; wide and zero-width ones take the background variant.
+function glitchWord(look: WordLook, text: string, t: number, st: OrbState): Span[] {
+  const c = look.theme.colors, a = c.read ?? c.accent, b = c.agent ?? c.text
+  let seed = (Math.floor(Math.max(0, t || 0) / 70) * 9301 + 49297) % 233280
+  const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280
+  const k = st === 'run' || st === 'agents' ? 2 : 1, chars = [...text], out: Span[] = []
+  const tear = rnd() < 0.12 && chars[0] !== undefined && cellWidth(chars[0].codePointAt(0)!) === 1
+  if (tear) out.push({ text: chars[0]!, color: b })
+  for (const ch of chars) {
+    const r = rnd(), pick = rnd() < 0.5 ? a : b, block = '▓▒░█▚'[Math.floor(rnd() * 5)]!
+    if (r < 0.10 * k && cellWidth(ch.codePointAt(0)!) === 1) out.push({ text: block, color: pick })
+    else if (r < 0.16 * k) out.push({ text: ch, color: look.bg, bg: pick })
+    else out.push({ text: ch, color: c.text, bold: true })
+  }
+  if (!tear) out.push({ text: ' ', color: c.text })
+  return runs(out)
+}
+
+export function spinnerWordSpans(look: WordLook, text: string, now: number, at?: { t: number; st: OrbState }): Span[] {
   const { spinner, shimmer, color } = look.motion
   const c = look.theme.colors
   const [c1, c2] = look.gradient ?? [c.accent, c.text]
+  if (spinner === 'scanline') return scanWord(look, text, at?.t ?? now, at?.st ?? 'think')
+  if (spinner === 'glitch') return glitchWord(look, text, at?.t ?? now, at?.st ?? 'think')
   if (spinner === 'shimmer') return wave3(text, mix(color, look.bg, 0.45), mix(color, '#ffffff', 0.6), now, Math.max(1, shimmer))
   if (shimmer > 0) return wave(text, c1, c2, now, shimmer * 1.2).map(s => ({ ...s, bold: true }))
   if (look.gradient) return gradient(text, c1, c2).map(s => ({ ...s, bold: true }))

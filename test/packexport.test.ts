@@ -2,6 +2,7 @@ import { test, expect } from 'claude-code/testing'
 import { PRESETS } from '../hooks/themes.ts'
 import { SPINNER_IDS } from '../hooks/packs.ts'
 import { CLAWD_SHEET, PET_ROWS } from '../hooks/pets.ts'
+import { spinnerCells, type Cell } from '../hooks/motion.ts'
 import { packExport, packsJson, exportAll, themeExport, spinnerExport, clawdExport } from '../hooks/packexport.ts'
 
 test('exports the four built-in packs in preset order', async () => {
@@ -56,6 +57,23 @@ test('every spinner is exported with frames in white on black', async () => {
   expect(sp.find(s => s.id === 'stock')!.frames.map(f => f[0]![0]!.ch).join('')).toBe('·✢✳✶✻✽')
   // Clawd's spinner keeps his own orange
   expect(sp.find(s => s.id === 'clawd')!.frames[0]![0]![0]!.fg).toBe('#d77757')
+})
+
+// The cycle the preview loops is the spinner's real period: moving a whole cycle on changes at
+// most a few cells (rounding ms to an integer and float edges cost a cell or two). The scanline's
+// background checker flips every 400 ms regardless, so only its sweep head is compared.
+test('the looping spinners export one whole period, so the preview wraps without a jump', async () => {
+  const mono = { color: '#ffffff', bg: '#000000', fg: '#ffffff' }
+  const head = (f: Cell[][]) => f[0]!.findIndex(c => c.ch === '█')
+  const diff = (a: Cell[][], b: Cell[][]) => a.flat().filter((c, i) => c.ch !== b.flat()[i]!.ch).length
+  for (const s of spinnerExport().filter(s => ['scanline', 'ring', 'signal'].includes(s.id))) {
+    const cycle = s.ms * s.frames.length
+    const ts = Array.from({ length: 40 }, (_, i) => i * 97)
+    const off = ts.map(t => s.id === 'scanline'
+      ? Math.abs(head(spinnerCells('scanline', t, mono)) - head(spinnerCells('scanline', t + cycle, mono)))
+      : diff(spinnerCells(s.id, t, mono), spinnerCells(s.id, t + cycle, mono)))
+    expect([s.id, off.reduce((a, b) => a + b, 0) / ts.length < 1.5]).toEqual([s.id, true])
+  }
 })
 
 test('Clawd is exported as his idle half-block rows in his own palette', async () => {

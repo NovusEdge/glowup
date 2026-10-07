@@ -64,7 +64,7 @@ Each refusal prints a message naming the failed check. Adding a theme whose name
 
 | Command | What it does |
 | --- | --- |
-| `/glowup spinner <name>` | Use one spinner (`stock`, `comet`, `eyes`, `orb-states`, `clawd` or `shimmer`) on top of the current pack. Prints `Spinner: <name>`. An unknown name lists the valid ones. |
+| `/glowup spinner <name>` | Use one spinner (`stock`, `comet`, `eyes`, `orb-states`, `clawd`, `shimmer`, `scanline`, `ring`, `glitch` or `signal`) on top of the current pack. Prints `Spinner: <name>`. An unknown name lists the valid ones. |
 | `/glowup spinner list` | List the spinners. A filled dot marks the one showing now, whether it is your override or the pack's own. |
 | `/glowup spinner default` | Drop the override and go back to the pack's spinner. Prints `Spinner: pack default`. |
 

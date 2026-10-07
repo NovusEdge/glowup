@@ -6,7 +6,7 @@ import { usePack } from './PackContext.tsx'
 import { SpinnerCanvas } from './SpinnerCanvas.tsx'
 
 const STATES: OrbState[] = ['think', 'search', 'work', 'run', 'agents']
-const IDS = (Object.keys(SPINNERS) as SpinnerId[]).filter(id => id !== 'shimmer')
+const IDS = (Object.keys(SPINNERS) as SpinnerId[]).filter(id => id !== 'shimmer' && id !== 'glitch')
 
 export function SpinnersSection() {
   const { look } = usePack()

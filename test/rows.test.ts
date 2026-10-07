@@ -179,7 +179,7 @@ test('prefixCards leaves message rows as they are without it', async () => {
 
 test('non-classic styles indent every row one column, classic does not', async () => {
   const rows: RowInput[] = [user(), user({ own: false }), asst(), asst(false), tool(), tool({ isErrored: true }), { site: 'ToolResult' }]
-  for (const style of ['cards', 'minimal', 'retro'] as const) {
+  for (const style of ['cards', 'minimal', 'retro', 'slab'] as const) {
     const l: Look = { ...look('arcade'), rows: style }
     for (const r of rows) {
       const s = styleRow(els, l, r, ENGINE) as any
@@ -226,7 +226,7 @@ function beside(n: any): number {
 
 test('width budget: ToolResult and UserMessage rows add at most 4 columns beside the engine', async () => {
   for (const name of ['cozy', 'arcade', 'crt']) {
-    for (const rows of ['cards', 'retro', 'minimal'] as const) {
+    for (const rows of ['cards', 'retro', 'minimal', 'slab'] as const) {
       const l: Look = { ...look(name), rows }
       for (const r of [user(), asst(), asst(false), { site: 'ToolResult' } as RowInput]) {
         const s = styleRow(els, l, r, ENGINE)
@@ -264,4 +264,66 @@ test('tool header marks and tags never shrink or wrap; the engine box gives up w
   expect(c.props.marginLeft).toBeUndefined()
   const tag = walk(styleRow(els, look('crt'), tool(), ENGINE)).find(x => x.type === 'Box' && x.props?.flexShrink === 0 && text(x).startsWith('[READ'))
   expect(tag).toBeDefined()
+})
+
+const slab = (): Look => ({ ...look('classic'), rows: 'slab' })
+
+test('slab: your prompt is an accent bar with its own text and the turn number', async () => {
+  const l = slab(), c = l.theme.colors
+  const u = inner(styleRow(els, l, { ...user(), turn: 3 } as RowInput, ENGINE))
+  expect(hasEngine(u)).toBe(false)
+  expect(walk(u).some(x => x.props?.backgroundColor === c.accent)).toBe(true)
+  expect(text(u)).toContain('fix the test')
+  expect(text(u)).toContain('PROMPT 03')
+  const prompt = walk(u).find(x => x.type === 'Text' && text(x).includes('fix the test'))
+  expect(prompt.props.color).toBe(l.bg)
+  expect(text(prompt)).toBe('fix the test')
+  expect(walk(u).find(x => x.type === 'Box' && x.children?.includes(prompt)).props.paddingX).toBe(1)
+})
+
+test('slab: a long prompt keeps all its text and is never truncated', async () => {
+  const long = 'make the slab bar wrap '.repeat(20).trim()
+  const u = styleRow(els, slab(), { ...user({ text: long }), turn: 1 } as RowInput, ENGINE)
+  expect(text(u)).toContain(long)
+  expect(walk(u).some(x => x.props?.wrap === 'truncate' && text(x).includes('make the slab'))).toBe(false)
+})
+
+test('slab: an expanded or foreign prompt stays the engine row', async () => {
+  for (const r of [user({ isExpanded: true }), user({ own: false })]) expect(inner(styleRow(els, slab(), r, ENGINE))).toBe(ENGINE)
+})
+
+test('slab: tool rows carry the number, the upper-case tool in its role color, the engine line and the mark', async () => {
+  const l = slab(), c = l.theme.colors
+  const cases: [Partial<Extract<RowInput, { site: 'ToolUse' }>>, string, string][] = [
+    [{}, 'OK', c.pass],
+    [{ isErrored: true }, 'FAIL', c.fail],
+    [{ isInterrupted: true }, 'STOP', c.dim],
+    [{ isRunning: true }, '…', c.dim],
+  ]
+  for (const [o, mark, color] of cases) {
+    const r = styleRow(els, l, { ...tool(o), seq: 2 } as RowInput, ENGINE)
+    expect(hasEngine(r)).toBe(true)
+    expect(text(r)).toContain('02')
+    expect(text(r)).toContain('READ')
+    expect(walk(r).find(x => x.type === 'Text' && text(x) === 'READ  ')?.props.color).toBe(c.read)
+    expect(walk(r).find(x => x.type === 'Text' && text(x).trim() === mark)?.props.color).toBe(color)
+  }
+  const bash = styleRow(els, l, { ...tool({ tool: 'Bash', input: { command: 'pnpm test' } }), seq: 1 } as RowInput, ENGINE)
+  expect(walk(bash).find(x => x.type === 'Text' && text(x) === 'BASH  ')?.props.color).toBe(c.shell)
+})
+
+test('slab: tool results sit indented under their call', async () => {
+  const r = inner(styleRow(els, slab(), { site: 'ToolResult' }, ENGINE)) as any
+  expect(r.props.paddingLeft).toBe(3)
+  expect(hasEngine(r)).toBe(true)
+})
+
+test('slab: the first block of a reply gets an accent rule on its margin line, later blocks nothing', async () => {
+  const l = slab()
+  const first = styleRow(els, l, asst(true), ENGINE)
+  const rule = walk(first).find(x => x.props?.position === 'absolute')
+  expect([rule.props.top, rule.props.left]).toEqual([0, 0])
+  expect(text(rule)).toBe('────────')
+  expect(hasEngine(first)).toBe(true)
+  expect(inner(styleRow(els, l, asst(false), ENGINE))).toBe(ENGINE)
 })

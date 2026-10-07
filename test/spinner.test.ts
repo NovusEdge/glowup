@@ -1,7 +1,7 @@
 import { test, expect } from 'claude-code/testing'
 import { orbStateOf, usesOwnSpinner, spinnerLine, spinnerProps, checkedSpinnerProps, elapsed } from '../hooks/spinner.ts'
 import SpinnerClient from '../hooks/client/spinner.tsx'
-import { SPINNERS } from '../hooks/motion.ts'
+import { SPINNERS, SCAN_BAR } from '../hooks/motion.ts'
 import { SPINNER_IDS, resolveLook, stockMotion } from '../hooks/packs.ts'
 import { initialModel, applyEvent } from '../hooks/model.ts'
 
@@ -102,4 +102,13 @@ test('client props carry only what the line reads', async () => {
   const p = spinnerProps(look('arcade'), IN, false)
   expect(JSON.stringify(p).length).toBeLessThan(1000)
   expect(spinnerLine(p.look, p.input, 777)).toEqual(spinnerLine(look('arcade'), IN, 777))
+})
+
+test('spinnerLine hands the word effect the same clock as the badge', async () => {
+  const l = look('classic')
+  const scan = { ...l, motion: { ...l.motion, spinner: 'scanline' as const } }
+  const props = spinnerProps(scan, { word: 'Thinking', turnAt: 1000, detail: '', state: 'think' }, false)
+  const line = spinnerLine(props.look, props.input, 1000 + (SCAN_BAR + 1) * 45)
+  expect(line.word[0]!.bg).toBe(props.look.theme.colors.accent)
+  expect(line.badge[0]!.some(s => s.text.includes('█'))).toBe(false)
 })

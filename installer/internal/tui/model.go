@@ -18,9 +18,9 @@ import (
 const (
 	FormWidth = 30
 	// FormRows is the height the form column is padded to. The groups differ in height
-	// (four packs, seven themes) and bubbletea's inline renderer strands a line each
-	// time the view gets shorter, so the form never draws less than this.
-	FormRows = 14
+	// (four packs, seven themes, eleven spinner options) and bubbletea's inline renderer
+	// strands a line each time the view gets shorter, so the form never draws less than this.
+	FormRows = 16
 
 	// With room for all three columns Clawd and his bubble stand left of the form.
 	// Below it the form and preview sit side by side, and below that the preview

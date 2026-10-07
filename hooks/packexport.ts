@@ -30,7 +30,12 @@ export type ClawdExport = { cols: number; rows: PetSpan[][] }
 export type Export = { packs: PackExport[]; themes: ThemeExport[]; spinners: SpinnerExport[]; clawd: ClawdExport }
 
 const FRAME_MS: Record<string, number> = { stock: 120, clawd: 220 }
-const FRAMES: Record<string, number> = { stock: 6, clawd: 4 }
+const FRAMES: Record<string, number> = { stock: 6, clawd: 4, scanline: 29, ring: 16, signal: 67 }
+// Spinners whose motion repeats on its own period get their frames spread over exactly that period,
+// so the preview wraps without a jump. scanline: bar 10 + gap 1 + the default 12-letter word + pause 6
+// cells at 45 ms. ring: one turn. signal: 10 base cycles of 160*2pi ms, the first time its 2.7x
+// harmonic lines up again; 67 frames land on a whole 150 ms, so ms * frames stays within 3 ms of it.
+const PERIOD_MS: Record<string, number> = { scanline: 29 * 45, ring: 2000, signal: 3200 * Math.PI }
 const MONO = { color: '#ffffff', bg: '#000000', fg: '#ffffff' }
 
 export function packExport(): PackExport[] {
@@ -60,9 +65,10 @@ export const themeExport = (): ThemeExport[] => Object.keys(PRESETS).map(name =>
 })
 
 export const spinnerExport = (): SpinnerExport[] => SPINNER_IDS.map(id => {
-  const ms = FRAME_MS[id] ?? 150
+  const n = FRAMES[id] ?? 12, period = PERIOD_MS[id]
+  const step = period === undefined ? FRAME_MS[id] ?? 150 : period / n
   const s = SPINNERS[id]
-  return { id, name: s.name, ms, text: 'useFg' in s && s.useFg === true, frames: Array.from({ length: FRAMES[id] ?? 12 }, (_, i) => spinnerCells(id, i * ms, MONO)) }
+  return { id, name: s.name, ms: Math.round(step), text: 'useFg' in s && s.useFg === true, frames: Array.from({ length: n }, (_, i) => spinnerCells(id, i * step, MONO)) }
 })
 
 // The idle pose's first frame, as the band draws it: no outfit, not mirrored.

@@ -19,7 +19,7 @@ Packs are read from `~/.claude/glowup/packs`, or `$CLAUDE_CONFIG_DIR/glowup/pack
     "theme": "classic",             // a theme to start the palette from
     "palette": { "accent": "#ff3ec8", "text": "#f0e6ff" },
     "bg": "#1a0b33",                // what braille and half-block fades blend toward
-    "rows": "cards",                // classic | cards | minimal | retro
+    "rows": "cards",                // classic | cards | minimal | retro | slab
     "border": "bold",               // round | single | double | bold | classic
     "borderColor": "#ff3ec8",
     "gradient": ["#ff3ec8", "#38e8ff"],
@@ -33,7 +33,7 @@ Packs are read from `~/.claude/glowup/packs`, or `$CLAUDE_CONFIG_DIR/glowup/pack
     "pet": { "body": "#7aa2f7", "light": "#a9c1ff", "shade": "#4a6fc4" } // Clawd's colors
   },
   "motion": {
-    "spinner": "orb-states",        // stock | comet | eyes | orb-states | clawd | shimmer
+    "spinner": "orb-states",        // stock | comet | eyes | orb-states | clawd | shimmer | scanline | ring | glitch | signal
     "shimmer": 2,                   // 0 none, 1 soft, 2 fast
     "color": "#38e8ff",             // defaults to the palette's accent
     "field": { "shape": "simplex", "speed": 0.3, "scale": 0.36, "dither": "4x4" }
@@ -82,6 +82,7 @@ Styles wrap or prefix a transcript row; the content Claude Code draws inside it 
 | `cards` | An accent side bar `▎` and a `you` label | A dim side bar, and a `claude` label on the first block of a reply | A dim bordered card with a mark: `✓`, `✗`, `■` for interrupted, `…` while running |
 | `minimal` | A `› text` line | Claude Code's | A dim one-line `· Read src/auth.ts` once it finishes cleanly |
 | `retro` | A `[YOU]` tag on its own line above your prompt | A `[CLAUDE]` tag on the first block | A `[READ  ]`-style tag, then `[ OK ]`, `[FAIL]`, `[STOP]` or `[....]` |
+| `slab` | A full-width bar in `accent` with your prompt in the background color and `PROMPT 03` on the right | An 8-cell `─` rule in `accent` above the first block | `01  READ   ` before the row, then `OK`, `FAIL`, `STOP` or `…` on the right; results indented under their call |
 
 Not styled: notifications, messages from other agents, prompts expanded with ctrl+o or `--verbose`, the folded "Read 3 files" line, and tool progress. Outside fullscreen, rows already in scrollback keep the style they were printed with.
 
@@ -132,6 +133,10 @@ A [renderer plugin](packs.md#drawing-with-a-plugin) that answers for the pack dr
 | `orb-states` | 4×2 | A braille orb whose motion follows the activity: thinking, searching, working, running, agents. |
 | `clawd` | 5×2 | Clawd waving, in his own color. |
 | `shimmer` | 1×1 | A still `✻` with a shimmering word. |
+| `scanline` | 10×1 | A bright sweep across a bar, and the spinner word lights as it passes. |
+| `ring` | 6×2 | A bright braille arc with a fading tail circling an oval. |
+| `glitch` | 1×1 | A still `◆` with a glitching word. |
+| `signal` | 10×2 | A braille wave trace that scrolls and is brightest at its right edge. |
 
 The shimmer is a wave of color across the spinner word, between the gradient's two colors, or the accent and text colors when there is no gradient. `1` is soft and `2` is fast.
 

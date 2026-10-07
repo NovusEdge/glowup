@@ -24,7 +24,7 @@ A pack is a JSON file at `~/.claude/glowup/packs/<name>.json` (`$CLAUDE_CONFIG_D
 | `theme` | a theme name | Start the palette from this theme: `classic`, `glowup`, `aurora`, `dusk`, `cyberpunk`, `vaporwave`, `high-contrast`, or a file in `~/.claude/glowup/themes`. Default `classic`. |
 | `palette` | object of theme color keys | Colors that replace the theme's. Keys are listed under Theme colors. Set only what differs. |
 | `bg` | `#rrggbb` | The terminal background glowup fades toward. Match the user's terminal background. Default: the palette's `panel`. |
-| `rows` | `classic`, `cards`, `minimal`, `retro` | Transcript row style. `classic` leaves rows alone, `cards` draws side bars and bordered tool cards, `minimal` is quiet one-liners, `retro` uses `[TAG]` labels. Default `classic`. |
+| `rows` | `classic`, `cards`, `minimal`, `retro`, `slab` | Transcript row style. `classic` leaves rows alone, `cards` draws side bars and bordered tool cards, `minimal` is quiet one-liners, `retro` uses `[TAG]` labels, `slab` draws your prompt as an accent bar numbered by turn and numbers each tool call. Default `classic`. |
 | `border` | `round`, `single`, `double`, `bold`, `classic` | Border shape around cards. Also the shape of the status box and of the pane's section boxes. Default `round`. |
 | `borderColor` | `#rrggbb` | Border color. Default: the palette's `faint`. |
 | `gradient` | array of exactly two `#rrggbb` | Start and end color of the card gradient and spinner shimmer. Default: none. |
@@ -48,7 +48,7 @@ A pack is a JSON file at `~/.claude/glowup/packs/<name>.json` (`$CLAUDE_CONFIG_D
 
 | Field | Values | Meaning |
 | --- | --- | --- |
-| `spinner` | `stock`, `comet`, `eyes`, `orb-states`, `clawd`, `shimmer` | The spinner. `stock` is Claude Code's own. Use only these: an id glowup lacks falls back to `stock` with a notice. Default `stock`. |
+| `spinner` | `stock`, `comet`, `eyes`, `orb-states`, `clawd`, `shimmer`, `scanline`, `ring`, `glitch`, `signal` | The spinner. `stock` is Claude Code's own. Use only these: an id glowup lacks falls back to `stock` with a notice. Default `stock`. `scanline` and `glitch` also light or glitch the spinner word. |
 | `shimmer` | `0`, `1`, `2` | Shimmer across the spinner word: none, soft, fast. Default `1`. |
 | `color` | `#rrggbb` | Spinner color. Default: the palette's `accent`. |
 | `field` | `none`, `warp`, `simplex`, or an object | An animated texture in the docked pane's open rows, between the tab and the status box, dithered into braille dots of one color, the palette's `faint` unless `field.color` sets it. `simplex` is Paper's dithering shader's simplex shape, and Paper settings for it carry over as they are, except `size`; `warp` is noise folded through itself. A name uses the default knobs; an object takes a `shape` and any of the knobs below. It holds still under reduced motion. Default `none`. |
