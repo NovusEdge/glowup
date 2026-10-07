@@ -1,4 +1,5 @@
 // JSX-free: the docs site and Client modules import it.
+import { cellWidth } from './cells.ts'
 import { gradient, mix, wave, wave3, type Span } from './color.ts'
 
 export type Cell = { ch: string; fg: string; bg?: string }
@@ -216,17 +217,18 @@ function scanWord(look: WordLook, text: string, t: number, st: OrbState): Span[]
 }
 
 // Seeded by the 70 ms frame, so every redraw within a frame draws the same glitch. A tear repeats
-// the first letter in front and drops the trailing space: the line never changes length.
+// the first letter in front and drops the trailing space: the line never changes width. Only
+// width-1 letters become blocks or get torn; wide and zero-width ones take the background variant.
 function glitchWord(look: WordLook, text: string, t: number, st: OrbState): Span[] {
   const c = look.theme.colors, a = c.read ?? c.accent, b = c.agent ?? c.text
   let seed = (Math.floor(Math.max(0, t || 0) / 70) * 9301 + 49297) % 233280
   const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280
   const k = st === 'run' || st === 'agents' ? 2 : 1, chars = [...text], out: Span[] = []
-  const tear = rnd() < 0.12
-  if (tear) out.push({ text: chars[0] ?? ' ', color: b })
+  const tear = rnd() < 0.12 && chars[0] !== undefined && cellWidth(chars[0].codePointAt(0)!) === 1
+  if (tear) out.push({ text: chars[0]!, color: b })
   for (const ch of chars) {
     const r = rnd(), pick = rnd() < 0.5 ? a : b, block = '▓▒░█▚'[Math.floor(rnd() * 5)]!
-    if (r < 0.10 * k) out.push({ text: block, color: pick })
+    if (r < 0.10 * k && cellWidth(ch.codePointAt(0)!) === 1) out.push({ text: block, color: pick })
     else if (r < 0.16 * k) out.push({ text: ch, color: look.bg, bg: pick })
     else out.push({ text: ch, color: c.text, bold: true })
   }

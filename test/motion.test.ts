@@ -159,6 +159,15 @@ test('glitch word: never changes the line length and keeps letters in place', as
   expect(swapped).toBeGreaterThan(0)
 })
 
+test('glitch word: the line keeps its cell width with wide and zero-width letters', async () => {
+  const width = (spans: { text: string }[]) => [...joined(spans)].reduce((s, ch) => s + cellWidth(ch.codePointAt(0)!), 0)
+  for (const word of ['Thé漢字ing…', '漢字Thinking']) {
+    const widths = new Set<number>()
+    for (let f = 0; f < 400; f++) widths.add(width(spinnerWordSpans(WL('glitch'), word, 0, { t: f * 70, st: 'run' })))
+    expect([word, [...widths]]).toEqual([word, [width([{ text: word + ' ' }])]])
+  }
+})
+
 test('glitch word: a frame is the same on every redraw within its 70 ms', async () => {
   const at = (t: number) => JSON.stringify(spinnerWordSpans(WL('glitch'), 'Thinking…', 0, { t, st: 'think' }))
   expect(at(140)).toBe(at(209))
