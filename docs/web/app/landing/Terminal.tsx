@@ -9,7 +9,7 @@ import { finalState, runScript, type FileStat, type Kind, type Row, type TermSta
 import './terminal.css'
 
 const ORB: Record<Kind | 'fail' | 'pass', OrbState> = { read: 'search', agent: 'agents', edit: 'work', shell: 'run', fail: 'think', pass: 'think' }
-const TAB_LABEL: Record<TabId, string> = { changes: 'Changes', agents: 'Agents', plan: 'Plan & context' }
+const TAB_LABEL: Record<TabId, string> = { changes: 'Changes', diff: 'Diff', agents: 'Agents', plan: 'Plan & context' }
 // The landing keeps these fixed; only the studio (interactive) swaps in the draft theme's.
 const FIXED = { glyphs: { read: '▸', search: '▸', edit: '✎', shell: '$', agent: '◆', plan: '◉' }, hearts: ['♥', '♡'], word: 'Thinking…' }
 type Marks = { glyphs: Record<'read' | 'search' | 'edit' | 'shell' | 'agent' | 'plan', string>; hearts: readonly [string, string] | string[]; word: string }
@@ -97,6 +97,17 @@ function statusText(s: TermState, fields: readonly StatusFieldId[], meter: Setup
     costUsd: 0.42, modelName: 'claude-opus-5-5', effort: 'high', root: '/home/me/shop', branch: 'main',
   }
   return renderFields(m, look.theme, fields, { now: NOW, tzOffset: 0, color: 'plain', meter })
+}
+
+// The hunks the transcript has shown so far, drawn in the pane with the same added and removed bands.
+function DiffView({ s }: { s: TermState }) {
+  const hunks = s.rows.flatMap(r => (r.t === 'diff' ? [r] : []))
+  return (
+    <>
+      <div className="phead">DIFF<span className="tot">{s.files.length ? `${s.files.length} files` : ''}</span></div>
+      {hunks.map((r, i) => <div key={i} className="diff">{r.lines.map(([t, x], j) => <div key={j} className={`dl ${t}`}>{t === 'add' ? '+' : '-'} {x}</div>)}</div>)}
+    </>
+  )
 }
 
 function AgentsView({ s, m }: { s: TermState; m: Marks }) {
@@ -201,7 +212,7 @@ export function Terminal({ setup = DEFAULT_SETUP, interactive = false, scale = 1
                   ))}
                 </div>
               </>
-            ) : active === 'agents' ? <AgentsView s={state} m={marks} /> : <PlanView s={state} meter={setup.meter} m={marks} />}
+            ) : active === 'agents' ? <AgentsView s={state} m={marks} /> : active === 'diff' ? <DiffView s={state} /> : <PlanView s={state} meter={setup.meter} m={marks} />}
           </div>
           <div className="pcard">
             <span className={`st${state.status.tone === 'work' ? ' wk' : state.status.tone === 'bad' ? ' bad' : ''}`}>{state.status.text}</span>

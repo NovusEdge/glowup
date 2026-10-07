@@ -27,9 +27,10 @@ glowup draws around Claude Code's transcript and prompt without moving them.
 
 ### The pane
 
-The pane has three tabs, each drawn as a box in your pack's border style.
+The pane has four tabs, opening on Plan & context, each drawn as a box in your pack's border style.
 
-- **Changes** lists the files Claude edited or created, with added and removed line counts from git.
+- **Changes** lists the files Claude edited or created, newest first, with added and removed line counts from git. A commit drops the committed files.
+- **Diff** shows those files' changes as hunks, with added and removed lines in your theme's colors.
 - **Agents** lists the subagents with their elapsed time, token count and the tool each one is running.
 - **Plan & context** shows Claude's task list, and below it a context bar split by what is filling the window, a chart of context use over the session, how many turns remain before auto-compact, and the heaviest sources you can trim.
 
@@ -175,7 +176,7 @@ See [Accessibility](docs/accessibility.md).
 
 ## Roadmap
 
-Planned, without dates: sound and voice layers for packs, more spinners, two more pets (Kit and Blip), a diff view in the Changes tab, and opening a subagent from the Agents tab. See [Roadmap](docs/roadmap.md).
+Planned, without dates: sound and voice layers for packs, more spinners, two more pets (Kit and Blip), and opening a subagent from the Agents tab. See [Roadmap](docs/roadmap.md).
 
 ## Contributing
 

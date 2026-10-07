@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { recordPass, isDeployCommand, fridayDeploy, parseOffset, localOffset, localTime, overlays, unlockEgg, crackStage, eggUnlocked, SHINY_RUNS, type LocalTime } from '../hooks/eggs.ts'
+import { recordPass, isDeployCommand, fridayDeploy, parseOffset, localOffset, localTime, overlays, unlockEgg, crackStage, eggUnlocked, hintDue, SHINY_RUNS, type LocalTime } from '../hooks/eggs.ts'
 
 test('recordPass counts and unlocks once at 100', async () => {
   let s = { passRuns: SHINY_RUNS - 2 }
@@ -7,6 +7,16 @@ test('recordPass counts and unlocks once at 100', async () => {
   r = recordPass(s, 2); expect(r.unlocked).toBe(true); expect(r.next).toEqual({ passRuns: 100, shinyAt: 2 })
   r = recordPass(r.next, 3); expect(r.unlocked).toBe(false); expect(r.next.shinyAt).toBe(2)
   expect(recordPass(undefined, 0).next.passRuns).toBe(1)
+})
+
+test('the hint is due only while the egg is locked, once per 24 h', () => {
+  const DAY = 86_400_000
+  expect(hintDue(undefined, 5)).toBe(true)
+  expect(hintDue({ passRuns: 3 }, 5)).toBe(true)
+  expect(hintDue({ passRuns: 3, hintAt: 1000 }, 1000 + DAY - 1)).toBe(false)
+  expect(hintDue({ passRuns: 3, hintAt: 1000 }, 1000 + DAY)).toBe(true)
+  expect(hintDue({ passRuns: 3, eggAt: 1 }, 5)).toBe(false)
+  expect(hintDue({ passRuns: 3, eggAt: 1, hintAt: 1 }, 1 + DAY)).toBe(false)
 })
 
 test('the egg unlocks once, at the current pass count', () => {

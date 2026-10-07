@@ -18,8 +18,8 @@ export const ROLE_LABELS: Record<(typeof COLOR_KEYS)[number], string> = {
   pass: 'passing tests, finished subagents, added lines',
   fail: 'failures, full hearts, removed lines',
   panel: 'the background fades blend toward',
-  addBg: 'not drawn yet',
-  delBg: 'not drawn yet',
+  addBg: 'background of added lines in the Diff tab',
+  delBg: 'background of removed lines in the Diff tab',
   sel: 'not drawn yet',
 }
 

@@ -36,7 +36,7 @@ From left to right it shows:
 - The current action with its glyph and color, for example `✎ Editing auth.ts`. Failures show in the `fail` color and passes in the `pass` color.
 - The number of running subagents, for example `◆ 2 subagents`.
 - Five hearts for the context you have left, each worth 20% of the window.
-- Plan progress as pips, `●●○○`, when Claude has a task list.
+- Plan progress as pips, `●●○○`, when Claude has a task list. A finished plan drops out at your next prompt.
 - With a pack that turns them on, an HP bar in place of the hearts and a `COMBO x3` tag. See [Extras](pack-reference.md#extras).
 
 When the line is too long, the action text is shortened first. If the rest of the line would leave the action fewer than 8 columns, the band drops everything but the action. The band is also hidden while Claude Code's feedback survey is open and while you view a subagent's transcript.
@@ -47,21 +47,34 @@ Pick which parts show and in what order with /glowup setup band (see [setup](com
 
 ## The tabs
 
-The pane has three tabs, selected with their number key or by clicking. In the docked pane each tab is a box in the pack's border style, with the section name and its counts in the top edge; the compact drawer draws no boxes.
+The pane has four tabs, selected with their number key or by clicking. They open on Plan & context, then Agents, Diff and Changes. In the docked pane each tab is a box in the pack's border style, with the section name and its counts in the top edge; the compact drawer draws no boxes.
 
 Under the tabs in the wide pane, a status box shows the current action, the running subagents and a row of hearts. These hearts show account usage: whichever of the 5-hour and weekly limits has less left, for example `♥♥♡♡♡  weekly limit 38% left`. On an API key, which has no such limits, the row shows the session's spend instead, such as `$4.20 spent this session`. Until the first usage reading arrives, the hearts show context.
 
 Hide or reorder tabs with /glowup setup tabs; their number keys follow the order shown.
 
+A tab longer than the pane scrolls with the mouse wheel and the scroll keys while the pane has the keyboard. Only the tab's rows move, so Clawd and the status box stay at the bottom. A dim `↑ 4 more` above and `↓ 12 more` below say how many rows are out of view.
+
 ### Changes
 
-Every file that changed during the session, or `Nothing changed yet.`
+Every file that changed during the session and is still different from git's HEAD, or `Nothing changed yet.`
 
-- Each file shows `+added −removed`, and new files are marked `new`.
+- Each file shows `+added −removed`, and new files are marked `new`. The most recently touched file is first.
 - The box's top edge shows the number of edited files and the total lines added and removed.
 - In a git repository the counts come from `git diff --numstat` against a snapshot taken at session start, so files you had already modified before the session are not listed, while files changed by shell commands during it are. New untracked files, and sessions outside git, use the line counts from the edit itself.
+- When HEAD moves (a commit, a pull, a checkout or a reset, by Claude or by you) the snapshot is replaced by the new HEAD. A committed file drops out, a partly committed file stays with the lines still uncommitted, and files you had modified before the session stay out until Claude edits them.
 - glowup runs git without taking locks, so it does not hold up Claude's own git commands.
 - The compact form lists edited files only.
+
+### Diff
+
+The same files as Changes, in the same order, each with its hunks under a header line that carries the path and `+added −removed`. A commit clears both tabs.
+
+- Hunk headers (`@@ … @@`) are dim. Added lines take the theme's `addBg` background with `pass` text, removed lines `delBg` with `fail` text, and context lines the plain text color.
+- A new file git does not know yet shows every line as added. A file over 64 KB shows a note instead of its lines.
+- Lines wider than the pane are cut at its width. The tab stops at 2000 diff lines and ends with `… N more lines`.
+- git runs for this tab only while it is the visible one, and again after each edit and shell command Claude makes.
+- The compact form lists the same rows as the wide one, as far as the drawer's six rows go.
 
 ### Agents
 
@@ -78,6 +91,7 @@ Each subagent started this session, or `No subagents this session.` The tab keep
 The tab has two boxes, `PLAN` and `CONTEXT`, one blank row apart.
 
 - `PLAN` is Claude's task list. `◉` is in progress (bold, with its active wording when the task has one), `○` is next, `✓` is done. In progress comes first, then next, then the last three done, dimmed, with `+N more done` for the rest. The top edge shows done over total.
+- When every task is done, the next prompt folds the box to one line, `✓ plan done · 5 tasks`, in the `pass` color. A new task, or one that goes back to pending or in progress, opens the list again. `CONTEXT` is not affected.
 - The list is Claude Code's saved one, read from `tasks/<list>/*.json` under your config directory when the session starts and again after each `TaskCreate` or `TaskUpdate` Claude makes. `<list>` is `CLAUDE_CODE_TASK_LIST_ID` when that is set, otherwise the working directory with every character outside letters and digits turned into `-` and the leading `-` dropped (`/home/you/Projects` is `home-you-Projects`). Deleted and unreadable tasks are skipped. Subagent task calls do not count. A `TodoWrite` list still shows too.
 - `CONTEXT` has one stacked bar: each part of the context that uses tokens is its own colored segment, biggest first, and free space is a faint `░` track (`·` when the theme gives no usable colors). Segment colors come from your theme's `read`, `agent`, `shell`, `edit` and `accent` colors, so they follow the pack. If the theme gives no usable colors, the segments use the block shades `█▓▒░` instead. The top edge shows the percent and tokens, such as `62% · 124k / 200k`.
 - Under the bar, a legend names each part with its share (`● messages 31%`) and wraps onto more lines when the pane is narrow. Up to five parts get their own segment and the rest join as `other`.
@@ -92,4 +106,4 @@ The tab has two boxes, `PLAN` and `CONTEXT`, one blank row apart.
 
 A mod cannot hide Claude Code's own task list, so the plan shows in both places.
 
-The tabs do not respond to selection yet; opening a file's diff or a subagent's tool calls is on the [roadmap](roadmap.md).
+The tabs do not respond to selection yet; opening a subagent's tool calls is on the [roadmap](roadmap.md).

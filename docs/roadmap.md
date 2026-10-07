@@ -13,7 +13,6 @@ None of these has a date, and the order can change.
 - More spinners.
 - More pets: Kit and Blip.
 - Import of iTerm2 color schemes.
-- A diff view in the Changes tab: pick a file and see its diff.
 - Opening an agent from the Agents tab to see its tool calls.
 - Styling for the Claude desktop app.
 

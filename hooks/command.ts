@@ -294,7 +294,8 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   if (sub === 'pet' && a1 === 'list') {
     const cur = ctl.pet()
     const eggs = await eggsOf(host)
-    const names = [...builtinPets(eggs?.shinyAt !== undefined, eggUnlocked(eggs)), ...(await userPetNames(host)), 'off']
+    const egg = eggUnlocked(eggs)
+    const names = [...builtinPets(eggs?.shinyAt !== undefined, egg), ...(egg ? [] : ['???']), ...(await userPetNames(host)), 'off']
     return names.map(n => `${n === cur ? '●' : '○'} ${n}`).join('\n')
   }
   // the [sub, a1, a2] split stops at three words, hence index 3 for the flag

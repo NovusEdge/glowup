@@ -4,7 +4,7 @@ import { shown } from './themes.ts'
 
 export const BAND_ITEMS = ['combo', 'agents', 'meter', 'plan'] as const
 export type BandItem = (typeof BAND_ITEMS)[number]
-export const TAB_IDS = ['changes', 'agents', 'plan'] as const
+export const TAB_IDS = ['plan', 'agents', 'diff', 'changes'] as const
 export type TabId = (typeof TAB_IDS)[number]
 export const SETUP_MOODS: readonly Mood[] = ['needs-you', 'fail', 'done']
 export type Meter = { warn: number; danger: number }
@@ -13,7 +13,7 @@ export type Setup = { format: 1; band: BandItem[]; tabs: TabId[]; meter: Meter; 
 export const DEFAULT_SETUP: Setup = {
   format: 1,
   band: ['combo', 'agents', 'meter', 'plan'],
-  tabs: ['changes', 'agents', 'plan'],
+  tabs: ['plan', 'agents', 'diff', 'changes'],
   meter: { warn: 50, danger: 80 },
   bubbles: { moods: ['needs-you', 'fail', 'done'], ms: 3000 },
   pet: { sleepMs: 60_000 },
@@ -35,6 +35,8 @@ function ids<T extends string>(v: unknown, known: readonly T[], what: string, no
   return out
 }
 
+const OLD_DEFAULT_TABS = 'changes,agents,plan'
+
 export function parseSetup(raw: unknown): { setup: Setup; notices: string[] } {
   const d = DEFAULT_SETUP, notices: string[] = []
   if (raw === undefined) return { setup: d, notices }
@@ -50,7 +52,8 @@ export function parseSetup(raw: unknown): { setup: Setup; notices: string[] } {
   let tabs = d.tabs
   if (raw.tabs !== undefined) {
     const got = ids(raw.tabs, TAB_IDS, 'tab', notices)
-    if (got?.length) tabs = got
+    // Saving any setup field stored the tabs too, so the pre-0.11 default order is the default, not a choice.
+    if (got?.length) tabs = got.join() === OLD_DEFAULT_TABS ? d.tabs : got
     else notices.push(`tabs must name at least one of: ${TAB_IDS.join(', ')}`)
   }
 
