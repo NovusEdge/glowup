@@ -15,7 +15,7 @@ export type Pose = 'idle' | 'walk' | 'working' | 'hop' | 'alert' | 'done' | 'sle
 export type PetSpan = { text: string; color: string; bg?: string }
 export type PetKind = 'read' | 'search' | 'edit' | 'shell' | 'agent' | 'plan' | 'think'
 // agents is the number of subagents running; ctx the context window's percent used.
-export type PetInput = { working: boolean; kind?: PetKind; needsYou: boolean; lastTest?: { passed: boolean; at: number }; doneAt?: number; doneOk?: boolean; actAt?: number; agents?: number; compactAt?: number; ctx?: number; sleepMs?: number; pantAt?: number }
+export type PetInput = { working: boolean; kind?: PetKind; needsYou: boolean; lastTest?: { passed: boolean; at: number }; doneAt?: number; doneOk?: boolean; actAt?: number; agents?: number; compactAt?: number; ctx?: number; sleepMs?: number; pantAt?: number; juggleAt?: number }
 
 // Pixel rows of single-char palette keys, '.' = transparent. Two pixel rows make one terminal row.
 // head is [x, y] of the top-centre of the head, where outfits anchor; dx is horizontal travel in pixels.
@@ -51,6 +51,7 @@ export const CLAWD_ROW = '▐▛█▜▌'
 
 const ALERT_MS = 1500, DONE_MS = 4000, SCRUNCH_MS = 1500
 export const HOP_MS = 1200
+export const UNLOCK_JUGGLE_MS = 3000
 // ClientKeyEvent names, as the pet Client receives them after a click
 export const KONAMI = ['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'b', 'a']
 export const SLEEP_MS = 60_000
@@ -64,6 +65,7 @@ export function petPose(p: PetInput, now: number): Pose {
   if (t && !t.passed && now - t.at <= ALERT_MS) return 'fail'
   if (t && t.passed && now - t.at <= HOP_MS) return 'hop'
   if (p.compactAt !== undefined && now - p.compactAt >= 0 && now - p.compactAt <= SCRUNCH_MS) return 'scrunch'
+  if (p.juggleAt !== undefined && now - p.juggleAt >= 0 && now - p.juggleAt <= UNLOCK_JUGGLE_MS) return 'juggle'
   if (!p.working && p.doneOk && p.doneAt !== undefined && now - p.doneAt <= DONE_MS) return 'done'
   if ((p.agents ?? 0) >= JUGGLE_AGENTS) return 'juggle'
   const tired = (p.ctx ?? 0) >= (p.pantAt ?? PANT_CTX)

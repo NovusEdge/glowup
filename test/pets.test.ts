@@ -293,6 +293,12 @@ test('sleep and pant follow the setup when given', () => {
   expect(petPose({ ...idle, ctx: 70 }, 2000)).toBe('idle')
 })
 
+test('a juggle right after the egg unlock, then back to idle', () => {
+  const p = { working: false, needsYou: false, juggleAt: 1000 }
+  expect(petPose(p, 1500)).toBe('juggle')
+  expect(petPose(p, 1000 + 3001)).toBe('idle')
+})
+
 test('the built-in sheets are clawd and the robot, all playable', () => {
   expect(Object.keys(BUILTIN_SHEETS)).toEqual(BUILTIN_PET_NAMES)
   for (const s of Object.values(BUILTIN_SHEETS)) expect(() => validateSheet(s)).not.toThrow()

@@ -10,8 +10,17 @@ const BAND = { hasSurvey: false, isWorking: true, maxRows: 6, bodyColumns: 100, 
 const walk = (n: any, out: any[] = []): any[] => { if (typeof n === 'string') out.push(n); else if (n && typeof n === 'object') { out.push(n); for (const c of n.children ?? []) walk(c, out) } return out }
 const petClient = (tree: any) => walk(tree).find(n => n?.type === 'Client' && String(n.props?.module).endsWith('client/pet.tsx'))
 const text = (tree: any) => walk(tree).filter(n => typeof n === 'string').join(' ')
-function base(on: any, render: (e: any) => void = () => {}, opts: { shown?: boolean; toolText?: string; run?: (argv: string[]) => { exitCode: number; stdout: string } | void; files?: Record<string, string>; toasts?: string[] } = {}) {
-  fakeFs(on, opts.files ?? {}, opts.run); mock.store(on)
+function base(on: any, render: (e: any) => void = () => {}, opts: { shown?: boolean; toolText?: string; run?: (argv: string[]) => { exitCode: number; stdout: string } | void; files?: Record<string, string>; toasts?: string[]; store?: Record<string, unknown> } = {}) {
+  fakeFs(on, opts.files ?? {}, opts.run)
+  // a store the test passes in is the live one, so it can read back what the plugin wrote
+  const live = opts.store
+  if (!live) mock.store(on)
+  else {
+    on('store.get', async (_$: unknown, e: any) => ({ value: live[e.key] }) as never)
+    on('store.set', async (_$: unknown, e: any) => { live[e.key] = e.value; return { value: undefined } as never })
+    on('store.delete', async (_$: unknown, e: any) => { delete live[e.key]; return { value: undefined } as never })
+    on('store.keys', async () => ({ value: Object.keys(live) }) as never)
+  }
   on('ui.render', async (_$: unknown, e: any) => { render(e); return ENGINE_ROW })
   on('ui.panes', async () => ({ value: [{ id: 'glowup', isShown: opts.shown ?? true, isPlaced: true }] }))
   on('ui.status', async () => ({ value: undefined }) as never)
@@ -240,4 +249,17 @@ test('the pack look reaches the band and the pane, pet on or off', async ($, on)
     expect(text(await pane.drawn())).toContain('HP')
     await pane.unmount()
   }
+})
+
+test('the Konami post unlocks the egg once, with one toast and a juggle', async ($, on) => {
+  const toasts: string[] = []
+  const stored: Record<string, unknown> = {}
+  base(on, undefined, { toasts, store: stored }); mock.clock(on)
+  const pane = await mountPane($)
+  await pane.post({ konami: true }, { in: 'glowup-pet' })
+  await pane.post({ konami: true }, { in: 'glowup-pet' })
+  expect(toasts.filter(t => t === 'An egg! /glowup pet egg')).toHaveLength(1)
+  expect((stored.eggs as { eggAt?: number } | undefined)?.eggAt).toBeGreaterThan(0)
+  expect(petClient(await pane.drawn()).props.props.input.juggleAt).toBeGreaterThan(0)
+  await pane.unmount()
 })

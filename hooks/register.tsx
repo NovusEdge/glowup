@@ -9,7 +9,7 @@ import { loadUserPacks, SAFE_NAME } from './userpacks.ts'
 import { BUILTIN_SHEETS, CLAWD_SHEET, stripRows, type PetSetting, type PetInput, type PetKind, type PetSheet } from './pets.ts'
 import { loadUserPet, userPetNames } from './userpets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
-import { recordPass, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
+import { recordPass, unlockEgg, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, refreshCounts, serial } from './changes.ts'
 import { loadTasks, taskListId } from './tasks.ts'
 import { cacheHit, heaviest } from './ctxchart.ts'
@@ -106,6 +106,7 @@ let failed = false
 let tzOffset = 0
 let installed: number | undefined
 let lastPet = ''
+let eggJuggleAt: number | undefined
 const PANE_OPEN: PaneOpenArgs = { id: 'glowup', title: 'glowup', focus: true, closeOnEscape: true }
 const CONFIG_ID = 'glowup-config'
 const CONFIG_OPEN: PaneOpenArgs = { id: CONFIG_ID, title: 'glowup config', focus: true, closeOnEscape: true, rows: 40 }
@@ -272,6 +273,7 @@ const petInput = (): PetInput => ({
   agents: model.agents.filter(a => a.state === 'running').length,
   compactAt: model.compactAt,
   ctx: model.ctxPercent,
+  juggleAt: eggJuggleAt,
 })
 // Through JSON because Client props refuse undefined fields.
 function petSnap(): PetSnap {
@@ -1122,6 +1124,19 @@ export const register: Register = (on, options) => {
     const text = await runCommand(hostOf($), e.args, ctlOf($))
     await syncTakeover($)
     return { text }
+  })
+
+  on('ui.message', async ($, e, next) => {
+    // e.module is the path under the plugin folder (hooks/client/pet.tsx), not the string the pane passes as module
+    if (off || e.element !== 'glowup-pet' || (e.data as { konami?: unknown } | null)?.konami !== true) return next(e)
+    const host = hostOf($)
+    const unlocked = unlockEgg(await host.storeGet('eggs') as EggStore | undefined, Date.now())
+    if (!unlocked) return {}
+    await host.storeSet('eggs', unlocked)
+    eggJuggleAt = Date.now()
+    publishPet($)
+    $.ui.toast('An egg! /glowup pet egg')
+    return {}
   })
 
   on('prompt.submit', async ($, e, next) => {
