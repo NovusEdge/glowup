@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-07
+
 ### Added
 
 - A secret egg pet: click the pet in the pane and type the code to unlock it, then pick it with `/glowup pet egg`. It wobbles while Claude works and gets a crack every 10 passing test runs, up to three.
