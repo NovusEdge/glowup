@@ -13,8 +13,9 @@ export const runGlowup = ($: Engine, args = '', columns = 120, isFullscreen = fa
   $.command.run({ command: 'glowup', args, origin: { kind: 'composer' }, presentation: { isFullscreen, columns } })
 
 // An in-memory Host: files is a path -> text map, runs answers argv strings.
-export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<string, { exitCode: number; stdout: string }>; fetches?: Record<string, string>; projectStatusLine?: boolean } = {}) {
+export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<string, { exitCode: number; stdout: string }>; fetches?: Record<string, string>; projectStatusLine?: boolean; mtimes?: Record<string, number> } = {}) {
   const files = { ...(opts.files ?? {}) }
+  const mtimes = { ...(opts.mtimes ?? {}) }
   const store: Record<string, unknown> = {}
   const ran: string[] = []
   const envs: (Record<string, string> | undefined)[] = []
@@ -29,7 +30,8 @@ export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<s
     readFile: async p => { if (!(p in files)) throw new Error('ENOENT ' + p); return files[p]! },
     writeFile: async (p, t) => { files[p] = t },
     exists: async p => p in files || Object.keys(files).some(f => f.startsWith(p + '/')),
-    listDir: async p => Object.keys(files).filter(f => f.startsWith(p + '/')).map(f => f.slice(p.length + 1)).filter(n => !n.includes('/')),
+    stat: async p => p in files ? { mtimeMs: mtimes[p] ?? Date.now() } : undefined,
+    listDir: async p => [...new Set(Object.keys(files).filter(f => f.startsWith(p + '/')).map(f => f.slice(p.length + 1).split('/')[0]!))],
     listFiles: async p => Object.keys(files).filter(f => f.startsWith(p + '/')).map(f => ({ name: f.slice(p.length + 1), size: files[f]!.length })).filter(e => !e.name.includes('/')),
     fetchText: async url => url in (opts.fetches ?? {}) ? { ok: true, status: 200, text: opts.fetches![url]! } : { ok: false, status: 404, text: '' },
     storeGet: async k => store[k],
@@ -40,7 +42,7 @@ export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<s
     dataHome: '/home/u/.local/share',
     home: '/home/u',
   }
-  return { host, files, store, ran, envs }
+  return { host, files, store, ran, envs, mtimes }
 }
 
 // Answers $.env, $.fs and $.process from memory, so a wiring test can never reach
@@ -48,12 +50,20 @@ export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<s
 export function fakeFs(on: On, files: Record<string, string> = {}, ran?: (argv: string[]) => { exitCode: number; stdout: string } | void, env: Record<string, string> = {}, beforeWrite?: (path: string) => Promise<void> | void) {
   mock.env(on, { HOME: '/fake', CLAUDE_CONFIG_DIR: '/fake/.claude', ...env })
   const writes: string[] = []
+  const mtimes: Record<string, number> = {}
   const under = (p: string) => Object.keys(files).filter(f => f.startsWith(p + '/'))
   on('fs.exists', async (_$, e) => ({ value: e.path in files || under(e.path).length > 0 }) as never)
   on('fs.read', async (_$, e) => { if (!(e.path in files)) throw new Error('ENOENT ' + e.path); return { value: files[e.path]! } as never })
   on('fs.write', async (_$, e) => { await beforeWrite?.(e.path); writes.push(e.path); files[e.path] = e.text; return { value: undefined } as never })
-  on('fs.list', async (_$, e) => ({ value: under(e.path).map(f => f.slice(e.path.length + 1)).filter(n => !n.includes('/')).map(name => ({ name, kind: 'file', size: files[`${e.path}/${name}`]!.length })) }) as never)
+  on('fs.list', async (_$, e) => ({ value: [...new Set(under(e.path).map(f => f.slice(e.path.length + 1).split('/')[0]!))].map(name => {
+    const p = `${e.path}/${name}`
+    return p in files ? { name, kind: 'file', size: files[p]!.length } : { name, kind: 'dir', size: 0 }
+  }) }) as never)
+  on('fs.stat', async (_$, e) => {
+    if (!(e.path in files)) throw new Error('ENOENT ' + e.path)
+    return { value: { kind: 'file', size: files[e.path]!.length, mtimeMs: mtimes[e.path] ?? Date.now(), isLink: false } } as never
+  })
   on('settings.read', async () => ({ value: {} }) as never)
   on('process.run', async (_$, e) => ({ value: { exitCode: 1, stdout: '', stderr: '', ...ran?.((e as { argv: string[] }).argv) } }) as never)
-  return { files, writes }
+  return { files, writes, mtimes }
 }
