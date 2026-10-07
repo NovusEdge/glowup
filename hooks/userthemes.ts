@@ -21,14 +21,21 @@ export async function addTheme(host: Host, url: string): Promise<string> {
   let r: Awaited<ReturnType<Host['fetchText']>>
   try { r = await host.fetchText(url) } catch (err) { return `Could not download the theme: ${err instanceof Error ? err.message : String(err)}` }
   if (!r.ok) return `Could not download the theme (HTTP ${r.status}).`
+  const checked = await checkThemeText(host, r.text)
+  if ('error' in checked) return checked.error
+  await host.writeFile(`${THEME_DIR(host.configDir)}/${checked.name}.json`, r.text)
+  return `Installed theme "${checked.name}". Switch with /glowup theme ${checked.name}`
+}
+
+// `others`: themes downloaded in the same install, not on disk yet, that this one may extend.
+export async function checkThemeText(host: Host, text: string, others: Record<string, unknown> = {}): Promise<{ name: string; file: unknown } | { error: string }> {
   let file: unknown
-  try { file = parseJsonc(r.text) } catch (err) { return (err as Error).message }
-  if (typeof file !== 'object' || file === null || Array.isArray(file)) return 'A theme must be a JSON object.'
+  try { file = parseJsonc(text) } catch (err) { return { error: (err as Error).message } }
+  if (typeof file !== 'object' || file === null || Array.isArray(file)) return { error: 'A theme must be a JSON object.' }
   const name = String((file as { name?: unknown }).name ?? '').toLowerCase()
-  if (!SAFE_NAME.test(name)) return 'A theme needs a "name" of lowercase letters, digits and dashes.'
-  if (Object.hasOwn(PRESETS, name)) return `"${name}" is a built-in theme name; pick another.`
-  const check = resolveTheme(name, { ...(await loadUserThemes(host)), [name]: file })
-  if (check.error) return check.error
-  await host.writeFile(`${THEME_DIR(host.configDir)}/${name}.json`, r.text)
-  return `Installed theme "${name}". Switch with /glowup theme ${name}`
+  if (!SAFE_NAME.test(name)) return { error: 'A theme needs a "name" of lowercase letters, digits and dashes.' }
+  if (Object.hasOwn(PRESETS, name)) return { error: `"${name}" is a built-in theme name; pick another.` }
+  const check = resolveTheme(name, { ...(await loadUserThemes(host)), ...others, [name]: file })
+  if (check.error) return { error: check.error }
+  return { name, file }
 }

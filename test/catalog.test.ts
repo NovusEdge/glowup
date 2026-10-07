@@ -1,6 +1,6 @@
 import { test, expect } from 'claude-code/testing'
 import { fakeHost } from './kit.ts'
-import { parseCatalog, compareVersions, canRun, loadCatalog, refreshCatalog, CATALOG_URL, CATALOG_FILE, type CatalogEntry } from '../hooks/catalog.ts'
+import { parseCatalog, compareVersions, canRun, loadCatalog, refreshCatalog, CATALOG_URL, CATALOG_FILE, installEntry, loadRecord, textHash, RECORD_FILE, type CatalogEntry } from '../hooks/catalog.ts'
 
 const OXIDE = { name: 'oxide', description: 'bone text and red oxide on warm ink', pack: 'https://example.com/oxide.json', themes: ['https://example.com/themes/oxide.json'], minGlowup: '0.8.1' }
 const index = (packs: unknown[], format = 1) => ({ format, packs })
@@ -81,4 +81,71 @@ test('a thrown fetch is a failed refresh, not an error', async () => {
 test('no cache, or a broken one, loads as an empty catalog', async () => {
   expect(await loadCatalog(fakeHost().host)).toEqual([])
   expect(await loadCatalog(fakeHost({ files: { [CATALOG_FILE('/home/u/.claude')]: '{' } }).host)).toEqual([])
+})
+
+const PACK = (name: string, extra: Record<string, unknown> = {}) => JSON.stringify({ format: 1, name, colors: { theme: 'oxide' }, ...extra })
+const THEME = JSON.stringify({ name: 'oxide', extends: 'classic' })
+const PACKS_DIR = '/home/u/.claude/glowup/packs', THEMES_DIR = '/home/u/.claude/glowup/themes'
+const fetchesFor = (pack = PACK('oxide'), theme = THEME) => ({ [OXIDE.pack]: pack, [OXIDE.themes[0]!]: theme })
+
+test('an install writes the theme and the pack and records both with hashes', async () => {
+  const { host, files } = fakeHost({ fetches: fetchesFor() })
+  expect((await installEntry(host, OXIDE, { force: false })).name).toBe('oxide')
+  expect(files[`${THEMES_DIR}/oxide.json`]).toBe(THEME)
+  expect(files[`${PACKS_DIR}/oxide.json`]).toBe(PACK('oxide'))
+  expect(await loadRecord(host)).toEqual({ packs: { oxide: { url: OXIDE.pack, hash: textHash(PACK('oxide')) } }, themes: { oxide: { hash: textHash(THEME) } } })
+})
+
+test('refused installs write nothing at all', async () => {
+  const cases: Record<string, string>[] = [
+    fetchesFor(PACK('oxide-dark')),                       // the file names another pack
+    fetchesFor(PACK('oxide', { colors: { rows: 'nope' } })), // valid name, invalid pack
+    fetchesFor(PACK('oxide'), '{'),                       // the theme does not parse
+    { [OXIDE.themes[0]!]: THEME },                        // the pack does not download
+  ]
+  for (const fetches of cases) {
+    const { host, files } = fakeHost({ fetches })
+    const r = await installEntry(host, OXIDE, { force: false })
+    expect(r.name).toBeUndefined()
+    expect(Object.keys(files)).toEqual([])
+  }
+})
+
+test('a second theme that fails leaves the first unwritten', async () => {
+  const two = { ...OXIDE, themes: [OXIDE.themes[0]!, 'https://example.com/themes/bad.json'] }
+  const { host, files } = fakeHost({ fetches: { ...fetchesFor(), 'https://example.com/themes/bad.json': '[]' } })
+  expect((await installEntry(host, two, { force: false })).name).toBeUndefined()
+  expect(files[`${THEMES_DIR}/oxide.json`]).toBeUndefined()
+})
+
+test('a message about a mismatched name shows the downloaded name safely', async () => {
+  const { host } = fakeHost({ fetches: fetchesFor(PACK('evil\u001b[31m')) })
+  expect((await installEntry(host, OXIDE, { force: false })).message).not.toContain('\u001b')
+})
+
+test('an existing theme is reused on a first install', async () => {
+  const mine = JSON.stringify({ name: 'oxide', extends: 'dusk' })
+  const { host, files } = fakeHost({ fetches: fetchesFor(), files: { [`${THEMES_DIR}/oxide.json`]: mine } })
+  expect((await installEntry(host, OXIDE, { force: false })).name).toBe('oxide')
+  expect(files[`${THEMES_DIR}/oxide.json`]).toBe(mine)
+  expect((await loadRecord(host)).themes).toEqual({})
+})
+
+test('force refreshes a recorded, unchanged theme but never an unrecorded or changed one', async () => {
+  const newTheme = JSON.stringify({ name: 'oxide', extends: 'aurora' })
+  const recorded = { packs: { oxide: { url: OXIDE.pack, hash: textHash(PACK('oxide')) } }, themes: { oxide: { hash: textHash(THEME) } } }
+  const base = { [`${PACKS_DIR}/oxide.json`]: PACK('oxide'), [`${THEMES_DIR}/oxide.json`]: THEME }
+  const ok = fakeHost({ fetches: fetchesFor(PACK('oxide'), newTheme), files: { ...base, [RECORD_FILE('/home/u/.claude')]: JSON.stringify(recorded) } })
+  await installEntry(ok.host, OXIDE, { force: true })
+  expect(ok.files[`${THEMES_DIR}/oxide.json`]).toBe(newTheme)
+  const mine = JSON.stringify({ name: 'oxide', extends: 'dusk' })
+  const kept = fakeHost({ fetches: fetchesFor(PACK('oxide'), newTheme), files: { ...base, [`${THEMES_DIR}/oxide.json`]: mine, [RECORD_FILE('/home/u/.claude')]: JSON.stringify(recorded) } })
+  await installEntry(kept.host, OXIDE, { force: true })
+  expect(kept.files[`${THEMES_DIR}/oxide.json`]).toBe(mine)
+})
+
+test('a name taken by an installed pack is refused without force, and nothing is written', async () => {
+  const { host, files } = fakeHost({ fetches: fetchesFor(), files: { [`${PACKS_DIR}/oxide.json`]: PACK('oxide', { description: 'mine' }) } })
+  expect((await installEntry(host, OXIDE, { force: false })).message).toContain('--force')
+  expect(files[`${THEMES_DIR}/oxide.json`]).toBeUndefined()
 })
