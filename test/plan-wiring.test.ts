@@ -72,8 +72,8 @@ test('the engine\'s scroll moves the tab\'s own window and leaves the pet drawn'
   const ui = await $.ui.mount({ ...PANE, props: { ...PANE.props, scroll: { offset: 0, bodyRows: 24 } } })
   await ui.press({ key: 'tab-plan' })
   const shows = async (n: number) => (await ui.find({ type: 'Text', text: new RegExp(`^step ${n}$`) })) !== undefined
-  const scroll = async (by: number) => {
-    const r = await $.ui.scroll({ component: 'Pane', requestId: 'glowup', offset: by, by, bodyRows: 24, contentRows: 24, origin: { kind: 'person' } })
+  const scroll = async (by: number, origin: object = { kind: 'person' }) => {
+    const r = await $.ui.scroll({ component: 'Pane', requestId: 'glowup', offset: by, by, bodyRows: 24, contentRows: 24, origin } as never)
     await ui.redraw()
     return r
   }
@@ -81,14 +81,24 @@ test('the engine\'s scroll moves the tab\'s own window and leaves the pet drawn'
   expect(await scroll(3)).toEqual({})
   expect([await shows(1), await shows(3), await shows(4)]).toEqual([false, false, true])
   expect(await ui.find({ key: 'glowup-pet' })).toBeDefined()
-  await scroll(1000)
+  const plugin = { kind: 'plugin', name: 'other' }
+  await scroll(1000, plugin)
   expect(await shows(60)).toBe(true)
   expect(await ui.find({ type: 'Text', text: /^↓ \d+ more$/ })).toBeUndefined()
   await scroll(-1)
   expect([await shows(59), await shows(60)]).toEqual([true, false])
-  await scroll(-1000)
+  await scroll(-1000, plugin)
   expect(await shows(1)).toBe(true)
   expect(await ui.find({ type: 'Text', text: /^↑ \d+ more$/ })).toBeUndefined()
+  // a page key moves by the engine's bodyRows, taller than the tab's window: it pages without skipping a row
+  await scroll(24)
+  let top = 0
+  for (let n = 1; n < 24 && !top; n++) if (await ui.find({ type: 'Text', text: new RegExp(`^↑ ${n} more$`) })) top = n
+  expect(top).toBeGreaterThan(0)
+  expect([await shows(top), await shows(top + 1)]).toEqual([false, true])
+  await scroll(-24)
+  // the page began right after the first window's last row
+  expect([await shows(1), await shows(top), await shows(top + 1)]).toEqual([true, true, false])
   await ui.unmount()
 })
 

@@ -83,7 +83,7 @@ export const planFold = (m: Model): number | undefined =>
 // A plan that stops matching its fold forgets it, so finishing the same tasks again waits for the next prompt.
 const settleFold = (m: Model): Model => (m.planFolded && planFold(m) === undefined ? { ...m, planFolded: undefined } : m)
 
-export const agentsRunning =(m: Model) => m.agents.some(a => a.state === 'running')
+export const agentsRunning = (m: Model) => m.agents.some(a => a.state === 'running')
 // Subagents run in the background, so the main turn usually ends while they work.
 export const isBusy = (m: Model) => m.working || agentsRunning(m)
 export const bandVisible = (m: Model, now: number) => isBusy(m) || (m.doneAt !== undefined && now - m.doneAt <= LINGER_MS)

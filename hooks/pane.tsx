@@ -238,7 +238,7 @@ export function statusRows(model: Model, base: Theme, width: number, now: number
 // rows is the strip height, from stripRows: the sheet's height, plus headroom while an outfit is worn.
 // meter and field come from a renderer plugin: rows for the status box, and a builder for the
 // field's player given the rows left open between the tab and the status box.
-export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Mood }; friday?: boolean; minRows?: number; bodyRows?: number; onRange?: (last: number) => void; meter?: Seg[][]; field?: (rows: number) => unknown; tabs?: readonly TabId[] }
+export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Mood }; friday?: boolean; minRows?: number; bodyRows?: number; onRange?: (last: number, win: number) => void; meter?: Seg[][]; field?: (rows: number) => unknown; tabs?: readonly TabId[] }
 export const PET_STRIP_COLS = 46
 const BUBBLE_ROOM = 16
 
@@ -318,7 +318,7 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
   let rowsLeft = compact && extra?.pet ? COMPACT_ROWS - 2 : COMPACT_ROWS
   if (compact && extra?.bodyRows) rowsLeft = Math.max(1, Math.min(rowsLeft, extra.bodyRows - 1 - (extra.pet ? 1 : 0)))
   let { rows, body } = tabParts(m, t, v, inner, compact, now, rowsLeft, look?.border ?? 'round')
-  let hint: any = null, open = 0, last = 0
+  let hint: any = null, open = 0, last = 0, win = 0
   if (!compact && extra?.bodyRows) {
     // tab strip and its margin sit above, the footer below; the tab gets the rest and scrolls on its own
     const room = Math.max(2, extra.bodyRows - 2 - footerRows(m, t, extra, width, now))
@@ -327,7 +327,8 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
       // box edges and what follows the first box stay put; only that box's body rows scroll
       const bodyRoom = room - 1 - (rows.length - (body[1] - body[0]))
       const [from, to] = bodyRoom >= 1 ? body : [0, rows.length]
-      const win = bodyRoom >= 1 ? bodyRoom : room - 1, top = Math.max(0, Math.min(v.offset ?? 0, to - from - win))
+      win = bodyRoom >= 1 ? bodyRoom : room - 1
+      const top = Math.max(0, Math.min(v.offset ?? 0, to - from - win))
       last = to - from - win
       const below = last - top
       hint = (
@@ -339,7 +340,7 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
       rows = [...rows.slice(0, from), ...rows.slice(from + top, from + top + win), ...rows.slice(to)]
     }
   }
-  extra?.onRange?.(last)
+  extra?.onRange?.(last, win)
   return (
     // minHeight, not height: a short tab still pushes the status box to the bottom of the body
     <Box flexDirection="column" width={width} minHeight={compact ? undefined : extra?.minRows}>
