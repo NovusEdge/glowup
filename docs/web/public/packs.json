@@ -1,0 +1,19 @@
+{
+  "format": 1,
+  "packs": [
+    {
+      "name": "oxide",
+      "description": "bone text and red oxide on warm ink",
+      "pack": "https://raw.githubusercontent.com/NovusEdge/glowup-oxide/main/oxide.json",
+      "themes": ["https://raw.githubusercontent.com/NovusEdge/glowup-oxide/main/themes/oxide.json"],
+      "minGlowup": "0.8.1"
+    },
+    {
+      "name": "oxide-paper",
+      "description": "red oxide and ink on bone, with a dithered orb",
+      "pack": "https://raw.githubusercontent.com/NovusEdge/glowup-oxide/main/oxide-paper.json",
+      "themes": [],
+      "minGlowup": "0.8.1"
+    }
+  ]
+}
