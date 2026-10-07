@@ -8,12 +8,12 @@ import { decodeLink, isStudioLink } from './link.ts'
 import { loadUserPacks, addPack, savePack, installPackText, SAFE_NAME } from './userpacks.ts'
 import { parseScheme } from './schemes.ts'
 import { konsoleScheme } from './konsole.ts'
-import type { PetSetting, PetSheet } from './pets.ts'
+import { eggSheet, type PetSetting, type PetSheet } from './pets.ts'
 import { BUILTIN_PET_NAMES, builtinPets } from './petfile.ts'
 import { userPetNames, loadUserPet, addPet, installPetText } from './userpets.ts'
 import { readLocal } from './readlocal.ts'
 import type { BubbleSetting } from './bubbles.ts'
-import type { EggStore } from './eggs.ts'
+import { eggUnlocked, type EggStore } from './eggs.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 import { FIELD_IDS, isFieldId, type FieldId } from './fields.ts'
 import { parseSetup, setSetupField, describeSetup, DEFAULT_SETUP, type Setup } from './setup.ts'
@@ -54,7 +54,7 @@ async function applyMix(host: Host, ctl: Ctl, mix: Mix) {
   await ctl.setMix(mix)
 }
 
-const shinyUnlocked = async (host: Host) => ((await host.storeGet('eggs')) as EggStore | undefined)?.shinyAt !== undefined
+const eggsOf = async (host: Host) => (await host.storeGet('eggs')) as EggStore | undefined
 
 async function packList(host: Host, ctl: Ctl): Promise<string> {
   const user = await loadUserPacks(host)
@@ -258,7 +258,8 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   if (sub === 'import' && a1) return importScheme(host, ctl, a1, a2 === '--force')
   if (sub === 'pet' && a1 === 'list') {
     const cur = ctl.pet()
-    const names = [...builtinPets(await shinyUnlocked(host)), ...(await userPetNames(host)), 'off']
+    const eggs = await eggsOf(host)
+    const names = [...builtinPets(eggs?.shinyAt !== undefined, eggUnlocked(eggs)), ...(await userPetNames(host)), 'off']
     return names.map(n => `${n === cur ? '●' : '○'} ${n}`).join('\n')
   }
   // the [sub, a1, a2] split stops at three words, hence index 3 for the flag
@@ -270,9 +271,12 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     return `Installed pet "${r.name}".`
   }
   if (sub === 'pet' && a1) {
-    if (a1 === 'clawd-shiny' && !(await shinyUnlocked(host))) return 'The shiny pet is not unlocked yet.'
+    const eggs = await eggsOf(host)
+    if (a1 === 'clawd-shiny' && eggs?.shinyAt === undefined) return 'The shiny pet is not unlocked yet.'
+    if (a1 === 'egg' && !eggUnlocked(eggs)) return 'The egg is not unlocked yet.'
     let sheet: PetSheet | undefined
-    if (a1 !== 'off' && !BUILTIN_PET_NAMES.includes(a1)) {
+    if (a1 === 'egg') sheet = eggSheet(eggs)
+    else if (a1 !== 'off' && !BUILTIN_PET_NAMES.includes(a1)) {
       const r = await loadUserPet(host, a1)
       if ('error' in r) return r.error
       sheet = r.sheet

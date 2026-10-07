@@ -47,12 +47,13 @@ test('top-level shape: object, format, name, known keys', () => {
 
 test('the built-in names and the built-in sheets list the same pets', () => {
   expect(Object.keys(BUILTIN_SHEETS).sort()).toEqual([...BUILTIN_PET_NAMES].sort())
-  expect(builtinPets(false)).toEqual(['clawd', 'robot'])
-  expect(builtinPets(true)).toEqual(['clawd', 'clawd-shiny', 'robot'])
+  expect(builtinPets(false, false)).toEqual(['clawd', 'robot'])
+  expect(builtinPets(true, true)).toEqual(['clawd', 'clawd-shiny', 'robot', 'egg'])
+  expect(petNameProblem('egg')).toMatch(/built-in pet name/)
 })
 
 test('reserved names: built-ins and pet subcommands', () => {
-  for (const n of ['clawd', 'clawd-shiny', 'robot', 'off', 'list', 'add']) expect(petNameProblem(n)).toMatch(/built-in pet name|pet command/)
+  for (const n of ['clawd', 'clawd-shiny', 'robot', 'egg', 'off', 'list', 'add']) expect(petNameProblem(n)).toMatch(/built-in pet name|pet command/)
   expect(petNameProblem('mochi')).toBeUndefined()
 })
 
