@@ -123,6 +123,16 @@ test('a message about a mismatched name shows the downloaded name safely', async
   expect((await installEntry(host, OXIDE, { force: false })).message).not.toContain('\u001b')
 })
 
+test('a download that is not a pack file says so instead of naming undefined', async () => {
+  for (const text of ['<html>404</html>', '[]', '{"format":1}']) {
+    const { host, files } = fakeHost({ fetches: fetchesFor(text) })
+    const r = await installEntry(host, OXIDE, { force: false })
+    expect(r.message).toContain('is not a pack file')
+    expect(r.message).not.toContain('undefined')
+    expect(Object.keys(files)).toEqual([])
+  }
+})
+
 test('an existing theme is reused on a first install', async () => {
   const mine = JSON.stringify({ name: 'oxide', extends: 'dusk' })
   const { host, files } = fakeHost({ fetches: fetchesFor(), files: { [`${THEMES_DIR}/oxide.json`]: mine } })

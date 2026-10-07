@@ -116,6 +116,8 @@ test('a pack deleted after the pane opened shows the error and the pane keeps dr
 const ROOT = decodeURIComponent(new URL('..', import.meta.url).pathname).replace(/\/$/, '')
 const CONFIG = '/fake/.claude/glowup'
 const OXIDE = { name: 'oxide', description: 'bone text and red oxide on warm ink', pack: 'https://example.com/oxide.json', themes: ['https://example.com/oxide-theme.json'], minGlowup: '0.1.0' }
+// A second official pack, so a stray Pack press has somewhere to move the pick.
+const BASALT = { ...OXIDE, name: 'basalt', pack: 'https://example.com/basalt.json', themes: [] }
 const SERVED: Record<string, string> = {
   [OXIDE.pack]: JSON.stringify({ format: 1, name: 'oxide', colors: { theme: 'oxide' } }),
   [OXIDE.themes[0]!]: JSON.stringify({ name: 'oxide', extends: 'classic' }),
@@ -125,7 +127,7 @@ const SERVED: Record<string, string> = {
 async function catalogSetup($: any, on: any) {
   const files: Record<string, string> = {
     [`${ROOT}/.claude-plugin/plugin.json`]: '{"name":"glowup","version":"0.9.0"}',
-    [`${CONFIG}/catalog.json`]: JSON.stringify({ format: 1, packs: [OXIDE] }),
+    [`${CONFIG}/catalog.json`]: JSON.stringify({ format: 1, packs: [OXIDE, BASALT] }),
   }
   setup(on, ['terminal'], files)
   const clock = mock.clock(on)
@@ -173,6 +175,8 @@ test('a Pack or Install press while an install is pending runs nothing', async (
   expect(await ui.find({ type: 'Text', text: 'Installing oxide…' })).toBeDefined()
   await ui.press({ key: 'install' })
   await ui.press({ key: 'cycle-pack' })
+  // unguarded, the press moves the pick on to basalt and clears the note
+  expect(await ui.find({ type: 'Text', text: 'Installing oxide…' })).toBeDefined()
   expect(s.fetched).toEqual([OXIDE.pack])
   await s.release()
   await first

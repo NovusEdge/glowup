@@ -137,9 +137,9 @@ export async function updatePacks(host: Host, only: string | undefined): Promise
     const e = catalog.find(x => x.name === n)
     if (!e) { lines.push(`${n} is no longer in the catalog.`); continue }
     if (!canRun(e, host.version)) { lines.push(`${n} needs glowup ${e.minGlowup}; not updated.`); continue }
-    let current = ''
-    try { current = await host.readFile(`${PACK_DIR(host.configDir)}/${n}.json`) } catch {}
-    if (current && textHash(current) !== record.packs[n]!.hash) { lines.push(`${n} changed since glowup installed it; not updated. Use /glowup pack ${n} --force to replace it.`); continue }
+    let current: string
+    try { current = await host.readFile(`${PACK_DIR(host.configDir)}/${n}.json`) } catch { lines.push(`${n} is not installed; use /glowup pack ${n}.`); continue }
+    if (textHash(current) !== record.packs[n]!.hash) { lines.push(`${n} changed since glowup installed it; not updated. Use /glowup pack ${n} --force to replace it.`); continue }
     const r = await installEntry(host, e, { force: true })
     lines.push(r.name ? `Updated ${n}.` : r.message)
   }

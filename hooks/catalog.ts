@@ -112,7 +112,8 @@ export async function installEntry(host: Host, entry: CatalogEntry, opts: { forc
   if (typeof packText !== 'string') return packText
   let named: unknown
   try { named = (parseJsonc(packText) as { name?: unknown } | null)?.name } catch { named = undefined }
-  if (typeof named !== 'string' || named.toLowerCase() !== entry.name) return { message: `The catalog's ${entry.name} downloads a pack named "${shown(String(named))}"; nothing was installed.` }
+  if (typeof named !== 'string') return { message: `The catalog's ${entry.name} downloads something that is not a pack file; nothing was installed.` }
+  if (named.toLowerCase() !== entry.name) return { message: `The catalog's ${entry.name} downloads a pack named "${shown(String(named))}"; nothing was installed.` }
   const record = await loadRecord(host)
   const themes: { name: string; text: string; file: unknown }[] = []
   for (const url of entry.themes) {

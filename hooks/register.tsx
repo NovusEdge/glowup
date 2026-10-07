@@ -36,7 +36,7 @@ import { loadUserThemes } from './userthemes.ts'
 import { firstRun } from './firstrun.ts'
 import { registerCopy, touchCopy, decide, unregisterCopy, pruneStatus, safeId, HEARTBEAT_MS } from './instances.ts'
 import { staleToast, INSTALLED_FILE } from './update.ts'
-import { syncPlugin } from './pluginsync.ts'
+import { syncPlugin, changedOptions, SEEN_KEY } from './pluginsync.ts'
 import { cleanFrames, cleanRows, cleanDivider, fitField, meterWindows, type Frames, type Divider } from './renderers.ts'
 import { ditherMeters, turnDivider } from './effects.ts'
 import type { FieldClientProps } from './client/field.tsx'
@@ -668,7 +668,9 @@ async function initialMix(host: Host, options: Readonly<Record<string, unknown>>
 }
 
 // A pack the installer chose arrives as a name only; its files come from the catalog in the background.
-async function installConfigured($: Engine, host: Host, name: string) {
+// `persist` writes the choice to the store the way a /glowup pack command does; the first-run path leaves it unset.
+async function installConfigured($: Engine, host: Host, name: string, persist = false) {
+  const { colors, motion } = mix
   let entry = catalog.find(e => e.name === name)
   if (!entry) { const fresh = await refreshCatalog(host).catch(() => undefined); if (fresh) catalog = fresh; entry = catalog.find(e => e.name === name) }
   const r = !entry ? { message: `${name} is not an installed or official pack.` }
@@ -676,11 +678,15 @@ async function installConfigured($: Engine, host: Host, name: string) {
     : await installEntry(host, entry, { force: false })
   if ('name' in r && r.name) {
     await host.storeDelete('catalogMissing')
-    mix = { ...mix, colors: name, motion: name }
+    // a command run while the download was going already chose a look
+    if (mix.colors !== colors || mix.motion !== motion) return
+    const { overrides: _, ...rest } = mix
+    mix = persist ? { ...rest, colors: name, motion: name } : { ...mix, colors: name, motion: name }
+    if (persist) await host.storeSet('mix', mix)
     await loadLook($)
     return
   }
-  if (interactive && (await host.storeGet('catalogMissing')) !== name) $.ui.toast(`${r.message} Showing the default look.`)
+  if (interactive && (await host.storeGet('catalogMissing')) !== name) $.ui.toast(`${r.message} ${persist ? 'Keeping your current look.' : 'Showing the default look.'}`)
   await host.storeSet('catalogMissing', name)
 }
 
@@ -803,6 +809,12 @@ export const register: Register = (on, options) => {
       mix = { ...mix, colors: DEFAULT_MIX.colors, motion: DEFAULT_MIX.motion }
       void installConfigured($, host, wanted).catch(() => {})
     }
+    // A /plugin edit or an installer re-run naming a pack this machine lacks: syncPlugin would run
+    // `pack <name>` inside session.start, where the download blocks it or an empty cache fails it for good.
+    const pluginPack = changedOptions(await host.storeGet(SEEN_KEY), options).find(c => c.key === 'pack')?.value
+    const deferPack = async (name: string) => !Object.hasOwn(PACKS, name) && !(await host.exists(`${PACK_DIR(configDir)}/${name}.json`))
+    const deferred = typeof pluginPack === 'string' && pluginPack !== '' && await deferPack(pluginPack) ? pluginPack : undefined
+    if (deferred !== undefined && !configured) void installConfigured($, host, deferred, true).catch(() => {})
     const last = await host.storeGet('catalogFetchedAt')
     const nowMs = await $.clock.now()
     if (interactive && !(typeof last === 'number' && nowMs - last < 86_400_000)) {
@@ -850,7 +862,7 @@ export const register: Register = (on, options) => {
     // After the saved choices are loaded: the commands read and extend them (a spinner is added to
     // the current mix), and write the new choice to the store by the same path a typed command does.
     try {
-      const toast = await syncPlugin(host, options, cmd => runCommand(host, cmd, ctlOf($)))
+      const toast = await syncPlugin(host, options, cmd => runCommand(host, cmd, ctlOf($)), name => name === deferred)
       if (toast) $.ui.toast(toast)
     } catch (err) {
       $.ui.log(`/plugin sync failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })

@@ -741,6 +741,12 @@ test('pack update leaves a pack the person edited', async () => {
   expect(files[`${PACKS_DIR}/oxide.json`]).toBe(edited)
 })
 
+test('pack update skips a pack whose file was deleted', async () => {
+  const { host, files } = catalogHost({ files: { [RECORD_FILE(CONFIG)]: recordOf(OXIDE_PACK) } })
+  expect(await runCommand(host, 'pack update oxide', ctl().ctl)).toBe('oxide is not installed; use /glowup pack oxide.')
+  expect(`${PACKS_DIR}/oxide.json` in files).toBe(false)
+})
+
 test('pack update with no name reports each recorded pack, including one gone from the catalog', async () => {
   const gone = JSON.stringify({ format: 1, name: 'gone' })
   const record = JSON.stringify({ packs: { oxide: { url: OXIDE_ENTRY.pack, hash: textHash(OXIDE_PACK) }, gone: { url: 'https://example.com/gone.json', hash: textHash(gone) } }, themes: {} })

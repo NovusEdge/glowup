@@ -15,7 +15,7 @@ The script downloads the installer for your platform from the latest GitHub rele
 
 The installer previews each pack as you move through them, then asks whether to take the pack as it is or customize it. Customizing lets you swap in any theme for the pack's colors and any spinner for its own. After that come the pet, speech bubbles and reduced motion. On a terminal at least 102 columns wide, Clawd stands next to the form and comments on the current pick.
 
-After the built-in packs, the picker lists the [official packs](packs.md#official-packs). It shows a name and description instead of colors, and an official pack downloads in your first session. If glowup is already installed and is too old to download official packs, the installer records a built-in pack instead and says so.
+After the built-in packs, the picker lists the [official packs](packs.md#official-packs). It shows a name and description instead of colors, and an official pack downloads in your first session. If glowup is already installed and is too old to download official packs, the installer leaves the current pack setting alone, says it can't set the pack yet, and tells you to run `/glowup pack <name>` after glowup updates.
 
 When you finish, the installer runs `claude plugin marketplace add NovusEdge/glowup` and `claude plugin install glowup@glowup` with your choices, and you restart Claude Code if it was already running.
 

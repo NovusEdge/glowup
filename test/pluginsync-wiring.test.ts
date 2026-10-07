@@ -51,11 +51,13 @@ test('a /glowup command after a /plugin edit wins at the next start', { options:
 
 test('an unknown pack in /plugin is reported and not retried', { options: { ...OPTS, pack: 'nope' } }, async ($, on) => {
   const { toasts } = boot(on, {}, { 'plugin-seen': { ...OPTS } })
-  mock.clock(on)
-  await start($)
-  const told = () => toasts.filter(t => t.startsWith('Not applied'))
-  expect(told()).toEqual(['Not applied: pack nope: pack "nope" colors: no pack named "nope"'])
-  await start($)
+  const clock = mock.clock(on)
+  const settle = async () => { for (let i = 0; i < 5; i++) await clock.advance(1) }
+  await start($, true); await settle()
+  // a name no pack file or catalog has goes the background way, so the message is the install path's
+  const told = () => toasts.filter(t => t.includes('nope'))
+  expect(told()).toEqual(['nope is not an installed or official pack. Showing the default look.'])
+  await start($, true); await settle()
   expect(told()).toHaveLength(1)
 })
 

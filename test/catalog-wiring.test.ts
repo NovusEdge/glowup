@@ -91,6 +91,48 @@ test('a configured catalog pack that cannot download shows the default and one t
   expect(toasts.filter(t => t.includes('oxide'))).toHaveLength(1)
 })
 
+test('a pack the person chose with a command during the background install is kept', { options: { pack: 'oxide' } }, async ($, on) => {
+  let release!: () => void
+  const gate = new Promise<void>(r => { release = r })
+  const { files, clock } = boot(on, { answer: url => gate.then(() => url in SERVED ? ok(SERVED[url]!) : ok('')) })
+  await start($)
+  expect((await runGlowup($, 'pack crt')).text).toBe('Pack: crt')
+  release(); await settle(clock)
+  expect(files[`${CONFIG}/packs/oxide.json`]).toBe(PACK)
+  expect((await runGlowup($, 'pack list')).text).toContain('● crt')
+})
+
+test('/plugin choosing an official pack with no cached index installs in the background, not a Not applied toast', { options: { pack: 'oxide' } }, async ($, on) => {
+  let release!: () => void
+  const gate = new Promise<void>(r => { release = r })
+  const { files, toasts, clock } = boot(on, {
+    store: { mix: { colors: 'classic', motion: 'classic' }, 'plugin-seen': { pack: 'classic' } },
+    answer: url => gate.then(() => url in SERVED ? ok(SERVED[url]!) : ok('')),
+  })
+  await start($)
+  release(); await settle(clock)
+  expect(toasts.filter(t => /Not applied/.test(t))).toEqual([])
+  expect(files[`${CONFIG}/packs/oxide.json`]).toBe(PACK)
+  expect((await runGlowup($, 'pack list')).text).toContain('● oxide')
+})
+
+test('/plugin choosing an official pack with a cached index does not hold session start for the download', { options: { pack: 'oxide' } }, async ($, on) => {
+  let release!: () => void
+  const gate = new Promise<void>(r => { release = r })
+  const { files, toasts, clock } = boot(on, {
+    files: { [`${CONFIG}/catalog.json`]: INDEX },
+    store: { mix: { colors: 'classic', motion: 'classic' }, 'plugin-seen': { pack: 'classic' } },
+    answer: url => gate.then(() => url in SERVED ? ok(SERVED[url]!) : ok('')),
+  })
+  await start($)
+  expect(`${CONFIG}/packs/oxide.json` in files).toBe(false)
+  expect((await runGlowup($, 'pack list')).text).toContain('● classic')
+  release(); await settle(clock)
+  expect(files[`${CONFIG}/packs/oxide.json`]).toBe(PACK)
+  expect((await runGlowup($, 'pack list')).text).toContain('● oxide')
+  expect(toasts.filter(t => /Not applied/.test(t))).toEqual([])
+})
+
 test('/glowup pack <name> after start installs: the command host knows the version', async ($, on) => {
   const { files, clock } = boot(on, { files: { [`${CONFIG}/catalog.json`]: INDEX } })
   await start($); await settle(clock)

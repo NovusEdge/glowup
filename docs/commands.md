@@ -137,7 +137,7 @@ Your layout and behavior settings. They are yours alone: installing someone's pa
 
 `/glowup config` opens a pane with a row for each choice, a preview of the look under them, and Done, Copy studio link and Reset at the bottom. Up and down move between rows.
 
-The rows are Pack, Spinner, one for each color role, Band, Tabs, Meter, Pet, Sleeps, Bubbles, Bubble, Moods, Motion and Status. A row shown as ‹ value › cycles to its next value when you press Enter and applies it at once. The other rows are fields you type into and submit with Enter. A field you have not edited does nothing on Enter.
+The rows are Pack, Spinner, one for each color role, Band, Tabs, Meter, Pet, Sleeps, Bubbles, Bubble, Moods, Motion and Status. A row shown as ‹ value › cycles to its next value when you press Enter and applies it at once, except that an official pack on the Pack row applies only when you press the Install button. The other rows are fields you type into and submit with Enter. A field you have not edited does nothing on Enter.
 
 A color field takes a hex such as `#8ecbff` or `8ecbff`, and an empty one clears that role's override. Band, Tabs, Moods and Status take a list separated by commas or spaces, and the order you type is the order glowup draws them. An empty Band or Moods field means none, an empty Status field means the default fields, and Tabs needs at least one. The pane says what it did, or why it refused, on the line under the buttons.
 
