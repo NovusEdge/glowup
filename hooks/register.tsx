@@ -1059,7 +1059,7 @@ export const register: Register = (on, options) => {
     const p = e.props
     const own = p.origin.kind === 'composer' && !p.from && !p.task
     const els = $.ui.resolve(e)
-    const styled = styleRow(els, look, { site: 'UserMessage', text: p.text, isExpanded: p.isExpanded, own }, row) as RenderElement
+    const styled = styleRow(els, look, { site: 'UserMessage', text: p.text, isExpanded: p.isExpanded, own, turn: own && !p.isExpanded ? turns.turnFor(e.requestId) : undefined }, row) as RenderElement
     if (!own || p.isExpanded) return styled
     const rule = await dividerFor($, e.requestId)
     if (!rule) return styled
@@ -1090,7 +1090,7 @@ export const register: Register = (on, options) => {
     const row = await next(e)
     if (e.surface !== 'terminal') return row
     const p = e.props
-    return styleRow($.ui.resolve(e), look, { site: 'ToolUse', tool: p.tool, input: p.input, isRunning: p.isRunning, isErrored: p.isErrored, isInterrupted: p.isInterrupted }, row) as RenderElement
+    return styleRow($.ui.resolve(e), look, { site: 'ToolUse', tool: p.tool, input: p.input, isRunning: p.isRunning, isErrored: p.isErrored, isInterrupted: p.isInterrupted, seq: turns.toolSeq(e.requestId) }, row) as RenderElement
   })
   on('ui.render', { component: 'ToolResult' }, async ($, e, next) => {
     if (off) return next(e)

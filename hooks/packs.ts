@@ -5,7 +5,7 @@ import type { PetTint } from './pets.ts'
 
 export const SPINNER_IDS = ['stock', 'comet', 'eyes', 'orb-states', 'clawd', 'shimmer', 'scanline', 'ring', 'glitch', 'signal'] as const
 export type SpinnerId = (typeof SPINNER_IDS)[number]
-export const ROW_STYLES = ['classic', 'cards', 'minimal', 'retro'] as const
+export const ROW_STYLES = ['classic', 'cards', 'minimal', 'retro', 'slab'] as const
 export type RowStyle = (typeof ROW_STYLES)[number]
 export const BORDERS = ['round', 'single', 'double', 'bold', 'classic'] as const
 export type Border = (typeof BORDERS)[number]

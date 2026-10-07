@@ -1,13 +1,13 @@
 import type { Look } from './packs.ts'
-import { gradient } from './color.ts'
+import { gradient, mix } from './color.ts'
 import { describeTool } from './events.ts'
 import { toolGlyph } from './restyle.ts'
-import { MARKS, retroTag } from './rows-text.ts'
+import { MARKS, retroTag, slabTag } from './rows-text.ts'
 
 export type RowInput =
-  | { site: 'ToolUse'; tool: string; input: unknown; isRunning: boolean; isErrored: boolean; isInterrupted: boolean }
+  | { site: 'ToolUse'; tool: string; input: unknown; isRunning: boolean; isErrored: boolean; isInterrupted: boolean; seq?: number }
   | { site: 'ToolResult' }
-  | { site: 'UserMessage'; text: string; isExpanded: boolean; own: boolean }
+  | { site: 'UserMessage'; text: string; isExpanded: boolean; own: boolean; turn?: number }
   | { site: 'AssistantMessage'; isFirstOfReply: boolean; xp?: number }
 
 type Els = { Box: any; Text: any }
@@ -71,6 +71,18 @@ function xpTag({ Box, Text }: Els, xp: number, color: string) {
   return <Box flexDirection="row" justifyContent="flex-end"><Text color={color}>{`+${xp} XP`}</Text></Box>
 }
 
+function roleColor(look: Look, tool: string, input: Record<string, unknown>): string {
+  const c = look.theme.colors
+  switch (describeTool(tool, input).kind) {
+    case 'read': case 'search': return c.read
+    case 'edit': return c.edit
+    case 'shell': return c.shell
+    case 'agent': return c.agent
+    case 'plan': return c.accent
+    default: return c.dim
+  }
+}
+
 export function styleRow(els: Els, look: Look, row: RowInput, engine: unknown, opts: { prefixCards?: boolean } = {}): unknown {
   const out = draw(els, look, row, engine, opts)
   if (look.rows === 'classic') return out
@@ -127,6 +139,38 @@ function draw(els: Els, look: Look, row: RowInput, engine: unknown, opts: { pref
         }
         const m = mark(look, row, MARKS.retro)
         return <Box flexDirection="row"><Box flexShrink={0} marginTop={1}>{label(els, retroTag(row.tool), look, c.accent)}</Box>{shrinker(Box, engine)}{fixed(els, m.color, ' ' + m.mark)}</Box>
+      }
+
+      case 'slab': {
+        if (row.site === 'UserMessage') {
+          // The engine row opens with a blank margin line (see card()); marginTop keeps that gap,
+          // where a divider overlay can still sit.
+          return (
+            <Box flexDirection="row" marginTop={1} backgroundColor={c.accent}>
+              <Box flexGrow={1} flexShrink={1}><Text color={look.bg} backgroundColor={c.accent} bold>{' ' + row.text}</Text></Box>
+              {row.turn ? <Box flexShrink={0}><Text color={mix(look.bg, c.accent, 0.3)} backgroundColor={c.accent}>{` PROMPT ${String(row.turn).padStart(2, '0')} `}</Text></Box> : null}
+            </Box>
+          )
+        }
+        if (row.site === 'ToolResult') return <Box paddingLeft={4}>{engine}</Box>
+        if (row.site === 'AssistantMessage') {
+          if (!row.isFirstOfReply) return engine
+          return (
+            <Box flexDirection="column">
+              {engine}
+              <Box position="absolute" top={0} left={0} height={1}><Text color={c.accent}>{'─'.repeat(8)}</Text></Box>
+            </Box>
+          )
+        }
+        const m = mark(look, row, MARKS.slab)
+        const n = row.seq ? String(row.seq).padStart(2, '0') + '  ' : ''
+        return (
+          <Box flexDirection="row">
+            <Box flexShrink={0} marginTop={1}><Text><Text color={c.faint}>{n}</Text><Text color={roleColor(look, row.tool, input)} bold>{slabTag(row.tool)}</Text><Text>{' '}</Text></Text></Box>
+            {shrinker(Box, engine)}
+            {fixed(els, m.color, ' ' + m.mark)}
+          </Box>
+        )
       }
     }
     return engine
