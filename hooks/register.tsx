@@ -60,6 +60,8 @@ let pet: PetSetting = 'clawd'
 let petSheet: PetSheet | undefined
 let bubbles: BubbleSetting = 'on'
 let view: PaneView = { tab: 'changes' }
+// the last offset the open tab's window can take, as the pane drew it; ui.scroll clamps to it
+let scrollLast = 0
 let git: { root: string; base: string } | undefined
 let cwd = ''
 let configDir = ''
@@ -1004,7 +1006,7 @@ export const register: Register = (on, options) => {
       extra = { ...extra, pet: { id: pid, node, rows: stripRows(sheet, snap.overlays) }, bubble: bubbleNow, friday: snap.friday }
     }
     // the engine scrolls the whole body, which would carry the pet off with a long tab: budget the tab to bodyRows instead
-    extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onScroll: (offset: number) => { view = { ...view, offset }; publish($) } }
+    extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onRange: last => { scrollLast = last } }
     if (e.props.placement === 'dock') extra = { ...extra, minRows: e.props.scroll.bodyRows }
     const m = live ? normalizeModel(live.model) : model, pack = mix.colors, colors = palette(), picked = lookKey()
     if (!compact) {
@@ -1036,6 +1038,14 @@ export const register: Register = (on, options) => {
       publish($)
       if (id === 'plan') void feedContext($)
     }, extra)
+  })
+
+  // No next(): the pane draws its own window, and the engine moving the whole body would carry the pet and status box off.
+  on('ui.scroll', { component: 'Pane', requestId: 'glowup' }, async ($, e, next) => {
+    if (off) return next(e)
+    const offset = Math.max(0, Math.min(Math.min(view.offset ?? 0, scrollLast) + e.by, scrollLast))
+    if (offset !== view.offset) { view = { ...view, offset }; publish($) }
+    return {}
   })
 
   on('ui.render', { component: 'Pane', requestId: CONFIG_ID }, async ($, e, next) => {

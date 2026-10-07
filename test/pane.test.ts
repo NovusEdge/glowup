@@ -402,27 +402,61 @@ test('with a bubble above the pet the long tab still fits the body exactly', asy
   expect(rowsOf(tree)).toBe(30)
 })
 
-test('a long tab scrolls inside its rows, with buttons for the hidden ones', async () => {
-  const draw = (offset?: number, onScroll: (o: number) => void = () => {}) => renderPane(els, many(60), T, { tab: 'changes', offset }, 54, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, bodyRows: 30, onScroll }) as any
+test('a long tab scrolls inside its rows, with plain hints for the hidden ones', async () => {
+  const draw = (offset?: number, tab: TabId = 'changes') => renderPane(els, many(60), T, { tab, offset }, 54, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, bodyRows: 30 }) as any
   const all = (t: any) => walk(t).filter(n => n.type === 'Text').map(n => n.children.join('')).join('\n')
+  const hints = (t: any) => walk(t).filter(n => n.type === 'Text' && /^[↑↓] \d+ more$/.test(n.children.join('')))
+  const said = (t: any) => hints(t).map(h => h.children.join(''))
   expect(all(draw())).toContain('f0.ts')
   expect(all(draw())).not.toContain('f40.ts')
-  const labels = (t: any) => walk(t).filter(n => n.type === 'Button').map(b => b.props.label).filter((l: string) => /more/.test(l))
-  expect(labels(draw())).toEqual([expect.stringMatching(/^↓ \d+ more$/)])
+  expect(said(draw())).toEqual([expect.stringMatching(/^↓ \d+ more$/)])
   expect(all(draw(1000))).toContain('f59.ts')
-  expect(labels(draw(1000))).toEqual([expect.stringMatching(/^↑ \d+ more$/)])
+  expect(said(draw(1000))).toEqual([expect.stringMatching(/^↑ \d+ more$/)])
+  expect(said(draw(5)).map(h => h[0])).toEqual(['↑', '↓'])
   expect(rowsOf(draw(1000))).toBeLessThanOrEqual(30)
-  const picks: number[] = []
-  const down = walk(draw(0, o => picks.push(o))).find(n => n.type === 'Button' && /↓/.test(n.props.label))
-  ;(down.onPress ?? down.props.onPress)({})
-  expect(picks[0]).toBeGreaterThan(0)
+  for (const tab of ['changes', 'agents', 'plan'] as const) {
+    const t = draw(3, tab)
+    expect(hints(t).length, tab).toBeGreaterThan(0)
+    expect(hints(t).every(h => h.props.color === T.colors.dim), tab).toBe(true)
+    expect(walk(t).filter(n => n.type === 'Button' && /more/.test(n.props.label)), tab).toEqual([])
+    expect(walk(t)).toContain(PETNODE)
+  }
+})
+
+test('the hidden counts add up to the rows the window leaves out', async () => {
+  const counts = (offset: number) => {
+    const t = renderPane(els, many(60), T, { tab: 'changes', offset }, 54, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, bodyRows: 30 }) as any
+    const n = (c: string) => Number(walk(t).filter(x => x.type === 'Text').map(x => x.children.join('')).find(x => x.startsWith(c))?.match(/\d+/)?.[0] ?? 0)
+    return [n('↑'), n('↓')]
+  }
+  const below0 = counts(0)[1]!
+  expect(counts(0)[0]).toBe(0)
+  expect(counts(4)).toEqual([4, below0 - 4])
+  expect(counts(1000)[1]).toBe(0)
+})
+
+test('the plan tab folds a finished plan into one line in the pass color', async () => {
+  const done = (n: number): Model => ({ ...M, plan: Array.from({ length: n }, (_, i) => ({ id: String(i), title: 'step ' + i, status: 'completed' as const })), planFolded: Array.from({ length: n }, (_, i) => String(i)) })
+  for (const compact of [false, true]) {
+    const rows = tabRows(done(5), T, { tab: 'plan' }, 54, compact, 0)
+    const line = rows.find(r => r.some(s => s.text.includes('plan done')))!
+    expect(line.find(s => s.text.includes('plan done'))!.text).toBe('✓ plan done · 5 tasks')
+    expect(line.find(s => s.text.includes('plan done'))!.color).toBe(T.colors.pass)
+    expect(text(rows).join('\n')).not.toContain('step 0')
+  }
+  expect(text(tabRows(done(1), T, { tab: 'plan' }, 54, false, 0)).join('\n')).toContain('✓ plan done · 1 task ')
+  const open: Model = { ...done(3), plan: [...done(3).plan, { id: '9', title: 'late one', status: 'pending' }] }
+  const shown = text(tabRows(open, T, { tab: 'plan' }, 54, false, 0)).join('\n')
+  expect(shown).toContain('late one')
+  expect(shown).not.toContain('plan done')
+  expect(text(tabRows(done(3), T, { tab: 'plan' }, 54, false, 0)).join('\n')).toMatch(/CONTEXT/)
 })
 
 test('a long tab keeps its box edges and scrolls only the first body', async () => {
   const draw = (tab: TabId, bodyRows: number, offset?: number) => renderPane(els, many(40), T, { tab, offset }, 54, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, bodyRows }) as any
   const status = statusRows(many(40), T, 54 - 2 - 4, 0).length
   for (const offset of [0, 5]) {
-    const rows = textRows(draw('changes', 30, offset)).slice(0, -status)
+    const rows = textRows(draw('changes', 30, offset)).slice(0, -status).filter(r => !/^[↑↓] \d+ more/.test(r))
     expect(rows[0], `${offset}`).toMatch(/^╭─ CHANGES/)
     expect(rows.at(-1), `${offset}`).toMatch(/^╰/)
     expect(rows.join('\n')).toContain(`f${offset}.ts`)

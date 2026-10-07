@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { initialModel, applyEvent, bandVisible, isBusy, mergeCounts, type Ev, type Model } from '../hooks/model.ts'
+import { initialModel, applyEvent, bandVisible, isBusy, mergeCounts, planFold, type Ev, type Model } from '../hooks/model.ts'
 
 const run = (evs: Ev[]) => evs.reduce(applyEvent, initialModel())
 
@@ -181,6 +181,31 @@ test('plan follows TaskCreate and uses the result id', async () => {
     { type: 'tool-end', at: 2, tool: 'TaskUpdate', toolUseId: 'u1', input: { taskId: '7', status: 'in_progress' }, isError: false, text: '' },
   ])
   expect(m.plan).toEqual([{ id: '7', title: 'Patch it', status: 'in_progress' }])
+})
+
+const item = (id: string, status: 'pending' | 'in_progress' | 'completed') => ({ id, title: 'task ' + id, status })
+
+test('a finished plan folds at the next prompt, not before', async () => {
+  const done = [item('1', 'completed'), item('2', 'completed')]
+  let m = applyEvent(initialModel(), { type: 'plan-load', plan: done })
+  expect(planFold(m)).toBeUndefined()
+  m = applyEvent(m, { type: 'turn-start', at: 1 })
+  expect(planFold(m)).toBe(2)
+  expect(planFold(applyEvent(applyEvent(initialModel(), { type: 'plan-load', plan: [item('1', 'completed'), item('2', 'pending')] }), { type: 'turn-start', at: 1 }))).toBeUndefined()
+  expect(planFold(applyEvent(initialModel(), { type: 'turn-start', at: 1 }))).toBeUndefined()
+})
+
+test('a folded plan opens again on a pending task or a new id, and stays open until the next prompt', async () => {
+  const folded = applyEvent(applyEvent(initialModel(), { type: 'plan-load', plan: [item('1', 'completed')] }), { type: 'turn-start', at: 1 })
+  expect(planFold(folded)).toBe(1)
+  const reopened = applyEvent(folded, { type: 'plan-load', plan: [item('1', 'pending')] })
+  expect(planFold(reopened)).toBeUndefined()
+  expect(planFold(applyEvent(reopened, { type: 'plan-load', plan: [item('1', 'completed')] }))).toBeUndefined()
+  const grown = applyEvent(folded, { type: 'plan-load', plan: [item('1', 'completed'), item('2', 'completed')] })
+  expect(planFold(grown)).toBeUndefined()
+  expect(planFold(applyEvent(grown, { type: 'turn-start', at: 2 }))).toBe(2)
+  const created = applyEvent(folded, { type: 'tool-end', at: 2, tool: 'TaskCreate', toolUseId: 'c', input: { subject: 'more', description: '' }, isError: false, text: '', resultTaskId: '2' })
+  expect(planFold(created)).toBeUndefined()
 })
 
 test('a subagent todo list leaves the main plan alone', async () => {

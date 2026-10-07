@@ -1,5 +1,5 @@
 import type { ContextCategoryKind } from 'claude-code'
-import { normalizeModel, type Model, type PlanItem } from './model.ts'
+import { normalizeModel, planFold, type Model, type PlanItem } from './model.ts'
 import { legendRows, stackBar, type Heavy } from './ctxchart.ts'
 import { brailleArea, chartTop, markBar, outlook, tokensK } from './trend.ts'
 import { planOrder } from './tasks.ts'
@@ -166,14 +166,15 @@ function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, limi
   const used = m.ctxPercent, cats = v.categories ?? []
   const { items: shown, hiddenDone } = planOrder(m.plan)
   const lead = compact ? '  ' : '', iw = compact ? w : boxInner(w)
-  const items: Seg[][] = shown.map(p => planRow(p, t, iw, lead))
+  const folded = planFold(m)
+  const items: Seg[][] = folded === undefined ? shown.map(p => planRow(p, t, iw, lead)) : [[{ text: lead, color: c.text }, { text: `✓ plan done · ${folded} task${folded === 1 ? '' : 's'}`, color: c.pass }]]
   if (!m.plan.length) items.push([{ text: lead + 'No task list yet.', color: c.dim }])
   if (compact) {
     const inner = Math.max(4, w - 12)
     const ctx = fit([{ text: ' ctx ▕', color: c.dim }, ...markCompact(stackBar(cats, v.maxTokens, used, inner, t).segs, v, inner, t), { text: `▏${String(used).padStart(4)}%`, color: c.text }], w)
     return { rows: [...cap(items, t, w, 1, limit), ctx], n: -1 }
   }
-  if (hiddenDone) items.push([{ text: `  +${hiddenDone} more done`, color: c.dim }])
+  if (hiddenDone && folded === undefined) items.push([{ text: `  +${hiddenDone} more done`, color: c.dim }])
   const usedTokens = cats.some(x => x.kind === 'used') ? cats.filter(x => x.kind === 'used').reduce((n, x) => n + x.tokens, 0) : v.maxTokens ? used / 100 * v.maxTokens : undefined
   const stack = stackBar(cats, v.maxTokens, used, iw, t)
   const ctx: Seg[][] = [markCompact(stack.segs, v, iw, t), ...legendRows(stack.slices, iw, t)]
@@ -237,7 +238,7 @@ export function statusRows(model: Model, base: Theme, width: number, now: number
 // rows is the strip height, from stripRows: the sheet's height, plus headroom while an outfit is worn.
 // meter and field come from a renderer plugin: rows for the status box, and a builder for the
 // field's player given the rows left open between the tab and the status box.
-export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Mood }; friday?: boolean; minRows?: number; bodyRows?: number; onScroll?: (offset: number) => void; meter?: Seg[][]; field?: (rows: number) => unknown; tabs?: readonly TabId[] }
+export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Mood }; friday?: boolean; minRows?: number; bodyRows?: number; onRange?: (last: number) => void; meter?: Seg[][]; field?: (rows: number) => unknown; tabs?: readonly TabId[] }
 export const PET_STRIP_COLS = 46
 const BUBBLE_ROOM = 16
 
@@ -308,7 +309,7 @@ function footerRows(m: Model, t: Theme, extra: PaneExtra | undefined, width: num
 }
 
 export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, base: Theme, v: PaneView, width: number, compact: boolean, now: number, onTab: (id: TabId) => void, extra?: PaneExtra) {
-  const { Box, Button } = els
+  const { Box, Text, Button } = els
   const look = extra?.look, t = look?.theme ?? base
   const inner = width - 2
   const shown = visibleTabs(extra?.tabs, v.tab)
@@ -317,7 +318,7 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
   let rowsLeft = compact && extra?.pet ? COMPACT_ROWS - 2 : COMPACT_ROWS
   if (compact && extra?.bodyRows) rowsLeft = Math.max(1, Math.min(rowsLeft, extra.bodyRows - 1 - (extra.pet ? 1 : 0)))
   let { rows, body } = tabParts(m, t, v, inner, compact, now, rowsLeft, look?.border ?? 'round')
-  let hint: any = null, open = 0
+  let hint: any = null, open = 0, last = 0
   if (!compact && extra?.bodyRows) {
     // tab strip and its margin sit above, the footer below; the tab gets the rest and scrolls on its own
     const room = Math.max(2, extra.bodyRows - 2 - footerRows(m, t, extra, width, now))
@@ -326,17 +327,19 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
       // box edges and what follows the first box stay put; only that box's body rows scroll
       const bodyRoom = room - 1 - (rows.length - (body[1] - body[0]))
       const [from, to] = bodyRoom >= 1 ? body : [0, rows.length]
-      const win = bodyRoom >= 1 ? bodyRoom : room - 1, last = to - from - win, top = Math.max(0, Math.min(v.offset ?? 0, last)), below = last - top
-      const go = (to: number) => extra.onScroll?.(Math.max(0, Math.min(to, last)))
+      const win = bodyRoom >= 1 ? bodyRoom : room - 1, top = Math.max(0, Math.min(v.offset ?? 0, to - from - win))
+      last = to - from - win
+      const below = last - top
       hint = (
         <Box key="scroll" flexDirection="row" gap={1}>
-          {top > 0 && <Button key="up" label={`↑ ${top} more`} hotkey="k" dimColor onPress={() => go(top - win)} />}
-          {below > 0 && <Button key="down" label={`↓ ${below} more`} hotkey="j" dimColor onPress={() => go(top + win)} />}
+          {top > 0 && <Text key="up" color={t.colors.dim} wrap="truncate">{`↑ ${top} more`}</Text>}
+          {below > 0 && <Text key="down" color={t.colors.dim} wrap="truncate">{`↓ ${below} more`}</Text>}
         </Box>
       )
       rows = [...rows.slice(0, from), ...rows.slice(from + top, from + top + win), ...rows.slice(to)]
     }
   }
+  extra?.onRange?.(last)
   return (
     // minHeight, not height: a short tab still pushes the status box to the bottom of the body
     <Box flexDirection="column" width={width} minHeight={compact ? undefined : extra?.minRows}>
