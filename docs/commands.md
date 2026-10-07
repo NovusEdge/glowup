@@ -53,8 +53,10 @@ Each refusal prints a message naming the failed check. Adding a theme whose name
 
 | Command | What it does |
 | --- | --- |
-| `/glowup pack <name>` | Apply a pack to both layers. Prints `Pack: <name>`. |
-| `/glowup pack list` | List built-in and installed packs. A filled dot marks the active one. If the look is a mix of packs or has a theme or spinner on top, a last line starts `custom mix:` and names each layer. |
+| `/glowup pack <name>` | Apply a pack to both layers. Prints `Pack: <name>`. An [official pack](packs.md#official-packs) is installed on first use. |
+| `/glowup pack <name> --force` | The same, but an official pack replaces an installed pack of that name. |
+| `/glowup pack update [name]` | Fetch the named official pack, or every one you installed, again. A pack file you changed is skipped. |
+| `/glowup pack list` | List built-in and installed packs, then official packs you have not installed. A filled dot marks the active one. If the look is a mix of packs or has a theme or spinner on top, a last line starts `custom mix:` and names each layer. |
 | `/glowup pack save <name>` | Save the current look as a self-contained pack file in `~/.claude/glowup/packs`. Prints `Saved pack "<name>" to <path>.` |
 | `/glowup pack <url>` | Download, check and install a pack from an `https://` URL, then apply it. |
 | `/glowup pack <url> --force` | The same, replacing an installed pack of that name. |
