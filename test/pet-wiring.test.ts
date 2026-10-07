@@ -221,6 +221,16 @@ test('a non-interactive run shows no fallback toast', async ($, on) => {
   expect(toasts.filter(t => t.includes('Showing Clawd'))).toEqual([])
 })
 
+test('a stored egg while the egg is locked shows Clawd', async ($, on) => {
+  base(on, undefined, { store: { pet: 'egg' } }); mock.clock(on)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  const pane = await mountPane($)
+  expect(petClient(await pane.drawn()).props.props.pet).toBe('clawd')
+  await pane.unmount()
+})
+
 test('the robot gets an 8-row strip; Clawd keeps 6', async ($, on) => {
   base(on); mock.clock(on)
   const strip = async () => {
@@ -260,6 +270,19 @@ test('the Konami post unlocks the egg once, with one toast and a juggle', async 
   await pane.post({ konami: true }, { in: 'glowup-pet' })
   expect(toasts.filter(t => t === 'An egg! /glowup pet egg')).toHaveLength(1)
   expect((stored.eggs as { eggAt?: number } | undefined)?.eggAt).toBeGreaterThan(0)
+  expect((await runGlowup($, 'pet list')).text).toContain('○ egg')
   expect(petClient(await pane.drawn()).props.props.input.juggleAt).toBeGreaterThan(0)
+  await pane.unmount()
+})
+
+test('passing runs move the shown egg to its next crack sheet', async ($, on) => {
+  base(on, undefined, { toolText: 'Tests: 12 passed', store: { eggs: { passRuns: 9, eggAt: 1, eggRuns: 0 } } }); mock.clock(on)
+  await runGlowup($, 'pet egg')
+  const pane = await mountPane($)
+  const before = JSON.stringify(petClient(await pane.drawn()).props.props.sheet)
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await $.tool.call({ tool: 'Bash', tool_use_id: 'b1', command: 'npm test' } as never)
+  const after = JSON.stringify(petClient(await pane.drawn()).props.props.sheet)
+  expect(after).not.toBe(before)
   await pane.unmount()
 })

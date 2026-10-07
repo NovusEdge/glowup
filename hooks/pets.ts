@@ -1,11 +1,16 @@
 // JSX-free: the docs site imports it.
 import { CLAWD_SHEET } from './sprites/clawd.ts'
 import { CRT_SHEET } from './sprites/crt.ts'
+import { EGG0_SHEET } from './sprites/egg0.ts'
+import { EGG1_SHEET } from './sprites/egg1.ts'
+import { EGG2_SHEET } from './sprites/egg2.ts'
+import { EGG3_SHEET } from './sprites/egg3.ts'
+import { crackStage, type EggStore } from './eggs.ts'
 
 export { CLAWD_SHEET }
 export const CLAWD_COLOR = '#d77757'
 export const SHINY_COLOR = '#f2c94c'
-export type BuiltinPet = 'clawd' | 'clawd-shiny' | 'robot'
+export type BuiltinPet = 'clawd' | 'clawd-shiny' | 'robot' | 'egg'
 // Built-in ids, or the name of a pet installed under <config>/glowup/pets.
 export type PetSetting = BuiltinPet | 'off' | (string & {})
 // `string & {}` stays in the union, so the type cannot exclude 'off'; the pane's render hook checks it.
@@ -90,8 +95,11 @@ export const petPalette = (sheet: PetSheet, pet: PetId, tint: PetTint = {}): Rec
   return out
 }
 
+// one sheet per crack stage
+export const EGG_SHEETS: readonly PetSheet[] = [EGG0_SHEET, EGG1_SHEET, EGG2_SHEET, EGG3_SHEET]
+export const eggSheet = (s: EggStore | undefined): PetSheet => EGG_SHEETS[crackStage(s)]!
 // Keys match BUILTIN_PET_NAMES in petfile.ts; clawd-shiny is Clawd's sheet with the shiny palette.
-export const BUILTIN_SHEETS: Record<string, PetSheet> = { clawd: CLAWD_SHEET, 'clawd-shiny': CLAWD_SHEET, robot: CRT_SHEET }
+export const BUILTIN_SHEETS: Record<string, PetSheet> = { clawd: CLAWD_SHEET, 'clawd-shiny': CLAWD_SHEET, robot: CRT_SHEET, egg: EGG0_SHEET }
 export const isClawd = (p: string) => p === 'clawd' || p === 'clawd-shiny'
 // The drawer's one-row pet for anything but Clawd, whose own row is CLAWD_ROW.
 export const CRITTER_ROW = '▗▟█▙▖'

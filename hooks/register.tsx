@@ -6,10 +6,10 @@ import { shown, type Theme } from './themes.ts'
 import { resolveLook, cleanOverrides, exportMix, exportName, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { PACKS } from './packpresets.ts'
 import { loadUserPacks, SAFE_NAME } from './userpacks.ts'
-import { BUILTIN_SHEETS, CLAWD_SHEET, stripRows, type PetSetting, type PetInput, type PetKind, type PetSheet } from './pets.ts'
+import { BUILTIN_SHEETS, CLAWD_SHEET, eggSheet, stripRows, type PetSetting, type PetInput, type PetKind, type PetSheet } from './pets.ts'
 import { loadUserPet, userPetNames } from './userpets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
-import { recordPass, unlockEgg, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
+import { recordPass, unlockEgg, eggUnlocked, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, refreshCounts, serial } from './changes.ts'
 import { loadTasks, taskListId } from './tasks.ts'
 import { cacheHit, heaviest } from './ctxchart.ts'
@@ -113,6 +113,7 @@ const CONFIG_OPEN: PaneOpenArgs = { id: CONFIG_ID, title: 'glowup config', focus
 // Read when the config pane opens and after each pack change: its render hook may not read disk.
 let configPacks: string[] = Object.keys(PACKS)
 let configShiny = false
+let configEgg = false
 let configUserPets: string[] = []
 let configNote: ConfigNote | undefined
 // The element holding the config pane's focus ring, from ui.focus; the preview marks what it paints.
@@ -452,7 +453,9 @@ async function readConfigLists($: Engine) {
   const host = hostOf($)
   const user = await loadUserPacks(host)
   configPacks = [...new Set([...Object.keys(PACKS), ...Object.keys(user).filter(n => SAFE_NAME.test(n))])]
-  configShiny = ((await host.storeGet('eggs')) as EggStore | undefined)?.shinyAt !== undefined
+  const eggs = (await host.storeGet('eggs')) as EggStore | undefined
+  configShiny = eggs?.shinyAt !== undefined
+  configEgg = eggUnlocked(eggs)
   // a listed pet that does not load would be refused forever, and the Pet row would repeat it
   const pets: string[] = []
   for (const n of await userPetNames(host)) if ('sheet' in await loadUserPet(host, n)) pets.push(n)
@@ -467,7 +470,7 @@ async function openConfig($: Engine): Promise<string> {
   return r.isPlaced ? 'glowup config open (Esc closes it)' : `glowup config waits: ${r.reason}`
 }
 
-const configState = (): ConfigState => ({ packs: configPacks, mix, colors: look.theme.colors, pet, shiny: configShiny, userPets: configUserPets, bubbles, reduced: reducedMotion, setup, fields })
+const configState = (): ConfigState => ({ packs: configPacks, mix, colors: look.theme.colors, pet, shiny: configShiny, egg: configEgg, userPets: configUserPets, bubbles, reduced: reducedMotion, setup, fields })
 
 // Every change runs as the typed command would; the last command's first line, or its setting's row for a setup, becomes the pane's note.
 // A command that leaves the state unchanged was refused, so the rest of the run is dropped: the
@@ -746,6 +749,7 @@ export const register: Register = (on, options) => {
     pet = 'clawd'
     petSheet = undefined
     if (want === 'clawd-shiny') pet = eggs?.shinyAt === undefined ? 'clawd' : want
+    else if (want === 'egg') { if (eggUnlocked(eggs)) { pet = 'egg'; petSheet = eggSheet(eggs) } }
     else if (want === 'off' || Object.hasOwn(BUILTIN_SHEETS, want)) pet = want
     else {
       const r = await loadUserPet(host, want)
@@ -849,6 +853,10 @@ export const register: Register = (on, options) => {
         const r = recordPass(await hostOf($).storeGet('eggs') as EggStore | undefined, Date.now())
         await hostOf($).storeSet('eggs', r.next)
         if (r.unlocked) $.ui.toast('Clawd went shiny. /glowup pet clawd-shiny (see him in /glowup pane)')
+        if (pet === 'egg') {
+          const cracked = eggSheet(r.next)
+          if (cracked !== petSheet) { petSheet = cracked; relook($) }
+        }
       } catch (err) {
         $.ui.log(`pass counter failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
       }
