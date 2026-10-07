@@ -124,7 +124,7 @@ Your layout and behavior settings. They are yours alone: installing someone's pa
 | Key | Value | Default |
 | --- | --- | --- |
 | `band` | Comma list of `combo`, `agents`, `meter`, `plan`, or `none`. The order is the order in the band. | `combo,agents,meter,plan` |
-| `tabs` | Comma list of `changes`, `agents`, `plan`; at least one. | `changes,agents,plan` |
+| `tabs` | Comma list of `plan`, `agents`, `diff`, `changes`; at least one. The first one is the tab the pane opens on. | `plan,agents,diff,changes` |
 | `meter.warn` | Percent at which the status line's percentages turn the `edit` color. | `50` |
 | `meter.danger` | Percent at which the status line's percentages turn `fail`, the pane warns about context and the pet pants. | `80` |
 | `bubbles.moods` | Comma list of `needs-you`, `fail`, `done`, or `none`. | all three |

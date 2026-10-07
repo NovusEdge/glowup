@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Hints that a secret pet exists: `???` in `/glowup pet list`, and now and then a line from Clawd.
+- A Diff tab shows this session's changes as themed hunks.
+
+### Changed
+
+- The pane's tabs now open on Plan & context: plan, agents, diff, changes.
+- A commit drops the committed files from the Changes tab, and a finished plan folds to one line at the next prompt.
+- The Changes and Diff tabs list the most recently changed file first.
+- Long tabs scroll with the mouse wheel and the scroll keys instead of the `↑ more` / `↓ more` buttons.
+
 ## [0.10.0] - 2026-10-07
 
 ### Added

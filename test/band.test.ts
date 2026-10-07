@@ -17,6 +17,12 @@ test('band line reads action, subagents, hearts and plan', async () => {
   expect(text).toBe('✎ Editing src/auth.ts  ·  ◆ 1 subagent  ·  ♥♥♥♡♡  ·  ◇ ●○')
 })
 
+test('the band drops the plan item while the plan is folded', async () => {
+  let m = applyEvent(initialModel(), { type: 'plan-load', plan: [{ id: '1', title: 'x', status: 'completed' }] })
+  m = applyEvent({ ...m, ctxPercent: 52 }, { type: 'turn-start', at: 0 })
+  expect(bandSegments(m, T, 120).map(s => s.text).join('')).toBe('✻ Thinking  ·  ♥♥♥♡♡')
+})
+
 test('band fits 40, 60 and 80 columns', async () => {
   let m = applyEvent(initialModel(), { type: 'tool-start', at: 1, tool: 'Read', toolUseId: 'r', input: { file_path: '/a/very/long/path/to/some/deeply/nested/file-name.ts' } })
   m = { ...m, working: true, ctxPercent: 30 }

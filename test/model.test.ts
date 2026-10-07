@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { initialModel, applyEvent, bandVisible, isBusy, mergeCounts, type Ev, type Model } from '../hooks/model.ts'
+import { initialModel, applyEvent, bandVisible, isBusy, mergeCounts, planFold, type Ev, type Model } from '../hooks/model.ts'
 
 const run = (evs: Ev[]) => evs.reduce(applyEvent, initialModel())
 
@@ -122,8 +122,23 @@ test('mergeCounts keeps files added after the git snapshot and adds files only g
   const later = applyEvent(snap, { type: 'tool-end', at: 2, tool: 'Write', toolUseId: 'w1', input: { file_path: '/r/b.ts', content: 'q' }, isError: false, text: '', writeType: 'create' })
   const m = mergeCounts(later, [...refreshed, { path: '/r/sed.ts', add: 9, del: 9, how: 'edit', at: 3 }])
   expect(m.files.map(f => [f.path, f.how, f.add, f.del])).toEqual([['/r/sed.ts', 'edit', 9, 9], ['/r/b.ts', 'new', 1, 0], ['/r/a.ts', 'edit', 5, 2]])
-  // a later refresh leaves its first-seen time alone
-  expect(mergeCounts(m, [{ path: '/r/sed.ts', add: 10, del: 9, how: 'edit', at: 7 }]).files[0]).toMatchObject({ path: '/r/sed.ts', add: 10, at: 3 })
+  // a refresh that finds new counts touches the file at the refresh time
+  expect(mergeCounts(m, [{ path: '/r/sed.ts', add: 10, del: 9, how: 'edit', at: 7 }]).files[0]).toMatchObject({ path: '/r/sed.ts', add: 10, at: 7 })
+  // a refresh that started before a later edit does not move that edit back
+  expect(mergeCounts(m, [{ path: '/r/b.ts', add: 2, del: 0, how: 'new', at: 1 }]).files.map(f => [f.path, f.at])).toEqual([['/r/sed.ts', 3], ['/r/b.ts', 2], ['/r/a.ts', 1]])
+})
+
+test('mergeCounts drops a file the refresh was given and did not return, but not one added meanwhile', async () => {
+  const edit = (at: number, file: string): Ev => ({ type: 'tool-end', at, tool: 'Edit', toolUseId: 'e' + at, input: { file_path: file, old_string: 'x', new_string: 'y' }, isError: false, text: '' })
+  const m = run([edit(1, '/r/a.ts'), edit(2, '/r/b.ts'), edit(3, '/r/late.ts')])
+  const out = mergeCounts(m, [{ path: '/r/b.ts', add: 1, del: 1, how: 'edit', at: 2 }], ['/r/a.ts', '/r/b.ts'])
+  expect(out.files.map(f => f.path)).toEqual(['/r/late.ts', '/r/b.ts'])
+})
+
+test('editing an older file again puts it first', async () => {
+  const edit = (at: number, file: string): Ev => ({ type: 'tool-end', at, tool: 'Edit', toolUseId: 'e' + at, input: { file_path: file, old_string: 'x', new_string: 'y' }, isError: false, text: '' })
+  const m = run([edit(1, '/r/a.ts'), edit(2, '/r/b.ts'), edit(3, '/r/a.ts')])
+  expect(m.files.map(f => f.path)).toEqual(['/r/a.ts', '/r/b.ts'])
 })
 
 test('failed edits do not count', async () => {
@@ -181,6 +196,31 @@ test('plan follows TaskCreate and uses the result id', async () => {
     { type: 'tool-end', at: 2, tool: 'TaskUpdate', toolUseId: 'u1', input: { taskId: '7', status: 'in_progress' }, isError: false, text: '' },
   ])
   expect(m.plan).toEqual([{ id: '7', title: 'Patch it', status: 'in_progress' }])
+})
+
+const item = (id: string, status: 'pending' | 'in_progress' | 'completed') => ({ id, title: 'task ' + id, status })
+
+test('a finished plan folds at the next prompt, not before', async () => {
+  const done = [item('1', 'completed'), item('2', 'completed')]
+  let m = applyEvent(initialModel(), { type: 'plan-load', plan: done })
+  expect(planFold(m)).toBeUndefined()
+  m = applyEvent(m, { type: 'turn-start', at: 1 })
+  expect(planFold(m)).toBe(2)
+  expect(planFold(applyEvent(applyEvent(initialModel(), { type: 'plan-load', plan: [item('1', 'completed'), item('2', 'pending')] }), { type: 'turn-start', at: 1 }))).toBeUndefined()
+  expect(planFold(applyEvent(initialModel(), { type: 'turn-start', at: 1 }))).toBeUndefined()
+})
+
+test('a folded plan opens again on a pending task or a new id, and stays open until the next prompt', async () => {
+  const folded = applyEvent(applyEvent(initialModel(), { type: 'plan-load', plan: [item('1', 'completed')] }), { type: 'turn-start', at: 1 })
+  expect(planFold(folded)).toBe(1)
+  const reopened = applyEvent(folded, { type: 'plan-load', plan: [item('1', 'pending')] })
+  expect(planFold(reopened)).toBeUndefined()
+  expect(planFold(applyEvent(reopened, { type: 'plan-load', plan: [item('1', 'completed')] }))).toBeUndefined()
+  const grown = applyEvent(folded, { type: 'plan-load', plan: [item('1', 'completed'), item('2', 'completed')] })
+  expect(planFold(grown)).toBeUndefined()
+  expect(planFold(applyEvent(grown, { type: 'turn-start', at: 2 }))).toBe(2)
+  const created = applyEvent(folded, { type: 'tool-end', at: 2, tool: 'TaskCreate', toolUseId: 'c', input: { subject: 'more', description: '' }, isError: false, text: '', resultTaskId: '2' })
+  expect(planFold(created)).toBeUndefined()
 })
 
 test('a subagent todo list leaves the main plan alone', async () => {
