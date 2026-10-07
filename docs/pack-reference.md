@@ -82,7 +82,7 @@ Styles wrap or prefix a transcript row; the content Claude Code draws inside it 
 | `cards` | An accent side bar `▎` and a `you` label | A dim side bar, and a `claude` label on the first block of a reply | A dim bordered card with a mark: `✓`, `✗`, `■` for interrupted, `…` while running |
 | `minimal` | A `› text` line | Claude Code's | A dim one-line `· Read src/auth.ts` once it finishes cleanly |
 | `retro` | A `[YOU]` tag on its own line above your prompt | A `[CLAUDE]` tag on the first block | A `[READ  ]`-style tag, then `[ OK ]`, `[FAIL]`, `[STOP]` or `[....]` |
-| `slab` | A full-width bar in `accent` with your prompt in the background color and `PROMPT 03` on the right | An 8-cell `─` rule in `accent` above the first block | `01  READ  ` before the row, then `OK`, `FAIL`, `STOP` or `…` on the right; results indented under their call |
+| `slab` | A full-width bar in `accent` with your prompt in the background color and `PROMPT 03` on the right | An 8-cell `─` rule in `accent` above the first block | `01  READ   ` before the row, then `OK`, `FAIL`, `STOP` or `…` on the right; results indented under their call |
 
 Not styled: notifications, messages from other agents, prompts expanded with ctrl+o or `--verbose`, the folded "Read 3 files" line, and tool progress. Outside fullscreen, rows already in scrollback keep the style they were printed with.
 
