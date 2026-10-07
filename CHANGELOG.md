@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-07
+
 ### Added
 
 - Four spinners: `scanline` sweeps a bright column across a checkered bar and on through the spinner word, `ring` circles nine dots round an ellipse, `glitch` flickers the spinner word's letters into blocks in the pack's `read` and `agent` colors, and `signal` scrolls an oscilloscope trace. Each speeds up or changes shape while commands run or subagents work. Pick one with `motion.spinner` or `/glowup spinner <name>`.
