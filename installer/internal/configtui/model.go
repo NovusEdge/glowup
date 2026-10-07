@@ -195,5 +195,3 @@ func (m Model) status() string {
 	}
 	return ""
 }
-
-func (m Model) View() tea.View { return tea.NewView("") }

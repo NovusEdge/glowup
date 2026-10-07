@@ -3,6 +3,8 @@ package configtui
 import (
 	"slices"
 	"testing"
+
+	"github.com/novusedge/glowup/installer/internal/packs"
 )
 
 func snap() Snapshot {
@@ -10,7 +12,8 @@ func snap() Snapshot {
 	s.Format = 1
 	s.State.Mix = Mix{Colors: "classic", Motion: "classic"}
 	s.State.Pet, s.State.Bubbles = "clawd", "on"
-	s.State.Colors.Accent = "#ff8800"
+	s.State.Colors = packs.Colors{Accent: "#ff8800", Text: "#e0e0e0", Dim: "#909090", Faint: "#505050", Read: "#5fafff", Edit: "#ffaf5f", Shell: "#af87ff",
+		Agent: "#5fd7af", Pass: "#5fd75f", Fail: "#ff5f5f", Panel: "#1c1c1c", AddBg: "#1f3a1f", DelBg: "#3a1f1f", Sel: "#303030"}
 	s.State.Setup.Band = []string{"combo", "agents"}
 	s.State.Setup.Tabs = []string{"plan"}
 	s.State.Setup.Meter.Warn, s.State.Setup.Meter.Danger = 50, 80

@@ -59,7 +59,7 @@ func bubble(text string, border, fg string) []string {
 	return append(out, bd.Render("╰"+strings.Repeat("─", w/2)+"┬"+strings.Repeat("─", w-w/2-1)+"╯"))
 }
 
-// clawdColumn is the bubble over Clawd, ClawdWidth cells wide.
-func clawdColumn(caption string, l Look) []string {
+// ClawdColumn is the bubble over Clawd, ClawdWidth cells wide.
+func ClawdColumn(caption string, l Look) []string {
 	return append(bubble(caption, l.Colors.Accent, l.Colors.Text), clawdLines()...)
 }
