@@ -137,5 +137,7 @@ func (m Model) View() tea.View {
 		// header, tab line, strip and the two footer lines
 		body = strings.Join(append(append([]string{tabLine}, window(rows, cursor, h-5)...), strip), "\n")
 	}
-	return tea.NewView(header + "\n" + body + "\n" + strings.Join(footer, "\n"))
+	v := tea.NewView(header + "\n" + body + "\n" + strings.Join(footer, "\n"))
+	v.AltScreen = true
+	return v
 }
