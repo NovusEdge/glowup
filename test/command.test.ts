@@ -8,6 +8,7 @@ import { DEFAULT_FIELDS, type FieldId } from '../hooks/fields.ts'
 import { DEFAULT_SETUP, type Setup } from '../hooks/setup.ts'
 import { encodeLink } from '../hooks/link.ts'
 import { ROLE_LABELS } from '../hooks/themes.ts'
+import { CATALOG_FILE, RECORD_FILE, textHash } from '../hooks/catalog.ts'
 
 test('/glowup and /glowup help print the short card', { timeoutMs: 20000 }, async ($, on) => {
   fakeFs(on)
@@ -632,4 +633,129 @@ test('a link pet whose name is installed needs --force', async () => {
   const link = encodeLink({ pet: linkPet('mochi') })
   expect(await runCommand(host, `pack ${link}`, ctl().ctl)).toBe('Pet not installed: A pet named "mochi" is installed already. Add --force to replace it.')
   expect(await runCommand(host, `pack ${link} --force`, ctl().ctl)).toBe('Pet: mochi')
+})
+
+const CONFIG = '/home/u/.claude'
+const OXIDE_ENTRY = { name: 'oxide', description: 'bone text and red oxide on warm ink', pack: 'https://example.com/oxide.json', themes: ['https://example.com/themes/oxide.json'], minGlowup: '0.8.1' }
+const FUTURE_ENTRY = { name: 'future', description: 'from a newer glowup', pack: 'https://example.com/future.json', themes: [], minGlowup: '9.0.0' }
+const OXIDE_PACK = JSON.stringify({ format: 1, name: 'oxide', colors: { theme: 'oxide' } })
+const OXIDE_THEME = JSON.stringify({ name: 'oxide', extends: 'classic' })
+const CATALOG_JSON = JSON.stringify({ format: 1, packs: [OXIDE_ENTRY, FUTURE_ENTRY] })
+const oxideFetches = (pack = OXIDE_PACK) => ({ [OXIDE_ENTRY.pack]: pack, [OXIDE_ENTRY.themes[0]!]: OXIDE_THEME })
+const catalogHost = (opts: { files?: Record<string, string>; fetches?: Record<string, string>; version?: string | null } = {}) => {
+  const r = fakeHost({ files: { [CATALOG_FILE(CONFIG)]: CATALOG_JSON, ...opts.files }, fetches: opts.fetches ?? oxideFetches() })
+  if (opts.version !== null) r.host.version = opts.version ?? '0.10.0'
+  return r
+}
+const recordOf = (pack: string) => JSON.stringify({ packs: { oxide: { url: OXIDE_ENTRY.pack, hash: textHash(pack) } }, themes: {} })
+
+test('pack <name> installs an official pack that is not installed and switches to it', async () => {
+  const { host, files } = catalogHost()
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'pack oxide', c)).toBe('Pack: oxide')
+  expect(files[`${PACKS_DIR}/oxide.json`]).toBe(OXIDE_PACK)
+  expect(c.mix()).toEqual({ colors: 'oxide', motion: 'oxide' })
+  expect(calls).toEqual(['mix:oxide/oxide'])
+})
+
+test('installing an official pack keeps the color overrides', async () => {
+  const { host } = catalogHost()
+  const { ctl: c } = ctl()
+  await c.setMix({ colors: 'classic', motion: 'classic', overrides: { accent: '#ffffff' } })
+  expect(await runCommand(host, 'pack oxide', c)).toBe('Pack: oxide')
+  expect(c.mix()).toEqual({ colors: 'oxide', motion: 'oxide', overrides: { accent: '#ffffff' } })
+})
+
+test('a pack that needs a newer glowup is refused and nothing is written', async () => {
+  const { host, files } = catalogHost({ fetches: { [FUTURE_ENTRY.pack]: JSON.stringify({ format: 1, name: 'future' }) } })
+  const before = { ...files }
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'pack future', c)).toBe('future needs glowup 9.0.0; this is 0.10.0.')
+  expect(files).toEqual(before)
+  expect(calls).toEqual([])
+})
+
+test('an unreadable glowup version runs no official pack', async () => {
+  const { host, files } = catalogHost({ version: null })
+  const before = { ...files }
+  expect(await runCommand(host, 'pack oxide', ctl().ctl)).toBe('oxide needs glowup 0.8.1; this is an unknown version.')
+  expect(files).toEqual(before)
+})
+
+test('an unknown pack name lists the official packs after the usual error', async () => {
+  const { host } = catalogHost()
+  const out = await runCommand(host, 'pack nosuch', ctl().ctl)
+  expect(out).toContain('no pack named "nosuch"')
+  expect(out.endsWith('\nOfficial packs: oxide, future')).toBe(true)
+})
+
+test("the person's own pack of the same name is used without a download", async () => {
+  const mine = JSON.stringify({ format: 1, name: 'oxide' })
+  const { host, files } = catalogHost({ files: { [`${PACKS_DIR}/oxide.json`]: mine }, fetches: {} })
+  expect(await runCommand(host, 'pack oxide', ctl().ctl)).toBe('Pack: oxide')
+  expect(files[`${PACKS_DIR}/oxide.json`]).toBe(mine)
+})
+
+test('--force replaces the same-named pack of the person with the official one', async () => {
+  const mine = JSON.stringify({ format: 1, name: 'oxide' })
+  const { host, files } = catalogHost({ files: { [`${PACKS_DIR}/oxide.json`]: mine } })
+  expect(await runCommand(host, 'pack oxide --force', ctl().ctl)).toBe('Pack: oxide')
+  expect(files[`${PACKS_DIR}/oxide.json`]).toBe(OXIDE_PACK)
+})
+
+test('--force on a built-in pack is not a catalog lookup', async () => {
+  const { host, files } = catalogHost({ fetches: {} })
+  expect(await runCommand(host, 'pack classic --force', ctl().ctl)).toBe('Pack: classic')
+  expect(Object.keys(files)).toEqual([CATALOG_FILE(CONFIG)])
+})
+
+test('pack list shows official packs that are not installed, then drops them once installed', async () => {
+  const { host } = catalogHost()
+  const { ctl: c } = ctl()
+  const before = (await runCommand(host, 'pack list', c)).split('\n')
+  expect(before.slice(-2)).toEqual([
+    '○ oxide  (not installed) bone text and red oxide on warm ink',
+    '○ future  (needs glowup 9.0.0) from a newer glowup',
+  ])
+  await runCommand(host, 'pack oxide', c)
+  const after = (await runCommand(host, 'pack list', c)).split('\n')
+  expect(after.filter(l => l.includes('oxide'))).toEqual(['● oxide'])
+  expect(after.at(-1)).toBe('○ future  (needs glowup 9.0.0) from a newer glowup')
+})
+
+test('pack update fetches the official pack again', async () => {
+  const { host, files } = catalogHost()
+  await runCommand(host, 'pack oxide', ctl().ctl)
+  const newer = JSON.stringify({ format: 1, name: 'oxide', description: 'newer', colors: { theme: 'oxide' } })
+  Object.assign(host, { fetchText: async (url: string) => ({ ok: true, status: 200, text: url === OXIDE_ENTRY.pack ? newer : OXIDE_THEME }) })
+  expect(await runCommand(host, 'pack update oxide', ctl().ctl)).toBe('Updated oxide.')
+  expect(files[`${PACKS_DIR}/oxide.json`]).toBe(newer)
+})
+
+test('pack update leaves a pack the person edited', async () => {
+  const { host, files } = catalogHost()
+  await runCommand(host, 'pack oxide', ctl().ctl)
+  const edited = OXIDE_PACK + '\n'
+  files[`${PACKS_DIR}/oxide.json`] = edited
+  expect(await runCommand(host, 'pack update oxide', ctl().ctl)).toBe('oxide changed since glowup installed it; not updated. Use /glowup pack oxide --force to replace it.')
+  expect(files[`${PACKS_DIR}/oxide.json`]).toBe(edited)
+})
+
+test('pack update with no name reports each recorded pack, including one gone from the catalog', async () => {
+  const gone = JSON.stringify({ format: 1, name: 'gone' })
+  const record = JSON.stringify({ packs: { oxide: { url: OXIDE_ENTRY.pack, hash: textHash(OXIDE_PACK) }, gone: { url: 'https://example.com/gone.json', hash: textHash(gone) } }, themes: {} })
+  const { host, files } = catalogHost({ files: { [`${PACKS_DIR}/oxide.json`]: OXIDE_PACK, [`${PACKS_DIR}/gone.json`]: gone, [RECORD_FILE(CONFIG)]: record } })
+  expect(await runCommand(host, 'pack update', ctl().ctl)).toBe('Updated oxide.\ngone is no longer in the catalog.')
+  expect(files[`${PACKS_DIR}/gone.json`]).toBe(gone)
+})
+
+test('pack update names a pack that was not installed from the catalog', async () => {
+  const { host } = catalogHost({ files: { [RECORD_FILE(CONFIG)]: recordOf(OXIDE_PACK) } })
+  expect(await runCommand(host, 'pack update mine', ctl().ctl)).toBe('mine was not installed from the catalog.')
+  expect(await runCommand(host, 'pack update constructor', ctl().ctl)).toBe('constructor was not installed from the catalog.')
+})
+
+test('pack update with nothing recorded says so', async () => {
+  const { host } = catalogHost()
+  expect(await runCommand(host, 'pack update', ctl().ctl)).toBe('No packs were installed from the catalog.')
 })

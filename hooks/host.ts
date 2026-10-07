@@ -22,4 +22,6 @@ export type Host = {
   dataHome: string
   // $HOME
   home: string
+  // glowup's own version from its plugin.json; undefined when it could not be read
+  version?: string
 }
