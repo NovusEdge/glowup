@@ -66,6 +66,22 @@ The mod usually loads into the current session; restart Claude Code if it does n
 
 `/glowup` with no arguments should print a short command card. During a turn you should then see either the band above the prompt or, in fullscreen on a wide terminal, the pane beside the transcript. If neither appears, [Layout](layout.md) explains the width thresholds.
 
+### If glowup does not load
+
+glowup needs Claude Code 2.1.289 or later. The installer checks this, but `/plugin install` does not. On an older Claude Code you see one of these:
+
+- An error at start, such as:
+
+  ```text
+  Failed to load hooks from ...\glowup\0.9.0\hooks\hooks.json:
+  ... "path": ["hooks"], "message": "Invalid input: expected record, received undefined"
+  ```
+
+  Older builds do not know the `modules` format that glowup's `hooks/hooks.json` uses.
+- No error, but `/glowup` is unknown and no band or pane appears. Some builds just before 2.1.289 skip glowup without a message.
+
+Run `claude --version`. If it is older than 2.1.289, run `claude update` (or `npm i -g @anthropic-ai/claude-code@latest` if you installed with npm), then restart Claude Code.
+
 ## Settings
 
 The installer sets every setting except `statusline`. To change them afterwards, use `claude plugin configure glowup@glowup` or your Claude Code settings.
