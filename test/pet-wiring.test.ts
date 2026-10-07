@@ -311,6 +311,19 @@ test('the first finished turn while the egg is locked says a hint instead of the
   expect((stored.eggs as { hintAt?: number }).hintAt).toBeGreaterThan(at!)
 })
 
+test('the hint lines take turns day by day', async ($, on) => {
+  const stored: Record<string, unknown> = {}
+  base(on, undefined, { store: stored }); const clock = mock.clock(on)
+  on('turn.complete', async () => ({ text: '' }) as never)
+  const said: string[] = []
+  for (const id of ['t1', 't2', 't3']) {
+    const body = await finishTurn($, clock, id)
+    said.push(EGG_HINTS.find(l => body.includes(l)) ?? '')
+    await clock.advance(DAY)
+  }
+  expect(said).toEqual([EGG_HINTS[0], EGG_HINTS[1], EGG_HINTS[0]])
+})
+
 test('no hint with the egg unlocked, bubbles off, or the pane hidden', async ($, on) => {
   const stored: Record<string, unknown> = { eggs: { passRuns: 1, eggAt: 1, eggRuns: 0 } }
   base(on, undefined, { store: stored }); const clock = mock.clock(on)

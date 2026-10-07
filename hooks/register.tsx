@@ -384,15 +384,15 @@ async function say($: Engine, mood: Mood, vars: BubbleVars) {
   // Haiku never sees a hint turn: it could improvise the code.
   if (hint === undefined) void askHaiku($, mine, ctx)
 }
-// The first hint ever says "click me"; later ones point at the code.
 async function eggHint($: Engine): Promise<string | undefined> {
   try {
     const host = hostOf($)
     const eggs = await host.storeGet('eggs') as EggStore | undefined
     const now = await $.clock.now()
     if (!hintDue(eggs, now)) return undefined
-    await host.storeSet('eggs', { ...eggs, passRuns: eggs?.passRuns ?? 0, hintAt: now })
-    return EGG_HINTS[eggs?.hintAt === undefined ? 0 : 1]
+    const hints = eggs?.hints ?? 0
+    await host.storeSet('eggs', { ...eggs, passRuns: eggs?.passRuns ?? 0, hintAt: now, hints: hints + 1 })
+    return EGG_HINTS[hints % EGG_HINTS.length]
   } catch (err) {
     $.ui.log(`egg hint failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
     return undefined

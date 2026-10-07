@@ -1,4 +1,4 @@
-export type EggStore = { passRuns: number; shinyAt?: number; eggAt?: number; eggRuns?: number; hintAt?: number }
+export type EggStore = { passRuns: number; shinyAt?: number; eggAt?: number; eggRuns?: number; hintAt?: number; hints?: number }
 export type LocalTime = { year: number; month: number; date: number; day: number; hour: number }
 export type Overlay = 'santa' | 'pumpkin' | 'party' | 'nightcap' | 'sweat' | 'friday'
 
