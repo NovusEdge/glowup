@@ -17,7 +17,8 @@ const (
 
 type tickMsg struct{}
 
-// stateMsg carries a state.json read; the tick sends it, tests send it directly.
+// stateMsg hands the model a snapshot as if the tick had read it. Only tests send it: the
+// tick reads state.json inline.
 type stateMsg Snapshot
 
 // Model is the settings screen. Rows draw from snap only, so a value the session refused
@@ -54,12 +55,16 @@ func (m Model) rows() ([]row, int) {
 }
 
 func (m *Model) send(l Line) int {
+	// the not-answering clock runs from the oldest unanswered line, so repeated presses
+	// cannot keep postponing the warning
+	if m.snap.Seq >= m.seq {
+		m.sentAt = m.now()
+	}
 	m.seq++
 	l.Seq = m.seq
 	if err := Append(m.dir, l); err != nil {
 		m.flash = "Could not write to glowup: " + err.Error()
 	}
-	m.sentAt = m.now()
 	return m.seq
 }
 
@@ -99,10 +104,23 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if m.editing {
-		return m.editKey(k), nil
+		if k.String() != "ctrl+c" {
+			return m.editKey(k), nil
+		}
+		m.editing = false // then ctrl+c acts as it does outside the input
 	}
 	rs, i := m.rows()
-	r := rs[i]
+	var r row
+	if len(rs) == 0 {
+		// a section with nothing to list (Status without fields) only lets the user leave
+		switch k.String() {
+		case "q", "esc", "ctrl+c", "tab", "shift+tab":
+		default:
+			return m, nil
+		}
+	} else {
+		r = rs[i]
+	}
 	m.flash = ""
 	switch k.String() {
 	case "q":
@@ -119,7 +137,10 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			d = len(sections) - 1
 		}
 		m.section = (m.section + d) % len(sections)
-		m.at = rowsOf(m.section, m.snap)[0].id
+		m.at = ""
+		if next := rowsOf(m.section, m.snap); len(next) > 0 {
+			m.at = next[0].id
+		}
 	case "left", "h", "right", "l":
 		d := 1
 		if k.String() == "left" || k.String() == "h" {

@@ -6,11 +6,16 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/novusedge/glowup/installer/internal/tui"
 )
+
+// openFresh is how old open's mtime may be before the mod treats the run as abandoned.
+const openFresh = 10 * time.Second
 
 // Main runs `glowup-installer config --run DIR`. Closing the window (SIGHUP) ends the
 // process with the changes kept: they already show in the session.
@@ -31,6 +36,11 @@ func Main(args []string, stdout, stderr io.Writer) int {
 	s, ok := ReadState(*dir)
 	if !ok {
 		fmt.Fprintf(stderr, "glowup-installer config: no glowup config run at %s. Run /glowup config in Claude Code.\n", *dir)
+		return 1
+	}
+	// two TUIs on one run would interleave their seq numbers and misjudge each other's answers
+	if fi, err := os.Stat(filepath.Join(*dir, "open")); err == nil && time.Since(fi.ModTime()) < openFresh {
+		fmt.Fprintln(stderr, "glowup config is already open.")
 		return 1
 	}
 	if err := Touch(*dir); err != nil {

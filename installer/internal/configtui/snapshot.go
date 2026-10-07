@@ -8,6 +8,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
+	"regexp"
 
 	"github.com/novusedge/glowup/installer/internal/packs"
 )
@@ -92,15 +94,35 @@ type Line struct {
 	Undo bool     `json:"undo,omitempty"`
 }
 
+var hexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+
+// validColors is false when the preview would index into a color that is not #rrggbb
+// (tui.rgb panics). The look's own colors may be empty: lookOf falls back to the palette.
+func (s Snapshot) validColors() bool {
+	c := reflect.ValueOf(s.State.Colors)
+	for i := range c.NumField() {
+		if !hexColor.MatchString(c.Field(i).String()) {
+			return false
+		}
+	}
+	for _, h := range []string{s.Look.Bg, s.Look.BorderColor, s.Look.SpinColor} {
+		if h != "" && !hexColor.MatchString(h) {
+			return false
+		}
+	}
+	return true
+}
+
 // ReadState reads state.json. The engine cannot rename, so the mod writes it in place: a
-// read that lands mid-write fails to parse and is ignored until the next good one.
+// read that lands mid-write fails to parse and is ignored until the next good one. A file
+// that parses but lacks the 14 colors is treated the same way.
 func ReadState(dir string) (Snapshot, bool) {
 	b, err := os.ReadFile(filepath.Join(dir, "state.json"))
 	if err != nil {
 		return Snapshot{}, false
 	}
 	var s Snapshot
-	if json.Unmarshal(b, &s) != nil || s.Format != 1 {
+	if json.Unmarshal(b, &s) != nil || s.Format != 1 || !s.validColors() {
 		return Snapshot{}, false
 	}
 	return s, true

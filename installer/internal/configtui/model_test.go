@@ -97,10 +97,13 @@ func TestEscSendsUndoAndQuitsWhenTheSessionAnswers(t *testing.T) {
 }
 
 func TestEscQuitsAfterASecondWhenNobodyAnswers(t *testing.T) {
-	m, _ := newModel(t)
+	m, dir := newModel(t)
 	now := time.Unix(100, 0)
 	m.now = func() time.Time { return now }
 	m, _ = press(m, key("esc"))
+	if got := lines(t, dir); len(got) != 1 || got[0] != `{"seq":1,"undo":true}` {
+		t.Fatal(got)
+	}
 	now = now.Add(1100 * time.Millisecond)
 	_, cmd := m.Update(tickMsg{})
 	if cmd == nil {
@@ -183,6 +186,87 @@ func TestNotAnsweringAfterThreeSeconds(t *testing.T) {
 	now = now.Add(3100 * time.Millisecond)
 	if m.status() != "glowup is not answering. Is the Claude session still open?" {
 		t.Fatal(m.status())
+	}
+}
+
+func TestNotAnsweringRunsFromTheOldestUnansweredLine(t *testing.T) {
+	m, _ := newModel(t)
+	now := time.Unix(100, 0)
+	m.now = func() time.Time { return now }
+	m, _ = press(m, key("right"))
+	now = now.Add(2 * time.Second)
+	m, _ = press(m, key("right"))
+	now = now.Add(900 * time.Millisecond)
+	if m.status() != "" {
+		t.Fatal("warned before 3 s", m.status())
+	}
+	now = now.Add(200 * time.Millisecond)
+	if m.status() != "glowup is not answering. Is the Claude session still open?" {
+		t.Fatal("the second press restarted the clock:", m.status())
+	}
+}
+
+func TestAnAnsweredLineStartsTheClockAgain(t *testing.T) {
+	m, _ := newModel(t)
+	now := time.Unix(100, 0)
+	m.now = func() time.Time { return now }
+	m, _ = press(m, key("right"))
+	s := snap()
+	s.Seq = 1
+	next, _ := m.Update(stateMsg(s))
+	m = next.(Model)
+	now = now.Add(5 * time.Second)
+	m, _ = press(m, key("right"))
+	now = now.Add(2 * time.Second)
+	if m.status() != "" {
+		t.Fatal(m.status())
+	}
+}
+
+func TestAnEmptySectionDoesNotPanic(t *testing.T) {
+	m, dir := newModel(t)
+	m.snap.State.Fields, m.snap.Options.Fields = nil, nil
+	m, _ = press(m, key("tab"))
+	m, _ = press(m, key("tab"))
+	m, _ = press(m, key("tab"))
+	m, _ = press(m, key("tab"))
+	if m.section != 4 {
+		t.Fatal(m.section)
+	}
+	for _, k := range []string{"down", "up", "right", "left", "enter", "space", "r", "J", "K"} {
+		m, _ = press(m, key(k))
+	}
+	if m.editing {
+		t.Fatal("enter opened the hex input on no row")
+	}
+	viewAt(m, 120, 40)
+	viewAt(m, 80, 24)
+	if _, err := os.Stat(filepath.Join(dir, "commands.jsonl")); err == nil {
+		t.Fatal("a key in an empty section wrote a line")
+	}
+	m, _ = press(m, key("tab"))
+	if m.section != 0 || m.at != "pack" {
+		t.Fatal(m.section, m.at)
+	}
+	m.section, m.at = 4, ""
+	if _, cmd := press(m, key("q")); cmd == nil {
+		t.Fatal("q did not quit from an empty section")
+	}
+}
+
+func TestCtrlCInTheHexInputClosesItAndUndoes(t *testing.T) {
+	m, dir := newModel(t)
+	m, _ = press(m, key("tab"))
+	m, _ = press(m, key("enter"))
+	if !m.editing {
+		t.Fatal("not editing")
+	}
+	m, cmd := press(m, tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+	if m.editing || cmd != nil {
+		t.Fatal("ctrl+c must close the input and wait for the undo like Esc outside it")
+	}
+	if got := lines(t, dir); len(got) != 1 || got[0] != `{"seq":1,"undo":true}` {
+		t.Fatal(got)
 	}
 }
 

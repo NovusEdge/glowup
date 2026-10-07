@@ -32,7 +32,7 @@ func TestEverySectionFitsTheTerminal(t *testing.T) {
 
 func TestNoSizeOverflowsTheTerminal(t *testing.T) {
 	m, _ := newModel(t)
-	for _, w := range []int{20, 37, 38, 39, 60, 99, 100, 101, 123, 124, 125, 160} {
+	for _, w := range []int{20, 37, 38, 39, 60, 99, 100, 101, 125, 126, 127, 160} {
 		for _, h := range []int{5, 6, 12, 24, 29, 30, 31, 50} {
 			for sec := range sections {
 				m.section, m.at = sec, rowsOf(sec, m.snap)[len(rowsOf(sec, m.snap))-1].id
@@ -60,6 +60,27 @@ func TestWideLayoutShowsThePreviewAndSections(t *testing.T) {
 	}
 	if !strings.Contains(out, "╭") {
 		t.Fatal("no preview box")
+	}
+}
+
+func TestWideLayoutNeedsAtLeast100x30(t *testing.T) {
+	m, _ := newModel(t)
+	for _, c := range []struct {
+		w, h int
+		wide bool
+	}{{100, 30, true}, {99, 30, false}, {100, 29, false}} {
+		if got := strings.Contains(strings.Join(viewAt(m, c.w, c.h), "\n"), "╭"); got != c.wide {
+			t.Fatalf("%dx%d: preview box drawn = %v", c.w, c.h, got)
+		}
+	}
+}
+
+func TestClawdColumnAppearsFrom126Columns(t *testing.T) {
+	m, _ := newModel(t)
+	for w, want := range map[int]bool{125: false, 126: true} {
+		if got := strings.Contains(strings.Join(viewAt(m, w, 40), "\n"), "pet clawd"); got != want {
+			t.Fatalf("width %d: Clawd column drawn = %v", w, got)
+		}
 	}
 }
 
