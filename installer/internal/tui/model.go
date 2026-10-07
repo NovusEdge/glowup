@@ -214,7 +214,7 @@ func (m Model) View() tea.View {
 	case m.width == 0 || m.width >= pairWidth:
 		cols := []string{form, "  ", preview}
 		if m.width >= fullWidth && c.Pet != "off" {
-			col := clawdColumn(m.caption(l, c), l)
+			col := ClawdColumn(m.caption(l, c), l)
 			h := max(lipgloss.Height(form), lipgloss.Height(preview))
 			pad := strings.Repeat("\n", max(0, h-len(col)))
 			cols = append([]string{pad + strings.Join(col, "\n"), "  "}, cols...)

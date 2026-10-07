@@ -203,9 +203,9 @@ func Preview(l Look, c claude.Choice, tick int) string {
 		sw = append(sw, p.on(hex, "██"))
 	}
 
-	pet := "Clawd"
-	if c.Pet == "off" {
-		pet = "off"
+	pet := c.Pet
+	if pet == "clawd" {
+		pet = "Clawd"
 	}
 	footer := p.on(col.Dim, "pet "+pet+" · bubbles "+c.Bubbles+" · motion "+motion(c.ReducedMotion))
 

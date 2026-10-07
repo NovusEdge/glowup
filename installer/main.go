@@ -1,5 +1,7 @@
 // Command glowup-installer installs the glowup mod into Claude Code.
 // install.sh (docs/web/public) downloads and runs it; it is not installed on PATH.
+// It also runs glowup's config screen as `glowup-installer config`, which
+// /glowup config launches.
 package main
 
 import (
@@ -15,6 +17,7 @@ import (
 	"github.com/novusedge/glowup/installer/internal/app"
 	"github.com/novusedge/glowup/installer/internal/claude"
 	"github.com/novusedge/glowup/installer/internal/cli"
+	"github.com/novusedge/glowup/installer/internal/configtui"
 	"github.com/novusedge/glowup/installer/internal/tui"
 )
 
@@ -24,6 +27,10 @@ var version = "dev"
 func main() { os.Exit(run()) }
 
 func run() int {
+	// a subcommand: cli.Parse refuses positional arguments
+	if len(os.Args) > 1 && os.Args[1] == "config" {
+		return configtui.Main(os.Args[2:], os.Stdout, os.Stderr)
+	}
 	o, err := cli.Parse(os.Args[1:], os.Stderr)
 	if errors.Is(err, flag.ErrHelp) {
 		return 0
