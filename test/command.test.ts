@@ -422,10 +422,14 @@ test('pet and bubbles; clawd-shiny stays locked until earned', async () => {
 test('the egg is hidden and refused until unlocked, then listed and picked with its stage sheet', async () => {
   const { host, store } = fakeHost()
   const { calls, ctl: c } = ctl()
-  expect(await runCommand(host, 'pet list', c)).not.toContain('egg')
+  const locked = await runCommand(host, 'pet list', c)
+  expect(locked).not.toContain('egg')
+  expect(locked).toContain('○ ???')
   expect(await runCommand(host, 'pet egg', c)).toBe('The egg is not unlocked yet.')
   store.eggs = { passRuns: 25, eggAt: 1, eggRuns: 3 }
-  expect(await runCommand(host, 'pet list', c)).toContain('○ egg')
+  const open = await runCommand(host, 'pet list', c)
+  expect(open).toContain('○ egg')
+  expect(open).not.toContain('???')
   expect(await runCommand(host, 'pet egg', c)).toBe('Pet: egg')
   expect(calls).toEqual(['pet:egg+sheet'])
 })
@@ -550,9 +554,9 @@ test('a cut-off studio link applies the parts that decoded and names the one tha
 const PETS = '/home/u/.claude/glowup/pets'
 const petFile = (name: string) => JSON.stringify({ format: 1, name, palette: { A: '#112233' }, animations: { idle: [{ ms: 400, px: Array(12).fill('A'.repeat(24)) }] } })
 
-test('pet list shows built-ins, then user pets, then off', async () => {
+test('pet list shows built-ins, the locked egg as ???, then user pets, then off', async () => {
   const { host } = fakeHost({ files: { [`${PETS}/mochi.json`]: petFile('mochi') } })
-  expect(await runCommand(host, 'pet list', ctl().ctl)).toBe(['● clawd', '○ robot', '○ mochi', '○ off'].join('\n'))
+  expect(await runCommand(host, 'pet list', ctl().ctl)).toBe(['● clawd', '○ robot', '○ ???', '○ mochi', '○ off'].join('\n'))
 })
 
 test('pet robot switches with no sheet; a user pet passes its sheet', async () => {

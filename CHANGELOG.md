@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Hints that a secret pet exists: `???` in `/glowup pet list`, and now and then a line from Clawd.
+
 ## [0.10.0] - 2026-10-07
 
 ### Added

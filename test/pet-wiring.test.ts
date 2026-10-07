@@ -2,6 +2,7 @@ import { expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
 import { runGlowup, fakeFs, test } from './kit.ts'
 import { CLAWD_SAY } from '../hooks/bubbles.ts'
+import { EGG_HINTS } from '../hooks/eggs.ts'
 
 const ENGINE_ROW = { type: 'Text', props: {}, children: ['engine row'] } as RenderElement
 const scroll = { offset: 0, bodyRows: 20 }
@@ -273,6 +274,81 @@ test('the Konami post unlocks the egg once, with one toast and a juggle', async 
   expect((await runGlowup($, 'pet list')).text).toContain('○ egg')
   expect(petClient(await pane.drawn()).props.props.input.juggleAt).toBeGreaterThan(0)
   await pane.unmount()
+})
+
+const DAY = 86_400_000
+const DONE_SAY = CLAWD_SAY.done
+async function finishTurn($: any, clock: { advance(ms: number): Promise<void> }, id: string) {
+  await $.turn.start({ text: 'hi', turnId: id })
+  await $.turn.complete({ reason: 'answer', answer: '', durationMs: 10, isAborted: false, turnId: id })
+  // the hook does not await say(): the bubble lands after the turn resolves
+  await clock.advance(1)
+  const pane = await mountPane($)
+  const body = text(await pane.drawn())
+  await pane.unmount()
+  return body
+}
+const hintShown = (body: string) => EGG_HINTS.some(l => body.includes(l))
+const doneShown = (body: string) => DONE_SAY.some(l => body.includes(l))
+
+test('the first finished turn while the egg is locked says a hint instead of the done line, then the day passes quietly', async ($, on) => {
+  const stored: Record<string, unknown> = {}
+  base(on, undefined, { store: stored }); const clock = mock.clock(on)
+  on('turn.complete', async () => ({ text: '' }) as never)
+  const first = await finishTurn($, clock, 't1')
+  expect(hintShown(first)).toBe(true)
+  expect(doneShown(first)).toBe(false)
+  const at = (stored.eggs as { hintAt?: number } | undefined)?.hintAt
+  expect(typeof at).toBe('number')
+  await clock.advance(5000)
+  const second = await finishTurn($, clock, 't2')
+  expect(hintShown(second)).toBe(false)
+  expect(doneShown(second)).toBe(true)
+  expect((stored.eggs as { hintAt?: number }).hintAt).toBe(at)
+  await clock.advance(DAY)
+  const third = await finishTurn($, clock, 't3')
+  expect(hintShown(third)).toBe(true)
+  expect((stored.eggs as { hintAt?: number }).hintAt).toBeGreaterThan(at!)
+})
+
+test('no hint with the egg unlocked, bubbles off, or the pane hidden', async ($, on) => {
+  const stored: Record<string, unknown> = { eggs: { passRuns: 1, eggAt: 1, eggRuns: 0 } }
+  base(on, undefined, { store: stored }); const clock = mock.clock(on)
+  on('turn.complete', async () => ({ text: '' }) as never)
+  expect(hintShown(await finishTurn($, clock, 't1'))).toBe(false)
+  expect((stored.eggs as { hintAt?: number }).hintAt).toBeUndefined()
+  stored.eggs = { passRuns: 1 }
+  await runGlowup($, 'bubbles off')
+  expect(hintShown(await finishTurn($, clock, 't2'))).toBe(false)
+  expect((stored.eggs as { hintAt?: number }).hintAt).toBeUndefined()
+})
+
+test('no hint while the glowup pane is hidden', async ($, on) => {
+  const stored: Record<string, unknown> = {}
+  base(on, undefined, { store: stored, shown: false }); const clock = mock.clock(on)
+  on('turn.complete', async () => ({ text: '' }) as never)
+  expect(hintShown(await finishTurn($, clock, 't1'))).toBe(false)
+  expect((stored.eggs as { hintAt?: number } | undefined)?.hintAt).toBeUndefined()
+})
+
+test('in haiku mode the hint is fixed text and Haiku is asked only for the line after it', async ($, on) => {
+  const stored: Record<string, unknown> = {}
+  base(on, undefined, { store: stored }); const clock = mock.clock(on)
+  on('turn.complete', async () => ({ text: '' }) as never)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
+  const asked: unknown[] = []
+  on('model.complete', async (_$: unknown, e: any) => { asked.push(e); return { value: { isAnswered: true, text: 'tests are sulking', usage: {} } } as never })
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  await runGlowup($, 'bubbles haiku')
+  const first = await finishTurn($, clock, 't1')
+  expect(hintShown(first)).toBe(true)
+  expect(first).not.toContain('tests are sulking')
+  expect(asked).toHaveLength(0)
+  await clock.advance(100_000)
+  const second = await finishTurn($, clock, 't2')
+  expect(asked).toHaveLength(1)
+  expect(second).toContain('tests are sulking')
 })
 
 test('the first click says the pet has the keyboard, once per session', async ($, on) => {

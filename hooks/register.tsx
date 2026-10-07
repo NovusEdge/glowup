@@ -9,7 +9,7 @@ import { loadUserPacks, SAFE_NAME } from './userpacks.ts'
 import { BUILTIN_SHEETS, CLAWD_SHEET, eggSheet, stripRows, type PetSetting, type PetInput, type PetKind, type PetSheet } from './pets.ts'
 import { loadUserPet, userPetNames, PET_DIR } from './userpets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
-import { recordPass, unlockEgg, eggUnlocked, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
+import { recordPass, unlockEgg, eggUnlocked, hintDue, EGG_HINTS, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, refreshCounts, serial } from './changes.ts'
 import { loadTasks, taskListId } from './tasks.ts'
 import { cacheHit, heaviest } from './ctxchart.ts'
@@ -374,13 +374,29 @@ async function say($: Engine, mood: Mood, vars: BubbleVars) {
     // a closed pane shows nobody the bubble
     if (!(await $.ui.panes()).some(p => p.id === 'glowup' && p.isShown)) return
   } catch { return }
-  const line = bubbleFor(mood, vars, lastTemplate, Math.random)
-  lastTemplate = line.template
-  const mine: Bubble = { text: line.text, mood, until: 0 }
+  const hint = mood === 'done' ? await eggHint($) : undefined
+  const line = hint === undefined ? bubbleFor(mood, vars, lastTemplate, Math.random) : undefined
+  if (line) lastTemplate = line.template
+  const mine: Bubble = { text: hint ?? line!.text, mood, until: 0 }
   bubble = mine
   armBubble($, mine)
   publishPet($)
-  void askHaiku($, mine, ctx)
+  // Haiku never sees a hint turn: it could improvise the code.
+  if (hint === undefined) void askHaiku($, mine, ctx)
+}
+// The first hint ever says "click me"; later ones point at the code.
+async function eggHint($: Engine): Promise<string | undefined> {
+  try {
+    const host = hostOf($)
+    const eggs = await host.storeGet('eggs') as EggStore | undefined
+    const now = await $.clock.now()
+    if (!hintDue(eggs, now)) return undefined
+    await host.storeSet('eggs', { ...eggs, passRuns: eggs?.passRuns ?? 0, hintAt: now })
+    return EGG_HINTS[eggs?.hintAt === undefined ? 0 : 1]
+  } catch (err) {
+    $.ui.log(`egg hint failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
+    return undefined
+  }
 }
 function moodOf(old: Model, now: Model, ev: Ev): { mood: Mood; vars: BubbleVars } | undefined {
   if (now.needsYou && !old.needsYou) return { mood: 'needs-you', vars: { command: now.needsYou.what.replace(/^approve /, '').split(/\s+/)[0] } }
