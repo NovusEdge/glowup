@@ -6,16 +6,22 @@ function fakeSurface(columns = 0) {
   const timers: { ms: number; fn: () => void; cancelled: boolean }[] = []
   const calls = { setState: 0 }
   const posts: unknown[] = []
-  const on: { key?: (e: { key: string }) => void; pointer?: (e: { type: string; x: number; y: number }) => void } = {}
+  const on: { key?: (e: { key: string; ctrl?: true; meta?: true }) => void; pointer?: (e: { type: string; x: number; y: number }) => void } = {}
+  // lag: the engine applies a setState after the handlers that were already queued, so state stays old until flush()
+  const lag = { on: false, pending: [] as unknown[] }
   const s: any = {
     state: undefined, columns, elements: { Box: 'Box', Text: 'Text' },
-    setState(v: unknown) { calls.setState++; s.state = typeof v === 'function' ? (v as (p: unknown) => unknown)(s.state) : v },
+    setState(v: unknown) {
+      calls.setState++
+      const next = typeof v === 'function' ? (v as (p: unknown) => unknown)(s.state) : v
+      if (lag.on) lag.pending.push(next); else s.state = next
+    },
     every(ms: number, fn: () => void) { const t = { ms, fn, cancelled: false }; timers.push(t); return () => { t.cancelled = true } },
     onKey(fn: typeof on.key) { on.key = fn; return () => { on.key = undefined } },
     onPointer(fn: typeof on.pointer) { on.pointer = fn; return () => { on.pointer = undefined } },
     post(d: unknown) { posts.push(d) },
   }
-  return { s, timers, calls, posts, on }
+  return { s, timers, calls, posts, on, lag, flush() { if (lag.pending.length) s.state = lag.pending.pop(); lag.pending = [] } }
 }
 const atTime = <T,>(t: number, run: () => T): T => {
   const real = clock.now
@@ -78,6 +84,41 @@ test('a wrong key inside the code posts nothing', () => {
   atTime(1000, () => PetClient(idle, s))
   for (const key of [...CODE.slice(0, 5), 'up', ...CODE.slice(5)]) on.key!({ key })
   expect(posts).toEqual([])
+})
+
+test('a key typed between a redraw and its landing still counts', () => {
+  const { s, posts, on, lag, flush } = fakeSurface()
+  atTime(1000, () => PetClient(idle, s))
+  for (const key of CODE.slice(0, 8)) on.key!({ key })
+  lag.on = true
+  atTime(1100, () => on.pointer!({ type: 'down', x: 3, y: 1 }))
+  on.key!({ key: CODE[8]! })
+  flush()
+  on.key!({ key: CODE[9]! })
+  expect(posts.filter(p => (p as { konami?: boolean }).konami)).toHaveLength(1)
+})
+
+test('shifted letters count; ctrl or meta ones do not', () => {
+  const typed = (keys: { key: string; ctrl?: true; meta?: true }[]) => {
+    const { s, posts, on } = fakeSurface()
+    atTime(1000, () => PetClient(idle, s))
+    for (const k of keys) on.key!(k)
+    return posts
+  }
+  const code = CODE.map(key => ({ key }))
+  expect(typed(CODE.map(key => ({ key: key.toUpperCase() })))).toEqual([{ konami: true }])
+  expect(typed(code.map((k, i) => i === 8 ? { ...k, ctrl: true as const } : k))).toEqual([])
+  expect(typed(code.map((k, i) => i === 9 ? { ...k, meta: true as const } : k))).toEqual([])
+})
+
+test('the first click tells the surface once; later clicks say nothing more', () => {
+  const { s, posts, on } = fakeSurface()
+  atTime(1000, () => PetClient(idle, s))
+  atTime(1100, () => on.pointer!({ type: 'move', x: 3, y: 1 }))
+  expect(posts).toEqual([])
+  atTime(1200, () => on.pointer!({ type: 'down', x: 3, y: 1 }))
+  atTime(1300, () => on.pointer!({ type: 'down', x: 3, y: 1 }))
+  expect(posts).toEqual([{ click: true }])
 })
 
 test('a click hops at once', () => {

@@ -22,7 +22,8 @@ export function unlockEgg(s: EggStore | undefined, now: number): EggStore | unde
 
 export function crackStage(s: EggStore | undefined): 0 | 1 | 2 | 3 {
   if (!eggUnlocked(s)) return 0
-  return Math.min(EGG_STAGES, Math.floor((s!.passRuns - (s!.eggRuns ?? 0)) / EGG_RUNS_PER_CRACK)) as 0 | 1 | 2 | 3
+  const cracks = Math.floor((s!.passRuns - (s!.eggRuns ?? 0)) / EGG_RUNS_PER_CRACK)
+  return (Number.isFinite(cracks) ? Math.max(0, Math.min(EGG_STAGES, cracks)) : 0) as 0 | 1 | 2 | 3
 }
 
 const DEPLOY: RegExp[] = [

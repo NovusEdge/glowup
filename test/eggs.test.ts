@@ -25,6 +25,13 @@ test('a crack every 10 passing runs after the unlock, up to 3', () => {
   expect(crackStage(undefined)).toBe(0)
 })
 
+test('a corrupt store never gives a crack stage outside 0 to 3', () => {
+  expect(crackStage({ passRuns: 1, eggAt: 1, eggRuns: 5 })).toBe(0)
+  expect(crackStage({ passRuns: 50, eggAt: 1, eggRuns: NaN })).toBe(0)
+  expect(crackStage({ passRuns: NaN, eggAt: 1, eggRuns: 0 })).toBe(0)
+  expect(crackStage({ passRuns: Infinity, eggAt: 1, eggRuns: 0 })).toBe(0)
+})
+
 test('the shiny unlock keeps the egg fields', () => {
   const r = recordPass({ passRuns: 99, eggAt: 1, eggRuns: 3 }, 50)
   expect(r.next).toEqual({ passRuns: 100, eggAt: 1, eggRuns: 3, shinyAt: 50 })

@@ -9,7 +9,7 @@ export type PetClientProps = { pet: PetId; input: PetInput; overlays: string[]; 
 // props is the latest the draw saw, for the tick to read; stop cancels the timer.
 // sheet is the one the player's clips were cut from; the engine keeps this state across redraws, so a different sheet needs a new player.
 // sig is that sheet's content: props are cloned on their way here, so a user pet's sheet is a new object on every pane redraw.
-type PetState = { now: number; player: Player; sheet: PetSheet; sig: string; props: PetClientProps; keys: string[]; hopAt?: number; stop?: () => void }
+type PetState = { now: number; player: Player; sheet: PetSheet; sig: string; props: PetClientProps; hopAt?: number; stop?: () => void }
 
 const TICK_MS = 83
 // a click's hop is the Client's own: the hooks module never hears of it
@@ -81,24 +81,31 @@ export default function PetClient(props: PetClientProps, surface: ClientSurface<
     now = typeof st === 'number' ? st : clock.now()
     player = newPlayer()
     if (st === undefined && !props.reduced) {
-      const fresh: PetState = { now, player, sheet, sig: JSON.stringify(sheet), props, keys: [] }
+      const fresh: PetState = { now, player, sheet, sig: JSON.stringify(sheet), props }
       surface.setState(fresh)
       startClock(surface, fresh)
       // keys reach the Client only after the person clicks it; the code is matched here so keystrokes never leave it
+      // Not in PetState: the tick and the click replace that object, and a key landing on the old one would be lost.
+      const keys: string[] = []
+      let told = false
       surface.onPointer(ev => {
         const cur = surface.state
         if (ev.type !== 'down' || typeof cur !== 'object' || quiet(cur.props)) return
+        // the click is what gives this Client the keyboard until Esc; the hooks module toasts it
+        if (!told) { told = true; surface.post({ click: true }) }
         const t = clock.now()
         // the draw reads cur.now, which only the tick refreshes: without it a draw before the next tick would see the click in its future
         surface.setState({ ...cur, now: t, hopAt: t })
       })
       surface.onKey(ev => {
         const cur = surface.state
-        if (typeof cur !== 'object' || quiet(cur.props)) return
-        const keys = [...cur.keys, ev.key].slice(-KONAMI.length)
-        const hit = keys.join(' ') === KONAMI.join(' ')
-        cur.keys = hit ? [] : keys
-        if (hit) surface.post({ konami: true })
+        if (typeof cur !== 'object' || quiet(cur.props) || ev.ctrl || ev.meta) return
+        // Shift and Caps Lock deliver B and A
+        keys.push(ev.key.toLowerCase())
+        if (keys.length > KONAMI.length) keys.shift()
+        if (keys.join(' ') !== KONAMI.join(' ')) return
+        keys.length = 0
+        surface.post({ konami: true })
       })
     }
   }

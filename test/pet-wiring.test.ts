@@ -268,10 +268,33 @@ test('the Konami post unlocks the egg once, with one toast and a juggle', async 
   const pane = await mountPane($)
   await pane.post({ konami: true }, { in: 'glowup-pet' })
   await pane.post({ konami: true }, { in: 'glowup-pet' })
-  expect(toasts.filter(t => t === 'An egg! /glowup pet egg')).toHaveLength(1)
+  expect(toasts.filter(t => t === 'An egg! Press Esc, then /glowup pet egg')).toHaveLength(1)
   expect((stored.eggs as { eggAt?: number } | undefined)?.eggAt).toBeGreaterThan(0)
   expect((await runGlowup($, 'pet list')).text).toContain('○ egg')
   expect(petClient(await pane.drawn()).props.props.input.juggleAt).toBeGreaterThan(0)
+  await pane.unmount()
+})
+
+test('the first click says the pet has the keyboard, once per session', async ($, on) => {
+  const toasts: string[] = []
+  base(on, undefined, { toasts }); mock.clock(on)
+  const pane = await mountPane($)
+  await pane.post({ click: true }, { in: 'glowup-pet' })
+  await pane.post({ click: true }, { in: 'glowup-pet' })
+  expect(toasts.filter(t => t === 'The pet has the keyboard now. Esc gives it back.')).toHaveLength(1)
+  await pane.unmount()
+})
+
+test('a user pet named egg gets one notice that the built-in took the name', async ($, on) => {
+  const toasts: string[] = []
+  base(on, undefined, { toasts, store: { pet: 'egg' }, files: { [`${PETS}/egg.json`]: petJson('egg') } }); mock.clock(on)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  const notice = 'A pet file named egg.json is now the built-in egg\'s name; rename the file and its "name" to keep your pet.'
+  expect(toasts.filter(t => t === notice)).toHaveLength(1)
+  const pane = await mountPane($)
+  expect(petClient(await pane.drawn()).props.props.pet).toBe('clawd')
   await pane.unmount()
 })
 

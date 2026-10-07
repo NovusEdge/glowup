@@ -7,7 +7,7 @@ import { resolveLook, cleanOverrides, exportMix, exportName, DEFAULT_MIX, SPINNE
 import { PACKS } from './packpresets.ts'
 import { loadUserPacks, SAFE_NAME } from './userpacks.ts'
 import { BUILTIN_SHEETS, CLAWD_SHEET, eggSheet, stripRows, type PetSetting, type PetInput, type PetKind, type PetSheet } from './pets.ts'
-import { loadUserPet, userPetNames } from './userpets.ts'
+import { loadUserPet, userPetNames, PET_DIR } from './userpets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
 import { recordPass, unlockEgg, eggUnlocked, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, refreshCounts, serial } from './changes.ts'
@@ -107,6 +107,7 @@ let tzOffset = 0
 let installed: number | undefined
 let lastPet = ''
 let eggJuggleAt: number | undefined
+let clickToasted = false
 const PANE_OPEN: PaneOpenArgs = { id: 'glowup', title: 'glowup', focus: true, closeOnEscape: true }
 const CONFIG_ID = 'glowup-config'
 const CONFIG_OPEN: PaneOpenArgs = { id: CONFIG_ID, title: 'glowup config', focus: true, closeOnEscape: true, rows: 40 }
@@ -749,7 +750,13 @@ export const register: Register = (on, options) => {
     pet = 'clawd'
     petSheet = undefined
     if (want === 'clawd-shiny') pet = eggs?.shinyAt === undefined ? 'clawd' : want
-    else if (want === 'egg') { if (eggUnlocked(eggs)) { pet = 'egg'; petSheet = eggSheet(eggs) } }
+    else if (want === 'egg') {
+      if (eggUnlocked(eggs)) { pet = 'egg'; petSheet = eggSheet(eggs) }
+      // the built-in name wins, so an older pets/egg.json is never loaded
+      if (interactive && await host.exists(`${PET_DIR(configDir)}/egg.json`).catch(() => false)) {
+        $.ui.toast('A pet file named egg.json is now the built-in egg\'s name; rename the file and its "name" to keep your pet.')
+      }
+    }
     else if (want === 'off' || Object.hasOwn(BUILTIN_SHEETS, want)) pet = want
     else {
       const r = await loadUserPet(host, want)
@@ -852,11 +859,11 @@ export const register: Register = (on, options) => {
       try {
         const r = recordPass(await hostOf($).storeGet('eggs') as EggStore | undefined, Date.now())
         await hostOf($).storeSet('eggs', r.next)
-        if (r.unlocked) $.ui.toast('Clawd went shiny. /glowup pet clawd-shiny (see him in /glowup pane)')
         if (pet === 'egg') {
           const cracked = eggSheet(r.next)
           if (cracked !== petSheet) { petSheet = cracked; relook($) }
         }
+        if (r.unlocked) $.ui.toast('Clawd went shiny. /glowup pet clawd-shiny (see him in /glowup pane)')
       } catch (err) {
         $.ui.log(`pass counter failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
       }
@@ -1136,14 +1143,23 @@ export const register: Register = (on, options) => {
 
   on('ui.message', async ($, e, next) => {
     // e.module is the path under the plugin folder (hooks/client/pet.tsx), not the string the pane passes as module
-    if (off || e.element !== 'glowup-pet' || (e.data as { konami?: unknown } | null)?.konami !== true) return next(e)
-    const host = hostOf($)
-    const unlocked = unlockEgg(await host.storeGet('eggs') as EggStore | undefined, Date.now())
-    if (!unlocked) return {}
-    await host.storeSet('eggs', unlocked)
-    eggJuggleAt = Date.now()
-    publishPet($)
-    $.ui.toast('An egg! /glowup pet egg')
+    const data = e.data as { konami?: unknown; click?: unknown } | null
+    if (off || e.element !== 'glowup-pet' || (data?.konami !== true && data?.click !== true)) return next(e)
+    if (data.click === true) {
+      if (!clickToasted) { clickToasted = true; $.ui.toast('The pet has the keyboard now. Esc gives it back.') }
+      return {}
+    }
+    try {
+      const host = hostOf($)
+      const unlocked = unlockEgg(await host.storeGet('eggs') as EggStore | undefined, Date.now())
+      if (!unlocked) return {}
+      await host.storeSet('eggs', unlocked)
+      eggJuggleAt = Date.now()
+      publishPet($)
+      $.ui.toast('An egg! Press Esc, then /glowup pet egg')
+    } catch (err) {
+      $.ui.log(`egg unlock failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
+    }
     return {}
   })
 
