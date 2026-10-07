@@ -10,8 +10,17 @@ const BAND = { hasSurvey: false, isWorking: true, maxRows: 6, bodyColumns: 100, 
 const walk = (n: any, out: any[] = []): any[] => { if (typeof n === 'string') out.push(n); else if (n && typeof n === 'object') { out.push(n); for (const c of n.children ?? []) walk(c, out) } return out }
 const petClient = (tree: any) => walk(tree).find(n => n?.type === 'Client' && String(n.props?.module).endsWith('client/pet.tsx'))
 const text = (tree: any) => walk(tree).filter(n => typeof n === 'string').join(' ')
-function base(on: any, render: (e: any) => void = () => {}, opts: { shown?: boolean; toolText?: string; run?: (argv: string[]) => { exitCode: number; stdout: string } | void; files?: Record<string, string>; toasts?: string[] } = {}) {
-  fakeFs(on, opts.files ?? {}, opts.run); mock.store(on)
+function base(on: any, render: (e: any) => void = () => {}, opts: { shown?: boolean; toolText?: string; run?: (argv: string[]) => { exitCode: number; stdout: string } | void; files?: Record<string, string>; toasts?: string[]; store?: Record<string, unknown> } = {}) {
+  fakeFs(on, opts.files ?? {}, opts.run)
+  // a store the test passes in is the live one, so it can read back what the plugin wrote
+  const live = opts.store
+  if (!live) mock.store(on)
+  else {
+    on('store.get', async (_$: unknown, e: any) => ({ value: live[e.key] }) as never)
+    on('store.set', async (_$: unknown, e: any) => { live[e.key] = e.value; return { value: undefined } as never })
+    on('store.delete', async (_$: unknown, e: any) => { delete live[e.key]; return { value: undefined } as never })
+    on('store.keys', async () => ({ value: Object.keys(live) }) as never)
+  }
   on('ui.render', async (_$: unknown, e: any) => { render(e); return ENGINE_ROW })
   on('ui.panes', async () => ({ value: [{ id: 'glowup', isShown: opts.shown ?? true, isPlaced: true }] }))
   on('ui.status', async () => ({ value: undefined }) as never)
@@ -212,6 +221,16 @@ test('a non-interactive run shows no fallback toast', async ($, on) => {
   expect(toasts.filter(t => t.includes('Showing Clawd'))).toEqual([])
 })
 
+test('a stored egg while the egg is locked shows Clawd', async ($, on) => {
+  base(on, undefined, { store: { pet: 'egg' } }); mock.clock(on)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  const pane = await mountPane($)
+  expect(petClient(await pane.drawn()).props.props.pet).toBe('clawd')
+  await pane.unmount()
+})
+
 test('the robot gets an 8-row strip; Clawd keeps 6', async ($, on) => {
   base(on); mock.clock(on)
   const strip = async () => {
@@ -240,4 +259,53 @@ test('the pack look reaches the band and the pane, pet on or off', async ($, on)
     expect(text(await pane.drawn())).toContain('HP')
     await pane.unmount()
   }
+})
+
+test('the Konami post unlocks the egg once, with one toast and a juggle', async ($, on) => {
+  const toasts: string[] = []
+  const stored: Record<string, unknown> = {}
+  base(on, undefined, { toasts, store: stored }); mock.clock(on)
+  const pane = await mountPane($)
+  await pane.post({ konami: true }, { in: 'glowup-pet' })
+  await pane.post({ konami: true }, { in: 'glowup-pet' })
+  expect(toasts.filter(t => t === 'An egg! Press Esc, then /glowup pet egg')).toHaveLength(1)
+  expect((stored.eggs as { eggAt?: number } | undefined)?.eggAt).toBeGreaterThan(0)
+  expect((await runGlowup($, 'pet list')).text).toContain('○ egg')
+  expect(petClient(await pane.drawn()).props.props.input.juggleAt).toBeGreaterThan(0)
+  await pane.unmount()
+})
+
+test('the first click says the pet has the keyboard, once per session', async ($, on) => {
+  const toasts: string[] = []
+  base(on, undefined, { toasts }); mock.clock(on)
+  const pane = await mountPane($)
+  await pane.post({ click: true }, { in: 'glowup-pet' })
+  await pane.post({ click: true }, { in: 'glowup-pet' })
+  expect(toasts.filter(t => t === 'The pet has the keyboard now. Esc gives it back.')).toHaveLength(1)
+  await pane.unmount()
+})
+
+test('a user pet named egg gets one notice that the built-in took the name', async ($, on) => {
+  const toasts: string[] = []
+  base(on, undefined, { toasts, store: { pet: 'egg' }, files: { [`${PETS}/egg.json`]: petJson('egg') } }); mock.clock(on)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  const notice = 'A pet file named egg.json is now the built-in egg\'s name; rename the file and its "name" to keep your pet.'
+  expect(toasts.filter(t => t === notice)).toHaveLength(1)
+  const pane = await mountPane($)
+  expect(petClient(await pane.drawn()).props.props.pet).toBe('clawd')
+  await pane.unmount()
+})
+
+test('passing runs move the shown egg to its next crack sheet', async ($, on) => {
+  base(on, undefined, { toolText: 'Tests: 12 passed', store: { eggs: { passRuns: 9, eggAt: 1, eggRuns: 0 } } }); mock.clock(on)
+  await runGlowup($, 'pet egg')
+  const pane = await mountPane($)
+  const before = JSON.stringify(petClient(await pane.drawn()).props.props.sheet)
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await $.tool.call({ tool: 'Bash', tool_use_id: 'b1', command: 'npm test' } as never)
+  const after = JSON.stringify(petClient(await pane.drawn()).props.props.sheet)
+  expect(after).not.toBe(before)
+  await pane.unmount()
 })

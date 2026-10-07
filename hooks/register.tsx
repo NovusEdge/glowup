@@ -6,10 +6,10 @@ import { shown, type Theme } from './themes.ts'
 import { resolveLook, cleanOverrides, exportMix, exportName, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { PACKS } from './packpresets.ts'
 import { loadUserPacks, SAFE_NAME } from './userpacks.ts'
-import { BUILTIN_SHEETS, CLAWD_SHEET, stripRows, type PetSetting, type PetInput, type PetKind, type PetSheet } from './pets.ts'
-import { loadUserPet, userPetNames } from './userpets.ts'
+import { BUILTIN_SHEETS, CLAWD_SHEET, eggSheet, stripRows, type PetSetting, type PetInput, type PetKind, type PetSheet } from './pets.ts'
+import { loadUserPet, userPetNames, PET_DIR } from './userpets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
-import { recordPass, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
+import { recordPass, unlockEgg, eggUnlocked, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, refreshCounts, serial } from './changes.ts'
 import { loadTasks, taskListId } from './tasks.ts'
 import { cacheHit, heaviest } from './ctxchart.ts'
@@ -107,12 +107,15 @@ let failed = false
 let tzOffset = 0
 let installed: number | undefined
 let lastPet = ''
+let eggJuggleAt: number | undefined
+let clickToasted = false
 const PANE_OPEN: PaneOpenArgs = { id: 'glowup', title: 'glowup', focus: true, closeOnEscape: true }
 const CONFIG_ID = 'glowup-config'
 const CONFIG_OPEN: PaneOpenArgs = { id: CONFIG_ID, title: 'glowup config', focus: true, closeOnEscape: true, rows: 40 }
 // Read when the config pane opens and after each pack change: its render hook may not read disk.
 let configPacks: string[] = Object.keys(PACKS)
 let configShiny = false
+let configEgg = false
 let configUserPets: string[] = []
 let configNote: ConfigNote | undefined
 // The element holding the config pane's focus ring, from ui.focus; the preview marks what it paints.
@@ -269,6 +272,7 @@ const petInput = (): PetInput => ({
   agents: model.agents.filter(a => a.state === 'running').length,
   compactAt: model.compactAt,
   ctx: model.ctxPercent,
+  juggleAt: eggJuggleAt,
 })
 // Through JSON because Client props refuse undefined fields.
 function petSnap(): PetSnap {
@@ -447,7 +451,9 @@ async function readConfigLists($: Engine) {
   const host = hostOf($)
   const user = await loadUserPacks(host)
   configPacks = [...new Set([...Object.keys(PACKS), ...Object.keys(user).filter(n => SAFE_NAME.test(n))])]
-  configShiny = ((await host.storeGet('eggs')) as EggStore | undefined)?.shinyAt !== undefined
+  const eggs = (await host.storeGet('eggs')) as EggStore | undefined
+  configShiny = eggs?.shinyAt !== undefined
+  configEgg = eggUnlocked(eggs)
   // a listed pet that does not load would be refused forever, and the Pet row would repeat it
   const pets: string[] = []
   for (const n of await userPetNames(host)) if ('sheet' in await loadUserPet(host, n)) pets.push(n)
@@ -462,7 +468,7 @@ async function openConfig($: Engine): Promise<string> {
   return r.isPlaced ? 'glowup config open (Esc closes it)' : `glowup config waits: ${r.reason}`
 }
 
-const configState = (): ConfigState => ({ packs: configPacks, mix, colors: look.theme.colors, pet, shiny: configShiny, userPets: configUserPets, bubbles, reduced: reducedMotion, setup, fields })
+const configState = (): ConfigState => ({ packs: configPacks, mix, colors: look.theme.colors, pet, shiny: configShiny, egg: configEgg, userPets: configUserPets, bubbles, reduced: reducedMotion, setup, fields })
 
 // Every change runs as the typed command would; the last command's first line, or its setting's row for a setup, becomes the pane's note.
 // A command that leaves the state unchanged was refused, so the rest of the run is dropped: the
@@ -741,6 +747,13 @@ export const register: Register = (on, options) => {
     pet = 'clawd'
     petSheet = undefined
     if (want === 'clawd-shiny') pet = eggs?.shinyAt === undefined ? 'clawd' : want
+    else if (want === 'egg') {
+      if (eggUnlocked(eggs)) { pet = 'egg'; petSheet = eggSheet(eggs) }
+      // the built-in name wins, so an older pets/egg.json is never loaded
+      if (interactive && await host.exists(`${PET_DIR(configDir)}/egg.json`).catch(() => false)) {
+        $.ui.toast('A pet file named egg.json is now the built-in egg\'s name; rename the file and its "name" to keep your pet.')
+      }
+    }
     else if (want === 'off' || Object.hasOwn(BUILTIN_SHEETS, want)) pet = want
     else {
       const r = await loadUserPet(host, want)
@@ -843,6 +856,10 @@ export const register: Register = (on, options) => {
       try {
         const r = recordPass(await hostOf($).storeGet('eggs') as EggStore | undefined, Date.now())
         await hostOf($).storeSet('eggs', r.next)
+        if (pet === 'egg') {
+          const cracked = eggSheet(r.next)
+          if (cracked !== petSheet) { petSheet = cracked; relook($) }
+        }
         if (r.unlocked) $.ui.toast('Clawd went shiny. /glowup pet clawd-shiny (see him in /glowup pane)')
       } catch (err) {
         $.ui.log(`pass counter failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
@@ -1119,6 +1136,28 @@ export const register: Register = (on, options) => {
     const text = await runCommand(hostOf($), e.args, ctlOf($))
     await syncTakeover($)
     return { text }
+  })
+
+  on('ui.message', async ($, e, next) => {
+    // e.module is the path under the plugin folder (hooks/client/pet.tsx), not the string the pane passes as module
+    const data = e.data as { konami?: unknown; click?: unknown } | null
+    if (off || e.element !== 'glowup-pet' || (data?.konami !== true && data?.click !== true)) return next(e)
+    if (data.click === true) {
+      if (!clickToasted) { clickToasted = true; $.ui.toast('The pet has the keyboard now. Esc gives it back.') }
+      return {}
+    }
+    try {
+      const host = hostOf($)
+      const unlocked = unlockEgg(await host.storeGet('eggs') as EggStore | undefined, Date.now())
+      if (!unlocked) return {}
+      await host.storeSet('eggs', unlocked)
+      eggJuggleAt = Date.now()
+      publishPet($)
+      $.ui.toast('An egg! Press Esc, then /glowup pet egg')
+    } catch (err) {
+      $.ui.log(`egg unlock failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
+    }
+    return {}
   })
 
   on('prompt.submit', async ($, e, next) => {

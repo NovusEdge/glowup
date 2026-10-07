@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Four spinners: `scanline` sweeps a bright column across a checkered bar and on through the spinner word, `ring` circles nine dots round an ellipse, `glitch` flickers the spinner word's letters into blocks in the pack's `read` and `agent` colors, and `signal` scrolls an oscilloscope trace. Each speeds up or changes shape while commands run or subagents work. Pick one with `motion.spinner` or `/glowup spinner <name>`.
 - A `slab` row style: your prompt is a full-width bar in the pack's accent, numbered by turn; tool calls are numbered within the turn with the tool in capitals and `OK` or `FAIL` on the right; a short rule opens each reply.
+- A secret egg pet: click the pet in the pane and type the code to unlock it, then pick it with `/glowup pet egg`. It wobbles while Claude works and gets a crack every 10 passing test runs, up to three.
+- Clicking the pet in the pane makes it hop; the pet then has the keyboard until you press Esc.
+
+### Changed
+
+- `egg` is now a built-in pet name; an installed pet called `egg` needs a new name.
 
 ## [0.9.0] - 2026-10-07
 

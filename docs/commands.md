@@ -104,6 +104,7 @@ An override sits on top of whatever pack and theme are active and survives switc
 | `/glowup pet off` | Hide the pet. Prints `Pet: off`. |
 | `/glowup pet list` | List the built-in pets, then the ones you installed, then `off`. A filled dot marks the current one. |
 | `/glowup pet clawd-shiny` | The shiny Clawd. Prints `The shiny pet is not unlocked yet.` until you earn him. |
+| `/glowup pet egg` | The secret egg. Prints `The egg is not unlocked yet.` until you find the code. |
 | `/glowup bubbles on` | Turn speech bubbles on. Prints `Bubbles: on`. |
 | `/glowup bubbles off` | Turn them off. |
 | `/glowup bubbles haiku` | Let Claude Haiku write some lines. Each one is a small call on your account. Prints `Bubbles: haiku`. |

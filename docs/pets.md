@@ -59,7 +59,7 @@ glowup makes one call at a time, at most one per turn, at least 90 seconds apart
 
 ## Choosing a pet
 
-`/glowup pet clawd|robot|off` picks Clawd, the robot, or no pet. `/glowup pet list` shows the pets you can pick: Clawd, the robot, the shiny one once you have earned him, and any pet you have installed. The Pet row in `/glowup config` cycles through the same list, and the Bubbles row changes the bubbles.
+`/glowup pet clawd|robot|off` picks Clawd, the robot, or no pet. `/glowup pet list` shows the pets you can pick: Clawd, the robot, the shiny one once you have earned him, the egg once you have unlocked it, and any pet you have installed. The Pet row in `/glowup config` cycles through the same list, and the Bubbles row changes the bubbles.
 
 ## Your own pet
 
@@ -70,6 +70,14 @@ You can draw a pet as a PNG sprite sheet, convert it in the [studio](https://glo
 Keep your tests green and see what happens. When it does, glowup tells you, and `/glowup pet clawd-shiny` switches to a gold Clawd. Progress toward it carries across sessions.
 
 ![The shiny gold Clawd](assets/clawd/shiny/idle/clip.gif)
+
+## The egg
+
+There is a secret egg. Click the pet in the pane and it hops. A click gives the pet the keyboard, and Esc hands it back to the prompt. While it has the keyboard, type the secret code at the pet to unlock the egg, then press Esc and pick it with `/glowup pet egg`. Until then the command prints `The egg is not unlocked yet.`, and the egg stays out of `/glowup pet list` and the Pet row in `/glowup config`.
+
+The egg wobbles while Claude works. After the unlock it gets a crack every 10 passing test runs, up to three. It does not hatch.
+
+Clicking and typing at the pet needs a terminal where Claude Code receives mouse clicks, and the pet has to be in the pane: docked, or in the drawer from `/glowup pane`.
 
 ## Outfits
 

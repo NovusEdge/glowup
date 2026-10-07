@@ -9,7 +9,7 @@ const base = (over: Partial<ConfigState> = {}): ConfigState => ({
   packs: ['classic', 'cozy', 'arcade', 'mine'],
   mix: DEFAULT_MIX,
   colors: resolveLook(DEFAULT_MIX, {}, {}).look.theme.colors,
-  pet: 'clawd', shiny: false, userPets: [], bubbles: 'on', reduced: false,
+  pet: 'clawd', shiny: false, egg: false, userPets: [], bubbles: 'on', reduced: false,
   setup: DEFAULT_SETUP, fields: DEFAULT_FIELDS,
   ...over,
 })
@@ -33,9 +33,10 @@ test('spinner starts at the pack default and walks the spinner ids', () => {
   expect(cycleCommands('spinner', last)).toEqual(['spinner default'])
 })
 
-test('pet offers shiny only once it is unlocked', () => {
+test('pet offers shiny and the egg only once they are unlocked', () => {
   expect(cycleCommands('pet', base())).toEqual(['pet robot'])
   expect(cycleCommands('pet', base({ shiny: true }))).toEqual(['pet clawd-shiny'])
+  expect(cycleCommands('pet', base({ egg: true, pet: 'robot' }))).toEqual(['pet egg'])
   expect(cycleCommands('pet', base({ pet: 'off' }))).toEqual(['pet clawd'])
 })
 

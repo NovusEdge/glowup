@@ -1,11 +1,16 @@
 // JSX-free: the docs site imports it.
 import { CLAWD_SHEET } from './sprites/clawd.ts'
 import { CRT_SHEET } from './sprites/crt.ts'
+import { EGG0_SHEET } from './sprites/egg0.ts'
+import { EGG1_SHEET } from './sprites/egg1.ts'
+import { EGG2_SHEET } from './sprites/egg2.ts'
+import { EGG3_SHEET } from './sprites/egg3.ts'
+import { crackStage, type EggStore } from './eggs.ts'
 
 export { CLAWD_SHEET }
 export const CLAWD_COLOR = '#d77757'
 export const SHINY_COLOR = '#f2c94c'
-export type BuiltinPet = 'clawd' | 'clawd-shiny' | 'robot'
+export type BuiltinPet = 'clawd' | 'clawd-shiny' | 'robot' | 'egg'
 // Built-in ids, or the name of a pet installed under <config>/glowup/pets.
 export type PetSetting = BuiltinPet | 'off' | (string & {})
 // `string & {}` stays in the union, so the type cannot exclude 'off'; the pane's render hook checks it.
@@ -15,7 +20,7 @@ export type Pose = 'idle' | 'walk' | 'working' | 'hop' | 'alert' | 'done' | 'sle
 export type PetSpan = { text: string; color: string; bg?: string }
 export type PetKind = 'read' | 'search' | 'edit' | 'shell' | 'agent' | 'plan' | 'think'
 // agents is the number of subagents running; ctx the context window's percent used.
-export type PetInput = { working: boolean; kind?: PetKind; needsYou: boolean; lastTest?: { passed: boolean; at: number }; doneAt?: number; doneOk?: boolean; actAt?: number; agents?: number; compactAt?: number; ctx?: number; sleepMs?: number; pantAt?: number }
+export type PetInput = { working: boolean; kind?: PetKind; needsYou: boolean; lastTest?: { passed: boolean; at: number }; doneAt?: number; doneOk?: boolean; actAt?: number; agents?: number; compactAt?: number; ctx?: number; sleepMs?: number; pantAt?: number; juggleAt?: number }
 
 // Pixel rows of single-char palette keys, '.' = transparent. Two pixel rows make one terminal row.
 // head is [x, y] of the top-centre of the head, where outfits anchor; dx is horizontal travel in pixels.
@@ -49,7 +54,11 @@ export const stripRows = (sheet: PetSheet, overlays: readonly string[]) =>
 // the compact pane drawer's one-row Clawd
 export const CLAWD_ROW = '▐▛█▜▌'
 
-const ALERT_MS = 1500, HOP_MS = 1200, DONE_MS = 4000, SCRUNCH_MS = 1500
+const ALERT_MS = 1500, DONE_MS = 4000, SCRUNCH_MS = 1500
+export const HOP_MS = 1200
+export const UNLOCK_JUGGLE_MS = 3000
+// ClientKeyEvent names, as the pet Client receives them after a click
+export const KONAMI = ['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'b', 'a']
 export const SLEEP_MS = 60_000
 export const JUGGLE_AGENTS = 3, PANT_CTX = 80
 // the longest a pose change waits for an exit frame
@@ -61,6 +70,7 @@ export function petPose(p: PetInput, now: number): Pose {
   if (t && !t.passed && now - t.at <= ALERT_MS) return 'fail'
   if (t && t.passed && now - t.at <= HOP_MS) return 'hop'
   if (p.compactAt !== undefined && now - p.compactAt >= 0 && now - p.compactAt <= SCRUNCH_MS) return 'scrunch'
+  if (p.juggleAt !== undefined && now - p.juggleAt >= 0 && now - p.juggleAt <= UNLOCK_JUGGLE_MS) return 'juggle'
   if (!p.working && p.doneOk && p.doneAt !== undefined && now - p.doneAt <= DONE_MS) return 'done'
   if ((p.agents ?? 0) >= JUGGLE_AGENTS) return 'juggle'
   const tired = (p.ctx ?? 0) >= (p.pantAt ?? PANT_CTX)
@@ -85,8 +95,11 @@ export const petPalette = (sheet: PetSheet, pet: PetId, tint: PetTint = {}): Rec
   return out
 }
 
+// one sheet per crack stage
+export const EGG_SHEETS: readonly PetSheet[] = [EGG0_SHEET, EGG1_SHEET, EGG2_SHEET, EGG3_SHEET]
+export const eggSheet = (s: EggStore | undefined): PetSheet => EGG_SHEETS[crackStage(s)]!
 // Keys match BUILTIN_PET_NAMES in petfile.ts; clawd-shiny is Clawd's sheet with the shiny palette.
-export const BUILTIN_SHEETS: Record<string, PetSheet> = { clawd: CLAWD_SHEET, 'clawd-shiny': CLAWD_SHEET, robot: CRT_SHEET }
+export const BUILTIN_SHEETS: Record<string, PetSheet> = { clawd: CLAWD_SHEET, 'clawd-shiny': CLAWD_SHEET, robot: CRT_SHEET, egg: EGG0_SHEET }
 export const isClawd = (p: string) => p === 'clawd' || p === 'clawd-shiny'
 // The drawer's one-row pet for anything but Clawd, whose own row is CLAWD_ROW.
 export const CRITTER_ROW = '▗▟█▙▖'

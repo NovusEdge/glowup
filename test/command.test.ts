@@ -419,6 +419,17 @@ test('pet and bubbles; clawd-shiny stays locked until earned', async () => {
   expect(calls).toEqual(['pet:off', 'pet:clawd-shiny', 'bubbles:off', 'bubbles:haiku'])
 })
 
+test('the egg is hidden and refused until unlocked, then listed and picked with its stage sheet', async () => {
+  const { host, store } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'pet list', c)).not.toContain('egg')
+  expect(await runCommand(host, 'pet egg', c)).toBe('The egg is not unlocked yet.')
+  store.eggs = { passRuns: 25, eggAt: 1, eggRuns: 3 }
+  expect(await runCommand(host, 'pet list', c)).toContain('○ egg')
+  expect(await runCommand(host, 'pet egg', c)).toBe('Pet: egg')
+  expect(calls).toEqual(['pet:egg+sheet'])
+})
+
 test('setup prints every key, sets one, and resets', async () => {
   const { host, store } = fakeHost()
   const { calls, ctl: c } = ctl()

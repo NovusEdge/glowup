@@ -75,7 +75,7 @@ The studio writes a JSON file, and you can write one by hand. This is the smalle
 Each `px` row is a string with one palette key per pixel, and `.` is a transparent pixel, so it cannot be a palette key. The rules:
 
 - The file is at most 64 KB.
-- `name` is lowercase letters, digits and dashes, starts with a letter or digit, and is at most 40 characters. `clawd`, `clawd-shiny`, `robot` and the `/glowup pet` subcommands are taken.
+- `name` is lowercase letters, digits and dashes, starts with a letter or digit, and is at most 40 characters. `clawd`, `clawd-shiny`, `egg`, `robot` and the `/glowup pet` subcommands are taken.
 - `palette` maps single characters to `#rrggbb` colors, 60 at most.
 - Frames are at most 32 pixels wide and 16 rows tall, and every frame in the file is the same size.
 - `ms` is a whole number from 80 to 10000.
