@@ -9,6 +9,7 @@ function boot(on: any, files: Record<string, string> = {}, surfaces = ['terminal
   const fs = fakeFs(on, { '/bin/gi': '', ...files }, argv => {
     ran.push(argv)
     if (argv.join(' ') === 'uname -s') return { exitCode: 0, stdout: 'Linux\n' }
+    if (argv.join(' ') === 'uname -m') return { exitCode: 0, stdout: 'x86_64\n' }
     if (argv[0] === 'sh' && argv[1] === '-c' && argv[2]!.startsWith('setsid')) return { exitCode: 0, stdout: '' }
     if (argv[0] === 'cmd.exe') return { exitCode: 0, stdout: '' }
   }, env)
@@ -107,7 +108,7 @@ test('once open goes stale the poll stops', async ($, on) => {
   expect((await runGlowup($, 'pack list')).text).not.toContain('● crt')
 })
 
-test('once open has been seen and then removed the TUI has quit: the poll stops and a new run starts at once', async ($, on) => {
+test('once open has been seen and then removed the TUI has quit: the poll drains what it wrote, stops, and a new run starts at once', async ($, on) => {
   const b = boot(on)
   await start($)
   await runGlowup($, 'config')
@@ -117,9 +118,90 @@ test('once open has been seen and then removed the TUI has quit: the poll stops 
   delete b.files[`${dir}/open`]
   b.files[`${dir}/commands.jsonl`] = '{"seq":1,"cmds":["pack crt"]}\n'
   await b.clock.advance(250)
-  expect((await runGlowup($, 'pack list')).text).not.toContain('● crt')
+  expect((await runGlowup($, 'pack list')).text).toContain('● crt')
+  expect(state(b.files, dir).seq).toBe(1)
+  b.files[`${dir}/commands.jsonl`] += '{"seq":2,"cmds":["pack arcade"]}\n'
+  await b.clock.advance(250)
+  expect((await runGlowup($, 'pack list')).text).toContain('● crt')
   expect((await runGlowup($, 'config')).text).toMatch(/^glowup config is opening in Konsole/)
   expect(Object.keys(b.files).filter(f => f.endsWith('/owner'))).toHaveLength(2)
+})
+
+test('an undo the TUI wrote just before it quit (its 1 s wait ran out) still applies', async ($, on) => {
+  const b = boot(on)
+  await start($)
+  await runGlowup($, 'config')
+  const dir = runDir(b.files)
+  b.files[`${dir}/open`] = ''
+  b.files[`${dir}/commands.jsonl`] = '{"seq":1,"cmds":["pack crt"]}\n'
+  await b.clock.advance(250)
+  expect((await runGlowup($, 'pack list')).text).toContain('● crt')
+  b.files[`${dir}/commands.jsonl`] += '{"seq":2,"undo":true}\n'
+  delete b.files[`${dir}/open`]
+  await b.clock.advance(250)
+  expect((await runGlowup($, 'pack list')).text).toContain('● classic')
+})
+
+test('a change pressed just before q still applies', async ($, on) => {
+  const b = boot(on)
+  await start($)
+  await runGlowup($, 'config')
+  const dir = runDir(b.files)
+  b.files[`${dir}/open`] = ''
+  await b.clock.advance(250)
+  b.files[`${dir}/commands.jsonl`] = '{"seq":1,"cmds":["pack crt"]}\n'
+  delete b.files[`${dir}/open`]
+  await b.clock.advance(250)
+  expect((await runGlowup($, 'pack list')).text).toContain('● crt')
+})
+
+test('undo after motion reduced, with reducedMotion never stored, puts motion back to full', async ($, on) => {
+  const b = boot(on)
+  await start($)
+  await runGlowup($, 'config')
+  const dir = runDir(b.files)
+  b.files[`${dir}/open`] = ''
+  b.files[`${dir}/commands.jsonl`] = '{"seq":1,"cmds":["motion reduced"]}\n'
+  await b.clock.advance(250)
+  expect(state(b.files, dir).state.reduced).toBe(true)
+  b.files[`${dir}/commands.jsonl`] += '{"seq":2,"undo":true}\n'
+  await b.clock.advance(250)
+  const s = state(b.files, dir)
+  expect([s.seq, s.state.reduced]).toEqual([2, false])
+})
+
+test('an undo.json that is not all seven keys is refused and changes nothing', async ($, on) => {
+  const b = boot(on)
+  await start($)
+  await runGlowup($, 'pack crt')
+  await runGlowup($, 'config')
+  const dir = runDir(b.files)
+  b.files[`${dir}/open`] = ''
+  b.files[`${dir}/undo.json`] = '{}'
+  b.files[`${dir}/commands.jsonl`] = '{"seq":1,"undo":true}\n'
+  await b.clock.advance(250)
+  expect((await runGlowup($, 'pack list')).text).toContain('● crt')
+  expect(state(b.files, dir).note).toEqual({ text: expect.stringMatching(/^glowup config could not undo: /), tone: 'error' })
+})
+
+const NO_BIN = { KONSOLE_VERSION: '260801', DISPLAY: ':0' }
+
+test('a binary lookup that fails creates no run', async ($, on) => {
+  const b = boot(on, {}, ['terminal'], NO_BIN)
+  await start($)
+  const out = await runGlowup($, 'config')
+  expect(out.text).toMatch(/^glowup config needs its installer binary: /)
+  expect(Object.keys(b.files).filter(f => f.startsWith(R))).toEqual([])
+})
+
+test('the first /glowup config says it is downloading before the download starts', async ($, on) => {
+  const b = boot(on, { '/home/novusedge/Projects/glowup/.claude-plugin/plugin.json': '{"version":"9.9.9"}' }, ['terminal'], NO_BIN)
+  on('ui.toast', async (_$: unknown, e: any) => { b.ran.push(['toast', e.text]); return { value: undefined } as never })
+  await start($)
+  await runGlowup($, 'config')
+  const at = (pred: (a: string[]) => boolean) => b.ran.findIndex(pred)
+  expect(at(a => a[0] === 'toast' && a[1] === 'Downloading glowup-installer…')).toBeGreaterThanOrEqual(0)
+  expect(at(a => a[0] === 'toast')).toBeLessThan(at(a => a[0] === 'mkdir'))
 })
 
 test('a second /glowup config while the window is open says so', async ($, on) => {
@@ -201,7 +283,7 @@ test('on Windows /glowup config opens a window with cmd start and never runs una
   const dir = runDir(b.files)
   expect(b.ran).toContainEqual(['cmd.exe', '/c', 'start', 'glowup config', '/Users/A B/gi.exe', 'config', '--run', dir])
   expect(b.ran.filter(a => a[0] === 'uname' || a[0] === 'sh')).toEqual([])
-  expect(out.text).toBe(`glowup config is opening in a new window. If no window appears, run this in a terminal: "/Users/A B/gi.exe" config --run ${dir}`)
+  expect(out.text).toBe(`glowup config is opening in a new window. If no window appears, run this in a terminal: & "/Users/A B/gi.exe" config --run ${dir}`)
 })
 
 test('on Windows session start removes day-old runs with PowerShell', async ($, on) => {

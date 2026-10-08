@@ -8,8 +8,12 @@ export const RELEASES = 'https://github.com/NovusEdge/glowup/releases'
 const SAFE = /^[A-Za-z0-9@%+=:,./_-]+$/
 // cmd and PowerShell both read double quotes; backslash is a path separator there, so it is safe
 const WIN_SAFE = /^[A-Za-z0-9@%+=:,./\\_-]+$/
-export const shellLine = (argv: string[], platform?: Platform) =>
-  argv.map(a => (platform === 'windows' ? (WIN_SAFE.test(a) ? a : `"${a.replace(/"/g, '\\"')}"`) : SAFE.test(a) ? a : `'${a.replace(/'/g, `'\\''`)}'`)).join(' ')
+// PowerShell (Windows Terminal's default) reads a quoted first token as a string, so it needs the call operator.
+// cmd takes & as a command separator, so a line with the prefix is PowerShell only.
+export const shellLine = (argv: string[], platform?: Platform) => {
+  const line = argv.map(a => (platform === 'windows' ? (WIN_SAFE.test(a) ? a : `"${a.replace(/"/g, '\\"')}"`) : SAFE.test(a) ? a : `'${a.replace(/'/g, `'\\''`)}'`)).join(' ')
+  return platform === 'windows' && line.startsWith('"') ? `& ${line}` : line
+}
 const appleString = (s: string) => s.replace(/[\\"]/g, '\\$&')
 
 const BY_NAME: Record<string, (cmd: string[]) => string[]> = {
@@ -94,7 +98,7 @@ const WIN_MOVE = 'Move-Item -LiteralPath $env:GLOWUP_FROM -Destination $env:GLOW
 const FIND = 'cd "$1" && awk -v f="$2" \'$2 == f || $2 == "*" f { print $1 "  " f }\' checksums.txt > want.txt && test -s want.txt'
 const CHECK = 'cd "$1" && { sha256sum -c want.txt || shasum -a 256 -c want.txt; } >/dev/null 2>&1'
 
-export async function ensureBinary(host: Host, o: { glowupBin?: string; pluginRoot: string; version: string; target?: { os: string; arch: string }; windows?: boolean }, id = Math.random().toString(36).slice(2, 8)): Promise<{ path: string } | { error: string }> {
+export async function ensureBinary(host: Host, o: { glowupBin?: string; pluginRoot: string; version: string; target?: { os: string; arch: string }; windows?: boolean; onDownload?: () => void }, id = Math.random().toString(36).slice(2, 8)): Promise<{ path: string } | { error: string }> {
   // windows is separate from target: an unreleased arch has no target but still names its .exe
   const win = o.windows === true, exe = win ? 'glowup-installer.exe' : 'glowup-installer'
   for (const p of [o.glowupBin, `${o.pluginRoot}/installer/${exe}`]) if (p && (await host.exists(p))) return { path: p }
@@ -102,6 +106,7 @@ export async function ensureBinary(host: Host, o: { glowupBin?: string; pluginRo
   if (await host.exists(path)) return { path }
   if (o.version === 'dev') return { error: 'A dev checkout has no release to download. Build one with just installer-build, or set GLOWUP_BIN.' }
   if (!o.target) return { error: 'There is no glowup-installer build for this system.' }
+  o.onDownload?.()
   const asset = assetName(o.version, o.target), url = `${RELEASES}/download/v${o.version}`
   // a part folder of its own, so two sessions downloading at once never share half a file
   const tmp = `${dir}.part-${id}`

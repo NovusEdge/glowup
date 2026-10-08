@@ -59,6 +59,10 @@ export async function saveUndo(host: Host): Promise<Undo> {
   return out
 }
 
+// undo.json sits beside commands.jsonl, so any local process can write it: a partial one would delete settings.
+export const isUndo = (v: unknown): v is Undo =>
+  typeof v === 'object' && v !== null && !Array.isArray(v) && UNDO_KEYS.every(k => k in v)
+
 export async function restoreUndo(host: Host, undo: Undo) {
   for (const k of UNDO_KEYS) {
     const v = undo[k]

@@ -172,7 +172,8 @@ test('Windows opens a new window with start, runs as is, and quotes for cmd and 
   expect(pickTerminal({}, 'windows', NONE, cmd)).toEqual({ name: 'a new window', argv: ['cmd.exe', '/c', 'start', 'glowup config', ...cmd] })
   expect(pickTerminal({ TMUX: '/t' }, 'windows', NONE, cmd)?.name).toBe('tmux')
   expect(detached(['cmd.exe', '/c', 'start'], 'windows')).toEqual(['cmd.exe', '/c', 'start'])
-  expect(shellLine(cmd, 'windows')).toBe('"C:/Users/A B/glowup-installer.exe" config --run C:\\Users\\a\\r1')
+  expect(shellLine(cmd, 'windows')).toBe('& "C:/Users/A B/glowup-installer.exe" config --run C:\\Users\\a\\r1')
+  expect(shellLine(['C:\\b\\gi.exe', 'config'], 'windows')).toBe('C:\\b\\gi.exe config')
   expect(shellLine(['a', '', 'say "hi"'], 'windows')).toBe('a "" "say \\"hi\\""')
 })
 

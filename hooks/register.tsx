@@ -41,7 +41,7 @@ import { cleanFrames, cleanRows, cleanDivider, fitField, meterWindows, type Fram
 import { ditherMeters, turnDivider } from './effects.ts'
 import type { FieldClientProps } from './client/field.tsx'
 import type { Seg } from './layout.tsx'
-import { allowed, createRun, isLive, newLines, restoreUndo, runTimes, scanRuns, snapshotOf, type Cursor, type Undo } from './remote.ts'
+import { allowed, createRun, isLive, isUndo, newLines, restoreUndo, runTimes, scanRuns, snapshotOf, type Cursor } from './remote.ts'
 import { detached, ensureBinary, pickTerminal, platformOf, releaseTarget, removeTree, shellLine, type TermEnv } from './launch.ts'
 
 type Engine = EngineInterface
@@ -577,16 +577,20 @@ async function pollRemote($: Engine) {
     const t = await runTimes(host, r.dir)
     // the TUI removes open when it quits; before its first write open is simply not there yet
     if (t.open !== undefined) r.seen = true
-    if (!isLive(t.open, t.owner, Date.now()) || (r.seen && t.open === undefined)) { stopRemote(); return }
+    // it writes its last line before removing open, so a quit still owes one read of the file
+    const quit = r.seen && t.open === undefined
+    if (!isLive(t.open, t.owner, Date.now()) && !quit) { stopRemote(); return }
     const { lines, consumed } = newLines(await host.readFile(`${r.dir}/commands.jsonl`).catch(() => ''), r.cursor.lines)
-    if (consumed === r.cursor.lines) return
+    if (consumed === r.cursor.lines) { if (quit) stopRemote(); return }
     for (const line of lines) {
       if (!line) { $.ui.log('glowup config: skipped a line that does not parse', { to: 'debug' }); continue }
       if (line.seq <= r.cursor.seq) continue
       r.cursor.seq = line.seq
       if ('undo' in line) {
-        await restoreUndo(host, JSON.parse(await host.readFile(`${r.dir}/undo.json`)) as Undo)
-        await loadSettings($, host)
+        const undo: unknown = await host.readFile(`${r.dir}/undo.json`).then(JSON.parse, () => undefined)
+        if (!isUndo(undo)) { configNote = { text: 'glowup config could not undo: undo.json is missing or damaged.', tone: 'error' }; continue }
+        await restoreUndo(host, undo)
+        await loadSettings($, host, true)
         await readConfigLists($)
         configNote = { text: 'Back to how it was when glowup config opened.', tone: 'ok' }
         await syncTakeover($)
@@ -602,6 +606,7 @@ async function pollRemote($: Engine) {
     }
     r.cursor.lines = consumed
     await writeRemoteState($)
+    if (quit) stopRemote()
   } catch (err) {
     $.ui.log(`glowup config poll failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
   } finally {
@@ -631,18 +636,18 @@ async function openConfigTui($: Engine): Promise<string> {
     const t = await runTimes(host, remote.dir)
     if (t.open !== undefined && isLive(t.open, undefined, Date.now())) return 'glowup config is already open.'
   }
-  await readConfigLists($)
-  configNote = undefined
-  const dir = await createRun(host, sessionId, Math.random().toString(36).slice(2, 10))
-  startRemote($, dir, { seq: 0, lines: 0 })
-  await writeRemoteState($)
   const windows = await onWindows($)
   // no uname on native Windows; WSL reports Linux and takes the Unix path
   const unameS = windows ? 'Windows_NT' : (await host.run(['uname', '-s']).catch(() => undefined))?.stdout ?? ''
   const unameM = windows ? (await $.env.get('PROCESSOR_ARCHITECTURE')) ?? '' : (await host.run(['uname', '-m']).catch(() => undefined))?.stdout ?? ''
   const platform = platformOf(unameS)
-  const bin = await ensureBinary(host, { glowupBin: (await $.env.get('GLOWUP_BIN')) || undefined, pluginRoot: $.plugin.root, version: await versionOf($), target: releaseTarget(unameS, unameM), windows })
+  const bin = await ensureBinary(host, { glowupBin: (await $.env.get('GLOWUP_BIN')) || undefined, pluginRoot: $.plugin.root, version: await versionOf($), target: releaseTarget(unameS, unameM), windows, onDownload: () => $.ui.toast('Downloading glowup-installer…') })
   if ('error' in bin) return `glowup config needs its installer binary: ${bin.error}`
+  await readConfigLists($)
+  configNote = undefined
+  const dir = await createRun(host, sessionId, Math.random().toString(36).slice(2, 10))
+  startRemote($, dir, { seq: 0, lines: 0 })
+  await writeRemoteState($)
   const cmd = [bin.path, 'config', '--run', dir]
   const manual = `Run this in a terminal: ${shellLine(cmd, platform)}`
   if (!platform) return manual
@@ -786,8 +791,9 @@ async function initialMix(host: Host, options: Readonly<Record<string, unknown>>
   return { ...DEFAULT_MIX, colors: pack, motion: pack, theme, spinner }
 }
 
-// The stored choices over the plugin's userConfig. An undo from the config TUI runs it again outside register().
-async function loadSettings($: Engine, host: Host) {
+// The stored choices over the plugin's userConfig. An undo from the config TUI runs it again outside register(),
+// and then must not repeat the start-up toasts or reset the docked pane's tab.
+async function loadSettings($: Engine, host: Host, undo = false) {
   mix = await initialMix(host, pluginOptions)
   const storedPet = await host.storeGet('pet')
   const eggs = await host.storeGet('eggs') as EggStore | undefined
@@ -798,7 +804,7 @@ async function loadSettings($: Engine, host: Host) {
   else if (want === 'egg') {
     if (eggUnlocked(eggs)) { pet = 'egg'; petSheet = eggSheet(eggs) }
     // the built-in name wins, so an older pets/egg.json is never loaded
-    if (interactive && await host.exists(`${PET_DIR(configDir)}/egg.json`).catch(() => false)) {
+    if (interactive && !undo && await host.exists(`${PET_DIR(configDir)}/egg.json`).catch(() => false)) {
       $.ui.toast('A pet file named egg.json is now the built-in egg\'s name; rename the file and its "name" to keep your pet.')
     }
   }
@@ -807,19 +813,19 @@ async function loadSettings($: Engine, host: Host) {
     const r = await loadUserPet(host, want)
     if ('sheet' in r) { pet = want; petSheet = r.sheet }
     // every loadUserPet error already names the pet or its file
-    else if (interactive) $.ui.toast(`${/[.!?]$/.test(r.error) ? r.error : `${r.error}.`} Showing Clawd.`)
+    else if (interactive && !undo) $.ui.toast(`${/[.!?]$/.test(r.error) ? r.error : `${r.error}.`} Showing Clawd.`)
   }
   const storedBubbles = await host.storeGet('bubbles')
   bubbles = BUBBLES.includes(storedBubbles as BubbleSetting) ? storedBubbles as BubbleSetting : BUBBLES.includes(pluginOptions.bubbles as BubbleSetting) ? pluginOptions.bubbles as BubbleSetting : 'on'
   await loadLook($)
   const motion = await host.storeGet('reducedMotion')
-  if (typeof motion === 'boolean') reducedMotion = motion
+  reducedMotion = typeof motion === 'boolean' ? motion : pluginOptions.reducedMotion === true
   configFields = parseFields(pluginOptions.statusline) ?? DEFAULT_FIELDS
   fields = parseFields(await host.storeGet('statusline')) ?? configFields
   const parsed = parseSetup(await host.storeGet('setup'))
   setup = parsed.setup
-  view = { ...view, tab: setup.tabs[0]! }
-  if (parsed.notices.length) $.ui.toast(`glowup setup: ${parsed.notices.join('; ')}`)
+  if (!undo || !setup.tabs.includes(view.tab)) view = { ...view, tab: setup.tabs[0]! }
+  if (parsed.notices.length && !undo) $.ui.toast(`glowup setup: ${parsed.notices.join('; ')}`)
 }
 
 function ctlOf($: Engine): Ctl {
