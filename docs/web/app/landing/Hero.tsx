@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Pet } from './Pet.tsx'
 import { PACK_NAMES } from './look.ts'
 import { usePack } from './PackContext.tsx'
+import { CheckIcon, CopyIcon } from '../ui/icons'
+import { Segmented } from '../ui/Segmented'
 
 const INSTALL = '/plugin marketplace add NovusEdge/glowup\n/plugin install glowup@glowup'
 
@@ -28,14 +30,12 @@ export function Hero() {
       <div className="row2">
         <div className="install">
           <code>/plugin marketplace add NovusEdge/glowup<br />/plugin install glowup@glowup</code>
-          <button type="button" onClick={copy}>{copied ? 'Copied' : 'Copy'}</button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={copy} aria-label={copied ? 'Copied install commands' : 'Copy install commands'}>
+            {copied ? <CheckIcon /> : <CopyIcon />}{copied ? 'Copied' : 'Copy'}
+          </button>
         </div>
       </div>
-      <div className="seg" role="group" aria-label="Pack">
-        {PACK_NAMES.map(n => (
-          <button key={n} type="button" aria-pressed={n === pack} onClick={() => setPack(n)}>{n}</button>
-        ))}
-      </div>
+      <Segmented label="Pack" size="lg" value={pack} options={PACK_NAMES} onChange={setPack} />
     </section>
   )
 }

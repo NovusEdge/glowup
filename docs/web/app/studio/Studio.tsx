@@ -5,6 +5,9 @@ import { PaneField } from '../landing/PaneField'
 import { Terminal } from '../landing/Terminal'
 import { Actions } from './Actions'
 import { Controls } from './Controls'
+import { XIcon } from '../ui/icons'
+import { Segmented } from '../ui/Segmented'
+import { Select } from '../ui/Select'
 import { petSheet } from '../landing/data.ts'
 import { DEFAULT_STUDIO_SETUP, draftLook, draftProblems, focusVars, fromHash, petOut, petProblems, startDraft, stateHash, type Draft, type Role, type StudioPet, type StudioSetup } from './model.ts'
 
@@ -79,20 +82,17 @@ export function Studio() {
             </label>
             <p role="status">{problem}</p>
           </div>
-          <label className="st-from">
-            <span>Start from</span>
-            <select value={start} onChange={e => { setStart(e.target.value); setDraft(startDraft(e.target.value)) }}>
-              <option value="" disabled>Choose a pack</option>
-              {PACK_NAMES.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </label>
+          <div className="st-from">
+            <span id="st-from-label">Start from</span>
+            <Select aria-labelledby="st-from-label" value={start} placeholder="Choose a pack" options={PACK_NAMES} onChange={p => { setStart(p); setDraft(startDraft(p)) }} />
+          </div>
           <Actions draft={draft} setup={setup} pet={out} blocked={!!problem} />
         </header>
         <div role="status">
           {notices.length > 0 && (
             <div className="st-notice">
               <div>{notices.map((n, i) => <p key={i}>{n}</p>)}</div>
-              <button type="button" aria-label="Dismiss notices" onClick={() => setNotices([])}>×</button>
+              <button type="button" className="btn btn-ghost btn-icon" aria-label="Dismiss notices" onClick={() => setNotices([])}><XIcon /></button>
             </div>
           )}
         </div>
@@ -107,9 +107,7 @@ export function Studio() {
               )}
               <div className="st-frame" style={{ ['--z' as string]: z }}>
                 <div className="st-view">
-                  <div className="st-seg" role="group" aria-label="Preview width">
-                    {WIDTHS.map(w => <button key={w} type="button" aria-pressed={width === w} onClick={() => setWidth(w)}>{w}</button>)}
-                  </div>
+                  <Segmented<Width> label="Preview width" ui value={width} options={WIDTHS} onChange={setWidth} />
                   <p>Band items (combo, agents, meter) show in narrow; the pane shows in wide and fullscreen.</p>
                 </div>
                 <Terminal setup={setup} interactive scale={z} petSheet={sheet} />

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CLAWD_SHEET } from './data.ts'
 import { Pet } from './Pet.tsx'
+import { Segmented } from '../ui/Segmented'
 
 const MOODS: [string, string][] = [
   ['working', 'Claude is working'],
@@ -33,11 +34,7 @@ export function ClawdSection() {
       </div>
       <div className="dress">
         <span id="outfit-label">Outfit</span>
-        <div className="seg2" role="group" aria-labelledby="outfit-label">
-          {OUTFITS.map(o => (
-            <button key={o} type="button" aria-pressed={o === outfit} onClick={() => setOutfit(o)}>{o}</button>
-          ))}
-        </div>
+        <Segmented labelledBy="outfit-label" value={outfit} options={OUTFITS} onChange={setOutfit} />
         <label><input type="checkbox" checked={shiny} onChange={e => setShiny(e.target.checked)} /> shiny</label>
       </div>
     </section>

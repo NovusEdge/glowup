@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The website's landing page and studio share one set of buttons, toggles, selects and popovers, and they all follow the pack you pick. The studio's selects open a themed list instead of the browser's own, and its Send to my Claude popover takes keyboard focus when it opens.
+
 ## [0.12.1] - 2026-10-08
 
 ### Fixed

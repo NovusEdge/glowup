@@ -8,6 +8,7 @@ import { StatusSection } from './StatusSection'
 import { ThemeSection } from './ThemeSection'
 import { editColors, type Draft, type Role, type StudioPet, type StudioSetup } from './model.ts'
 import { Check, Select } from './ui'
+import { ChevronRightIcon } from '../ui/icons'
 
 type Props = {
   draft: Draft; look: Look; setup: StudioSetup; pet?: StudioPet
@@ -56,7 +57,7 @@ export function Controls({ draft, look, setup, pet, onPet, onDraft, onSetup, onH
           <section key={s} className="acc-sec">
             <h2>
               <button type="button" id={`acc-${id}`} aria-expanded={on} aria-controls={`acc-${id}-body`} onClick={() => setOpen(on ? undefined : s)}>
-                <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><path d="M3 1l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.5" /></svg>
+                <ChevronRightIcon width={14} height={14} />
                 {s}
               </button>
             </h2>
