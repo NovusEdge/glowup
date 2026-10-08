@@ -11,7 +11,7 @@ const BAND = { hasSurvey: false, isWorking: true, maxRows: 6, bodyColumns: 100, 
 const walk = (n: any, out: any[] = []): any[] => { if (typeof n === 'string') out.push(n); else if (n && typeof n === 'object') { out.push(n); for (const c of n.children ?? []) walk(c, out) } return out }
 const petClient = (tree: any) => walk(tree).find(n => n?.type === 'Client' && String(n.props?.module).endsWith('client/pet.tsx'))
 const text = (tree: any) => walk(tree).filter(n => typeof n === 'string').join(' ')
-function base(on: any, render: (e: any) => void = () => {}, opts: { shown?: boolean; toolText?: string; run?: (argv: string[]) => { exitCode: number; stdout: string } | void; files?: Record<string, string>; toasts?: string[]; store?: Record<string, unknown> } = {}) {
+function base(on: any, render: (e: any) => void = () => {}, opts: { shown?: boolean; toolText?: string | (() => string); run?: (argv: string[]) => { exitCode: number; stdout: string } | void; files?: Record<string, string>; toasts?: string[]; store?: Record<string, unknown> } = {}) {
   fakeFs(on, opts.files ?? {}, opts.run)
   // a store the test passes in is the live one, so it can read back what the plugin wrote
   const live = opts.store
@@ -29,7 +29,7 @@ function base(on: any, render: (e: any) => void = () => {}, opts: { shown?: bool
   on('session.id', async () => ({ value: 's1' }))
   on('session.usage', async () => ({ value: { context: { window: 1000, percent: 10 } } as never }))
   on('turn.start', async (_$: unknown, e: any) => ({ turnId: e.turnId }))
-  on('tool.call', async () => ({ result: {}, text: opts.toolText ?? 'Tests: 3 failed, 9 passed' }) as never)
+  on('tool.call', async () => ({ result: {}, text: (typeof opts.toolText === 'function' ? opts.toolText() : opts.toolText) ?? 'Tests: 3 failed, 9 passed' }) as never)
 }
 const mountPane = ($: any) => $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'Pane', requestId: 'glowup', props: PANE })
 
@@ -396,5 +396,65 @@ test('passing runs move the shown egg to its next crack sheet', async ($, on) =>
   await $.tool.call({ tool: 'Bash', tool_use_id: 'b1', command: 'npm test' } as never)
   const after = JSON.stringify(petClient(await pane.drawn()).props.props.sheet)
   expect(after).not.toBe(before)
+  await pane.unmount()
+})
+
+test('a pass after a failed run in an earlier turn says a green line', async ($, on) => {
+  let text0 = 'Tests: 3 failed, 9 passed'
+  base(on, undefined, { toolText: () => text0 }); const clock = mock.clock(on)
+  await runGlowup($, 'bubbles on')
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await $.tool.call({ tool: 'Bash', tool_use_id: 'b1', command: 'npm test' } as never)
+  await clock.advance(3100)
+  text0 = 'Tests: 12 passed'
+  await $.turn.start({ text: 'again', turnId: 't2' })
+  await $.tool.call({ tool: 'Bash', tool_use_id: 'b2', command: 'npm test' } as never)
+  const pane = await mountPane($)
+  const body = text(await pane.drawn())
+  expect(anyLine(BUILTIN_LINES.clawd, 'green').some(l => body.includes(l))).toBe(true)
+  await pane.unmount()
+})
+
+test('the robot says its own fail lines', async ($, on) => {
+  base(on); mock.clock(on)
+  await runGlowup($, 'pet robot'); await runGlowup($, 'bubbles on')
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await $.tool.call({ tool: 'Bash', tool_use_id: 'b1', command: 'npm test' } as never)
+  const pane = await mountPane($)
+  const body = text(await pane.drawn())
+  expect(anyLine(BUILTIN_LINES.robot, 'fail', { n: '3' }).some(l => body.includes(l))).toBe(true)
+  expect(FAIL_SAY.some(l => body.includes(l))).toBe(false)
+  await pane.unmount()
+})
+
+test('a fresh session says hello at the first pane draw, once, and not over another bubble', async ($, on) => {
+  base(on); const clock = mock.clock(on)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true } as never)
+  await runGlowup($, 'bubbles on')
+  let pane = await mountPane($)
+  await pane.drawn(); await clock.advance(10)
+  let body = text(await pane.drawn())
+  expect(anyLine(BUILTIN_LINES.clawd, 'hello').some(l => body.includes(l))).toBe(true)
+  await pane.unmount(); await clock.advance(3100)
+  pane = await mountPane($)
+  body = text(await pane.drawn())
+  expect(anyLine(BUILTIN_LINES.clawd, 'hello').some(l => body.includes(l))).toBe(false)
+  await pane.unmount()
+})
+
+test('a bubble that spoke before the first pane draw keeps its place: no hello', async ($, on) => {
+  base(on); const clock = mock.clock(on)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true } as never)
+  await runGlowup($, 'bubbles on')
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await $.tool.call({ tool: 'Bash', tool_use_id: 'b1', command: 'npm test' } as never)
+  const pane = await mountPane($)
+  await pane.drawn(); await clock.advance(10)
+  const body = text(await pane.drawn())
+  expect(FAIL_SAY.some(l => body.includes(l))).toBe(true)
   await pane.unmount()
 })

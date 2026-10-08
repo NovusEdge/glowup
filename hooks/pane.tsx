@@ -280,7 +280,7 @@ export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: 
 export const PET_STRIP_COLS = 46
 const BUBBLE_ROOM = 16
 
-const bubbleColor = (t: Theme, mood: Moment) => (mood === 'fail' ? t.colors.fail : mood === 'done' ? t.colors.pass : t.colors.accent)
+const bubbleColor = (t: Theme, m: Moment) => (m === 'fail' ? t.colors.fail : m === 'done' || m === 'green' || m === 'long-done' ? t.colors.pass : t.colors.accent)
 
 // Width of the Box the pet's Client sits in on a docked pane: inside the pane's border and padding (2 + 4).
 export const petStripCols = (paneWidth: number) => Math.max(0, Math.min(PET_STRIP_COLS, paneWidth - 6))

@@ -245,3 +245,12 @@ test('the prompt holds glowup state only: no prompt text, cwd or file contents',
   expect(r.prompts[0].prompt).toContain('tests: failed 3')
   expect(r.prompts[0].prompt).toMatch(/time: (morning|afternoon|evening|night)$/)
 })
+
+test('a hello never spends the turn\'s Haiku call', async ($, on) => {
+  const r = rig(on, async () => answer('a fresh line')); const clock = mock.clock(on)
+  await r.start($); await runGlowup($, 'bubbles haiku')
+  const pane = await $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'Pane', requestId: 'glowup', props: PANE })
+  await pane.drawn(); await clock.advance(20)
+  expect(r.prompts).toHaveLength(0)
+  await pane.unmount()
+})

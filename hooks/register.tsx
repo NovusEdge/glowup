@@ -1,7 +1,7 @@
 import type { EngineInterface, PaneOpenArgs, Register, RenderElement, RenderSurface, Timer } from 'claude-code'
 import type { Host } from './host.ts'
 import { initialModel, normalizeModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
-import { approvalLabel, dialogCall, modeAsksPerson, shortPath } from './events.ts'
+import { approvalLabel, dialogCall, modeAsksPerson } from './events.ts'
 import { shown, type Theme } from './themes.ts'
 import { resolveLook, cleanOverrides, exportMix, exportName, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { PACKS } from './packpresets.ts'
@@ -9,7 +9,8 @@ import { loadUserPacks, SAFE_NAME } from './userpacks.ts'
 import { BUILTIN_SHEETS, CLAWD_SHEET, eggSheet, stripRows, type PetSetting, type PetInput, type PetKind, type PetSheet } from './pets.ts'
 import { loadUserPet, userPetNames, PET_DIR } from './userpets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, voiceFor, type BubbleSetting, type BubbleVars, type HaikuContext } from './bubbles.ts'
-import { BUILTIN_LINES, pool, type Moment } from './lines.ts'
+import { linesFor, pool, flavoursOf, type Moment } from './lines.ts'
+import { momentOf } from './moments.ts'
 import { recordPass, unlockEgg, eggUnlocked, hintDue, EGG_HINTS, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, rebase, refreshCounts, serial, type Repo } from './changes.ts'
 import { readDiff } from './diff.ts'
@@ -110,6 +111,10 @@ let bubbleCap = 40
 let interactive = true
 let friday = false
 let failed = false
+// The last main-loop test run in this session failed; a pass then speaks `green`.
+let red = false
+// A fresh session greets once, at its first pane draw, unless something else spoke first.
+let helloDue = false
 let tzOffset = 0
 let installed: number | undefined
 let lastPet = ''
@@ -389,15 +394,18 @@ async function say($: Engine, mood: Moment, vars: BubbleVars) {
     // a closed pane shows nobody the bubble
     if (!(await $.ui.panes()).some(p => p.id === 'glowup' && p.isShown)) return
   } catch { return }
-  const hint = mood === 'done' ? await eggHint($) : undefined
-  const line = hint === undefined ? bubbleFor(pool(BUILTIN_LINES.clawd, mood, []), vars, lastTemplate, Math.random) : undefined
+  helloDue = false
+  const hint = mood === 'done' || mood === 'long-done' ? await eggHint($) : undefined
+  const now = Date.now(), t = localTime(now, tzOffset)
+  const flavours = flavoursOf(t, overlays(t, installed === undefined ? undefined : localTime(installed, tzOffset), friday, failed))
+  const line = hint === undefined ? bubbleFor(pool(linesFor(pet, petSheet?.lines), mood, flavours), vars, lastTemplate, Math.random) : undefined
   if (line) lastTemplate = line.template
   const mine: Bubble = { text: hint ?? line!.text, mood, until: 0 }
   bubble = mine
   armBubble($, mine)
   publishPet($)
   // Haiku never sees a hint turn: it could improvise the code.
-  if (hint === undefined) void askHaiku($, mine, ctx)
+  if (hint === undefined && mood !== 'hello' && mood !== 'compact') void askHaiku($, mine, ctx)
 }
 async function eggHint($: Engine): Promise<string | undefined> {
   try {
@@ -412,14 +420,6 @@ async function eggHint($: Engine): Promise<string | undefined> {
     $.ui.log(`egg hint failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
     return undefined
   }
-}
-function moodOf(old: Model, now: Model, ev: Ev): { mood: Moment; vars: BubbleVars } | undefined {
-  if (now.needsYou && !old.needsYou) return { mood: 'needs-you', vars: { command: now.needsYou.what.replace(/^approve /, '').split(/\s+/)[0] } }
-  if (now.lastTest && !now.lastTest.passed && now.lastTest.at !== old.lastTest?.at) {
-    const n = /(\d+) tests? failed/.exec(now.act.label)?.[1]
-    return { mood: 'fail', vars: { n: n === undefined ? undefined : Number(n) } }
-  }
-  if (ev.type === 'turn-done' && ev.reason === 'answer') return { mood: 'done', vars: { file: now.files[0] && shortPath(now.files[0].path) } }
 }
 function redraw($: Engine) {
   publish($)
@@ -464,8 +464,10 @@ function feed($: Engine, ev: Ev) {
   model = applyEvent(model, ev)
   syncTicker($)
   redraw($)
-  const said = moodOf(old, model, ev)
-  if (said) void say($, said.mood, said.vars)
+  const said = momentOf(old, model, ev, { red, moods: setup.bubbles.moods })
+  // applyEvent sets lastTest only for main-loop runs, so a subagent's tests never flip this
+  if (model.lastTest && model.lastTest.at !== old.lastTest?.at) red = !model.lastTest.passed
+  if (said) void say($, said.moment, said.vars)
   // Only the spinner's readers redraw, and only when what it shows changes.
   const next: SpinKey = { turnAt: model.turnAt ?? 0, detail: model.act.label, state: orbStateOf(model) }
   if (next.turnAt !== spinKey.turnAt || next.detail !== spinKey.detail || next.state !== spinKey.state) {
@@ -747,6 +749,7 @@ async function adoptSession($: Engine, endedId: string) {
   cancelHaiku()
   friday = false
   failed = false
+  red = false
   lastStatusLine = undefined
   refreshSeq++
   // at session.end the id may still be the ending one; turn.start re-checks
@@ -914,6 +917,8 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     cwd = e.cwd
     interactive = e.isInteractive
+    red = false
+    helloDue = e.isInteractive
     cancelHaiku()
     // $.env.get takes literal names only; an empty CLAUDE_CONFIG_DIR counts as unset
     // cmd and PowerShell set USERPROFILE, not HOME
@@ -1149,6 +1154,8 @@ export const register: Register = (on, options) => {
 
   on('ui.render', { component: 'Pane', requestId: 'glowup' }, async ($, e, next) => {
     if (off) return next(e)
+    // The pane is usually closed at session start, so the hello waits for the first draw.
+    if (helloDue && !bubble) { helloDue = false; $.clock.after(0, () => void say($, 'hello', {})) }
     // a render hook cannot write state: publish after the draw
     if (panePlacement !== e.props.placement) { panePlacement = e.props.placement; $.clock.after(0, () => publish($)) }
     const live = (await $.state.get(PANE)).value as { model: Model; view: PaneView } | undefined

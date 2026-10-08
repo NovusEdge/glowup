@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { DEFAULT_SETUP, parseSetup, setSetupField, describeSetup, toneFor, type Setup } from '../hooks/setup.ts'
+import { DEFAULT_SETUP, SETUP_MOODS, parseSetup, setSetupField, describeSetup, toneFor, type Setup } from '../hooks/setup.ts'
 
 test('no stored setup is the default with no notices', () => {
   expect(parseSetup(undefined)).toEqual({ setup: DEFAULT_SETUP, notices: [] })
@@ -69,13 +69,18 @@ test('setSetupField refuses what parseSetup would only warn about', () => {
   expect(setSetupField(DEFAULT_SETUP, 'colour', 'x')).toEqual({ error: 'Unknown setup key "colour". Keys: band, tabs, meter.warn, meter.danger, bubbles.moods, bubbles.ms, pet.sleepMs.' })
 })
 
+test('the stored pre-0.13 mood list reads as the new default; any other list is kept', async () => {
+  expect(parseSetup({ bubbles: { moods: ['needs-you', 'fail', 'done'] } }).setup.bubbles.moods).toEqual([...SETUP_MOODS])
+  expect(parseSetup({ bubbles: { moods: ['fail', 'needs-you'] } }).setup.bubbles.moods).toEqual(['fail', 'needs-you'])
+})
+
 test('describeSetup lists every key with its value', () => {
   expect(describeSetup(DEFAULT_SETUP)).toBe([
     'band           combo, agents, meter, plan',
     'tabs           plan, agents, diff, changes',
     'meter.warn     50',
     'meter.danger   80',
-    'bubbles.moods  needs-you, fail, done',
+    'bubbles.moods  needs-you, fail, done, green, hello, long-done, compact',
     'bubbles.ms     3000',
     'pet.sleepMs    60000',
   ].join('\n'))
