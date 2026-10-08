@@ -1,15 +1,17 @@
-.landing{background:var(--bg);color:var(--text);position:relative;font-family:Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased;transition:background .4s}
+@import '../ui/system.css';
+
+.landing{background:var(--bg);color:var(--text);position:relative;font-family:var(--font-ui);-webkit-font-smoothing:antialiased;transition:background .4s}
 .landing *,.landing *::before,.landing *::after{box-sizing:border-box}
 .landing button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .landing a{color:inherit;text-decoration:none}
 .landing .wrap{max-width:1240px;margin:0 auto;padding:0 20px;position:relative;z-index:1}
 
-.landing nav.float{position:fixed;z-index:40;top:14px;left:50%;transform:translateX(-50%);width:min(720px,calc(100% - 24px));display:flex;align-items:center;gap:22px;padding:8px 8px 8px 18px;font-size:14px;color:var(--dim);border-radius:14px;border:1px solid color-mix(in srgb,var(--faint) 80%,transparent);background:color-mix(in srgb,var(--bg) 72%,transparent);-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);box-shadow:0 10px 30px -12px #0009;transition:background .4s}
-.landing nav .logo{margin-right:auto;color:var(--text);font:700 21px 'Pixelify Sans',monospace}
+.landing nav.float{position:fixed;z-index:40;top:14px;left:50%;transform:translateX(-50%);width:min(720px,calc(100% - 24px));display:flex;align-items:center;gap:4px;padding:6px 6px 6px 16px;font-size:14px;color:var(--dim);border-radius:var(--r-lg);border:1px solid color-mix(in srgb,var(--line) 80%,transparent);background:color-mix(in srgb,var(--bg) 72%,transparent);-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);box-shadow:0 10px 30px -12px #0009;transition:background .4s}
+.landing nav .logo{margin-right:auto;color:var(--text);font:700 21px var(--font-logo)}
 .landing nav .logo span{color:var(--accent)}
-.landing nav a:hover{color:var(--text)}
-.landing nav .gh{padding:7px 12px;border-radius:9px;color:var(--bg);background:var(--text);font-weight:600}
-.landing nav .gh:hover{color:var(--bg)}
+.landing nav .nav-link{display:inline-flex;align-items:center;height:var(--h-sm);padding:0 10px;border-radius:var(--r-sm);transition:color var(--t-fast),background-color var(--t-fast)}
+.landing nav .nav-link:hover{color:var(--text);background:var(--tint)}
+.landing nav .btn{margin-left:6px}
 
 .landing section.hero{text-align:center;padding:110px 0 36px}
 .landing .hero canvas{display:block;margin:0 auto -4px;cursor:pointer}
@@ -17,50 +19,43 @@
 .landing h1 span{color:var(--accent);transition:color .4s}
 .landing .sub{font-size:19px;color:var(--dim);max-width:600px;margin:20px auto 28px;line-height:1.5;text-shadow:0 2px 24px var(--bg),0 0 2px var(--bg)}
 .landing .row2{display:flex;gap:14px;justify-content:center;align-items:center;flex-wrap:wrap}
-.landing .install{display:inline-flex;align-items:center;gap:14px;max-width:100%;font:13px 'JetBrains Mono',monospace;border-radius:10px;padding:10px 10px 10px 16px;text-align:left;background:var(--panel);border:1px solid var(--faint);color:var(--text)}
+.landing .install{display:inline-flex;align-items:center;gap:16px;max-width:100%;font:13px var(--font-code);border-radius:var(--r-lg);padding:8px 8px 8px 16px;text-align:left;background:var(--surface);border:1px solid var(--line);color:var(--text);box-shadow:0 8px 24px -12px #0008}
 .landing .install code{min-width:0;line-height:1.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.landing .install button{font:600 12px Geist,sans-serif;padding:6px 12px;border-radius:7px;background:var(--text);color:var(--bg)}
-.landing .seg{display:inline-flex;flex-wrap:wrap;justify-content:center;max-width:100%;gap:4px;padding:4px;border-radius:12px;border:1px solid var(--faint);background:color-mix(in srgb,var(--panel) 80%,transparent);margin-top:28px}
-.landing .seg button{font:600 13px 'JetBrains Mono',monospace;padding:7px 16px;border-radius:9px;color:var(--dim)}
-.landing .seg button[aria-pressed=true]{background:var(--accent);color:var(--bg)}
+.landing .install code span{color:var(--dim);user-select:none}
+.landing .hero .seg{justify-content:center;margin-top:28px}
 
 .landing .sec{padding:110px 0 0}
-.landing .sec h2{font:700 clamp(30px,4vw,44px)/1.05 Geist,sans-serif;letter-spacing:-.035em}
+.landing .sec h2{font:700 clamp(30px,4vw,44px)/1.05 var(--font-ui);letter-spacing:-.035em}
 .landing .sec .lede{color:var(--dim);font-size:17px;margin:12px 0 30px;max-width:640px;line-height:1.5}
 .landing .sec .lede.small{font-size:15px;margin-top:18px}
-.landing .sec code{font:13.5px 'JetBrains Mono',monospace;color:var(--accent);background:var(--panel);padding:2px 6px;border-radius:5px}
-.landing .card{background:color-mix(in srgb,var(--bg) 82%,transparent);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);border:1px solid var(--faint);border-radius:14px;transition:border-color .2s,background .4s}
+.landing .sec code{font:13.5px var(--font-code);color:var(--accent);background:var(--panel);padding:2px 6px;border-radius:var(--r-sm)}
+.landing .card{background:color-mix(in srgb,var(--bg) 82%,transparent);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);border:1px solid var(--line);border-radius:var(--r-lg);transition:border-color .2s,background .4s}
 
 .landing .moods{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
 .landing .mood{padding:18px 16px 14px;display:flex;flex-direction:column;align-items:center;gap:12px}
-.landing .mood b{font:600 14px Geist,sans-serif}
-.landing .mood span{font:12px 'JetBrains Mono',monospace;color:var(--dim);margin-top:-8px}
-.landing .dress{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:18px;font-size:14px;color:var(--dim)}
-.landing .seg2{display:inline-flex;gap:3px;padding:3px;border-radius:10px;border:1px solid var(--faint)}
-.landing .seg2 button{font:500 13px 'JetBrains Mono',monospace;padding:5px 12px;border-radius:7px;color:var(--dim)}
-.landing .seg2 button[aria-pressed=true]{background:var(--accent);color:var(--bg)}
-.landing .dress label{display:flex;gap:6px;align-items:center;font:13px 'JetBrains Mono',monospace}
+.landing .mood b{font:600 14px var(--font-ui)}
+.landing .mood span{font:12px var(--font-code);color:var(--dim);margin-top:-8px}
+.landing .dress{display:flex;gap:10px 14px;align-items:center;flex-wrap:wrap;margin-top:18px;font-size:14px;color:var(--dim)}
+.landing .dress label{display:flex;gap:8px;align-items:center;min-height:var(--h-sm);font:13px var(--font-code);color:var(--text);cursor:pointer}
 
 .landing .spins{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
 .landing .spinc{padding:22px 18px 16px;display:flex;flex-direction:column;gap:14px}
 .landing .spinc .art{height:96px;display:flex;align-items:center;justify-content:center}
-.landing .spinc b{font:600 14px Geist,sans-serif}
-.landing .spinc span.cmd{font:12px 'JetBrains Mono',monospace;color:var(--dim)}
+.landing .spinc b{font:600 14px var(--font-ui)}
+.landing .spinc span.cmd{font:12px var(--font-code);color:var(--dim)}
 
 .landing .packs{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
 .landing .packc{padding:0;overflow:hidden;cursor:pointer;text-align:left;display:flex;flex-direction:column;justify-content:space-between}
 .landing .packc .mini{flex:1;border:0;border-radius:0}
 .landing .packc:hover,.landing .packc[aria-pressed=true]{border-color:var(--accent)}
-.landing .packc .cap{padding:12px 16px;display:flex;justify-content:space-between;font:13px 'JetBrains Mono',monospace;color:var(--dim);border-top:1px solid var(--faint)}
+.landing .packc .cap{padding:12px 16px;display:flex;justify-content:space-between;font:13px var(--font-code);color:var(--dim);border-top:1px solid var(--faint)}
 .landing .packc .cap b{color:var(--text)}
 .landing .themes{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
-.landing .themes button{display:flex;gap:8px;align-items:center;padding:6px 12px 6px 6px;border:1px solid var(--faint);border-radius:999px;font:13px 'JetBrains Mono',monospace;color:var(--text)}
-.landing .themes button[aria-pressed=true]{border-color:var(--accent)}
-.landing .themes button i{display:flex;border-radius:999px;overflow:hidden}
-.landing .themes button i u{width:9px;height:18px}
+.landing .themes .chip i{display:flex;border-radius:var(--r-full);overflow:hidden}
+.landing .themes .chip i u{width:9px;height:18px}
 
 /* Row styles for the static mini terminal; the big terminal's live in terminal.css. */
-.landing .mini{--k:var(--text);background:var(--bg);color:var(--text);font:12.5px/1.6 'JetBrains Mono',monospace;padding:14px 16px;border:1px solid var(--faint);border-radius:12px;display:flex;flex-direction:column;gap:4px;transition:background .3s}
+.landing .mini{--k:var(--text);background:var(--bg);color:var(--text);font:12.5px/1.6 var(--font-code);padding:14px 16px;border:1px solid var(--faint);border-radius:12px;display:flex;flex-direction:column;gap:4px;transition:background .3s}
 .landing .mini .bl{display:flex;gap:8px;white-space:nowrap;overflow:hidden}
 .landing .mini .bl .w{color:var(--accent);font-weight:700}
 .landing .mini .row{display:flex;gap:7px;align-items:baseline;margin-top:2px}
@@ -91,23 +86,21 @@
 
 .landing .maker{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}
 .landing .maker .mini{justify-content:center}
-.landing .maker .lede{align-self:center;margin:0;font-size:18px}
-.landing .maker .lede a{color:var(--accent)}
-.landing .maker .lede a:hover{text-decoration:underline}
+.landing .maker{gap:24px 48px}
+.landing .maker-cta{align-self:center}
+.landing .maker-cta .lede{margin-bottom:24px}
 
-.landing footer{padding:120px 0 110px;font:13px 'JetBrains Mono',monospace;color:var(--dim)}
+.landing footer{padding:120px 0 110px;font:13px var(--font-code);color:var(--dim)}
 .landing footer a:hover{color:var(--text)}
-
-.landing :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 @media (max-width:800px){
   .landing nav .hide-sm{display:none}
 }
 @media (max-width:900px){
   .landing .maker{grid-template-columns:1fr}
-  .landing .seg2{flex-wrap:wrap}
   .landing .sec{padding-top:80px}
-  .landing nav.float{gap:14px;font-size:13px}
+  .landing nav.float{font-size:13px}
+  .landing nav .nav-link{padding:0 7px}
   .landing section.hero{padding-top:92px}
   .landing .install code{font-size:11.5px;white-space:normal;overflow-wrap:anywhere}
   .landing .moods,.landing .spins{grid-template-columns:repeat(2,1fr);gap:10px}

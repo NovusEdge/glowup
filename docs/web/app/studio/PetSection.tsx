@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { PET_ANIMS, petSheet } from '../landing/data.ts'
 import { Pet } from '../landing/Pet'
+import { DownloadIcon } from '../ui/icons'
 import { SPEEDS, petFromPixels, type Pixels } from './petpng.ts'
 import { petAddCommand, petJson, petOut, petPartSize, petProblems, petRides, type StudioPet } from './model.ts'
 
@@ -84,8 +85,8 @@ export function PetSection({ pet, onPet }: { pet?: StudioPet; onPet(p?: StudioPe
           <p className="hint">{problem ? '' : petRides(out) ? 'This pet rides along in Send to my Claude.' : `Too big for a link (${(petPartSize(out) / 1024).toFixed(1)} KB encoded, 4 KB max). Download it, then run:`}</p>
           {!problem && !petRides(out) && <code className="cmd">{petAddCommand(out)}</code>}
           <div className="line">
-            <button type="button" disabled={!!problem} onClick={download}>Download pet</button>
-            <button type="button" onClick={() => { onPet(undefined); if (input.current) input.current.value = '' }}>Remove pet</button>
+            <button type="button" className="btn btn-secondary btn-sm" disabled={!!problem} onClick={download}><DownloadIcon />Download pet</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { onPet(undefined); if (input.current) input.current.value = '' }}>Remove pet</button>
           </div>
         </>
       )}

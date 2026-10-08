@@ -1,14 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { normalizeHex } from '../landing/data.ts'
+import { ChevronDownIcon, ChevronUpIcon } from '../ui/icons'
+import { Select as BaseSelect } from '../ui/Select'
 import { ColorWheel } from './ColorWheel'
 import { move, toggle } from './model.ts'
 
 export function Select<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: readonly T[]; onChange(v: T): void }) {
+  const id = useId()
   return (
-    <label className="fld">
-      <span>{label}</span>
-      <select value={value} onChange={e => onChange(e.target.value as T)}>{options.map(o => <option key={o}>{o}</option>)}</select>
-    </label>
+    <div className="fld">
+      <span id={id}>{label}</span>
+      <BaseSelect aria-labelledby={id} value={value} options={options} onChange={onChange} />
+    </div>
   )
 }
 
@@ -61,7 +64,7 @@ export function ColorPick({ label, value, onChange }: { label: string; value: st
   return (
     <div className="fld cpick">
       <span>{label}</span>
-      <button type="button" className="cpick-btn" aria-expanded={open} aria-label={`${label}: ${value}`} onClick={() => setOpen(!open)}>
+      <button type="button" className="field cpick-btn" aria-expanded={open} aria-label={`${label}: ${value}`} onClick={() => setOpen(!open)}>
         <i style={{ background: value }} />{value}
       </button>
       {open && (
@@ -84,8 +87,8 @@ export function Order<T extends string>({ title, all, active, labels, onChange }
         return (
           <div key={item} className="orow">
             <label className="chk"><input type="checkbox" checked={i >= 0} onChange={() => onChange(toggle(active, item))} /> {labels[item]}</label>
-            <button type="button" aria-label={`Move ${labels[item].toLowerCase()} up`} disabled={i <= 0} onClick={() => onChange(move(active, i, -1))}>↑</button>
-            <button type="button" aria-label={`Move ${labels[item].toLowerCase()} down`} disabled={i < 0 || i === active.length - 1} onClick={() => onChange(move(active, i, 1))}>↓</button>
+            <button type="button" className="btn btn-ghost btn-sm btn-icon" aria-label={`Move ${labels[item].toLowerCase()} up`} disabled={i <= 0} onClick={() => onChange(move(active, i, -1))}><ChevronUpIcon /></button>
+            <button type="button" className="btn btn-ghost btn-sm btn-icon" aria-label={`Move ${labels[item].toLowerCase()} down`} disabled={i < 0 || i === active.length - 1} onClick={() => onChange(move(active, i, 1))}><ChevronDownIcon /></button>
           </div>
         )
       })}

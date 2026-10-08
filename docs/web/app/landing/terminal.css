@@ -1,5 +1,5 @@
 /* Sizes are in em of the terminal's 13px base, so the studio can scale the whole mock by setting --z. */
-.term{--k:var(--text);background:var(--bg);color:var(--text);border-radius:.923em;overflow:hidden;font:calc(13px*var(--z,1))/1.55 'JetBrains Mono',monospace;border:1px solid color-mix(in srgb,var(--faint) 80%,#fff 8%);box-shadow:0 30px 80px -24px #000c,0 0 0 1px #0006;position:relative;transition:background .35s,color .35s;text-align:left}
+.term{--k:var(--text);background:var(--bg);color:var(--text);border-radius:.923em;overflow:hidden;font:calc(13px*var(--z,1))/1.55 var(--font-code);border:1px solid color-mix(in srgb,var(--faint) 80%,#fff 8%);box-shadow:0 30px 80px -24px #000c,0 0 0 1px #0006;position:relative;transition:background .35s,color .35s;text-align:left}
 .term .tbar{display:flex;align-items:center;gap:.615em;padding:.769em .923em;border-bottom:1px solid var(--faint);background:color-mix(in srgb,var(--panel) 70%,var(--bg))}
 .term .tbar i{width:.846em;height:.846em;border-radius:50%;background:var(--faint)}
 .term .tbar .ttl{margin-left:.615em;color:var(--dim);font-size:.923em}

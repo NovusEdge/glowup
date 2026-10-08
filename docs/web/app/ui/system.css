@@ -1,0 +1,110 @@
+/* Tokens and shared controls for the landing page and the studio. Colors come from the pack (lookVars sets
+   --bg, --panel, --text, --dim, --faint, --accent on .landing), so every token here is derived, never fixed,
+   and a pack change restyles every control. Popups portal into .landing for the same reason. */
+.landing{
+  --font-ui:Geist,system-ui,sans-serif;
+  --font-code:'JetBrains Mono',ui-monospace,monospace;
+  --font-logo:'Pixelify Sans',monospace;
+
+  --r-sm:6px;--r-md:8px;--r-lg:12px;--r-full:999px;
+  --h-sm:30px;--h-md:36px;--h-lg:44px;
+
+  --surface:var(--panel);
+  --line:var(--faint);
+  --line-strong:color-mix(in srgb,var(--dim) 55%,var(--faint));
+  --on-accent:var(--bg);
+  --tint:color-mix(in srgb,var(--text) 7%,transparent);
+  --tint-strong:color-mix(in srgb,var(--text) 12%,transparent);
+  --accent-soft:color-mix(in srgb,var(--accent) 14%,transparent);
+  --shadow-pop:0 12px 32px -8px #000b,0 2px 6px -2px #0006;
+
+  --ease:cubic-bezier(.16,1,.3,1);
+  --t-fast:120ms;--t:220ms;
+
+  caret-color:var(--accent);
+  accent-color:var(--accent);
+  scrollbar-color:var(--line-strong) transparent;
+}
+.landing ::selection{background:color-mix(in srgb,var(--accent) 38%,transparent);color:var(--text)}
+.landing :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Button: one shape, three weights. Primary is the single action a view wants; secondary sits beside it;
+   ghost is for icon and toolbar actions that should not compete with content. */
+.landing .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:none;height:var(--h-md);padding:0 14px;border:1px solid transparent;border-radius:var(--r-md);font:600 13.5px/1 var(--font-ui);letter-spacing:-.005em;white-space:nowrap;color:var(--text);cursor:pointer;user-select:none;transition:background-color var(--t-fast),border-color var(--t-fast),color var(--t-fast),transform var(--t-fast) var(--ease)}
+.landing .btn svg{flex:none;width:16px;height:16px}
+.landing .btn:active:not(:disabled){transform:translateY(1px)}
+.landing .btn:disabled{opacity:.45;cursor:not-allowed}
+.landing .btn-primary{background:var(--accent);color:var(--on-accent)}
+.landing .btn-primary:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 86%,var(--text))}
+.landing .btn-secondary{background:var(--surface);border-color:var(--line)}
+.landing .btn-secondary:hover:not(:disabled){border-color:var(--line-strong);background:color-mix(in srgb,var(--surface) 100%,var(--text) 5%)}
+.landing .btn-secondary[aria-expanded=true]{border-color:var(--accent)}
+.landing .btn-ghost{color:var(--dim)}
+.landing .btn-ghost:hover:not(:disabled){color:var(--text);background:var(--tint)}
+.landing .btn-link{height:auto;padding:0;border:0;color:var(--accent);font-weight:500;text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--accent) 45%,transparent);text-underline-offset:3px}
+.landing .btn-link:hover{text-decoration-color:var(--accent)}
+.landing .btn-sm{height:var(--h-sm);padding:0 10px;font-size:12.5px;border-radius:var(--r-sm)}
+.landing .btn-sm svg{width:14px;height:14px}
+.landing .btn-icon{width:var(--h-md);padding:0}
+.landing .btn-sm.btn-icon{width:var(--h-sm)}
+
+/* Segmented control: one choice from a short fixed set. Values are command arguments, so they stay in mono. */
+.landing .seg{display:inline-flex;flex-wrap:wrap;gap:2px;padding:3px;max-width:100%;border:1px solid var(--line);border-radius:calc(var(--r-sm) + 3px);background:color-mix(in srgb,var(--surface) 80%,transparent)}
+.landing .seg-item{height:var(--h-sm);padding:0 12px;border-radius:var(--r-sm);font:500 13px/1 var(--font-code);color:var(--dim);cursor:pointer;transition:background-color var(--t-fast),color var(--t-fast)}
+.landing .seg-item:hover:not([aria-pressed=true]){color:var(--text);background:var(--tint)}
+.landing .seg-item[aria-pressed=true]{background:var(--accent);color:var(--on-accent);font-weight:600}
+.landing .seg-lg{padding:4px;border-radius:calc(var(--r-md) + 4px)}
+.landing .seg-lg .seg-item{height:var(--h-md);padding:0 16px;border-radius:var(--r-md)}
+.landing .seg-ui .seg-item{font-family:var(--font-ui)}
+
+/* Chip: a pressable option that also shows something (a palette, a swatch). */
+.landing .chip{display:inline-flex;align-items:center;gap:8px;height:var(--h-sm);padding:0 12px 0 6px;border:1px solid var(--line);border-radius:var(--r-full);font:13px/1 var(--font-code);color:var(--text);cursor:pointer;transition:border-color var(--t-fast),background-color var(--t-fast)}
+.landing .chip:hover{border-color:var(--line-strong)}
+.landing .chip[aria-pressed=true]{border-color:var(--accent);background:var(--accent-soft)}
+
+/* Fields */
+.landing .field,.landing select,.landing input[type=text],.landing input[type=number]{appearance:none;-webkit-appearance:none;display:flex;align-items:center;gap:8px;width:100%;min-width:0;max-width:100%;height:var(--h-md);padding:0 10px;font:13px var(--font-code);color:var(--text);background-color:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);text-align:left;cursor:text;transition:border-color var(--t-fast)}
+.landing .field{cursor:pointer}
+.landing .field:hover,.landing input[type=text]:hover,.landing input[type=number]:hover{border-color:var(--line-strong)}
+.landing .field[data-popup-open]{border-color:var(--accent)}
+.landing input[aria-invalid=true]{border-color:var(--fail)}
+.landing .field-value{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.landing .field-value[data-placeholder]{color:var(--dim)}
+.landing .field>svg{flex:none;width:14px;height:14px;color:var(--dim)}
+.landing input[type=number]{-moz-appearance:textfield}
+.landing input[type=number]::-webkit-inner-spin-button,.landing input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.landing input[type=file]{font:13px var(--font-ui);color:var(--dim);max-width:100%}
+.landing input[type=file]::file-selector-button{height:var(--h-sm);margin-right:10px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);font:600 12.5px var(--font-ui);color:var(--text);cursor:pointer}
+.landing input[type=file]::file-selector-button:hover{border-color:var(--line-strong)}
+
+.landing input[type=checkbox],.landing input[type=radio]{appearance:none;-webkit-appearance:none;flex:none;position:relative;width:18px;height:18px;margin:0;background:var(--surface);border:1px solid var(--line-strong);cursor:pointer;transition:background-color var(--t-fast),border-color var(--t-fast)}
+.landing input[type=checkbox]{border-radius:5px}
+.landing input[type=radio]{border-radius:50%}
+.landing input[type=checkbox]:hover,.landing input[type=radio]:hover{border-color:var(--dim)}
+.landing input[type=checkbox]:checked{background:var(--accent);border-color:var(--accent)}
+.landing input[type=checkbox]:checked::after{content:'';position:absolute;left:5px;top:1px;width:5px;height:10px;border:solid var(--on-accent);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.landing input[type=radio]:checked{background:var(--accent);border-color:var(--accent);box-shadow:inset 0 0 0 3px var(--surface)}
+
+.landing input[type=range]{appearance:none;-webkit-appearance:none;width:100%;height:24px;margin:0;background:transparent;cursor:pointer}
+.landing input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:color-mix(in srgb,var(--dim) 45%,var(--surface))}
+.landing input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:color-mix(in srgb,var(--dim) 45%,var(--surface))}
+.landing input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;margin-top:-6px;border-radius:50%;background:var(--accent);border:2px solid var(--surface)}
+.landing input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid var(--surface)}
+
+/* Popups (Base UI Select and Popover) */
+.landing .pop-positioner{z-index:50;outline:0}
+.landing .pop{min-width:var(--anchor-width);background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--shadow-pop);transform-origin:var(--transform-origin);transition:opacity var(--t-fast),transform var(--t) var(--ease);outline:0}
+.landing .pop[data-starting-style],.landing .pop[data-ending-style]{opacity:0;transform:scale(.97)}
+.landing .pop[data-side=none]{transition:none}
+.landing .menu{padding:4px;max-height:var(--available-height);overflow-y:auto}
+.landing .menu-item{display:grid;grid-template-columns:14px 1fr;align-items:center;gap:8px;height:32px;padding:0 10px 0 8px;border-radius:var(--r-sm);font:13px var(--font-code);cursor:default;outline:0;user-select:none}
+.landing .menu-item[data-highlighted]{background:var(--tint-strong)}
+.landing .menu-item svg{width:14px;height:14px;color:var(--accent)}
+
+@media (prefers-reduced-motion:reduce){
+  .landing .btn,.landing .pop{transition:none}
+}
+@media (pointer:coarse){
+  .landing{--h-sm:40px;--h-md:44px}
+  .landing .menu-item{height:var(--h-lg)}
+}
