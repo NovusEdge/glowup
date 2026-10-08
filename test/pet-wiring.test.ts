@@ -444,6 +444,40 @@ test('a fresh session says hello at the first pane draw, once, and not over anot
   await pane.unmount()
 })
 
+test('a second session.start for the same session, as a hot reload runs, does not greet again', async ($, on) => {
+  base(on); const clock = mock.clock(on)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
+  const isHello = (body: string) => anyLine(BUILTIN_LINES.clawd, 'hello').some(l => body.includes(l))
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true } as never)
+  await runGlowup($, 'bubbles on')
+  let pane = await mountPane($)
+  await pane.drawn(); await clock.advance(10)
+  expect(isHello(text(await pane.drawn()))).toBe(true)
+  await pane.unmount(); await clock.advance(3100)
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true } as never)
+  pane = await mountPane($)
+  await pane.drawn(); await clock.advance(10)
+  expect(isHello(text(await pane.drawn()))).toBe(false)
+  await pane.unmount()
+})
+
+test('a hello whose first draw comes before the pane is reported shown speaks on a later draw', async ($, on) => {
+  const opts = { shown: false }
+  base(on, undefined, opts); const clock = mock.clock(on)
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true } as never)
+  await runGlowup($, 'bubbles on')
+  const pane = await mountPane($)
+  await pane.drawn(); await clock.advance(10)
+  opts.shown = true
+  await pane.redraw(); await clock.advance(10)
+  const body = text(await pane.drawn())
+  expect(anyLine(BUILTIN_LINES.clawd, 'hello').some(l => body.includes(l))).toBe(true)
+  await pane.unmount()
+})
+
 test('a bubble that spoke before the first pane draw keeps its place: no hello', async ($, on) => {
   base(on); const clock = mock.clock(on)
   on('command.register', async () => ({ value: undefined }) as never)

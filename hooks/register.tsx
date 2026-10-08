@@ -54,6 +54,8 @@ const PANE = { plugin: 'glowup', key: 'pane' } as const
 const SPIN = { plugin: 'glowup', key: 'spinner' } as const
 const PET = { plugin: 'glowup', key: 'pet' } as const
 const HAIKU = { plugin: 'glowup', key: 'haiku' } as const
+// The session id that was greeted. A hot reload re-runs session.start, and must not greet again.
+const HELLO = { plugin: 'glowup', key: 'hello' } as const
 
 // Module state: one session per process. A hot reload starts it over, which only
 // loses the in-flight session's view (settings and takeover state live in $.store).
@@ -390,11 +392,13 @@ async function say($: Engine, mood: Moment, vars: BubbleVars) {
     limit: bubbleCap,
     voice: voiceFor(pet, petSheet?.voice),
   }
-  try {
-    // a closed pane shows nobody the bubble
-    if (!(await $.ui.panes()).some(p => p.id === 'glowup' && p.isShown)) return
-  } catch { return }
+  let paneShown = false
+  try { paneShown = (await $.ui.panes()).some(p => p.id === 'glowup' && p.isShown) } catch {}
+  // A closed pane shows nobody the bubble. The Pane render hook cleared helloDue before scheduling this,
+  // so a first draw that ran before the pane was reported shown retries the hello on its next draw.
+  if (!paneShown) { if (mood === 'hello') helloDue = true; return }
   helloDue = false
+  if (mood === 'hello') void $.state.set(HELLO, { sid: sessionId })
   const hint = mood === 'done' || mood === 'long-done' ? await eggHint($) : undefined
   const now = Date.now(), t = localTime(now, tzOffset)
   const flavours = flavoursOf(t, overlays(t, installed === undefined ? undefined : localTime(installed, tzOffset), friday, failed))
@@ -918,7 +922,7 @@ export const register: Register = (on, options) => {
     cwd = e.cwd
     interactive = e.isInteractive
     red = false
-    helloDue = e.isInteractive
+    helloDue = false
     cancelHaiku()
     // $.env.get takes literal names only; an empty CLAUDE_CONFIG_DIR counts as unset
     // cmd and PowerShell set USERPROFILE, not HOME
@@ -950,6 +954,7 @@ export const register: Register = (on, options) => {
     await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|setup|restore' })
     await loadSettings($, host)
     sessionId = await $.session.id()
+    try { helloDue = e.isInteractive && (await $.state.get(HELLO)).value?.sid !== sessionId } catch { helloDue = e.isInteractive }
     // A hot reload restarts this module mid-run: pick this session's live run back up, and
     // drop runs nobody has touched for a day.
     try {
@@ -1165,12 +1170,12 @@ export const register: Register = (on, options) => {
     const v: PaneView = { ...(live?.view ?? view), reduced: reducedMotion }
     const els = $.ui.resolve(e)
     // the look always applies; the pet and its words only while he is on
-    const pid = pet, red = reducedMotion
+    const pid = pet, reduced = reducedMotion
     let extra: PaneExtra = { look, tabs: setup.tabs }
-    if (pid !== 'off' && !red && (e.surface === 'terminal' || e.surface === 'desktop')) {
+    if (pid !== 'off' && !reduced && (e.surface === 'terminal' || e.surface === 'desktop')) {
       const snap = ((await $.state.get(PET)).value as PetSnap | undefined) ?? petSnap()
       const { Client } = $.ui.resolve(e)
-      const props: PetClientProps = { pet: pid, input: snap.input, overlays: snap.overlays, reduced: red, compact, width: petStripCols(e.props.bodyColumns), tint: look.pet, ...(petSheet && { sheet: petSheet }) }
+      const props: PetClientProps = { pet: pid, input: snap.input, overlays: snap.overlays, reduced, compact, width: petStripCols(e.props.bodyColumns), tint: look.pet, ...(petSheet && { sheet: petSheet }) }
       const sheet = petSheet ?? (Object.hasOwn(BUILTIN_SHEETS, pid) ? BUILTIN_SHEETS[pid] : undefined) ?? CLAWD_SHEET
       // unsized, the region shrinks to the sprite and surface.columns leaves no room to walk
       const node = <Client key="glowup-pet" module="./client/pet.tsx" props={props} width={compact ? undefined : props.width} />
