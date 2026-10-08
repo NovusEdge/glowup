@@ -475,6 +475,17 @@ test('with a bubble above the pet the long tab still fits the body exactly', asy
   expect(rowsOf(tree)).toBe(30)
 })
 
+test('a pet shorter than its bubble still gets the whole bubble beside it', async () => {
+  for (const text of ['blob done', 'a much longer line that needs both of the bubble rows to fit'])
+    for (const rows of [1, 2, 3]) {
+      const tree = renderPane(els, many(60), T, { tab: 'changes' }, 80, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE, rows }, bubble: { text, mood: 'done' }, bodyRows: 30, minRows: 30 }) as any
+      const bubble = walk(tree).find(n => n?.props?.key === 'bubble')
+      const strip = walk(tree).find(n => n?.type === 'Box' && n.props.flexDirection === 'row' && walk(n).includes(bubble))
+      expect(strip.props.height, `${rows} ${text}`).toBeGreaterThanOrEqual(rowsOf(bubble))
+      expect(rowsOf(tree), `${rows} ${text}`).toBe(30)
+    }
+})
+
 test('a long tab scrolls inside its rows, with plain hints for the hidden ones', async () => {
   const draw = (offset?: number, tab: TabId = 'changes') => renderPane(els, many(60), T, { tab, offset }, 54, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, bodyRows: 30 }) as any
   const all = (t: any) => walk(t).filter(n => n.type === 'Text').map(n => n.children.join('')).join('\n')

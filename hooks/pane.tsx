@@ -297,12 +297,21 @@ export function bubbleBox(paneWidth: number, compact: boolean): { cols: number; 
   return { cols: Math.max(1, (beside ? room : width) - 4), lines: BUBBLE_LINES, beside }
 }
 
+// Beside a pet shorter than its bubble, the strip grows to the bubble's rows: a row Box clips what is taller than its height.
+function stripHeight(extra: PaneExtra, paneWidth: number): { rows: number; height: number } {
+  const { beside, cols, lines } = bubbleBox(paneWidth, false)
+  const rows = extra.pet!.rows ?? PET_ROWS
+  const say = extra.bubble ? wrapBubble(extra.bubble.text, cols, lines, cellsOf).length + 2 : 0
+  return { rows, height: beside ? Math.max(rows, say) : rows + (say || (extra.friday ? 1 : 0)) }
+}
+
 function petStrip(els: { Box: any; Text: any }, t: Theme, extra: PaneExtra, paneWidth: number) {
   const { Box, Text } = els
   const width = paneWidth - 6
-  const rows = extra.pet!.rows ?? PET_ROWS, cols = petStripCols(paneWidth)
+  const cols = petStripCols(paneWidth)
   const room = width - cols
   const { beside, cols: textCols, lines } = bubbleBox(paneWidth, false)
+  const { rows, height } = stripHeight(extra, paneWidth)
   const say = extra.bubble
   const bubble = say && (
     <Box key="bubble" borderStyle="round" borderColor={bubbleColor(t, say.mood)} paddingX={1} alignSelf="flex-start" flexDirection="column">
@@ -313,7 +322,7 @@ function petStrip(els: { Box: any; Text: any }, t: Theme, extra: PaneExtra, pane
   return (
     <Box flexDirection="column" key="pet">
       {!beside && bubble}
-      <Box flexDirection="row" height={rows}>
+      <Box flexDirection="row" height={beside ? height : rows}>
         <Box width={cols} height={rows}>{extra.pet!.node as any}</Box>
         {beside && <Box flexDirection="column" width={room}>{bubble || sign}</Box>}
       </Box>
@@ -337,13 +346,7 @@ function petLine(els: { Box: any; Text: any }, t: Theme, extra: PaneExtra, width
 // Rows the docked status box takes: margin, border, status lines, and the pet strip with its bubble or sign.
 function footerRows(m: Model, t: Theme, extra: PaneExtra | undefined, width: number, now: number): number {
   const status = statusRows(m, t, width - 2 - 4, now, extra?.look, extra?.meter).length
-  let pet = 0
-  if (extra?.pet) {
-    const { beside, cols, lines } = bubbleBox(width, false)
-    const say = extra.bubble ? wrapBubble(extra.bubble.text, cols, lines, cellsOf).length + 2 : 0
-    pet = (extra.pet.rows ?? PET_ROWS) + (beside ? 0 : say || (extra.friday ? 1 : 0))
-  }
-  return 1 + 2 + status + pet
+  return 1 + 2 + status + (extra?.pet ? stripHeight(extra, width).height : 0)
 }
 
 export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, base: Theme, v: PaneView, width: number, compact: boolean, now: number, onTab: (id: TabId) => void, extra?: PaneExtra) {
