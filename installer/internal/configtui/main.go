@@ -17,6 +17,9 @@ import (
 // openFresh is how old open's mtime may be before the mod treats the run as abandoned.
 const openFresh = 10 * time.Second
 
+// programOptions lets a test give the program input and output in place of a terminal.
+var programOptions []tea.ProgramOption
+
 // Main runs `glowup-installer config --run DIR`. Closing the window (SIGHUP) ends the
 // process with the changes kept: they already show in the session.
 func Main(args []string, stdout, stderr io.Writer) int {
@@ -47,7 +50,10 @@ func Main(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "glowup-installer config:", err)
 		return 1
 	}
-	p := tea.NewProgram(New(*dir, s), tea.WithColorProfile(tui.ColorProfile(stdout, os.Environ())))
+	// The mod stops polling once open has been seen and then goes missing. A window closed by
+	// SIGHUP skips this and is judged by open's age instead.
+	defer os.Remove(filepath.Join(*dir, "open"))
+	p := tea.NewProgram(New(*dir, s), append([]tea.ProgramOption{tea.WithColorProfile(tui.ColorProfile(stdout, os.Environ()))}, programOptions...)...)
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintln(stderr, "glowup-installer config:", err)
 		return 1

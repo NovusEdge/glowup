@@ -106,6 +106,21 @@ test('once open goes stale the poll stops', async ($, on) => {
   expect((await runGlowup($, 'pack list')).text).not.toContain('● crt')
 })
 
+test('once open has been seen and then removed the TUI has quit: the poll stops and a new run starts at once', async ($, on) => {
+  const b = boot(on)
+  await start($)
+  await runGlowup($, 'config')
+  const dir = runDir(b.files)
+  b.files[`${dir}/open`] = ''
+  await b.clock.advance(250)
+  delete b.files[`${dir}/open`]
+  b.files[`${dir}/commands.jsonl`] = '{"seq":1,"cmds":["pack crt"]}\n'
+  await b.clock.advance(250)
+  expect((await runGlowup($, 'pack list')).text).not.toContain('● crt')
+  expect((await runGlowup($, 'config')).text).toMatch(/^glowup config is opening in Konsole/)
+  expect(Object.keys(b.files).filter(f => f.endsWith('/owner'))).toHaveLength(2)
+})
+
 test('a second /glowup config while the window is open says so', async ($, on) => {
   const b = boot(on)
   await start($)

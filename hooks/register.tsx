@@ -126,7 +126,7 @@ let configNote: ConfigNote | undefined
 // The element holding the config pane's focus ring, from ui.focus; the preview marks what it paints.
 let configFocus: string | undefined
 // The config TUI run this session owns (hooks/remote.ts); one at a time.
-let remote: { dir: string; cursor: Cursor } | undefined
+let remote: { dir: string; cursor: Cursor; seen: boolean } | undefined
 let remoteTimer: Timer | undefined
 let remotePolling = false
 let modVersion: string | undefined
@@ -551,7 +551,7 @@ function stopRemote() {
 
 function startRemote($: Engine, dir: string, cursor: Cursor) {
   stopRemote()
-  remote = { dir, cursor }
+  remote = { dir, cursor, seen: false }
   remoteTimer = $.clock.every(250, () => void pollRemote($))
 }
 
@@ -575,7 +575,9 @@ async function pollRemote($: Engine) {
   try {
     const host = hostOf($), r = remote
     const t = await runTimes(host, r.dir)
-    if (!isLive(t.open, t.owner, Date.now())) { stopRemote(); return }
+    // the TUI removes open when it quits; before its first write open is simply not there yet
+    if (t.open !== undefined) r.seen = true
+    if (!isLive(t.open, t.owner, Date.now()) || (r.seen && t.open === undefined)) { stopRemote(); return }
     const { lines, consumed } = newLines(await host.readFile(`${r.dir}/commands.jsonl`).catch(() => ''), r.cursor.lines)
     if (consumed === r.cursor.lines) return
     for (const line of lines) {

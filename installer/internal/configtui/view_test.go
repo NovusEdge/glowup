@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/novusedge/glowup/installer/internal/tui"
 )
 
 func viewAt(m Model, w, h int) []string {
@@ -80,6 +82,31 @@ func TestClawdColumnAppearsFrom126Columns(t *testing.T) {
 	for w, want := range map[int]bool{125: false, 126: true} {
 		if got := strings.Contains(strings.Join(viewAt(m, w, 40), "\n"), "pet clawd"); got != want {
 			t.Fatalf("width %d: Clawd column drawn = %v", w, got)
+		}
+	}
+}
+
+// A multi-row spinner (orb-states) once seemed to push the right border one column out.
+// The view measures every cell, so the border stays in its column on every frame.
+func TestPreviewBorderStaysInOneColumnOnEverySpinnerFrame(t *testing.T) {
+	m, _ := newModel(t)
+	m.snap.Look = LookInfo{Name: "crt", Bg: "#0a1a0f", Border: "bold", BorderColor: "#1f9944", Spinner: "orb-states", SpinColor: "#39ff6a", Word: "Thinking"}
+	left := sectionsW + 2 + rowsW + 2
+	for ticks := range 40 {
+		m.ticks = ticks
+		var edge []string
+		for _, l := range viewAt(m, 200, 50) {
+			if box := ansi.Cut(l, left, left+tui.PreviewWidth); strings.ContainsAny(box, "┃┏┗") {
+				edge = append(edge, box)
+			}
+		}
+		if len(edge) < 10 {
+			t.Fatalf("tick %d: found %d preview rows", ticks, len(edge))
+		}
+		for _, box := range edge {
+			if r := []rune(box); !strings.ContainsRune("┃┏┗", r[0]) || !strings.ContainsRune("┃┓┛", r[len(r)-1]) || ansi.StringWidth(box) != tui.PreviewWidth {
+				t.Fatalf("tick %d: preview row is not boxed in its column: %q", ticks, box)
+			}
 		}
 	}
 }
