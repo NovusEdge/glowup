@@ -121,7 +121,7 @@ Working with Claude earns XP. All your pets share one level, and it carries acro
 | Tests going green | 15 |
 | Each `git commit` Claude runs, at most 3 a turn | 10 |
 
-Subagents earn nothing. Only commands Claude runs in your session count.
+Subagents earn nothing. Only `git commit` calls Claude itself runs in the main conversation count; commits run by a subagent, or by you in your own terminal, do not.
 
 Level n needs 100 × n XP to reach level n + 1, so level 2 comes at 100 XP and level 10 at 4,500. Levels never end, but every unlock sits in the first ten.
 
