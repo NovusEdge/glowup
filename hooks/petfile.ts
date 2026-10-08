@@ -2,6 +2,8 @@
 import { isPlain, isUnsafe, shown } from './themes.ts'
 import { SAFE_NAME } from './packs.ts'
 import type { PetSheet } from './pets.ts'
+import { MOMENTS, FLAVOURS, MOMENT_SLOTS, type Moment, type PetLines } from './lines.ts'
+import { BUBBLE_MAX } from './bubbles.ts'
 
 // The sprite spec's rows, top to bottom, and the only animation names a pet file may use.
 export const PET_ANIMS = ['idle', 'walk', 'working', 'hop', 'alert', 'done', 'sleep', 'fail', 'juggle', 'pant', 'pant-walk', 'scrunch'] as const
@@ -9,6 +11,7 @@ export type PetAnimName = (typeof PET_ANIMS)[number]
 // The largest frame, and the cell size of a PNG sheet. Clawd is 24 × 12; the robot uses it all.
 export const FRAME_W = 32, FRAME_H = 16
 export const MAX_COLORS = 60, MAX_FRAMES = 32
+export const MAX_LINES = 12, MAX_VOICE = 120
 // The pets page promises no frame changes faster than every 80 ms.
 export const MIN_MS = 80, MAX_MS = 10_000
 // One frame time per row, at Clawd's pace; the studio's speed slider scales it.
@@ -21,9 +24,9 @@ export const builtinPets = (shiny: boolean, egg: boolean) => BUILTIN_PET_NAMES.f
 const COMMANDS = ['off', 'list', 'add']
 
 export type PetFileFrame = { px: string[]; ms: number; dx?: number; exit?: boolean }
-export type PetFile = { format: 1; name: string; description?: string; palette: Record<string, string>; animations: Partial<Record<PetAnimName, PetFileFrame[]>> }
+export type PetFile = { format: 1 | 2; name: string; description?: string; palette: Record<string, string>; animations: Partial<Record<PetAnimName, PetFileFrame[]>>; lines?: PetLines; voice?: string }
 
-const FILE_KEYS = ['format', 'name', 'description', 'palette', 'animations']
+const FILE_KEYS = ['format', 'name', 'description', 'palette', 'animations', 'lines', 'voice']
 const FRAME_KEYS = ['px', 'ms', 'dx', 'exit']
 const HEX = /^#[0-9a-fA-F]{6}$/
 const printable = (s: string) => [...s].every(c => !isUnsafe(c.codePointAt(0)!))
@@ -42,12 +45,16 @@ export function validatePetFile(file: unknown): asserts file is PetFile {
   const fmt = file.format
   if (fmt === undefined || (typeof fmt === 'number' && fmt < 1)) throw new Error('"format": 1 is missing')
   if (typeof fmt !== 'number' || !Number.isInteger(fmt)) throw new Error('"format" must be a whole number')
-  if (fmt > 1) throw new Error(`made for a newer glowup (format ${fmt})`)
+  if (fmt > 2) throw new Error(`made for a newer glowup (format ${fmt})`)
   const name = typeof file.name === 'string' ? file.name : ''
   const problem = petNameProblem(name)
   if (problem) throw new Error(problem)
   const d = file.description
   if (d !== undefined && !(typeof d === 'string' && d.length <= 80 && printable(d))) throw new Error('"description" must be printable text of at most 80 characters')
+  if ((file.lines !== undefined || file.voice !== undefined) && fmt < 2) throw new Error('"lines" and "voice" need "format": 2')
+  const v = file.voice
+  if (v !== undefined && !(typeof v === 'string' && [...v].length <= MAX_VOICE && printable(v))) throw new Error(`"voice" must be printable text of at most ${MAX_VOICE} characters`)
+  if (file.lines !== undefined) validateLines(file.lines)
 
   const pal = file.palette
   if (!isPlain(pal)) throw new Error('"palette" must be an object of single-character keys and #rrggbb colors')
@@ -93,6 +100,25 @@ export function validatePetFile(file: unknown): asserts file is PetFile {
   }
 }
 
+function validateLines(lines: unknown) {
+  if (!isPlain(lines)) throw new Error('"lines" must be an object of moment keys and lists of lines')
+  for (const [key, list] of Object.entries(lines)) {
+    const [moment, flavour, more] = key.split('@')
+    if (!(MOMENTS as readonly string[]).includes(moment!)) throw new Error(`lines: unknown moment "${shown(moment!)}"; known: ${MOMENTS.join(', ')}`)
+    if (more !== undefined || (flavour !== undefined && !(FLAVOURS as readonly string[]).includes(flavour))) throw new Error(`lines: unknown flavour "${shown(flavour ?? '')}" in "${shown(key)}"; known: ${FLAVOURS.join(', ')}`)
+    const at = `lines.${shown(key)}`
+    if (!Array.isArray(list) || list.length < 1 || list.length > MAX_LINES) throw new Error(`${at}: 1 to ${MAX_LINES} lines`)
+    list.forEach((l: unknown, i) => {
+      if (typeof l !== 'string' || !l.trim()) throw new Error(`${at}[${i}]: a line must be text`)
+      if (!printable(l)) throw new Error(`${at}[${i}]: printable text only`)
+      if ([...l].length > BUBBLE_MAX) throw new Error(`${at}[${i}]: at most ${BUBBLE_MAX} characters`)
+      for (const [, slot] of l.matchAll(/\{(\w+)\}/g)) {
+        if (!(MOMENT_SLOTS[moment as Moment] as readonly string[]).includes(slot!)) throw new Error(`${at}[${i}]: ${moment} lines cannot use {${shown(slot!)}}`)
+      }
+    })
+  }
+}
+
 export function petSheet(file: PetFile): PetSheet {
   const first = file.animations.idle![0]!
   const animations: PetSheet['animations'] = {}
@@ -100,5 +126,5 @@ export function petSheet(file: PetFile): PetSheet {
     const frames = file.animations[n]
     if (frames) animations[n] = { loop: !ONCE.includes(n), frames: frames.map(f => ({ ...f, px: [...f.px] })) }
   }
-  return { w: [...first.px[0]!].length, h: first.px.length, palette: { ...file.palette }, animations }
+  return { w: [...first.px[0]!].length, h: first.px.length, palette: { ...file.palette }, animations, ...(file.lines && { lines: structuredClone(file.lines) }), ...(file.voice !== undefined && { voice: file.voice }) }
 }
