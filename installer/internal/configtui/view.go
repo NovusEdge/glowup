@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"os"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/textinput"
@@ -235,11 +236,13 @@ func (m Model) screen(w, h int, l tui.Look) string {
 		return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, ansi.Truncate(i.fg(c.Dim, false, "Make the window at least 36×13."), w, ""))
 	}
 	preview := w >= withPreview && h >= previewH+headerLines+statusLines+1
-	clawd := preview && w >= withClawd && m.snap.State.Pet == "clawd"
+	p, isPet := packs.PetByID(m.snap.State.Pet)
+	withPet := withPreview + gap + tui.PetWidth(p)
+	pet := preview && isPet && w >= withPet
 	blockW := paneW
 	switch {
-	case clawd:
-		blockW = withClawd
+	case pet:
+		blockW = withPet
 	case preview:
 		blockW = withPreview
 	}
@@ -254,8 +257,12 @@ func (m Model) screen(w, h int, l tui.Look) string {
 		cols = append(cols, strings.Repeat(" ", gap),
 			tui.PreviewAt(l, claude.Choice{Pet: m.snap.State.Pet, Bubbles: m.snap.State.Bubbles, ReducedMotion: m.snap.State.Reduced}, m.ticks, previewW))
 	}
-	if clawd {
-		cols = append(cols, strings.Repeat(" ", gap), strings.Join(tui.ClawdColumnIn("pet clawd", l), "\n"))
+	if pet {
+		elapsed := m.ticks * int(tickEvery/time.Millisecond)
+		if m.snap.State.Reduced {
+			elapsed = 0
+		}
+		cols = append(cols, strings.Repeat(" ", gap), strings.Join(tui.PetColumnIn(p, "pet "+m.snap.State.Pet, l, elapsed), "\n"))
 	}
 	var i ink
 	status := i.fg(c.Fail, false, ansi.Truncate(m.status(), blockW, "…"))

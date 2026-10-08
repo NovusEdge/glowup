@@ -16,12 +16,16 @@ const ClawdWidth = 24
 // bubbleRows is how many lines of text the bubble always has, so it never changes height.
 const bubbleRows = 2
 
-// clawdLines draws Clawd's idle frame from the half-block rows exported from
-// hooks/pets.ts. He keeps his own palette in every pack. Blank cells carry no color, so
-// the terminal's background shows around him.
-func clawdLines() []string {
+// PetWidth is the width of a pet's column. A pet narrower than Clawd still gets his
+// width, so the bubble has room for its caption.
+func PetWidth(p packs.Pet) int { return max(ClawdWidth, p.Cols) }
+
+// petLines draws the frame of p's idle animation showing elapsedMs in, from the half-block
+// rows exported from hooks/pets.ts. A pet keeps its own palette in every pack. Blank cells
+// carry no color, so the terminal's background shows around it.
+func petLines(p packs.Pet, elapsedMs int) []string {
 	var out []string
-	for _, row := range packs.ClawdSprite().Rows {
+	for _, row := range p.FrameAt(elapsedMs).Rows {
 		var b strings.Builder
 		for _, s := range row {
 			if strings.TrimSpace(s.Text) == "" && s.Bg == "" {
@@ -39,10 +43,10 @@ func clawdLines() []string {
 	return out
 }
 
-// bubble is a speech bubble ClawdWidth wide with text wrapped inside it, whose tail points
-// down at Clawd's head.
-func bubble(text string, box lipgloss.Border, border, fg string) []string {
-	const w = ClawdWidth - 2
+// bubble is a speech bubble width cells wide with text wrapped inside it, whose tail points
+// down at the pet's head.
+func bubble(text string, width int, box lipgloss.Border, border, fg string) []string {
+	w := width - 2
 	lines := strings.Split(ansi.Wordwrap(text, w-2, ""), "\n")
 	if len(lines) > bubbleRows {
 		lines = append(lines[:bubbleRows-1], ansi.Truncate(strings.Join(lines[bubbleRows-1:], " "), w-2, "…"))
@@ -66,13 +70,14 @@ func bubble(text string, box lipgloss.Border, border, fg string) []string {
 	return append(out, bd.Render(box.BottomLeft+strings.Repeat(box.Bottom, w/2)+tee+strings.Repeat(box.Bottom, w-w/2-1)+box.BottomRight))
 }
 
-// ClawdColumn is the bubble over Clawd, ClawdWidth cells wide.
+// ClawdColumn is the bubble over Clawd standing still, ClawdWidth cells wide.
 func ClawdColumn(caption string, l Look) []string {
-	return append(bubble(caption, lipgloss.RoundedBorder(), l.Colors.Accent, l.Colors.Text), clawdLines()...)
+	p, _ := packs.PetByID("clawd")
+	return append(bubble(caption, ClawdWidth, lipgloss.RoundedBorder(), l.Colors.Accent, l.Colors.Text), petLines(p, 0)...)
 }
 
-// ClawdColumnIn is ClawdColumn with the bubble drawn in the look's border style and color,
-// like the preview beside it.
-func ClawdColumnIn(caption string, l Look) []string {
-	return append(bubble(caption, BorderOf(l.Pack.Border), l.BorderColor, l.Colors.Text), clawdLines()...)
+// PetColumnIn is the bubble over p elapsedMs into its idle animation, PetWidth(p) cells wide,
+// with the bubble drawn in the look's border style and color like the preview beside it.
+func PetColumnIn(p packs.Pet, caption string, l Look, elapsedMs int) []string {
+	return append(bubble(caption, PetWidth(p), BorderOf(l.Pack.Border), l.BorderColor, l.Colors.Text), petLines(p, elapsedMs)...)
 }

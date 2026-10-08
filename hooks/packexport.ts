@@ -3,7 +3,7 @@ import { resolveLook, SPINNER_IDS, type Border, type RowStyle, type SpinnerId } 
 import { PACKS } from './packpresets.ts'
 import { PRESETS, resolveTheme, type Colors } from './themes.ts'
 import { SPINNERS, spinnerCells, type Cell } from './motion.ts'
-import { CLAWD_SHEET, animFor, composeFrame, halfBlock, type PetSpan } from './pets.ts'
+import { BUILTIN_SHEETS, animFor, composeFrame, halfBlock, petPalette, type PetSpan } from './pets.ts'
 
 export type PackExport = {
   name: string
@@ -25,9 +25,9 @@ export type ThemeExport = { name: string; word: string; colors: Colors }
 // text is true when the spinner draws in the theme's text color instead of the spinner color (the eyes).
 export type SpinnerExport = { id: SpinnerId; name: string; ms: number; text: boolean; frames: Cell[][][] }
 
-export type ClawdExport = { cols: number; rows: PetSpan[][] }
+export type PetExport = { cols: number; frames: { ms: number; rows: PetSpan[][] }[] }
 
-export type Export = { packs: PackExport[]; themes: ThemeExport[]; spinners: SpinnerExport[]; clawd: ClawdExport }
+export type Export = { packs: PackExport[]; themes: ThemeExport[]; spinners: SpinnerExport[]; pets: Record<string, PetExport> }
 
 const FRAME_MS: Record<string, number> = { stock: 120, clawd: 220 }
 const FRAMES: Record<string, number> = { stock: 6, clawd: 4, scanline: 29, ring: 16, signal: 67 }
@@ -71,12 +71,13 @@ export const spinnerExport = (): SpinnerExport[] => SPINNER_IDS.map(id => {
   return { id, name: s.name, ms: Math.round(step), text: 'useFg' in s && s.useFg === true, frames: Array.from({ length: n }, (_, i) => spinnerCells(id, i * step, MONO)) }
 })
 
-// The idle pose's first frame, as the band draws it: no outfit, not mirrored.
-export const clawdExport = (): ClawdExport => ({
-  cols: CLAWD_SHEET.w,
-  rows: halfBlock(composeFrame(CLAWD_SHEET, animFor(CLAWD_SHEET, 'idle').frames[0]!, [], false), CLAWD_SHEET.palette),
-})
+// The idle animation as the band draws it: no outfit, not mirrored. The egg is its uncracked stage,
+// since the crack stage lives in the session's store and the installer has no session.
+export const petExport = (): Record<string, PetExport> => Object.fromEntries(Object.entries(BUILTIN_SHEETS).map(([id, sheet]) => {
+  const palette = petPalette(sheet, id)
+  return [id, { cols: sheet.w, frames: animFor(sheet, 'idle').frames.map(f => ({ ms: f.ms, rows: halfBlock(composeFrame(sheet, f, [], false), palette) })) }]
+}))
 
-export const exportAll = (): Export => ({ packs: packExport(), themes: themeExport(), spinners: spinnerExport(), clawd: clawdExport() })
+export const exportAll = (): Export => ({ packs: packExport(), themes: themeExport(), spinners: spinnerExport(), pets: petExport() })
 
 export const packsJson = (): string => JSON.stringify(exportAll(), null, 2) + '\n'

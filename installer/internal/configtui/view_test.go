@@ -7,6 +7,9 @@ import (
 
 	"github.com/charmbracelet/colorprofile"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/novusedge/glowup/installer/internal/packs"
+	"github.com/novusedge/glowup/installer/internal/tui"
 )
 
 func viewAt(m Model, w, h int) []string {
@@ -97,6 +100,58 @@ func TestClawdColumnAppearsFrom104Columns(t *testing.T) {
 	for w, want := range map[int]bool{103: false, 104: true} {
 		if got := strings.Contains(strings.Join(viewAt(m, w, 40), "\n"), "pet clawd"); got != want {
 			t.Fatalf("width %d: Clawd column drawn = %v", w, got)
+		}
+	}
+}
+
+func TestEveryBuiltInPetGetsAColumnWideEnoughForIt(t *testing.T) {
+	m, _ := newModel(t)
+	for pet, from := range map[string]int{"robot": withPreview + gap + 32, "egg": withClawd, "clawd-shiny": withClawd} {
+		m.snap.State.Pet = pet
+		// The preview's footer says "pet <id>" too; the bubble is the second.
+		for w, want := range map[int]int{from - 1: 1, from: 2} {
+			if got := strings.Count(strings.Join(viewAt(m, w, 40), "\n"), "pet "+pet); got != want {
+				t.Fatalf("%s at width %d: %d mentions, want %d", pet, w, got, want)
+			}
+		}
+	}
+	m.snap.State.Pet = "off"
+	if n := strings.Count(strings.Join(viewAt(m, 200, 40), "\n"), "pet off"); n != 1 {
+		t.Fatalf("no pet: %d mentions of it", n)
+	}
+}
+
+// petColumn is what a 200-wide view draws right of the preview, where only the pet moves.
+func petColumn(m Model) string {
+	p, _ := packs.PetByID(m.snap.State.Pet)
+	from := (200-(withPreview+gap+tui.PetWidth(p)))/2 + withPreview
+	var out []string
+	for _, l := range viewAt(m, 200, 50) {
+		out = append(out, ansi.Cut(l, from, 200))
+	}
+	return strings.Join(out, "\n")
+}
+
+func TestThePetPlaysItsIdleAnimationUnlessMotionIsReduced(t *testing.T) {
+	for _, pet := range []string{"clawd", "robot", "egg"} {
+		m, _ := newModel(t)
+		m.snap.State.Pet = pet
+		seen := map[string]bool{}
+		for ticks := 0; ticks < 300; ticks += 3 {
+			m.ticks = ticks
+			seen[petColumn(m)] = true
+		}
+		if len(seen) < 2 {
+			t.Errorf("%s does not move over 30 s", pet)
+		}
+		m.snap.State.Reduced = true
+		still := map[string]bool{}
+		for ticks := 0; ticks < 300; ticks += 3 {
+			m.ticks = ticks
+			still[petColumn(m)] = true
+		}
+		if len(still) != 1 {
+			t.Errorf("%s moves under reduced motion", pet)
 		}
 	}
 }

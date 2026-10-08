@@ -1,9 +1,9 @@
 import { test, expect } from 'claude-code/testing'
 import { PRESETS } from '../hooks/themes.ts'
 import { SPINNER_IDS } from '../hooks/packs.ts'
-import { CLAWD_SHEET, PET_ROWS } from '../hooks/pets.ts'
+import { CLAWD_SHEET, BUILTIN_SHEETS } from '../hooks/pets.ts'
 import { spinnerCells, type Cell } from '../hooks/motion.ts'
-import { packExport, packsJson, exportAll, themeExport, spinnerExport, clawdExport } from '../hooks/packexport.ts'
+import { packExport, packsJson, exportAll, themeExport, spinnerExport, petExport } from '../hooks/packexport.ts'
 
 test('exports the four built-in packs in preset order', async () => {
   expect(packExport().map(p => p.name)).toEqual(['classic', 'crt', 'cozy', 'arcade'])
@@ -76,12 +76,20 @@ test('the looping spinners export one whole period, so the preview wraps without
   }
 })
 
-test('Clawd is exported as his idle half-block rows in his own palette', async () => {
-  const c = clawdExport()
-  expect(c.cols).toBe(CLAWD_SHEET.w)
-  expect(c.rows.length).toBe(PET_ROWS)
-  const spans = c.rows.flat()
-  expect(spans.every(s => /^#[0-9a-f]{6}$/i.test(s.color))).toBe(true)
-  expect(spans.some(s => s.color === CLAWD_SHEET.palette.B)).toBe(true)
-  for (const r of c.rows) expect(r.reduce((n, s) => n + [...s.text].length, 0)).toBe(CLAWD_SHEET.w)
+test('every built-in pet is exported as its whole idle animation in its own palette', async () => {
+  const pets = petExport()
+  expect(Object.keys(pets)).toEqual(Object.keys(BUILTIN_SHEETS))
+  for (const [id, p] of Object.entries(pets)) {
+    const sheet = BUILTIN_SHEETS[id]!
+    expect([id, p.cols]).toEqual([id, sheet.w])
+    expect(p.frames.map(f => f.ms)).toEqual(sheet.animations.idle!.frames.map(f => f.ms))
+    for (const f of p.frames) {
+      expect(f.rows.length).toBe(sheet.h / 2)
+      for (const r of f.rows) expect(r.reduce((n, s) => n + [...s.text].length, 0)).toBe(sheet.w)
+    }
+  }
+  const spans = (id: string) => pets[id]!.frames[0]!.rows.flat()
+  expect(spans('clawd').some(s => s.color === CLAWD_SHEET.palette.B)).toBe(true)
+  expect(spans('clawd-shiny').some(s => s.color === CLAWD_SHEET.shiny!.B)).toBe(true)
+  expect(new Set(pets.robot!.frames.map(f => JSON.stringify(f.rows))).size).toBeGreaterThan(1)
 })

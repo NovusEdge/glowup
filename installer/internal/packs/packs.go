@@ -58,17 +58,39 @@ type SpinnerAnim struct {
 	Frames [][][]Cell `json:"frames"`
 }
 
-// Span is a run of Clawd's half-block cells in one color.
+// Span is a run of a pet's half-block cells in one color.
 type Span struct {
 	Text  string `json:"text"`
 	Color string `json:"color"`
 	Bg    string `json:"bg,omitempty"`
 }
 
-// Clawd is the idle pose's first frame as rows of spans, each Cols cells wide.
-type Clawd struct {
-	Cols int      `json:"cols"`
+// PetFrame is one frame of a pet's idle animation, shown for Ms, as rows of spans.
+type PetFrame struct {
+	Ms   int      `json:"ms"`
 	Rows [][]Span `json:"rows"`
+}
+
+// Pet is a built-in pet's looping idle animation; every row is Cols cells wide.
+type Pet struct {
+	Cols   int        `json:"cols"`
+	Frames []PetFrame `json:"frames"`
+}
+
+// FrameAt is the frame showing elapsedMs into the loop.
+func (p Pet) FrameAt(elapsedMs int) PetFrame {
+	total := 0
+	for _, f := range p.Frames {
+		total += f.Ms
+	}
+	t := elapsedMs % total
+	for _, f := range p.Frames {
+		if t < f.Ms {
+			return f
+		}
+		t -= f.Ms
+	}
+	return p.Frames[len(p.Frames)-1]
 }
 
 type Pack struct {
@@ -84,10 +106,10 @@ type Pack struct {
 }
 
 type file struct {
-	Packs    []Pack        `json:"packs"`
-	Themes   []Theme       `json:"themes"`
-	Spinners []SpinnerAnim `json:"spinners"`
-	Clawd    Clawd         `json:"clawd"`
+	Packs    []Pack         `json:"packs"`
+	Themes   []Theme        `json:"themes"`
+	Spinners []SpinnerAnim  `json:"spinners"`
+	Pets     map[string]Pet `json:"pets"`
 }
 
 var data = mustParse(raw)
@@ -171,5 +193,8 @@ func SpinnerByID(id string) (SpinnerAnim, bool) {
 	return SpinnerAnim{}, false
 }
 
-// ClawdSprite returns Clawd's idle frame.
-func ClawdSprite() Clawd { return data.Clawd }
+// PetByID returns a built-in pet, or false for "off" and user pets, which packs.json does not carry.
+func PetByID(id string) (Pet, bool) {
+	p, ok := data.Pets[id]
+	return p, ok
+}
