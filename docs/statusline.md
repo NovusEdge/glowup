@@ -41,6 +41,7 @@ The entry and the takeover line both show the same list of fields, in the order 
 | `branch` | git branch |
 | `changes` | lines added and removed: `+42 −7` |
 | `cwd` | the project folder name |
+| `level` | your [pet level](pets.md#levels) and progress to the next: `Lv 7 ▰▰▰▱▱` |
 
 List the fields you want in order, or go back to the default:
 
