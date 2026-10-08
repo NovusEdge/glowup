@@ -1,5 +1,6 @@
 import { test, expect } from 'claude-code/testing'
-import { fill, pickLine, bubbleFor, sanitizeLine, fitsBubble, haikuMaxTokens, haikuPrompt, haikuLimit, wrapBubble, HaikuGate, kindWords, speaks, voiceFor, DEFAULT_VOICE } from '../hooks/bubbles.ts'
+import { BUILTIN_LINES } from '../hooks/lines.ts'
+import { fill, pickLine, bubbleFor, fillable, sanitizeLine, fitsBubble, haikuMaxTokens, haikuPrompt, haikuLimit, wrapBubble, HaikuGate, kindWords, speaks, voiceFor, DEFAULT_VOICE } from '../hooks/bubbles.ts'
 
 test('only the moods in the setup speak', async () => {
   expect(speaks('done', ['needs-you', 'fail', 'done'])).toBe(true)
@@ -26,6 +27,17 @@ test('pickLine never repeats the last line when there is a choice', async () => 
 test('bubbleFor draws from the pool it is given and never repeats the last line', async () => {
   const b = bubbleFor(['ouch, {n} failed', 'hmm'], { n: 3 }, 'hmm', () => 0)
   expect(b).toEqual({ text: 'ouch, 3 failed', template: 'ouch, {n} failed' })
+})
+
+test('a line with a slot the moment did not fill is never picked, unless every line has one', async () => {
+  const done = BUILTIN_LINES.clawd.done!
+  const rolls = Array.from({ length: 20 }, (_, i) => i / 20)
+  for (const r of rolls) expect(bubbleFor(done, {}, undefined, () => r).template).not.toContain('{file}')
+  expect(rolls.map(r => bubbleFor(done, { file: 'a.ts' }, undefined, () => r).text)).toContain('done. a.ts looks better')
+  expect(fillable(['ouch, {n} failed', '{n} down'], {})).toEqual(['ouch, {n} failed', '{n} down'])
+  expect(bubbleFor(['ouch, {n} failed'], {}, undefined, () => 0).text).toBe('ouch, … failed')
+  // the no-repeat rule works on the filtered pool
+  expect(bubbleFor(['{file} done', 'a', 'b'], {}, 'a', () => 0).template).toBe('b')
 })
 
 test('sanitizeLine keeps one plain line and never shortens it', async () => {

@@ -24,8 +24,14 @@ export function pickLine(lines: string[], last: string | undefined, rand: () => 
   return pool[Math.floor(rand() * pool.length)] ?? ''
 }
 
+// Lines whose every slot has a value; the whole pool when none does, so a fail with no count still speaks.
+export function fillable(lines: string[], v: BubbleVars): string[] {
+  const ok = lines.filter(l => [...l.matchAll(/\{(file|n|command|agent)\}/g)].every(m => v[m[1] as keyof BubbleVars] !== undefined))
+  return ok.length ? ok : lines
+}
+
 export function bubbleFor(lines: string[], vars: BubbleVars, last: string | undefined, rand: () => number) {
-  const template = pickLine(lines, last, rand)
+  const template = pickLine(fillable(lines, vars), last, rand)
   return { text: fill(template, vars), template }
 }
 
