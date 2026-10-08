@@ -3,7 +3,10 @@ import { BAND_ITEMS, SETUP_MOODS, TAB_IDS } from '../landing/data.ts'
 import { editSetup, toggle, type StudioSetup } from './model.ts'
 import { Order } from './ui'
 
-const MOOD_LABEL: Record<string, string> = { 'needs-you': 'needs you', fail: 'failed test', done: 'turn done' }
+const MOOD_LABEL: Record<string, string> = {
+  'needs-you': 'needs you', fail: 'failed test', done: 'turn done',
+  green: 'tests green again', hello: 'hello', 'long-done': 'long turn done', compact: 'compacted',
+}
 
 // Keeps what the user typed until it parses, so "6" on the way to "60" is not snapped back by a rejected edit.
 function NumField({ label, value, min, max, step = 1, onCommit }: { label: string; value: number; min?: number; max?: number; step?: number; onCommit(n: number): void }) {
