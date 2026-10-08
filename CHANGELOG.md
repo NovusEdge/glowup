@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-10-08
+
 ### Fixed
 
 - The `/glowup config` window shows the robot and the egg, not only Clawd, and plays each pet's idle animation. With reduced motion on, the pet stands still. The egg is always drawn uncracked there.
