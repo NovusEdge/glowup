@@ -8,10 +8,10 @@ export const TAB_IDS = ['plan', 'agents', 'diff', 'changes'] as const
 export type TabId = (typeof TAB_IDS)[number]
 export const SETUP_MOODS: readonly Moment[] = ['needs-you', 'fail', 'done', 'green', 'hello', 'long-done', 'compact']
 export type Meter = { warn: number; danger: number }
-export type Setup = { format: 1; band: BandItem[]; tabs: TabId[]; meter: Meter; bubbles: { moods: Moment[]; ms: number }; pet: { sleepMs: number } }
+export type Setup = { format: 2; band: BandItem[]; tabs: TabId[]; meter: Meter; bubbles: { moods: Moment[]; ms: number }; pet: { sleepMs: number } }
 
 export const DEFAULT_SETUP: Setup = {
-  format: 1,
+  format: 2,
   band: ['combo', 'agents', 'meter', 'plan'],
   tabs: ['plan', 'agents', 'diff', 'changes'],
   meter: { warn: 50, danger: 80 },
@@ -72,8 +72,8 @@ export function parseSetup(raw: unknown): { setup: Setup; notices: string[] } {
   let moods = d.bubbles.moods
   if (b.moods !== undefined) {
     const got = ids(b.moods, SETUP_MOODS, 'mood', notices)
-    // Saving any setup field stored the moods too, so the pre-0.13 default is the default, not a choice.
-    if (got) moods = got.join() === OLD_DEFAULT_MOODS ? d.bubbles.moods : got
+    // Format 1 saves stored the moods with any setup field, so the old default there is the default, not a choice.
+    if (got) moods = raw.format !== 2 && got.join() === OLD_DEFAULT_MOODS ? d.bubbles.moods : got
     else notices.push(`bubbles.moods must be a list of: ${SETUP_MOODS.join(', ')}`)
   }
   let ms = d.bubbles.ms
@@ -89,7 +89,7 @@ export function parseSetup(raw: unknown): { setup: Setup; notices: string[] } {
     else notices.push('pet.sleepMs must be a whole number from 15000 to 600000')
   }
 
-  return { setup: { format: 1, band, tabs, meter, bubbles: { moods, ms }, pet: { sleepMs } }, notices }
+  return { setup: { format: 2, band, tabs, meter, bubbles: { moods, ms }, pet: { sleepMs } }, notices }
 }
 
 const list = (v: string) => (v === 'none' ? [] : v.split(',').map(s => s.trim()).filter(Boolean))

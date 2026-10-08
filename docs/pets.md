@@ -71,7 +71,7 @@ To silence a moment, list the ones you want to keep:
 /glowup setup bubbles.moods done,fail,needs-you,green
 ```
 
-With `long-done` off, a long turn speaks a plain `done` line. The exact list `needs-you,fail,done`, in that order, is read as the default, because that was the default before these moments existed and saving any setup field stored it. To keep exactly those three, write them in another order, such as `done,fail,needs-you`.
+With `long-done` off, a long turn speaks a plain `done` line. A setup saved before these moments existed that still holds the old default, `needs-you,fail,done`, gets all seven.
 
 ### Lines written by Haiku
 
