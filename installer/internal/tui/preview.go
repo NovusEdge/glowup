@@ -16,9 +16,6 @@ import (
 // PreviewWidth is the preview's outer width in cells, border included.
 const PreviewWidth = 44
 
-// inner is the width of the preview's content: the box minus border and one cell of padding each side.
-const inner = PreviewWidth - 4
-
 // Look is what the preview draws: a pack, with a theme's colors and a spinner on top when picked.
 type Look struct {
 	Pack        packs.Pack
@@ -53,7 +50,8 @@ func LookOf(pack, theme, spinner string) Look {
 	return l
 }
 
-func borderOf(name string) lipgloss.Border {
+// BorderOf is the box-drawing set a pack's border name stands for.
+func BorderOf(name string) lipgloss.Border {
 	switch name {
 	case "bold":
 		return lipgloss.ThickBorder()
@@ -172,12 +170,16 @@ func (l Look) spinnerLines(p paint, tick int, still bool) []string {
 // Preview draws a sample of glowup in the look l: a chat exchange, a tool box with a
 // diff, the spinner with its word and the palette. The spinner moves with tick unless
 // reduced motion is on. Every cell carries the look's background.
-func Preview(l Look, c claude.Choice, tick int) string {
+func Preview(l Look, c claude.Choice, tick int) string { return PreviewAt(l, c, tick, PreviewWidth) }
+
+// PreviewAt is Preview at an outer width of width cells, border included.
+func PreviewAt(l Look, c claude.Choice, tick, width int) string {
+	inner := width - 4 // the box minus border and one cell of padding each side
 	p := paint{bg: l.Bg}
 	col := l.Colors
 	sp := p.blank(1)
 	bd := lipgloss.NewStyle().Foreground(lipgloss.Color(l.BorderColor)).Background(lipgloss.Color(l.Bg))
-	box := borderOf(l.Pack.Border)
+	box := BorderOf(l.Pack.Border)
 
 	title := p.bold(col.Accent, l.Pack.Name) + sp + p.on(col.Dim, l.Pack.Description)
 
@@ -216,11 +218,11 @@ func Preview(l Look, c claude.Choice, tick int) string {
 	line := func(s string) string {
 		return bd.Render(box.Left) + p.blank(1) + p.fit(s, inner) + p.blank(1) + bd.Render(box.Right)
 	}
-	out := []string{bd.Render(box.TopLeft + strings.Repeat(box.Top, PreviewWidth-2) + box.TopRight), line("")}
+	out := []string{bd.Render(box.TopLeft + strings.Repeat(box.Top, width-2) + box.TopRight), line("")}
 	for _, r := range rows {
 		out = append(out, line(r))
 	}
-	out = append(out, line(""), bd.Render(box.BottomLeft+strings.Repeat(box.Bottom, PreviewWidth-2)+box.BottomRight))
+	out = append(out, line(""), bd.Render(box.BottomLeft+strings.Repeat(box.Bottom, width-2)+box.BottomRight))
 	return strings.Join(out, "\n")
 }
 

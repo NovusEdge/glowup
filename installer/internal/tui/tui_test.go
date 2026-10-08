@@ -105,6 +105,20 @@ func TestPreviewIsTheSameSizeForEveryLook(t *testing.T) {
 	}
 }
 
+func TestPreviewAtKeepsEveryLineAtTheGivenWidth(t *testing.T) {
+	for _, width := range []int{40, 44} {
+		for _, k := range looksOneAtATime() {
+			for tick := range 3 {
+				for _, line := range strings.Split(PreviewAt(LookOf(k[0], k[1], k[2]), claude.Defaults(), tick, width), "\n") {
+					if w := lipgloss.Width(line); w != width {
+						t.Fatalf("width %d %v: line is %d cells: %q", width, k, w, ansi.Strip(line))
+					}
+				}
+			}
+		}
+	}
+}
+
 // bareCells returns the cells of one rendered line that are drawn with no background
 // color, by following the line's SGR sequences.
 func bareCells(line string) []string {
