@@ -29,13 +29,15 @@ export function Actions({ draft, setup, pet, blocked }: { draft: Draft; setup: S
     getSelection()?.addRange(range)
   }
 
-  // A press or focus move onto the action buttons is not "away": the send button toggles the popover itself,
-  // and closing here first would make that click open it again.
+  // A press or focus move onto the share or send button is not "away": both set the popover themselves, and
+  // closing here first would make the send button's toggling click open it again.
   const onOpenChange = (open: boolean, details: Popover.Root.ChangeEventDetails) => {
     if (open) return
-    const e = details.event as Event & { relatedTarget?: EventTarget | null }
-    const to = (e.type === 'focusout' ? e.relatedTarget : e.target) as Node | null
-    if (to && box.current?.contains(to)) return
+    if (details.reason === 'outside-press' || details.reason === 'focus-out') {
+      const e = details.event as Event & { relatedTarget?: EventTarget | null }
+      const to = (e.type === 'focusout' ? e.relatedTarget : e.target) as Node | null
+      if (to && (linkBtn.current?.contains(to) || sendBtn.current?.contains(to))) return
+    }
     setShown(undefined)
   }
 

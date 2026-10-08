@@ -106,4 +106,5 @@
 }
 @media (pointer:coarse){
   .landing{--h-sm:40px;--h-md:44px}
+  .landing .menu-item{height:var(--h-lg)}
 }
