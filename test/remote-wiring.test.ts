@@ -195,7 +195,9 @@ test('a binary lookup that fails creates no run', async ($, on) => {
 })
 
 test('the first /glowup config says it is downloading before the download starts', async ($, on) => {
-  const b = boot(on, { '/home/novusedge/Projects/glowup/.claude-plugin/plugin.json': '{"version":"9.9.9"}' }, ['terminal'], NO_BIN)
+  // the plugin root is wherever the checkout sits: CI clones it somewhere else
+  const root = new URL('..', import.meta.url).pathname.replace(/\/$/, '')
+  const b = boot(on, { [`${root}/.claude-plugin/plugin.json`]: '{"version":"9.9.9"}' }, ['terminal'], NO_BIN)
   on('ui.toast', async (_$: unknown, e: any) => { b.ran.push(['toast', e.text]); return { value: undefined } as never })
   await start($)
   await runGlowup($, 'config')
