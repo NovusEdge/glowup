@@ -20,6 +20,17 @@ func previewOf(pack, theme, spinner string, c claude.Choice) string {
 	return Preview(LookOf(pack, theme, spinner), c, 0)
 }
 
+func TestClawdBubbleTailJoinsTheBordersWeight(t *testing.T) {
+	for border, tee := range map[string]string{"bold": "┳", "double": "╦", "rounded": "┬", "single": "┬"} {
+		l := LookOf("classic", "", "")
+		l.Pack.Border = border
+		col := ansi.Strip(strings.Join(ClawdColumnIn("hi", l), "\n"))
+		if !strings.Contains(col, tee) {
+			t.Errorf("%s border: no %s in the bubble tail:\n%s", border, tee, col)
+		}
+	}
+}
+
 func TestPreviewShowsPackAndChoice(t *testing.T) {
 	p, _ := packs.ByName("crt")
 	out := previewOf("crt", "", "", claude.Choice{Pack: "crt", Pet: "clawd", Bubbles: "off", ReducedMotion: true})

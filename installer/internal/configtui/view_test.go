@@ -101,6 +101,18 @@ func TestClawdColumnAppearsFrom104Columns(t *testing.T) {
 	}
 }
 
+func TestThePreviewTitleCarriesABuiltInPacksDescription(t *testing.T) {
+	m, _ := newModel(t)
+	m.snap.Look = LookInfo{Name: "crt", Border: "bold"}
+	if out := strings.Join(viewAt(m, 120, 40), "\n"); !strings.Contains(out, "crt green phosphor") {
+		t.Fatalf("no description beside the pack name:\n%s", out)
+	}
+	m.snap.Look = LookInfo{Name: "mine"}
+	if out := strings.Join(viewAt(m, 120, 40), "\n"); strings.Contains(out, "mine ") && strings.Contains(out, "green phosphor") {
+		t.Fatalf("a user pack borrowed a description:\n%s", out)
+	}
+}
+
 // A multi-row spinner (orb-states) once seemed to push the right border one column out.
 // The view measures every cell, so the border stays in its column on every frame.
 func TestPreviewBorderStaysInOneColumnOnEverySpinnerFrame(t *testing.T) {

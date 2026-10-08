@@ -56,7 +56,14 @@ func bubble(text string, box lipgloss.Border, border, fg string) []string {
 	for _, l := range lines {
 		out = append(out, bd.Render(box.Left)+" "+tx.Render(l)+strings.Repeat(" ", w-2-ansi.StringWidth(l))+" "+bd.Render(box.Right))
 	}
-	return append(out, bd.Render(box.BottomLeft+strings.Repeat(box.Bottom, w/2)+"┬"+strings.Repeat(box.Bottom, w-w/2-1)+box.BottomRight))
+	tee := "┬"
+	switch box.Bottom {
+	case "━":
+		tee = "┳"
+	case "═":
+		tee = "╦"
+	}
+	return append(out, bd.Render(box.BottomLeft+strings.Repeat(box.Bottom, w/2)+tee+strings.Repeat(box.Bottom, w-w/2-1)+box.BottomRight))
 }
 
 // ClawdColumn is the bubble over Clawd, ClawdWidth cells wide.

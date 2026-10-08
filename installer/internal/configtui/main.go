@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -46,17 +48,24 @@ func Main(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "glowup config is already open.")
 		return 1
 	}
+	// registered before open exists: Go's default for SIGHUP ends the process without the deferred remove below
+	hup := make(chan os.Signal, 1)
+	signal.Notify(hup, syscall.SIGHUP)
+	defer signal.Stop(hup)
 	if err := Touch(*dir); err != nil {
 		fmt.Fprintln(stderr, "glowup-installer config:", err)
 		return 1
 	}
-	// The mod stops polling once open has been seen and then goes missing. A window closed by
-	// SIGHUP skips this and is judged by open's age instead.
+	// The mod drains the last lines and stops polling once open has been seen and then goes missing.
 	defer os.Remove(filepath.Join(*dir, "open"))
 	profile := tui.ColorProfile(stdout, os.Environ())
 	m := New(*dir, s)
 	m.profile = profile
 	p := tea.NewProgram(m, append([]tea.ProgramOption{tea.WithColorProfile(profile)}, programOptions...)...)
+	go func() {
+		<-hup
+		p.Quit()
+	}()
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintln(stderr, "glowup-installer config:", err)
 		return 1

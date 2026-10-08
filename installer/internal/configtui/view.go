@@ -36,15 +36,16 @@ const (
 var previewH = lipgloss.Height(tui.PreviewAt(tui.LookOf("classic", "", ""), claude.Defaults(), 0, previewW))
 
 // lookOf turns the session's look into what the installer's preview draws. User packs are
-// not in packs.json, so everything comes from the snapshot.
+// not in packs.json, so everything comes from the snapshot, apart from a built-in pack's description.
 func lookOf(s Snapshot) tui.Look {
+	builtin, _ := packs.ByName(s.Look.Name)
 	sp, ok := packs.SpinnerByID(s.Look.Spinner)
 	if !ok {
 		sp = packs.Spinners()[0]
 	}
 	c := s.State.Colors
 	return tui.Look{
-		Pack: packs.Pack{Name: s.Look.Name, Border: s.Look.Border}, Colors: c,
+		Pack: packs.Pack{Name: s.Look.Name, Border: s.Look.Border, Description: builtin.Description}, Colors: c,
 		Bg: cmp.Or(s.Look.Bg, c.Panel), BorderColor: cmp.Or(s.Look.BorderColor, c.Faint), Word: cmp.Or(s.Look.Word, "Working"),
 		Spinner: sp, SpinColor: cmp.Or(s.Look.SpinColor, c.Accent),
 	}
