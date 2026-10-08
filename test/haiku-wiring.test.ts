@@ -251,6 +251,8 @@ test('a hello never spends the turn\'s Haiku call', async ($, on) => {
   await r.start($); await runGlowup($, 'bubbles haiku')
   const pane = await $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'Pane', requestId: 'glowup', props: PANE })
   await pane.drawn(); await clock.advance(20)
+  const shown = text(await pane.drawn())
+  expect(anyLine(BUILTIN_LINES.clawd, 'hello').some(l => shown.includes(l))).toBe(true)
   expect(r.prompts).toHaveLength(0)
   await pane.unmount()
 })
