@@ -28,6 +28,8 @@ export type Model = {
   effort?: string
   root?: string
   branch?: string
+  // undefined until the level store is read
+  xp?: number
 }
 export type Ev =
   | { type: 'turn-start'; at: number }
@@ -47,6 +49,7 @@ export type Ev =
   | { type: 'branch'; branch?: string }
   // from each main-loop model request; a request without one (a model with no effort support) clears it
   | { type: 'effort'; effort?: string }
+  | { type: 'level'; xp: number }
 
 export const LINGER_MS = 1500
 export const CTX_SAMPLES = 120
@@ -71,6 +74,7 @@ export function normalizeModel(raw: unknown): Model {
   for (const k of NUMBERS) if (typeof m[k] !== 'number' || !Number.isFinite(m[k])) (m as Record<string, unknown>)[k] = base[k]
   if (!m.act || typeof m.act !== 'object') m.act = base.act
   if (!Array.isArray(m.planFolded)) m.planFolded = undefined
+  if (!Number.isInteger(m.xp) || m.xp! < 0) m.xp = undefined
   // before 0.3.5 reads were stored here too
   m.files = m.files.filter(f => (f.how as string) !== 'read').sort((a, b) => b.at - a.at)
   return m
@@ -140,6 +144,7 @@ export function applyEvent(m: Model, ev: Ev): Model {
     case 'session-info': return { ...m, modelName: ev.modelName ?? m.modelName, root: ev.root ?? m.root }
     case 'effort': return { ...m, effort: ev.effort }
     case 'branch': return { ...m, branch: ev.branch }
+    case 'level': return { ...m, xp: ev.xp }
     case 'needs-you': return { ...m, actAt: ev.at, needsYou: { toolUseId: ev.toolUseId, what: ev.what, before: m.needsYou?.before ?? m.act }, act: { glyph: '!', label: `Needs you: ${ev.what}`, tone: 'fail' } }
     case 'agent-bind': return { ...m, agents: m.agents.map(a => a.key === ev.toolUseId ? { ...a, agentId: ev.agentId } : a) }
     case 'agent-done': return { ...m, agents: m.agents.map(a => a.agentId === ev.agentId && a.state === 'running' ? { ...a, state: 'done' as const, endedAt: ev.at, now: undefined, tokens: ev.tokens ?? a.tokens } : a) }

@@ -5,12 +5,17 @@ export type Level = { level: number; into: number; need: number }
 export const xpToReach = (level: number) => 50 * level * (level - 1)
 
 export const levelOf = (xp: number): Level => {
-  const x = Math.max(0, xp)
+  const x = Number.isFinite(xp) ? Math.max(0, xp) : 0
   let level = Math.max(1, Math.floor((1 + Math.sqrt(1 + x / 12.5)) / 2))
   // The closed form drifts at exact boundaries in floating point.
   while (xpToReach(level) > x) level--
   while (xpToReach(level + 1) <= x) level++
   return { level, into: x - xpToReach(level), need: 100 * level }
+}
+
+export const levelBar = (xp: number, cells: number) => {
+  const { level, into, need } = levelOf(xp)
+  return { level, filled: Math.floor((into * cells) / need) }
 }
 
 export type TurnXp = { answered: boolean; combo: number; green: number; commits: number }

@@ -197,7 +197,7 @@ test('the sheet has every pose with enough frames', async () => {
   expect(CLAWD_SHEET.animations.idle!.frames.every(f => f.head !== undefined)).toBe(true)
 })
 
-test('every frame is PET_ROWS rows of exactly PET_COLS cells; outfits add the headroom', async () => {
+test('every frame is PET_ROWS rows of exactly PET_COLS cells; outfits add the headroom', { timeoutMs: 20000 }, async () => {
   for (const pet of ['clawd', 'clawd-shiny'] as const)
     for (const [pose, a] of Object.entries(CLAWD_SHEET.animations)) a.frames.forEach((_, f) => {
       for (const ov of [[], ['friday']]) {

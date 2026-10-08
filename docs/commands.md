@@ -189,6 +189,6 @@ See [Accessibility](accessibility.md) for what reduced motion changes.
 | `/glowup statusline fields <id> <id> …` | Set the fields in the order typed. An unknown id refuses the whole command and lists the valid ids. |
 | `/glowup statusline fields default` | Go back to the `statusline` setting's value, `activity ctx effort 5h week` unless you changed it. |
 
-The fields are `activity`, `ctx`, `5h`, `week`, `cost`, `model`, `effort`, `agents`, `plan`, `branch`, `changes` and `cwd`. See [Choosing the fields](statusline.md#choosing-the-fields).
+The fields are `activity`, `ctx`, `5h`, `week`, `cost`, `model`, `effort`, `agents`, `plan`, `branch`, `changes`, `cwd` and `level`. See [Choosing the fields](statusline.md#choosing-the-fields).
 
 Without `statusline on`, glowup only adds its own entry under the prompt while Claude works. `restore` puts your line back only if the current one is still glowup's. See [Status line](statusline.md).

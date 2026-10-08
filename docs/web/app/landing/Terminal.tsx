@@ -94,7 +94,7 @@ function statusText(s: TermState, fields: readonly StatusFieldId[], meter: Setup
       { kind: 'five_hour', percentUsed: 38, resetsAt: new Date(NOW + 133 * 60_000).toISOString() },
       { kind: 'seven_day', percentUsed: 12, resetsAt: new Date(NOW + 3 * 86_400_000).toISOString() },
     ],
-    costUsd: 0.42, modelName: 'claude-opus-5-5', effort: 'high', root: '/home/me/shop', branch: 'main',
+    costUsd: 0.42, modelName: 'claude-opus-5-5', effort: 'high', root: '/home/me/shop', branch: 'main', xp: 2310,
   }
   return renderFields(m, look.theme, fields, { now: NOW, tzOffset: 0, color: 'plain', meter })
 }

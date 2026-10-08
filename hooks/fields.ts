@@ -1,9 +1,10 @@
 import { agentsRunning, type Model, type RateLimit } from './model.ts'
 import type { Colors, Theme } from './themes.ts'
 import { localTime } from './eggs.ts'
+import { levelBar } from './levels.ts'
 import { DEFAULT_SETUP, toneFor, type Meter } from './setup.ts'
 
-export const FIELD_IDS = ['activity', 'ctx', '5h', 'week', 'cost', 'model', 'effort', 'agents', 'plan', 'branch', 'changes', 'cwd'] as const
+export const FIELD_IDS = ['activity', 'ctx', '5h', 'week', 'cost', 'model', 'effort', 'agents', 'plan', 'branch', 'changes', 'cwd', 'level'] as const
 export type FieldId = (typeof FIELD_IDS)[number]
 export const DEFAULT_FIELDS: readonly FieldId[] = ['activity', 'ctx', 'effort', '5h', 'week']
 export const isFieldId = (s: string): s is FieldId => (FIELD_IDS as readonly string[]).includes(s)
@@ -68,6 +69,11 @@ function field(id: FieldId, m: Model, now: number, tzOffset: number, meter: Mete
     case 'changes': {
       const add = m.files.reduce((s, f) => s + f.add, 0), del = m.files.reduce((s, f) => s + f.del, 0)
       return add || del ? [{ text: `+${add}`, color: 'pass' }, { text: ' ' }, { text: `−${del}`, color: 'fail' }] : undefined
+    }
+    case 'level': {
+      if (m.xp === undefined) return undefined
+      const { level, filled } = levelBar(m.xp, 5)
+      return [{ text: `Lv ${level} `, color: 'accent' }, { text: '▰'.repeat(filled), color: 'accent' }, { text: '▱'.repeat(5 - filled), color: 'faint' }]
     }
     case 'cwd': return m.root ? [{ text: m.root.replace(/\/+$/, '').split('/').pop() || '/', color: 'text' }] : undefined
   }

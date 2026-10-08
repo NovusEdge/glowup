@@ -9,7 +9,7 @@ import type { Border, Look } from './packs.ts'
 import { wrapBubble } from './bubbles.ts'
 import type { Moment } from './lines.ts'
 import { CLAWD_ROW, PET_ROWS, type PetId } from './pets.ts'
-import { comboSegs, fit, hearts, hpBar, renderSegs, toneColor, visibleLength, type Seg } from './layout.tsx'
+import { comboSegs, fit, hearts, hpBar, levelSegs, renderSegs, toneColor, visibleLength, type Seg } from './layout.tsx'
 import { liveLimit } from './fields.ts'
 import { DEFAULT_SETUP, type Meter, type TabId } from './setup.ts'
 import type { DiffLine, Diffs } from './diff.ts'
@@ -264,8 +264,11 @@ export function statusRows(model: Model, base: Theme, width: number, now: number
   const m = normalizeModel(model)
   const t = look?.theme ?? base, c = t.colors
   const live = m.agents.filter(a => a.state === 'running')
+  const first: Seg[] = [{ text: `${m.act.glyph} ${m.act.label}`, color: toneColor(t, m.act.tone), bold: true }, ...comboSegs(m.combo, look)]
+  // the level never crowds the activity label: a row it does not fit stays as it was
+  const withLevel = m.xp === undefined ? first : [...first, { text: '  ', color: c.text }, ...levelSegs(m.xp, t, 10)]
   const rows: Seg[][] = [
-    [{ text: `${m.act.glyph} ${m.act.label}`, color: toneColor(t, m.act.tone), bold: true }, ...comboSegs(m.combo, look)],
+    visibleLength(withLevel) <= width ? withLevel : first,
     ...(meter ?? [lifeRow(m, t, width, now, look)]),
   ]
   if (live.length) rows.push([{ text: `◆ ${live.map(a => a.name).join(', ')} working`, color: c.agent }])

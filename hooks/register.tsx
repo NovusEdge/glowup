@@ -951,7 +951,7 @@ export const register: Register = (on, options) => {
     }
     startBeat($)
     void checkStale($)
-    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|setup|restore' })
+    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|setup|level|restore' })
     await loadSettings($, host)
     sessionId = await $.session.id()
     try { helloDue = e.isInteractive && (await $.state.get(HELLO)).value?.sid !== sessionId } catch { helloDue = e.isInteractive }

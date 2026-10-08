@@ -100,6 +100,6 @@ test('an empty list means none for band and moods, default for fields, and is re
 test('unknown list ids are refused before anything runs', () => {
   const s = base()
   expect(inputCommand('tabs', 'plan; rm -rf', s)).toHaveProperty('error')
-  expect(inputCommand('fields', 'ctx bogus', s)).toEqual({ error: 'Unknown field: bogus. Choose from: activity, ctx, 5h, week, cost, model, effort, agents, plan, branch, changes, cwd.' })
+  expect(inputCommand('fields', 'ctx bogus', s)).toEqual({ error: 'Unknown field: bogus. Choose from: activity, ctx, 5h, week, cost, model, effort, agents, plan, branch, changes, cwd, level.' })
   expect(inputValue('fields', s)).toBe(DEFAULT_FIELDS.join(' '))
 })

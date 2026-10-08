@@ -16,6 +16,7 @@ import type { BubbleSetting } from './bubbles.ts'
 import { eggUnlocked, type EggStore } from './eggs.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 import { FIELD_IDS, isFieldId, type FieldId } from './fields.ts'
+import { levelOf, parseLevelStore, groupDigits, UNLOCKS, ART_READY } from './levels.ts'
 import { parseSetup, setSetupField, describeSetup, DEFAULT_SETUP, type Setup } from './setup.ts'
 
 // What a command that needs more input falls back to, and what a headless config run prints.
@@ -56,7 +57,19 @@ async function applyMix(host: Host, ctl: Ctl, mix: Mix) {
   await ctl.setMix(mix)
 }
 
-const eggsOf = async (host: Host) => (await host.storeGet('eggs')) as EggStore | undefined
+function levelReport(xp: number): string {
+  const { level, into, need } = levelOf(xp)
+  const soon = (u: (typeof UNLOCKS)[number]) => !ART_READY && u.kind !== 'lines'
+  const got = UNLOCKS.filter(u => u.level <= level).map(u => `${u.label} (${u.level}${soon(u) ? ', coming soon' : ''})`)
+  const next = UNLOCKS.find(u => u.level > level)
+  return [
+    `Level ${level} · ${groupDigits(xp)} XP · ${groupDigits(need - into)} to level ${level + 1}`,
+    `Unlocked: ${got.join(', ') || 'nothing yet'}`,
+    next ? `Next: ${next.label} at level ${next.level}${soon(next) ? ' (coming soon)' : ''}` : 'All unlocks earned.',
+  ].join('\n')
+}
+
+const eggsOf =async (host: Host) => (await host.storeGet('eggs')) as EggStore | undefined
 
 async function packList(host: Host, ctl: Ctl): Promise<string> {
   const user = await loadUserPacks(host)
@@ -333,6 +346,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     return describeSetup(r.setup)
   }
   if (sub === 'setup') return 'Use /glowup setup <key> <value>, /glowup setup, or /glowup setup reset.'
+  if (sub === 'level') return levelReport(parseLevelStore(await host.storeGet('level')))
   if (sub === 'help' && a1 === 'all') return FULL_TEXT
   return sub && sub !== 'help' ? `Unknown: ${args.trim()}\n\n${SHORT_TEXT}` : SHORT_TEXT
 }

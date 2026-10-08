@@ -37,6 +37,25 @@ test('an unknown subcommand keeps its error line above the short card', async ($
   expect((await runGlowup($, 'bogus')).text).toBe(`Unknown: bogus\n\n${SHORT_TEXT}`)
 })
 
+test('/glowup level: level, XP to the next, what is unlocked and what is next', async () => {
+  const run = async (xp?: number) => {
+    const { host, store } = fakeHost()
+    if (xp !== undefined) store.level = { format: 1, xp }
+    return runCommand(host, 'level', ctl().ctl)
+  }
+  expect(await run()).toBe('Level 1 · 0 XP · 100 to level 2\nUnlocked: nothing yet\nNext: new lines at level 2')
+  expect(await run(2310)).toBe([
+    'Level 7 · 2,310 XP · 490 to level 8',
+    'Unlocked: new lines (2), a new outfit (3, coming soon), new lines (4), a new move (5, coming soon), a new outfit (6, coming soon), new lines (7)',
+    'Next: a new outfit at level 8 (coming soon)',
+  ].join('\n'))
+  expect((await run(20_000)).split('\n')).toEqual([
+    'Level 20 · 20,000 XP · 1,000 to level 21',
+    'Unlocked: new lines (2), a new outfit (3, coming soon), new lines (4), a new move (5, coming soon), a new outfit (6, coming soon), new lines (7), a new outfit (8, coming soon), a new move (10, coming soon)',
+    'All unlocks earned.',
+  ])
+})
+
 const SETTINGS = '/home/u/.claude/settings.json'
 
 const ctl = (answer = true, current = 'classic') => {

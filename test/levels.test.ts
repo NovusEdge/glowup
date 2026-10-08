@@ -51,3 +51,8 @@ test('levelUp: none, one level, a jump across two, art not ready', async () => {
   expect(groupDigits(950)).toBe('950')
   expect(groupDigits(1234567)).toBe('1,234,567')
 })
+
+test('non-finite xp counts as 0', async () => {
+  expect(levelOf(Infinity)).toEqual(levelOf(0))
+  expect(levelOf(NaN)).toEqual(levelOf(0))
+})
