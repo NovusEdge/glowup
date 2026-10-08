@@ -8,7 +8,8 @@ import { PACKS } from './packpresets.ts'
 import { loadUserPacks, SAFE_NAME } from './userpacks.ts'
 import { BUILTIN_SHEETS, CLAWD_SHEET, eggSheet, stripRows, type PetSetting, type PetInput, type PetKind, type PetSheet } from './pets.ts'
 import { loadUserPet, userPetNames, PET_DIR } from './userpets.ts'
-import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
+import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, type BubbleSetting, type BubbleVars, type HaikuContext } from './bubbles.ts'
+import { BUILTIN_LINES, pool, type Moment } from './lines.ts'
 import { recordPass, unlockEgg, eggUnlocked, hintDue, EGG_HINTS, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, rebase, refreshCounts, serial, type Repo } from './changes.ts'
 import { readDiff } from './diff.ts'
@@ -95,7 +96,7 @@ let beatTimer: Timer | undefined
 let lastStatusLine: string | undefined
 let spinKey: SpinKey = { turnAt: 0, detail: '', state: 'think' }
 // Pet state, published to PET for the pane only; the band never reads it.
-type Bubble = { text: string; mood: Mood; until: number }
+type Bubble = { text: string; mood: Moment; until: number }
 type PetSnap = { input: PetInput; overlays: string[]; bubble?: Bubble; friday: boolean }
 let bubble: Bubble | undefined
 let lastTemplate: string | undefined
@@ -372,7 +373,7 @@ function armBubble($: Engine, mine: Bubble) {
   })
 }
 
-async function say($: Engine, mood: Mood, vars: BubbleVars) {
+async function say($: Engine, mood: Moment, vars: BubbleVars) {
   if (bubbles === 'off' || !petOn() || !speaks(mood, setup.bubbles.moods)) return
   // Kind words only, never the act's label: it holds commands, paths and patterns.
   const ctx: HaikuContext = {
@@ -388,7 +389,7 @@ async function say($: Engine, mood: Mood, vars: BubbleVars) {
     if (!(await $.ui.panes()).some(p => p.id === 'glowup' && p.isShown)) return
   } catch { return }
   const hint = mood === 'done' ? await eggHint($) : undefined
-  const line = hint === undefined ? bubbleFor(mood, vars, lastTemplate, Math.random) : undefined
+  const line = hint === undefined ? bubbleFor(pool(BUILTIN_LINES.clawd, mood, []), vars, lastTemplate, Math.random) : undefined
   if (line) lastTemplate = line.template
   const mine: Bubble = { text: hint ?? line!.text, mood, until: 0 }
   bubble = mine
@@ -411,7 +412,7 @@ async function eggHint($: Engine): Promise<string | undefined> {
     return undefined
   }
 }
-function moodOf(old: Model, now: Model, ev: Ev): { mood: Mood; vars: BubbleVars } | undefined {
+function moodOf(old: Model, now: Model, ev: Ev): { mood: Moment; vars: BubbleVars } | undefined {
   if (now.needsYou && !old.needsYou) return { mood: 'needs-you', vars: { command: now.needsYou.what.replace(/^approve /, '').split(/\s+/)[0] } }
   if (now.lastTest && !now.lastTest.passed && now.lastTest.at !== old.lastTest?.at) {
     const n = /(\d+) tests? failed/.exec(now.act.label)?.[1]

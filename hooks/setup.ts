@@ -1,14 +1,14 @@
 // JSX-free: the docs site imports it.
-import type { Mood } from './bubbles.ts'
+import type { Moment } from './lines.ts'
 import { shown } from './themes.ts'
 
 export const BAND_ITEMS = ['combo', 'agents', 'meter', 'plan'] as const
 export type BandItem = (typeof BAND_ITEMS)[number]
 export const TAB_IDS = ['plan', 'agents', 'diff', 'changes'] as const
 export type TabId = (typeof TAB_IDS)[number]
-export const SETUP_MOODS: readonly Mood[] = ['needs-you', 'fail', 'done']
+export const SETUP_MOODS: readonly Moment[] = ['needs-you', 'fail', 'done']
 export type Meter = { warn: number; danger: number }
-export type Setup = { format: 1; band: BandItem[]; tabs: TabId[]; meter: Meter; bubbles: { moods: Mood[]; ms: number }; pet: { sleepMs: number } }
+export type Setup = { format: 1; band: BandItem[]; tabs: TabId[]; meter: Meter; bubbles: { moods: Moment[]; ms: number }; pet: { sleepMs: number } }
 
 export const DEFAULT_SETUP: Setup = {
   format: 1,

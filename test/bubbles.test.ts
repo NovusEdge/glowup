@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { fill, pickLine, bubbleFor, sanitizeLine, fitsBubble, haikuMaxTokens, haikuPrompt, haikuLimit, wrapBubble, HaikuGate, kindWords, speaks, CLAWD_SAY } from '../hooks/bubbles.ts'
+import { fill, pickLine, bubbleFor, sanitizeLine, fitsBubble, haikuMaxTokens, haikuPrompt, haikuLimit, wrapBubble, HaikuGate, kindWords, speaks } from '../hooks/bubbles.ts'
 
 test('only the moods in the setup speak', async () => {
   expect(speaks('done', ['needs-you', 'fail', 'done'])).toBe(true)
@@ -23,13 +23,9 @@ test('pickLine never repeats the last line when there is a choice', async () => 
   expect(pickLine(['only'], 'only', () => 0)).toBe('only')
 })
 
-test('bubbleFor has lines for the three shown moods', async () => {
-  for (const mood of ['done', 'fail', 'needs-you'] as const) {
-    expect(CLAWD_SAY[mood].length).toBeGreaterThan(1)
-    const b = bubbleFor(mood, { n: 3, command: 'npm' }, undefined, () => 0)
-    expect(b.text.length).toBeGreaterThan(0)
-    expect(CLAWD_SAY[mood]).toContain(b.template)
-  }
+test('bubbleFor draws from the pool it is given and never repeats the last line', async () => {
+  const b = bubbleFor(['ouch, {n} failed', 'hmm'], { n: 3 }, 'hmm', () => 0)
+  expect(b).toEqual({ text: 'ouch, 3 failed', template: 'ouch, {n} failed' })
 })
 
 test('sanitizeLine keeps one plain line and never shortens it', async () => {

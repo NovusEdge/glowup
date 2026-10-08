@@ -1,14 +1,14 @@
 import { expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
-import { runGlowup, fakeFs, test } from './kit.ts'
-import { CLAWD_SAY } from '../hooks/bubbles.ts'
+import { runGlowup, fakeFs, test, anyLine } from './kit.ts'
+import { BUILTIN_LINES } from '../hooks/lines.ts'
 
 const ENGINE_ROW = { type: 'Text', props: {}, children: ['engine row'] } as RenderElement
 const scroll = { offset: 0, bodyRows: 20 }
 const PANE = { title: 'glowup', isFocused: false, bodyColumns: 60, placement: 'dock', scroll, view: {} } as never
 const walk = (n: any, out: any[] = []): any[] => { if (typeof n === 'string') out.push(n); else if (n && typeof n === 'object') { out.push(n); for (const c of n.children ?? []) walk(c, out) } return out }
 const text = (tree: any) => walk(tree).filter(n => typeof n === 'string').join(' ')
-const FAIL_SAY = CLAWD_SAY.fail.map(l => l.replace('{n}', '3'))
+const FAIL_SAY = anyLine(BUILTIN_LINES.clawd, 'fail', { n: '3' })
 
 type Model = (req: any) => Promise<any>
 const answer = (t: string) => ({ isAnswered: true, text: t, usage: {} })

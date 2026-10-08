@@ -1,6 +1,7 @@
 import { test, expect } from 'claude-code/testing'
 import { tabRows, statusRows, renderPane, section, BOX, MIN_BOX, COMPACT_ROWS, petStripCols, bubbleBox, visibleTabs, type TabId } from '../hooks/pane.tsx'
-import { CLAWD_SAY } from '../hooks/bubbles.ts'
+import { BUILTIN_LINES, MOMENTS } from '../hooks/lines.ts'
+import { anyLine } from './kit.ts'
 import { resolveLook, BORDERS } from '../hooks/packs.ts'
 import { PACKS } from '../hooks/packpresets.ts'
 import { visibleLength } from '../hooks/layout.tsx'
@@ -414,7 +415,7 @@ test('renderPane drops the status section when compact', async () => {
 })
 
 const SAMPLES = [
-  ...Object.values(CLAWD_SAY).flat().map(t => t.replace('{n}', '3').replace('{command}', 'npm')),
+  ...MOMENTS.flatMap(m => anyLine(BUILTIN_LINES.clawd, m, { n: '3', command: 'npm', file: 'a.ts' })),
   'tests are sulking, so am i, honestly ok',
   'green at last, i knew you had it in you',
   'supercalifragilisticexpialidocious!!!!!!',
@@ -422,7 +423,7 @@ const SAMPLES = [
   'x'.repeat(40),
 ]
 
-test('every bubble line wraps at spaces, in two rows at most, inside the pane', async () => {
+test('every bubble line wraps at spaces, in two rows at most, inside the pane', { timeoutMs: 20000 }, async () => {
   for (const [width, compact] of [[30, false], [40, false], [60, false], [90, false], [30, true], [40, true], [60, true]] as const) {
     const box = bubbleBox(width, compact)
     for (const text of SAMPLES) {

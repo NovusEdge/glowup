@@ -13,7 +13,7 @@ export { FIELD_IDS as STATUS_FIELD_IDS, DEFAULT_FIELDS, renderFields, type Field
 export { fieldFrame, fieldTickMs } from '../../../../hooks/effects.ts'
 export type { Model } from '../../../../hooks/model.ts'
 export type { Seg } from '../../../../hooks/segs.ts'
-export { CLAWD_SAY } from '../../../../hooks/bubbles.ts'
+export { BUILTIN_LINES } from '../../../../hooks/lines.ts'
 export { encodeLink, decodeLink, STUDIO_URL, PET_LINK_MAX } from '../../../../hooks/link.ts'
 export { PET_ANIMS, FRAME_W, FRAME_H, MAX_COLORS, MAX_FRAMES, ANIM_MS, WALKS, MIN_MS, validatePetFile, petSheet, petNameProblem, type PetFile, type PetAnimName } from '../../../../hooks/petfile.ts'
 export { parseSetup, toneFor, DEFAULT_SETUP, BAND_ITEMS, TAB_IDS, SETUP_MOODS, type Setup, type BandItem, type TabId } from '../../../../hooks/setup.ts'

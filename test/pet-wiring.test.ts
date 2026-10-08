@@ -1,7 +1,7 @@
 import { expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
-import { runGlowup, fakeFs, test } from './kit.ts'
-import { CLAWD_SAY } from '../hooks/bubbles.ts'
+import { runGlowup, fakeFs, test, anyLine } from './kit.ts'
+import { BUILTIN_LINES } from '../hooks/lines.ts'
 import { EGG_HINTS } from '../hooks/eggs.ts'
 
 const ENGINE_ROW = { type: 'Text', props: {}, children: ['engine row'] } as RenderElement
@@ -84,7 +84,7 @@ test('a failing test run shows a fail bubble in the pane for 3 s', async ($, on)
   await runGlowup($, 'bubbles on')
   await $.turn.start({ text: 'hi', turnId: 't1' })
   await $.tool.call({ tool: 'Bash', tool_use_id: 'b1', command: 'npm test' } as never)
-  const said = CLAWD_SAY.fail.map(l => l.replace('{n}', '3'))
+  const said = anyLine(BUILTIN_LINES.clawd, 'fail', { n: '3' })
   let pane = await mountPane($)
   let body = text(await pane.drawn())
   expect(said.some(l => body.includes(l))).toBe(true)
@@ -109,7 +109,7 @@ test('pet changes do not redraw the band', async ($, on) => {
   await band.unmount()
 })
 
-const FAIL_SAY = CLAWD_SAY.fail.map(l => l.replace('{n}', '3'))
+const FAIL_SAY = anyLine(BUILTIN_LINES.clawd, 'fail', { n: '3' })
 
 test('no bubble while the pane is hidden', async ($, on) => {
   base(on, undefined, { shown: false }); mock.clock(on)
@@ -277,7 +277,7 @@ test('the Konami post unlocks the egg once, with one toast and a juggle', async 
 })
 
 const DAY = 86_400_000
-const DONE_SAY = CLAWD_SAY.done
+const DONE_SAY = anyLine(BUILTIN_LINES.clawd, 'done')
 async function finishTurn($: any, clock: { advance(ms: number): Promise<void> }, id: string) {
   await $.turn.start({ text: 'hi', turnId: id })
   await $.turn.complete({ reason: 'answer', answer: '', durationMs: 10, isAborted: false, turnId: id })

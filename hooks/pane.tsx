@@ -6,7 +6,8 @@ import { planOrder } from './tasks.ts'
 import type { Theme } from './themes.ts'
 import { shortPath } from './events.ts'
 import type { Border, Look } from './packs.ts'
-import { wrapBubble, type Mood } from './bubbles.ts'
+import { wrapBubble } from './bubbles.ts'
+import type { Moment } from './lines.ts'
 import { CLAWD_ROW, PET_ROWS, type PetId } from './pets.ts'
 import { comboSegs, fit, hearts, hpBar, renderSegs, toneColor, visibleLength, type Seg } from './layout.tsx'
 import { liveLimit } from './fields.ts'
@@ -275,11 +276,11 @@ export function statusRows(model: Model, base: Theme, width: number, now: number
 // rows is the strip height, from stripRows: the sheet's height, plus headroom while an outfit is worn.
 // meter and field come from a renderer plugin: rows for the status box, and a builder for the
 // field's player given the rows left open between the tab and the status box.
-export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Mood }; friday?: boolean; minRows?: number; bodyRows?: number; onRange?: (last: number, win: number) => void; meter?: Seg[][]; field?: (rows: number) => unknown; tabs?: readonly TabId[] }
+export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Moment }; friday?: boolean; minRows?: number; bodyRows?: number; onRange?: (last: number, win: number) => void; meter?: Seg[][]; field?: (rows: number) => unknown; tabs?: readonly TabId[] }
 export const PET_STRIP_COLS = 46
 const BUBBLE_ROOM = 16
 
-const bubbleColor = (t: Theme, mood: Mood) => (mood === 'fail' ? t.colors.fail : mood === 'done' ? t.colors.pass : t.colors.accent)
+const bubbleColor = (t: Theme, mood: Moment) => (mood === 'fail' ? t.colors.fail : mood === 'done' ? t.colors.pass : t.colors.accent)
 
 // Width of the Box the pet's Client sits in on a docked pane: inside the pane's border and padding (2 + 4).
 export const petStripCols = (paneWidth: number) => Math.max(0, Math.min(PET_STRIP_COLS, paneWidth - 6))

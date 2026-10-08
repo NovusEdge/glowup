@@ -66,6 +66,8 @@ export function localTime(ms: number, offsetMin: number): LocalTime {
   return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, date: d.getUTCDate(), day: d.getUTCDay(), hour: d.getUTCHours() }
 }
 
+export const daypart = (hour: number) => hour < 5 ? 'night' : hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : hour < 23 ? 'evening' : 'night'
+
 export function overlays(t: LocalTime, installed: LocalTime | undefined, friday: boolean, failed = false): Overlay[] {
   const out: Overlay[] = []
   if (t.month === 12 && t.date >= 20) out.push('santa')
