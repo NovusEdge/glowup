@@ -138,11 +138,11 @@ Your layout and behavior settings. They are yours alone: installing someone's pa
 The window opens in the first of these that applies:
 
 1. Inside tmux, a new tmux window.
-2. The terminal named by `$TERMINAL`, if you set it. Setting `$TERMINAL` is how you pick the terminal. glowup knows the argument conventions of konsole, kitty, ghostty, wezterm, gnome-terminal, foot and alacritty, and runs any other terminal as `<terminal> -e <command>`.
+2. The terminal named by `$TERMINAL`, if you set it. Setting `$TERMINAL` is how you pick the terminal. glowup knows the argument conventions of konsole, kitty, ghostty, wezterm, gnome-terminal, foot, alacritty, xfce4-terminal, mate-terminal and terminator, and runs any other terminal as `<terminal> -e <command>`.
 3. The terminal you are in, when glowup recognizes it: Konsole, kitty, Ghostty, WezTerm or GNOME Terminal.
 4. Your system's default terminal: `xdg-terminal-exec`, then `x-terminal-emulator`.
 
-On macOS it is Ghostty, Terminal or iTerm, matching the terminal you are in, and Terminal.app for anything else. Without a display, as over SSH, nothing can open; glowup prints the command to run in a terminal instead, and it prints the same command if the window fails to start.
+On macOS the first rule applies too, tmux first. Otherwise it is Ghostty, iTerm, kitty or WezTerm, matching the terminal you are in, and Terminal.app for anything else. Without a display, as over SSH, nothing can open; glowup prints the command to run in a terminal instead, and it prints the same command if the window fails to start.
 
 glowup runs the `glowup-installer` for the installed version. It looks first at the path in `GLOWUP_BIN`, then at `installer/glowup-installer` in a clone, and otherwise downloads the release's copy; see [Install](install.md#the-config-tui-binary). While the screen is open, `/glowup config` in that session says so instead of opening a second one.
 

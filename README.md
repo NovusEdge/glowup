@@ -132,7 +132,7 @@ If a session loads both an installed copy and a clone, the clone wins and the in
 
 ## Using it
 
-`/glowup` on its own lists the handful of commands most people need, and `/glowup config` opens a pane where you pick a pack, spinner and pet, type exact colors, and set up the band, tabs and status line. Everything else, including installing shared packs and themes, overriding single colors and exporting to Konsole, is in [Commands](docs/commands.md).
+`/glowup` on its own lists the handful of commands most people need, and `/glowup config` opens a settings screen in a new terminal window where you pick a pack, spinner and pet, type exact colors, and set up the band, tabs and status line. Everything else, including installing shared packs and themes, overriding single colors and exporting to Konsole, is in [Commands](docs/commands.md).
 
 glowup's settings also appear in Claude Code's `/plugin` menu. A change there and a `/glowup` command set the same saved choice, so whichever you made last is the one in effect. Changes made in `/plugin` apply at the next session start or after `/reload-plugins`.
 
