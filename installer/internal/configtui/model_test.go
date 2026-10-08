@@ -133,6 +133,37 @@ func TestHexInputEnterSendsEscCancels(t *testing.T) {
 	}
 }
 
+func TestPastingAColorIntoTheHexInputKeepsItsHexDigits(t *testing.T) {
+	m, dir := newModel(t)
+	m, _ = press(m, key("tab"))
+	m, _ = press(m, key("enter"))
+	next, _ := m.Update(tea.PasteMsg{Content: "#FF8800\n"})
+	m = next.(Model)
+	m, _ = press(m, key("enter"))
+	if got := lines(t, dir); len(got) != 1 || got[0] != `{"seq":1,"cmds":["color accent #ff8800"]}` {
+		t.Fatal(got)
+	}
+	next, _ = m.Update(tea.PasteMsg{Content: "123456"})
+	if next.(Model).input.Value() != "FF8800" {
+		t.Fatal("a paste outside the input changed it")
+	}
+}
+
+func TestKeysThatAreNotHexDigitsNeverReachTheInput(t *testing.T) {
+	m, _ := newModel(t)
+	m, _ = press(m, key("tab"))
+	m, _ = press(m, key("enter"))
+	for range 6 {
+		m, _ = press(m, key("backspace"))
+	}
+	for _, c := range "zg-#1F" {
+		m, _ = press(m, key(string(c)))
+	}
+	if got := m.input.Value(); got != "1F" {
+		t.Fatalf("input = %q", got)
+	}
+}
+
 func TestRResetsAColor(t *testing.T) {
 	m, dir := newModel(t)
 	m, _ = press(m, key("tab"))

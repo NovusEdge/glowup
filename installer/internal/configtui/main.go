@@ -53,7 +53,10 @@ func Main(args []string, stdout, stderr io.Writer) int {
 	// The mod stops polling once open has been seen and then goes missing. A window closed by
 	// SIGHUP skips this and is judged by open's age instead.
 	defer os.Remove(filepath.Join(*dir, "open"))
-	p := tea.NewProgram(New(*dir, s), append([]tea.ProgramOption{tea.WithColorProfile(tui.ColorProfile(stdout, os.Environ()))}, programOptions...)...)
+	profile := tui.ColorProfile(stdout, os.Environ())
+	m := New(*dir, s)
+	m.profile = profile
+	p := tea.NewProgram(m, append([]tea.ProgramOption{tea.WithColorProfile(profile)}, programOptions...)...)
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintln(stderr, "glowup-installer config:", err)
 		return 1

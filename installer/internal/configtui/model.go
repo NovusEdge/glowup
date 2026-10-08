@@ -5,7 +5,10 @@ import (
 	"strings"
 	"time"
 
+	kb "charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/colorprofile"
 )
 
 const (
@@ -29,7 +32,8 @@ type Model struct {
 	section       int
 	at            string // the id of the row under the cursor; it follows an item that moves
 	editing       bool
-	buf           string
+	input         textinput.Model
+	profile       colorprofile.Profile // what the terminal can show; the view sets terminal colors only with 256 or more
 	seq           int
 	sentAt        time.Time
 	flash         string // a refusal the TUI made itself
@@ -41,7 +45,10 @@ type Model struct {
 }
 
 func New(dir string, s Snapshot) Model {
-	return Model{dir: dir, snap: s, seq: s.Seq, at: rowsOf(0, s)[0].id, now: time.Now}
+	in := textinput.New()
+	in.Prompt, in.CharLimit = "#", 6
+	in.SetVirtualCursor(true)
+	return Model{dir: dir, snap: s, seq: s.Seq, at: rowsOf(0, s)[0].id, now: time.Now, input: in}
 }
 
 func tick() tea.Cmd { return tea.Tick(tickEvery, func(time.Time) tea.Msg { return tickMsg{} }) }
@@ -93,6 +100,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.undone() {
 			return m, tea.Quit
 		}
+	case tea.PasteMsg:
+		if m.editing {
+			// a paste replaces the field: the input starts out holding the current color
+			m.input.Reset()
+			m.input.SetValue(hexDigits(msg.Content))
+			m.input.CursorEnd()
+		}
 	case tea.KeyPressMsg:
 		return m.key(msg)
 	}
@@ -104,7 +118,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if m.editing {
-		if k.String() != "ctrl+c" {
+		if !kb.Matches(k, keys.Interrupt) {
 			return m.editKey(k), nil
 		}
 		m.editing = false // then ctrl+c acts as it does outside the input
@@ -113,27 +127,25 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	var r row
 	if len(rs) == 0 {
 		// a section with nothing to list (Status without fields) only lets the user leave
-		switch k.String() {
-		case "q", "esc", "ctrl+c", "tab", "shift+tab":
-		default:
+		if !kb.Matches(k, keys.Quit, keys.Undo, keys.Next, keys.Prev) {
 			return m, nil
 		}
 	} else {
 		r = rs[i]
 	}
 	m.flash = ""
-	switch k.String() {
-	case "q":
+	switch {
+	case kb.Matches(k, keys.Quit):
 		return m, tea.Quit
-	case "esc", "ctrl+c":
+	case kb.Matches(k, keys.Undo):
 		m.undoSeq, m.undoBy = m.send(Line{Undo: true}), m.now().Add(undoWait)
-	case "up", "k":
+	case kb.Matches(k, keys.Up):
 		m.at = rs[(i+len(rs)-1)%len(rs)].id
-	case "down", "j":
+	case kb.Matches(k, keys.Down):
 		m.at = rs[(i+1)%len(rs)].id
-	case "tab", "shift+tab":
+	case kb.Matches(k, keys.Next, keys.Prev):
 		d := 1
-		if k.String() == "shift+tab" {
+		if kb.Matches(k, keys.Prev) {
 			d = len(sections) - 1
 		}
 		m.section = (m.section + d) % len(sections)
@@ -141,23 +153,27 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if next := rowsOf(m.section, m.snap); len(next) > 0 {
 			m.at = next[0].id
 		}
-	case "left", "h", "right", "l":
+	case kb.Matches(k, keys.Left, keys.Right):
 		d := 1
-		if k.String() == "left" || k.String() == "h" {
+		if kb.Matches(k, keys.Left) {
 			d = -1
 		}
 		if cmds := cycleCmds(r, m.snap, d); cmds != nil {
 			m.send(Line{Cmds: cmds})
 		}
-	case "enter":
+	case kb.Matches(k, keys.Enter):
 		if r.kind == hexRow {
-			m.editing, m.buf = true, strings.TrimPrefix(colorOf(m.snap, strings.TrimPrefix(r.id, "color:")), "#")
+			m.editing = true
+			m.input.Reset()
+			m.input.SetValue(strings.TrimPrefix(colorOf(m.snap, strings.TrimPrefix(r.id, "color:")), "#"))
+			m.input.CursorEnd()
+			m.input.Focus()
 		}
-	case "r":
+	case kb.Matches(k, keys.Reset):
 		if r.kind == hexRow {
 			m.send(Line{Cmds: []string{"color reset " + strings.TrimPrefix(r.id, "color:")}})
 		}
-	case "space":
+	case kb.Matches(k, keys.Space):
 		if r.kind == item {
 			if cmd, msg := toggle(r, m.snap); msg != "" {
 				m.flash = msg
@@ -165,9 +181,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.send(Line{Cmds: []string{cmd}})
 			}
 		}
-	case "J", "K", "shift+j", "shift+k":
+	case kb.Matches(k, keys.MoveDown, keys.MoveUp):
 		d := 1
-		if strings.HasSuffix(strings.ToLower(k.String()), "k") {
+		if kb.Matches(k, keys.MoveUp) {
 			d = -1
 		}
 		if r.kind == item {
@@ -181,26 +197,32 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) editKey(k tea.KeyPressMsg) Model {
 	role := strings.TrimPrefix(m.at, "color:")
-	switch k.String() {
-	case "esc":
+	switch {
+	case kb.Matches(k, keys.Cancel):
 		m.editing = false
-	case "enter":
+	case kb.Matches(k, keys.Set):
 		m.editing = false
-		if m.buf == "" {
+		if v := strings.ToLower(m.input.Value()); v == "" {
 			m.send(Line{Cmds: []string{"color reset " + role}})
 		} else {
-			m.send(Line{Cmds: []string{"color " + role + " #" + m.buf}})
+			m.send(Line{Cmds: []string{"color " + role + " #" + v}})
 		}
-	case "backspace":
-		if m.buf != "" {
-			m.buf = m.buf[:len(m.buf)-1]
-		}
+	case k.Text != "" && hexDigits(k.Text) != k.Text:
+		// not a hex digit: the input never sees it
 	default:
-		if len(k.Text) == 1 && strings.Contains("0123456789abcdefABCDEF", k.Text) && len(m.buf) < 6 {
-			m.buf += strings.ToLower(k.Text)
-		}
+		m.input, _ = m.input.Update(k)
 	}
 	return m
+}
+
+// hexDigits is s without anything that is not a hex digit.
+func hexDigits(s string) string {
+	return strings.Map(func(r rune) rune {
+		if strings.ContainsRune("0123456789abcdefABCDEF", r) {
+			return r
+		}
+		return -1
+	}, s)
 }
 
 // status is the footer's message line: the TUI's own refusal, then a session that stopped

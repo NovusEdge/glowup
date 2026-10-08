@@ -18,7 +18,7 @@ type row struct {
 	kind  kind
 	id    string // "pack", "color:accent", "band:combo", "meter.warn"
 	label string
-	group string // the checklist an item belongs to
+	group string // the checklist an item belongs to, or the heading its row sits under
 }
 
 var sections = []string{"Look", "Colors", "Pane", "Pet", "Status"}
@@ -32,7 +32,6 @@ var (
 
 // checklist is a list setting edited by toggling and moving its items.
 type checklist struct {
-	label   string
 	on      func(Snapshot) []string
 	all     func(Snapshot) []string
 	cmd     func([]string) string
@@ -47,15 +46,18 @@ func joinOrNone(v []string) string {
 }
 
 var checklists = map[string]checklist{
-	"band": {"Band", func(s Snapshot) []string { return s.State.Setup.Band }, func(s Snapshot) []string { return s.Options.Band },
+	"band": {func(s Snapshot) []string { return s.State.Setup.Band }, func(s Snapshot) []string { return s.Options.Band },
 		func(v []string) string { return "setup band " + joinOrNone(v) }, false},
-	"tabs": {"Tabs", func(s Snapshot) []string { return s.State.Setup.Tabs }, func(s Snapshot) []string { return s.Options.Tabs },
+	"tabs": {func(s Snapshot) []string { return s.State.Setup.Tabs }, func(s Snapshot) []string { return s.Options.Tabs },
 		func(v []string) string { return "setup tabs " + joinOrNone(v) }, true},
-	"moods": {"Moods", func(s Snapshot) []string { return s.State.Setup.Bubbles.Moods }, func(s Snapshot) []string { return s.Options.Moods },
+	"moods": {func(s Snapshot) []string { return s.State.Setup.Bubbles.Moods }, func(s Snapshot) []string { return s.Options.Moods },
 		func(v []string) string { return "setup bubbles.moods " + joinOrNone(v) }, false},
-	"fields": {"Status line", func(s Snapshot) []string { return s.State.Fields }, func(s Snapshot) []string { return s.Options.Fields },
+	"fields": {func(s Snapshot) []string { return s.State.Fields }, func(s Snapshot) []string { return s.Options.Fields },
 		func(v []string) string { return "statusline fields " + strings.Join(v, " ") }, true},
 }
+
+// headings label the groups of rows in a section.
+var headings = map[string]string{"band": "Band", "tabs": "Tabs", "moods": "Moods", "fields": "Status line", "meter": "Meter"}
 
 // items lists the checked items in their order, then the unchecked ones.
 func items(group string, s Snapshot) []row {
@@ -86,7 +88,7 @@ func rowsOf(section int, s Snapshot) []row {
 		return out
 	case 2:
 		out := append(items("band", s), items("tabs", s)...)
-		return append(out, row{kind: cycle, id: "meter.warn", label: "Meter warn"}, row{kind: cycle, id: "meter.danger", label: "Meter danger"})
+		return append(out, row{kind: cycle, id: "meter.warn", label: "Warn at", group: "meter"}, row{kind: cycle, id: "meter.danger", label: "Danger at", group: "meter"})
 	case 3:
 		out := []row{{kind: cycle, id: "pet", label: "Pet"}, {kind: cycle, id: "sleep", label: "Sleeps after"}, {kind: cycle, id: "bubbles", label: "Bubbles"}, {kind: cycle, id: "bubbleMs", label: "Bubble time"}}
 		return append(out, items("moods", s)...)
