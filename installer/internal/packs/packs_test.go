@@ -65,9 +65,26 @@ func TestThemesSpinnersAndClawd(t *testing.T) {
 			}
 		}
 	}
-	c := ClawdSprite()
-	if len(c.Rows) != 6 || c.Cols != 24 {
-		t.Fatalf("Clawd is %d rows of %d cells", len(c.Rows), c.Cols)
+	c, ok := PetByID("clawd")
+	if !ok || len(c.Frames[0].Rows) != 6 || c.Cols != 24 {
+		t.Fatalf("Clawd is %+v", c)
+	}
+	for _, id := range []string{"clawd-shiny", "robot", "egg"} {
+		if p, ok := PetByID(id); !ok || len(p.Frames) < 2 {
+			t.Errorf("pet %s missing or not animated", id)
+		}
+	}
+	if _, ok := PetByID("off"); ok {
+		t.Error(`"off" is a pet`)
+	}
+}
+
+func TestFrameAtLoopsOverTheFrameTimes(t *testing.T) {
+	p := Pet{Frames: []PetFrame{{Ms: 100}, {Ms: 300}}}
+	for ms, want := range map[int]int{0: 100, 99: 100, 100: 300, 399: 300, 400: 100, 950: 300} {
+		if got := p.FrameAt(ms).Ms; got != want {
+			t.Errorf("FrameAt(%d) is the %d ms frame, want %d", ms, got, want)
+		}
 	}
 }
 
