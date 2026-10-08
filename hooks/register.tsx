@@ -8,7 +8,7 @@ import { PACKS } from './packpresets.ts'
 import { loadUserPacks, SAFE_NAME } from './userpacks.ts'
 import { BUILTIN_SHEETS, CLAWD_SHEET, eggSheet, stripRows, type PetSetting, type PetInput, type PetKind, type PetSheet } from './pets.ts'
 import { loadUserPet, userPetNames, PET_DIR } from './userpets.ts'
-import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, type BubbleSetting, type BubbleVars, type HaikuContext } from './bubbles.ts'
+import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, voiceFor, type BubbleSetting, type BubbleVars, type HaikuContext } from './bubbles.ts'
 import { BUILTIN_LINES, pool, type Moment } from './lines.ts'
 import { recordPass, unlockEgg, eggUnlocked, hintDue, EGG_HINTS, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, rebase, refreshCounts, serial, type Repo } from './changes.ts'
@@ -383,6 +383,7 @@ async function say($: Engine, mood: Moment, vars: BubbleVars) {
     tests: mood === 'fail' ? (vars.n === undefined ? 'failed' : `failed ${vars.n}`) : model.lastTest ? (model.lastTest.passed ? 'passed' : 'failed') : undefined,
     daypart: daypart(localTime(Date.now(), tzOffset).hour),
     limit: bubbleCap,
+    voice: voiceFor(pet, petSheet?.voice),
   }
   try {
     // a closed pane shows nobody the bubble
