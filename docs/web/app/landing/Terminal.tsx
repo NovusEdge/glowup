@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useId, useRef, useState } from 'react'
-import { CLAWD_SAY, DEFAULT_SETUP, renderFields, spinnerWordSpans, toneFor, type BandItem, type Model, type OrbState, type PetSheet, type Setup, type StatusFieldId, type TabId } from './data.ts'
+import { BUILTIN_LINES, DEFAULT_SETUP, renderFields, spinnerWordSpans, toneFor, type BandItem, type Model, type OrbState, type PetSheet, type Setup, type StatusFieldId, type TabId } from './data.ts'
 import { useReducedMotion, useVisible } from './motion.ts'
 import { PaneField } from './PaneField.tsx'
 import { Pet } from './Pet.tsx'
@@ -167,7 +167,7 @@ export function Terminal({ setup = DEFAULT_SETUP, interactive = false, scale = 1
 
   const marks = marksOf(look, interactive)
   const { band } = state
-  const lines = CLAWD_SAY[bub.kind]
+  const lines = BUILTIN_LINES.clawd[bub.kind]!.filter(l => !l.includes('{'))
   const agents = band?.agents ?? 0
   const showWord = state.bandOn && band !== null && band.kind !== 'pass'
   const gw = glowupWord(state)

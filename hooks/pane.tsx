@@ -6,7 +6,8 @@ import { planOrder } from './tasks.ts'
 import type { Theme } from './themes.ts'
 import { shortPath } from './events.ts'
 import type { Border, Look } from './packs.ts'
-import { wrapBubble, type Mood } from './bubbles.ts'
+import { wrapBubble } from './bubbles.ts'
+import type { Moment } from './lines.ts'
 import { CLAWD_ROW, PET_ROWS, type PetId } from './pets.ts'
 import { comboSegs, fit, hearts, hpBar, renderSegs, toneColor, visibleLength, type Seg } from './layout.tsx'
 import { liveLimit } from './fields.ts'
@@ -275,11 +276,11 @@ export function statusRows(model: Model, base: Theme, width: number, now: number
 // rows is the strip height, from stripRows: the sheet's height, plus headroom while an outfit is worn.
 // meter and field come from a renderer plugin: rows for the status box, and a builder for the
 // field's player given the rows left open between the tab and the status box.
-export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Mood }; friday?: boolean; minRows?: number; bodyRows?: number; onRange?: (last: number, win: number) => void; meter?: Seg[][]; field?: (rows: number) => unknown; tabs?: readonly TabId[] }
+export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Moment }; friday?: boolean; minRows?: number; bodyRows?: number; onRange?: (last: number, win: number) => void; meter?: Seg[][]; field?: (rows: number) => unknown; tabs?: readonly TabId[] }
 export const PET_STRIP_COLS = 46
 const BUBBLE_ROOM = 16
 
-const bubbleColor = (t: Theme, mood: Mood) => (mood === 'fail' ? t.colors.fail : mood === 'done' ? t.colors.pass : t.colors.accent)
+const bubbleColor = (t: Theme, m: Moment) => (m === 'fail' ? t.colors.fail : m === 'done' || m === 'green' || m === 'long-done' ? t.colors.pass : t.colors.accent)
 
 // Width of the Box the pet's Client sits in on a docked pane: inside the pane's border and padding (2 + 4).
 export const petStripCols = (paneWidth: number) => Math.max(0, Math.min(PET_STRIP_COLS, paneWidth - 6))
@@ -296,12 +297,21 @@ export function bubbleBox(paneWidth: number, compact: boolean): { cols: number; 
   return { cols: Math.max(1, (beside ? room : width) - 4), lines: BUBBLE_LINES, beside }
 }
 
+// Beside a pet shorter than its bubble, the strip grows to the bubble's rows: a row Box clips what is taller than its height.
+function stripHeight(extra: PaneExtra, paneWidth: number): { rows: number; height: number } {
+  const { beside, cols, lines } = bubbleBox(paneWidth, false)
+  const rows = extra.pet!.rows ?? PET_ROWS
+  const say = extra.bubble ? wrapBubble(extra.bubble.text, cols, lines, cellsOf).length + 2 : 0
+  return { rows, height: beside ? Math.max(rows, say) : rows + (say || (extra.friday ? 1 : 0)) }
+}
+
 function petStrip(els: { Box: any; Text: any }, t: Theme, extra: PaneExtra, paneWidth: number) {
   const { Box, Text } = els
   const width = paneWidth - 6
-  const rows = extra.pet!.rows ?? PET_ROWS, cols = petStripCols(paneWidth)
+  const cols = petStripCols(paneWidth)
   const room = width - cols
   const { beside, cols: textCols, lines } = bubbleBox(paneWidth, false)
+  const { rows, height } = stripHeight(extra, paneWidth)
   const say = extra.bubble
   const bubble = say && (
     <Box key="bubble" borderStyle="round" borderColor={bubbleColor(t, say.mood)} paddingX={1} alignSelf="flex-start" flexDirection="column">
@@ -312,7 +322,7 @@ function petStrip(els: { Box: any; Text: any }, t: Theme, extra: PaneExtra, pane
   return (
     <Box flexDirection="column" key="pet">
       {!beside && bubble}
-      <Box flexDirection="row" height={rows}>
+      <Box flexDirection="row" height={beside ? height : rows}>
         <Box width={cols} height={rows}>{extra.pet!.node as any}</Box>
         {beside && <Box flexDirection="column" width={room}>{bubble || sign}</Box>}
       </Box>
@@ -336,13 +346,7 @@ function petLine(els: { Box: any; Text: any }, t: Theme, extra: PaneExtra, width
 // Rows the docked status box takes: margin, border, status lines, and the pet strip with its bubble or sign.
 function footerRows(m: Model, t: Theme, extra: PaneExtra | undefined, width: number, now: number): number {
   const status = statusRows(m, t, width - 2 - 4, now, extra?.look, extra?.meter).length
-  let pet = 0
-  if (extra?.pet) {
-    const { beside, cols, lines } = bubbleBox(width, false)
-    const say = extra.bubble ? wrapBubble(extra.bubble.text, cols, lines, cellsOf).length + 2 : 0
-    pet = (extra.pet.rows ?? PET_ROWS) + (beside ? 0 : say || (extra.friday ? 1 : 0))
-  }
-  return 1 + 2 + status + pet
+  return 1 + 2 + status + (extra?.pet ? stripHeight(extra, width).height : 0)
 }
 
 export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, base: Theme, v: PaneView, width: number, compact: boolean, now: number, onTab: (id: TabId) => void, extra?: PaneExtra) {

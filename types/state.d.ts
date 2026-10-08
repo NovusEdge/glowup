@@ -60,6 +60,7 @@ declare module 'claude-code' {
       pane: { model: GlowupModel; view: GlowupPaneView; at: number }
       spinner: { turnAt: number; detail: string; state: string; at: number }
       haiku: { lastAt: number }
+      hello: { sid: string }
       pet: { input: GlowupPetInput; overlays: string[]; bubble?: GlowupBubble; friday: boolean; at: number }
     }
   }

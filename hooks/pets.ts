@@ -6,6 +6,7 @@ import { EGG1_SHEET } from './sprites/egg1.ts'
 import { EGG2_SHEET } from './sprites/egg2.ts'
 import { EGG3_SHEET } from './sprites/egg3.ts'
 import { crackStage, type EggStore } from './eggs.ts'
+import type { PetLines } from './lines.ts'
 
 export { CLAWD_SHEET }
 export const CLAWD_COLOR = '#d77757'
@@ -40,6 +41,8 @@ export type PetSheet = {
   animations: Record<string, PetAnim>
   outfits?: Record<string, PetOutfit>
   transitions?: Record<string, PetClip>
+  lines?: PetLines
+  voice?: string
 }
 
 export const PET_COLS = 24

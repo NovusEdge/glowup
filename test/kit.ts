@@ -1,6 +1,11 @@
 import { mock, test as baseTest, type Engine } from 'claude-code/testing'
 import type { On } from 'claude-code'
 import type { Host } from '../hooks/host.ts'
+import type { PetLines } from '../hooks/lines.ts'
+
+// Every line a moment can draw, any flavour, with its slots filled as the bubble would.
+export const anyLine = (t: PetLines, moment: string, vars: Record<string, string> = {}) =>
+  Object.entries(t).filter(([k]) => k === moment || k.startsWith(moment + '@')).flatMap(([, ls]) => ls!).map(l => l.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '…'))
 
 // Booting the engine takes 1 to 4 s on an idle machine and more under load, so the
 // stock 5 s limit failed a different test on each busy CI run.

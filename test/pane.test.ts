@@ -1,6 +1,7 @@
 import { test, expect } from 'claude-code/testing'
 import { tabRows, statusRows, renderPane, section, BOX, MIN_BOX, COMPACT_ROWS, petStripCols, bubbleBox, visibleTabs, type TabId } from '../hooks/pane.tsx'
-import { CLAWD_SAY } from '../hooks/bubbles.ts'
+import { BUILTIN_LINES, MOMENTS } from '../hooks/lines.ts'
+import { anyLine } from './kit.ts'
 import { resolveLook, BORDERS } from '../hooks/packs.ts'
 import { PACKS } from '../hooks/packpresets.ts'
 import { visibleLength } from '../hooks/layout.tsx'
@@ -414,7 +415,7 @@ test('renderPane drops the status section when compact', async () => {
 })
 
 const SAMPLES = [
-  ...Object.values(CLAWD_SAY).flat().map(t => t.replace('{n}', '3').replace('{command}', 'npm')),
+  ...MOMENTS.flatMap(m => anyLine(BUILTIN_LINES.clawd, m, { n: '3', command: 'npm', file: 'a.ts' })),
   'tests are sulking, so am i, honestly ok',
   'green at last, i knew you had it in you',
   'supercalifragilisticexpialidocious!!!!!!',
@@ -422,7 +423,7 @@ const SAMPLES = [
   'x'.repeat(40),
 ]
 
-test('every bubble line wraps at spaces, in two rows at most, inside the pane', async () => {
+test('every bubble line wraps at spaces, in two rows at most, inside the pane', { timeoutMs: 20000 }, async () => {
   for (const [width, compact] of [[30, false], [40, false], [60, false], [90, false], [30, true], [40, true], [60, true]] as const) {
     const box = bubbleBox(width, compact)
     for (const text of SAMPLES) {
@@ -472,6 +473,17 @@ test('a long tab leaves the pet and status box in the rows the pane has, docked 
 test('with a bubble above the pet the long tab still fits the body exactly', async () => {
   const tree = renderPane(els, many(60), T, { tab: 'changes' }, 54, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE }, bubble: { text: 'ouch, 3 failed', mood: 'fail' }, bodyRows: 30 }) as any
   expect(rowsOf(tree)).toBe(30)
+})
+
+test('a pet shorter than its bubble still gets the whole bubble beside it', async () => {
+  for (const text of ['blob done', 'a much longer line that needs both of the bubble rows to fit'])
+    for (const rows of [1, 2, 3]) {
+      const tree = renderPane(els, many(60), T, { tab: 'changes' }, 80, false, 0, () => {}, { pet: { id: 'clawd', node: PETNODE, rows }, bubble: { text, mood: 'done' }, bodyRows: 30, minRows: 30 }) as any
+      const bubble = walk(tree).find(n => n?.props?.key === 'bubble')
+      const strip = walk(tree).find(n => n?.type === 'Box' && n.props.flexDirection === 'row' && walk(n).includes(bubble))
+      expect(strip.props.height, `${rows} ${text}`).toBeGreaterThanOrEqual(rowsOf(bubble))
+      expect(rowsOf(tree), `${rows} ${text}`).toBe(30)
+    }
 })
 
 test('a long tab scrolls inside its rows, with plain hints for the hidden ones', async () => {

@@ -1,14 +1,16 @@
 import type { EngineInterface, PaneOpenArgs, Register, RenderElement, RenderSurface, Timer } from 'claude-code'
 import type { Host } from './host.ts'
 import { initialModel, normalizeModel, applyEvent, mergeCounts, isBusy, agentsRunning, type Model, type Ev } from './model.ts'
-import { approvalLabel, dialogCall, modeAsksPerson, shortPath } from './events.ts'
+import { approvalLabel, dialogCall, modeAsksPerson } from './events.ts'
 import { shown, type Theme } from './themes.ts'
 import { resolveLook, cleanOverrides, exportMix, exportName, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { PACKS } from './packpresets.ts'
 import { loadUserPacks, SAFE_NAME } from './userpacks.ts'
 import { BUILTIN_SHEETS, CLAWD_SHEET, eggSheet, stripRows, type PetSetting, type PetInput, type PetKind, type PetSheet } from './pets.ts'
 import { loadUserPet, userPetNames, PET_DIR } from './userpets.ts'
-import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, type BubbleSetting, type BubbleVars, type HaikuContext, type Mood } from './bubbles.ts'
+import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, voiceFor, type BubbleSetting, type BubbleVars, type HaikuContext } from './bubbles.ts'
+import { linesFor, pool, flavoursOf, type Moment } from './lines.ts'
+import { momentOf } from './moments.ts'
 import { recordPass, unlockEgg, eggUnlocked, hintDue, EGG_HINTS, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, rebase, refreshCounts, serial, type Repo } from './changes.ts'
 import { readDiff } from './diff.ts'
@@ -52,6 +54,8 @@ const PANE = { plugin: 'glowup', key: 'pane' } as const
 const SPIN = { plugin: 'glowup', key: 'spinner' } as const
 const PET = { plugin: 'glowup', key: 'pet' } as const
 const HAIKU = { plugin: 'glowup', key: 'haiku' } as const
+// The session id that was greeted. A hot reload re-runs session.start, and must not greet again.
+const HELLO = { plugin: 'glowup', key: 'hello' } as const
 
 // Module state: one session per process. A hot reload starts it over, which only
 // loses the in-flight session's view (settings and takeover state live in $.store).
@@ -95,7 +99,7 @@ let beatTimer: Timer | undefined
 let lastStatusLine: string | undefined
 let spinKey: SpinKey = { turnAt: 0, detail: '', state: 'think' }
 // Pet state, published to PET for the pane only; the band never reads it.
-type Bubble = { text: string; mood: Mood; until: number }
+type Bubble = { text: string; mood: Moment; until: number }
 type PetSnap = { input: PetInput; overlays: string[]; bubble?: Bubble; friday: boolean }
 let bubble: Bubble | undefined
 let lastTemplate: string | undefined
@@ -109,6 +113,10 @@ let bubbleCap = 40
 let interactive = true
 let friday = false
 let failed = false
+// The last main-loop test run in this session failed; a pass then speaks `green`.
+let red = false
+// A fresh session greets once, at its first pane draw, unless something else spoke first.
+let helloDue = false
 let tzOffset = 0
 let installed: number | undefined
 let lastPet = ''
@@ -372,7 +380,7 @@ function armBubble($: Engine, mine: Bubble) {
   })
 }
 
-async function say($: Engine, mood: Mood, vars: BubbleVars) {
+async function say($: Engine, mood: Moment, vars: BubbleVars) {
   if (bubbles === 'off' || !petOn() || !speaks(mood, setup.bubbles.moods)) return
   // Kind words only, never the act's label: it holds commands, paths and patterns.
   const ctx: HaikuContext = {
@@ -382,20 +390,26 @@ async function say($: Engine, mood: Mood, vars: BubbleVars) {
     tests: mood === 'fail' ? (vars.n === undefined ? 'failed' : `failed ${vars.n}`) : model.lastTest ? (model.lastTest.passed ? 'passed' : 'failed') : undefined,
     daypart: daypart(localTime(Date.now(), tzOffset).hour),
     limit: bubbleCap,
+    voice: voiceFor(pet, petSheet?.voice),
   }
-  try {
-    // a closed pane shows nobody the bubble
-    if (!(await $.ui.panes()).some(p => p.id === 'glowup' && p.isShown)) return
-  } catch { return }
-  const hint = mood === 'done' ? await eggHint($) : undefined
-  const line = hint === undefined ? bubbleFor(mood, vars, lastTemplate, Math.random) : undefined
+  let paneShown = false
+  try { paneShown = (await $.ui.panes()).some(p => p.id === 'glowup' && p.isShown) } catch {}
+  // A closed pane shows nobody the bubble. The Pane render hook cleared helloDue before scheduling this,
+  // so a first draw that ran before the pane was reported shown retries the hello on its next draw.
+  if (!paneShown) { if (mood === 'hello') helloDue = true; return }
+  helloDue = false
+  if (mood === 'hello') void $.state.set(HELLO, { sid: sessionId })
+  const hint = mood === 'done' || mood === 'long-done' ? await eggHint($) : undefined
+  const now = Date.now(), t = localTime(now, tzOffset)
+  const flavours = flavoursOf(t, overlays(t, installed === undefined ? undefined : localTime(installed, tzOffset), friday, failed))
+  const line = hint === undefined ? bubbleFor(pool(linesFor(pet, petSheet?.lines), mood, flavours), vars, lastTemplate, Math.random) : undefined
   if (line) lastTemplate = line.template
   const mine: Bubble = { text: hint ?? line!.text, mood, until: 0 }
   bubble = mine
   armBubble($, mine)
   publishPet($)
   // Haiku never sees a hint turn: it could improvise the code.
-  if (hint === undefined) void askHaiku($, mine, ctx)
+  if (hint === undefined && mood !== 'hello' && mood !== 'compact') void askHaiku($, mine, ctx)
 }
 async function eggHint($: Engine): Promise<string | undefined> {
   try {
@@ -410,14 +424,6 @@ async function eggHint($: Engine): Promise<string | undefined> {
     $.ui.log(`egg hint failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
     return undefined
   }
-}
-function moodOf(old: Model, now: Model, ev: Ev): { mood: Mood; vars: BubbleVars } | undefined {
-  if (now.needsYou && !old.needsYou) return { mood: 'needs-you', vars: { command: now.needsYou.what.replace(/^approve /, '').split(/\s+/)[0] } }
-  if (now.lastTest && !now.lastTest.passed && now.lastTest.at !== old.lastTest?.at) {
-    const n = /(\d+) tests? failed/.exec(now.act.label)?.[1]
-    return { mood: 'fail', vars: { n: n === undefined ? undefined : Number(n) } }
-  }
-  if (ev.type === 'turn-done' && ev.reason === 'answer') return { mood: 'done', vars: { file: now.files[0] && shortPath(now.files[0].path) } }
 }
 function redraw($: Engine) {
   publish($)
@@ -462,8 +468,10 @@ function feed($: Engine, ev: Ev) {
   model = applyEvent(model, ev)
   syncTicker($)
   redraw($)
-  const said = moodOf(old, model, ev)
-  if (said) void say($, said.mood, said.vars)
+  const said = momentOf(old, model, ev, { red, moods: setup.bubbles.moods })
+  // applyEvent sets lastTest only for main-loop runs, so a subagent's tests never flip this
+  if (model.lastTest && model.lastTest.at !== old.lastTest?.at) red = !model.lastTest.passed
+  if (said) void say($, said.moment, said.vars)
   // Only the spinner's readers redraw, and only when what it shows changes.
   const next: SpinKey = { turnAt: model.turnAt ?? 0, detail: model.act.label, state: orbStateOf(model) }
   if (next.turnAt !== spinKey.turnAt || next.detail !== spinKey.detail || next.state !== spinKey.state) {
@@ -745,6 +753,7 @@ async function adoptSession($: Engine, endedId: string) {
   cancelHaiku()
   friday = false
   failed = false
+  red = false
   lastStatusLine = undefined
   refreshSeq++
   // at session.end the id may still be the ending one; turn.start re-checks
@@ -912,6 +921,8 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     cwd = e.cwd
     interactive = e.isInteractive
+    red = false
+    helloDue = false
     cancelHaiku()
     // $.env.get takes literal names only; an empty CLAUDE_CONFIG_DIR counts as unset
     // cmd and PowerShell set USERPROFILE, not HOME
@@ -943,6 +954,7 @@ export const register: Register = (on, options) => {
     await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|setup|restore' })
     await loadSettings($, host)
     sessionId = await $.session.id()
+    try { helloDue = e.isInteractive && (await $.state.get(HELLO)).value?.sid !== sessionId } catch { helloDue = e.isInteractive }
     // A hot reload restarts this module mid-run: pick this session's live run back up, and
     // drop runs nobody has touched for a day.
     try {
@@ -1147,6 +1159,8 @@ export const register: Register = (on, options) => {
 
   on('ui.render', { component: 'Pane', requestId: 'glowup' }, async ($, e, next) => {
     if (off) return next(e)
+    // The pane is usually closed at session start, so the hello waits for the first draw.
+    if (helloDue && !bubble) { helloDue = false; $.clock.after(0, () => void say($, 'hello', {})) }
     // a render hook cannot write state: publish after the draw
     if (panePlacement !== e.props.placement) { panePlacement = e.props.placement; $.clock.after(0, () => publish($)) }
     const live = (await $.state.get(PANE)).value as { model: Model; view: PaneView } | undefined
@@ -1156,12 +1170,12 @@ export const register: Register = (on, options) => {
     const v: PaneView = { ...(live?.view ?? view), reduced: reducedMotion }
     const els = $.ui.resolve(e)
     // the look always applies; the pet and its words only while he is on
-    const pid = pet, red = reducedMotion
+    const pid = pet, reduced = reducedMotion
     let extra: PaneExtra = { look, tabs: setup.tabs }
-    if (pid !== 'off' && !red && (e.surface === 'terminal' || e.surface === 'desktop')) {
+    if (pid !== 'off' && !reduced && (e.surface === 'terminal' || e.surface === 'desktop')) {
       const snap = ((await $.state.get(PET)).value as PetSnap | undefined) ?? petSnap()
       const { Client } = $.ui.resolve(e)
-      const props: PetClientProps = { pet: pid, input: snap.input, overlays: snap.overlays, reduced: red, compact, width: petStripCols(e.props.bodyColumns), tint: look.pet, ...(petSheet && { sheet: petSheet }) }
+      const props: PetClientProps = { pet: pid, input: snap.input, overlays: snap.overlays, reduced, compact, width: petStripCols(e.props.bodyColumns), tint: look.pet, ...(petSheet && { sheet: petSheet }) }
       const sheet = petSheet ?? (Object.hasOwn(BUILTIN_SHEETS, pid) ? BUILTIN_SHEETS[pid] : undefined) ?? CLAWD_SHEET
       // unsized, the region shrinks to the sprite and surface.columns leaves no room to walk
       const node = <Client key="glowup-pet" module="./client/pet.tsx" props={props} width={compact ? undefined : props.width} />

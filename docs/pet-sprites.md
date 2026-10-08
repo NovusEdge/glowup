@@ -81,3 +81,31 @@ Each `px` row is a string with one palette key per pixel, and `.` is a transpare
 - `ms` is a whole number from 80 to 10000.
 - A row has at most 32 frames, and the animation names are the ones in the table above.
 - A frame can also set `dx`, a whole number from -4 to 4 for how many pixels the pet travels right when the frame shows, and `exit: true` to mark a neutral frame where glowup may cut away to the next animation. The last frame of a row that plays once counts as one. An optional `description` is at most 80 characters.
+
+### Lines and voice
+
+A pet can say its own lines and describe itself to Haiku in a file with `"format": 2`. The file then takes two more optional keys:
+
+- `lines` maps a moment (`done`, `fail`, `needs-you`, `green`, `hello`, `long-done`, `compact`) or a moment and a flavour (`done@night`, `hello@christmas`) to a list of 1 to 12 lines. Each line is printable text of at most 40 characters. The flavours are `morning`, `afternoon`, `evening`, `night`, `friday`, `christmas`, `halloween` and `birthday`. A flavour key adds its lines to the moment's pool while that flavour is active. See [Pets](pets.md#what-pets-say) for when each moment speaks.
+- `voice` is printable text of at most 120 characters. When bubbles are set to haiku (`/glowup bubbles haiku`), it describes the pet to the model that writes the line, in place of the default "a small pixel pet. Friendly and brief."
+
+A line can use only the variables its moment fills: `{file}` in `done` and `long-done`, `{n}` in `fail`, `{command}` in `needs-you`. `hello`, `green` and `compact` take none. An unknown moment, flavour or variable, a line over the limit, or more than 12 lines to a key is rejected with the key named.
+
+A moment with no lines in the file speaks a neutral default line, never another pet's. Using `lines` or `voice` in a `"format": 1` file is an error.
+
+```json
+{
+  "format": 2,
+  "name": "blob",
+  "voice": "a sleepy blob. Slow, soft, a bit confused.",
+  "lines": {
+    "done": ["mm. done", "{file}… better"],
+    "hello@morning": ["too early"],
+    "green": ["oh nice"]
+  },
+  "palette": { "a": "#88ccff" },
+  "animations": { "idle": [{ "px": ["aa", "aa"], "ms": 400 }] }
+}
+```
+
+glowup 0.12 and earlier refuse a format 2 file with a "made for a newer glowup" error. The studio opens format 2 files but drops `lines` and `voice` when you export, because it writes format 1.

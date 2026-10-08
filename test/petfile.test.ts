@@ -38,7 +38,7 @@ test('smaller art is allowed when every frame shares the size of the first idle 
 
 test('top-level shape: object, format, name, known keys', () => {
   refuses([], /a pet must be a JSON object/)
-  refuses({ ...pet(), format: 2 }, /made for a newer glowup/)
+  refuses({ ...pet(), format: 3 }, /made for a newer glowup/)
   refuses({ ...pet(), format: undefined }, /"format": 1 is missing/)
   refuses({ ...pet(), hats: {} }, /unknown key "hats"/)
   refuses(pet({ name: 'My Pet' }), /lowercase letters, digits and dashes/)
@@ -84,4 +84,42 @@ test('frames: size cap, palette keys, ms range, dx and exit types', () => {
   refuses(pet({ animations: { idle: [{ ...frame(), dx: 0.5 }] } }), /idle\[0\]: dx must be a whole number from -4 to 4/)
   refuses(pet({ animations: { idle: [{ ...frame(), exit: 'yes' }] } as never }), /idle\[0\]: exit must be true or false/)
   refuses(pet({ animations: { idle: [{ ...frame(), head: [1, 1] }] } as never }), /idle\[0\]: unknown key "head"/)
+})
+
+const base = pet()
+const v2 = (extra: object) => ({ ...pet(), format: 2, ...extra })
+
+test('format 2 takes lines and a voice, and the sheet carries them', () => {
+  const file = v2({ lines: { done: ['yay {file}'], 'hello@night': ['zz'] }, voice: 'a sleepy blob' })
+  validatePetFile(file)
+  const sheet = petSheet(file as never)
+  expect(sheet.lines).toEqual({ done: ['yay {file}'], 'hello@night': ['zz'] })
+  expect(sheet.voice).toBe('a sleepy blob')
+})
+
+test('lines or voice under format 1 point at format 2', () => {
+  expect(() => validatePetFile({ ...base, lines: { done: ['x'] } })).toThrow('"lines" and "voice" need "format": 2')
+  expect(() => validatePetFile({ ...base, voice: 'x' })).toThrow('"lines" and "voice" need "format": 2')
+})
+
+test('format 2 without lines or voice is still a valid pet; format 3 is newer', () => {
+  validatePetFile(v2({}))
+  expect(() => validatePetFile({ ...base, format: 3 })).toThrow('made for a newer glowup (format 3)')
+})
+
+test('bad lines are refused with the key named', () => {
+  const bad = (lines: unknown) => () => validatePetFile(v2({ lines }))
+  expect(bad({ dance: ['x'] })).toThrow('lines: unknown moment "dance"')
+  expect(bad({ 'done@noon': ['x'] })).toThrow('lines: unknown flavour "noon" in "done@noon"')
+  expect(bad({ hello: ['hi {file}'] })).toThrow('lines.hello[0]: hello lines cannot use {file}')
+  expect(bad({ done: ['x'.repeat(41)] })).toThrow('lines.done[0]: at most 40 characters')
+  expect(bad({ done: Array(13).fill('x') })).toThrow('lines.done: 1 to 12 lines')
+  expect(bad({ done: [] })).toThrow('lines.done: 1 to 12 lines')
+  expect(bad({ done: ['a\u001bb'] })).toThrow('lines.done[0]: printable text only')
+  expect(bad(['x'])).toThrow('"lines" must be an object')
+})
+
+test('a voice is printable and at most 120 characters', () => {
+  expect(() => validatePetFile(v2({ voice: 'x'.repeat(121) }))).toThrow('"voice" must be printable text of at most 120 characters')
+  expect(() => validatePetFile(v2({ voice: 'a‮b' }))).toThrow('"voice" must be printable text of at most 120 characters')
 })

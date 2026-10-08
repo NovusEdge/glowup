@@ -1,12 +1,12 @@
 import { test, expect } from 'claude-code/testing'
-import { DEFAULT_SETUP, parseSetup, setSetupField, describeSetup, toneFor, type Setup } from '../hooks/setup.ts'
+import { DEFAULT_SETUP, SETUP_MOODS, parseSetup, setSetupField, describeSetup, toneFor, type Setup } from '../hooks/setup.ts'
 
 test('no stored setup is the default with no notices', () => {
   expect(parseSetup(undefined)).toEqual({ setup: DEFAULT_SETUP, notices: [] })
 })
 
 test('a full valid setup round-trips', () => {
-  const s: Setup = { format: 1, band: ['plan', 'meter'], tabs: ['plan', 'changes'], meter: { warn: 40, danger: 90 }, bubbles: { moods: ['done'], ms: 5000 }, pet: { sleepMs: 120000 } }
+  const s: Setup = { format: 2, band: ['plan', 'meter'], tabs: ['plan', 'changes'], meter: { warn: 40, danger: 90 }, bubbles: { moods: ['done'], ms: 5000 }, pet: { sleepMs: 120000 } }
   expect(parseSetup(JSON.parse(JSON.stringify(s)))).toEqual({ setup: s, notices: [] })
 })
 
@@ -69,13 +69,28 @@ test('setSetupField refuses what parseSetup would only warn about', () => {
   expect(setSetupField(DEFAULT_SETUP, 'colour', 'x')).toEqual({ error: 'Unknown setup key "colour". Keys: band, tabs, meter.warn, meter.danger, bubbles.moods, bubbles.ms, pet.sleepMs.' })
 })
 
+test('a format 1 setup holding the old mood default reads as the new default; any other list is kept', async () => {
+  expect(parseSetup({ bubbles: { moods: ['needs-you', 'fail', 'done'] } }).setup.bubbles.moods).toEqual([...SETUP_MOODS])
+  expect(parseSetup({ format: 1, bubbles: { moods: ['needs-you', 'fail', 'done'] } }).setup.bubbles.moods).toEqual([...SETUP_MOODS])
+  expect(parseSetup({ format: 1, bubbles: { moods: ['fail', 'needs-you'] } }).setup.bubbles.moods).toEqual(['fail', 'needs-you'])
+})
+
+test('a format 2 setup keeps the three old moods as a choice', () => {
+  expect(parseSetup({ format: 2, bubbles: { moods: ['needs-you', 'fail', 'done'] } }).setup.bubbles.moods).toEqual(['needs-you', 'fail', 'done'])
+  const r = setSetupField(DEFAULT_SETUP, 'bubbles.moods', 'needs-you,fail,done')
+  if (!('setup' in r)) throw new Error(r.error)
+  expect(r.setup.format).toBe(2)
+  expect(r.setup.bubbles.moods).toEqual(['needs-you', 'fail', 'done'])
+  expect(parseSetup(JSON.parse(JSON.stringify(r.setup))).setup.bubbles.moods).toEqual(['needs-you', 'fail', 'done'])
+})
+
 test('describeSetup lists every key with its value', () => {
   expect(describeSetup(DEFAULT_SETUP)).toBe([
     'band           combo, agents, meter, plan',
     'tabs           plan, agents, diff, changes',
     'meter.warn     50',
     'meter.danger   80',
-    'bubbles.moods  needs-you, fail, done',
+    'bubbles.moods  needs-you, fail, done, green, hello, long-done, compact',
     'bubbles.ms     3000',
     'pet.sleepMs    60000',
   ].join('\n'))

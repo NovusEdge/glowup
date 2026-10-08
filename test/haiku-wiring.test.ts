@@ -1,14 +1,14 @@
 import { expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
-import { runGlowup, fakeFs, test } from './kit.ts'
-import { CLAWD_SAY } from '../hooks/bubbles.ts'
+import { runGlowup, fakeFs, test, anyLine } from './kit.ts'
+import { BUILTIN_LINES } from '../hooks/lines.ts'
 
 const ENGINE_ROW = { type: 'Text', props: {}, children: ['engine row'] } as RenderElement
 const scroll = { offset: 0, bodyRows: 20 }
 const PANE = { title: 'glowup', isFocused: false, bodyColumns: 60, placement: 'dock', scroll, view: {} } as never
 const walk = (n: any, out: any[] = []): any[] => { if (typeof n === 'string') out.push(n); else if (n && typeof n === 'object') { out.push(n); for (const c of n.children ?? []) walk(c, out) } return out }
 const text = (tree: any) => walk(tree).filter(n => typeof n === 'string').join(' ')
-const FAIL_SAY = CLAWD_SAY.fail.map(l => l.replace('{n}', '3'))
+const FAIL_SAY = anyLine(BUILTIN_LINES.clawd, 'fail', { n: '3' })
 
 type Model = (req: any) => Promise<any>
 const answer = (t: string) => ({ isAnswered: true, text: t, usage: {} })
@@ -244,4 +244,15 @@ test('the prompt holds glowup state only: no prompt text, cwd or file contents',
   expect(r.prompts[0].prompt).toMatch(/^mood: fail\npose: /)
   expect(r.prompts[0].prompt).toContain('tests: failed 3')
   expect(r.prompts[0].prompt).toMatch(/time: (morning|afternoon|evening|night)$/)
+})
+
+test('a hello never spends the turn\'s Haiku call', async ($, on) => {
+  const r = rig(on, async () => answer('a fresh line')); const clock = mock.clock(on)
+  await r.start($); await runGlowup($, 'bubbles haiku')
+  const pane = await $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'Pane', requestId: 'glowup', props: PANE })
+  await pane.drawn(); await clock.advance(20)
+  const shown = text(await pane.drawn())
+  expect(anyLine(BUILTIN_LINES.clawd, 'hello').some(l => shown.includes(l))).toBe(true)
+  expect(r.prompts).toHaveLength(0)
+  await pane.unmount()
 })
