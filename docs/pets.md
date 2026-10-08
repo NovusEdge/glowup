@@ -39,7 +39,7 @@ It reacts to the same moments as Clawd, without his outfits.
 
 ## Speech bubbles
 
-With bubbles on, Clawd says a short line (40 characters at most) by default when a turn ends, when a test fails and when Claude needs you, and the bubble stays for 3 seconds by default. Lines come from a small set of templates per mood, never the same one twice in a row, and some fill in details such as the failure count or the command. In the narrow drawer the line appears beside the one-row Clawd. Choose which moments get a bubble and how long it stays with /glowup setup bubbles.moods and /glowup setup bubbles.ms.
+With bubbles on, the pet says a short line (40 characters at most) at the moments listed under [What pets say](#what-pets-say), and the bubble stays for 3 seconds by default. Lines come from a set of templates per moment, never the same one twice in a row, and some fill in details such as the failure count or the command. In the narrow drawer the line appears beside the one-row pet. Choose which moments get a bubble and how long it stays with /glowup setup bubbles.moods and /glowup setup bubbles.ms.
 
 ```text title="claude code"
 /glowup bubbles off
@@ -47,13 +47,41 @@ With bubbles on, Clawd says a short line (40 characters at most) by default when
 /glowup bubbles haiku
 ```
 
+### What pets say
+
+A bubble is about one moment. There are seven, and all are on by default.
+
+| Moment | When it speaks |
+| --- | --- |
+| `done` | A turn ends with an answer. |
+| `fail` | A test run fails. |
+| `needs-you` | A permission dialog opens. |
+| `green` | A test run passes after a failed one in the same session. |
+| `hello` | The pane is first drawn in a session, unless another bubble spoke first, and when a turn starts after 30 minutes away. |
+| `long-done` | A turn that ran 5 minutes or more ends with an answer. |
+| `compact` | The context is compacted. |
+
+Clawd, the robot and the egg each have their own lines, about six per moment: Clawd is dry and warm, the robot reports in capitals, and the egg mostly makes small sounds. `clawd-shiny` uses Clawd's. A pet you draw yourself speaks a neutral default line unless its file carries [its own lines](pet-sprites.md#lines-and-voice).
+
+Lines also change with the clock. Mornings, afternoons, evenings and nights add their own lines to the pool, and so do Fridays and the holiday outfits (Christmas, Halloween and your install anniversary).
+
+To silence a moment, list the ones you want to keep:
+
+```text title="claude code"
+/glowup setup bubbles.moods done,fail,needs-you,green
+```
+
+With `long-done` off, a long turn speaks a plain `done` line. The exact list `needs-you,fail,done`, in that order, is read as the default, because that was the default before these moments existed and saving any setup field stored it. To keep exactly those three, write them in another order, such as `done,fail,needs-you`.
+
 ### Lines written by Haiku
 
 With `/glowup bubbles haiku`, glowup sometimes asks Claude Haiku for the line. The template line shows first, and Haiku's replaces it only if the reply arrives while that bubble is still up, so the bubble is drawn without waiting for the call.
 
 **Cost.** Each line is a small Haiku call billed to your account, made with your session's credentials.
 
-What it sends: the mood, the pose, the short label glowup already shows for the current tool, a test summary such as `failed 3`, and the time of day. It never sends your prompts, file contents, code or secrets. The reply is cleaned to one plain line of at most 40 characters; an empty reply falls back to the template.
+`hello` and `compact` lines never use Haiku. Haiku speaks as the pet, using the pet's voice: built in for Clawd, the robot and the egg, and the `voice` key in a [custom pet file](pet-sprites.md#lines-and-voice).
+
+What it sends: the moment, the pose, the short label glowup already shows for the current tool, a test summary such as `failed 3`, and the time of day. It never sends your prompts, file contents, code or secrets. The reply is cleaned to one plain line of at most 40 characters; an empty reply falls back to the template.
 
 glowup makes one call at a time, at most one per turn, at least 90 seconds apart, and abandons a call after 4 seconds. After an error or a timeout, and always in a `-p` run, under reduced motion or with the pet off, the template line stays and nothing is retried. Errors go to the debug log only.
 

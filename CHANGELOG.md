@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Clawd, the robot and the egg each speak in their own voice, with about six lines per moment.
+- Four new bubble moments: `green` (a passing test run after a failed one), `hello` (when the pane first opens in a session, and when a turn starts after 30 minutes away), `long-done` (a turn of 5 minutes or more) and `compact`.
+- Lines that join the pool by time of day, on Fridays, and at Christmas, Halloween and your install anniversary.
+- Pet files with `"format": 2` can carry `lines` and a Haiku `voice`. glowup 0.12 and earlier refuse them.
+
+### Changed
+
+- The default `bubbles.moods` includes all seven moments. A stored list of exactly `needs-you,fail,done` is read as the new default.
+
 ## [0.12.1] - 2026-10-08
 
 ### Fixed
