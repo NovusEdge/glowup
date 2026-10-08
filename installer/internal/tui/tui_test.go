@@ -20,6 +20,17 @@ func previewOf(pack, theme, spinner string, c claude.Choice) string {
 	return Preview(LookOf(pack, theme, spinner), c, 0)
 }
 
+func TestClawdBubbleTailJoinsTheBordersWeight(t *testing.T) {
+	for border, tee := range map[string]string{"bold": "┳", "double": "╦", "rounded": "┬", "single": "┬"} {
+		l := LookOf("classic", "", "")
+		l.Pack.Border = border
+		col := ansi.Strip(strings.Join(ClawdColumnIn("hi", l), "\n"))
+		if !strings.Contains(col, tee) {
+			t.Errorf("%s border: no %s in the bubble tail:\n%s", border, tee, col)
+		}
+	}
+}
+
 func TestPreviewShowsPackAndChoice(t *testing.T) {
 	p, _ := packs.ByName("crt")
 	out := previewOf("crt", "", "", claude.Choice{Pack: "crt", Pet: "clawd", Bubbles: "off", ReducedMotion: true})
@@ -99,6 +110,20 @@ func TestPreviewIsTheSameSizeForEveryLook(t *testing.T) {
 			for _, line := range lines {
 				if w := lipgloss.Width(line); w != PreviewWidth {
 					t.Fatalf("%v: line is %d cells, want %d: %q", k, w, PreviewWidth, ansi.Strip(line))
+				}
+			}
+		}
+	}
+}
+
+func TestPreviewAtKeepsEveryLineAtTheGivenWidth(t *testing.T) {
+	for _, width := range []int{40, 44} {
+		for _, k := range looksOneAtATime() {
+			for tick := range 3 {
+				for _, line := range strings.Split(PreviewAt(LookOf(k[0], k[1], k[2]), claude.Defaults(), tick, width), "\n") {
+					if w := lipgloss.Width(line); w != width {
+						t.Fatalf("width %d %v: line is %d cells: %q", width, k, w, ansi.Strip(line))
+					}
 				}
 			}
 		}

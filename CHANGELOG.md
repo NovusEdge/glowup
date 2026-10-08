@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `/glowup config` opens a settings screen in its own terminal window, and changes show in the session as you make them. Esc undoes everything since it opened. It has been run live on Linux; the macOS and Windows launches are new and have not had a live run yet.
+
+### Changed
+
+- The in-Claude config pane is now `/glowup config pane`, and still what `/glowup config` opens in the desktop Code tab.
+
 ## [0.11.0] - 2026-10-07
 
 ### Added

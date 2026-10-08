@@ -41,7 +41,7 @@ func clawdLines() []string {
 
 // bubble is a speech bubble ClawdWidth wide with text wrapped inside it, whose tail points
 // down at Clawd's head.
-func bubble(text string, border, fg string) []string {
+func bubble(text string, box lipgloss.Border, border, fg string) []string {
 	const w = ClawdWidth - 2
 	lines := strings.Split(ansi.Wordwrap(text, w-2, ""), "\n")
 	if len(lines) > bubbleRows {
@@ -52,14 +52,27 @@ func bubble(text string, border, fg string) []string {
 	}
 	bd := lipgloss.NewStyle().Foreground(lipgloss.Color(border))
 	tx := lipgloss.NewStyle().Foreground(lipgloss.Color(fg))
-	out := []string{bd.Render("╭" + strings.Repeat("─", w) + "╮")}
+	out := []string{bd.Render(box.TopLeft + strings.Repeat(box.Top, w) + box.TopRight)}
 	for _, l := range lines {
-		out = append(out, bd.Render("│")+" "+tx.Render(l)+strings.Repeat(" ", w-2-ansi.StringWidth(l))+" "+bd.Render("│"))
+		out = append(out, bd.Render(box.Left)+" "+tx.Render(l)+strings.Repeat(" ", w-2-ansi.StringWidth(l))+" "+bd.Render(box.Right))
 	}
-	return append(out, bd.Render("╰"+strings.Repeat("─", w/2)+"┬"+strings.Repeat("─", w-w/2-1)+"╯"))
+	tee := "┬"
+	switch box.Bottom {
+	case "━":
+		tee = "┳"
+	case "═":
+		tee = "╦"
+	}
+	return append(out, bd.Render(box.BottomLeft+strings.Repeat(box.Bottom, w/2)+tee+strings.Repeat(box.Bottom, w-w/2-1)+box.BottomRight))
 }
 
-// clawdColumn is the bubble over Clawd, ClawdWidth cells wide.
-func clawdColumn(caption string, l Look) []string {
-	return append(bubble(caption, l.Colors.Accent, l.Colors.Text), clawdLines()...)
+// ClawdColumn is the bubble over Clawd, ClawdWidth cells wide.
+func ClawdColumn(caption string, l Look) []string {
+	return append(bubble(caption, lipgloss.RoundedBorder(), l.Colors.Accent, l.Colors.Text), clawdLines()...)
+}
+
+// ClawdColumnIn is ClawdColumn with the bubble drawn in the look's border style and color,
+// like the preview beside it.
+func ClawdColumnIn(caption string, l Look) []string {
+	return append(bubble(caption, BorderOf(l.Pack.Border), l.BorderColor, l.Colors.Text), clawdLines()...)
 }

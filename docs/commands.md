@@ -10,7 +10,7 @@ description: Every /glowup subcommand, what it prints, and when it fails.
 ```text title="claude code"
 glowup
 
-  /glowup config                       open the config pane: pack, colors, layout
+  /glowup config                       open the config TUI in a new terminal window
   /glowup pack <name>                  switch look: arcade classic cozy crt
   /glowup pet clawd|robot|off          pick a pet, or none
   /glowup pane                         open or close the side pane
@@ -133,7 +133,22 @@ Your layout and behavior settings. They are yours alone: installing someone's pa
 
 ## config
 
-`/glowup config` opens a pane with a row for each choice, a preview of the look under them, and Done, Copy studio link and Reset at the bottom. Up and down move between rows.
+`/glowup config` opens glowup's settings screen in a new terminal window. On Windows that is a new window in your default terminal app; WSL behaves as Linux. Changes apply to the session you ran it in as you make them. `q` keeps them, and Esc puts back what you had when the screen opened. In the desktop Code tab, where there is no terminal to open, `/glowup config` opens the pane described below instead, and `/glowup config pane` opens that pane anywhere.
+
+The window opens in the first of these that applies:
+
+1. Inside tmux, a new tmux window.
+2. The terminal named by `$TERMINAL`, if you set it. Setting `$TERMINAL` is how you pick the terminal. glowup knows the argument conventions of konsole, kitty, ghostty, wezterm, gnome-terminal, foot, alacritty, xfce4-terminal, mate-terminal and terminator, and runs any other terminal as `<terminal> -e <command>`.
+3. The terminal you are in, when glowup recognizes it: Konsole, kitty, Ghostty, WezTerm or GNOME Terminal.
+4. Your system's default terminal: `xdg-terminal-exec`, then `x-terminal-emulator`.
+
+On macOS the first rule applies too, tmux first. Otherwise it is Ghostty, iTerm, kitty or WezTerm, matching the terminal you are in, and Terminal.app for anything else. Without a display, as over SSH, nothing can open; glowup prints the command to run in a terminal instead, and it prints the same command if the window fails to start.
+
+glowup runs the `glowup-installer` for the installed version. It looks first at the path in `GLOWUP_BIN`, then at `installer/glowup-installer` in a clone, and otherwise downloads the release's copy; see [Install](install.md#the-config-tui-binary). While the screen is open, `/glowup config` in that session says so instead of opening a second one.
+
+### The config pane
+
+The pane has a row for each choice, a preview of the look under them, and Done, Copy studio link and Reset at the bottom. Up and down move between rows.
 
 The rows are Pack, Spinner, one for each color role, Band, Tabs, Meter, Pet, Sleeps, Bubbles, Bubble, Moods, Motion and Status. A row shown as ‹ value › cycles to its next value when you press Enter and applies it at once. The other rows are fields you type into and submit with Enter. A field you have not edited does nothing on Enter.
 
@@ -141,7 +156,7 @@ A color field takes a hex such as `#8ecbff` or `8ecbff`, and an empty one clears
 
 Done, or Esc, closes the pane. Copy studio link puts a link to the studio on the clipboard, and the pane says so when the copy fails, as on a surface with no clipboard. Reset asks first, then clears your color overrides and your setup.
 
-Each row has the same effect as the matching command (`pack`, `spinner`, `color`, `setup`, `pet`, `bubbles`, `motion`, `statusline fields`). Mixing layers from different packs and saving a pack are only available as commands. In a `-p` run, `/glowup config` prints the command list instead of opening the pane.
+Each row has the same effect as the matching command (`pack`, `spinner`, `color`, `setup`, `pet`, `bubbles`, `motion`, `statusline fields`). Mixing layers from different packs and saving a pack are only available as commands. In a `-p` run, `/glowup config` prints the command list instead of opening the screen or the pane.
 
 ## Settings and the store
 

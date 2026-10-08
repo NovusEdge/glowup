@@ -2,11 +2,13 @@
 // import, so register.tsx builds this from $ in hostOf.
 export type RunResult = { exitCode: number; stdout: string; stderr: string }
 export type Host = {
-  // env is set over the engine's own environment
-  run(argv: readonly string[], env?: Record<string, string>): Promise<RunResult>
+  // env is set over the engine's own environment; timeoutMs defaults to the engine's 30 s
+  run(argv: readonly string[], env?: Record<string, string>, timeoutMs?: number): Promise<RunResult>
   readFile(path: string): Promise<string>
   writeFile(path: string, text: string): Promise<void>
   exists(path: string): Promise<boolean>
+  // undefined when nothing is at path
+  stat(path: string): Promise<{ mtimeMs: number } | undefined>
   listDir(path: string): Promise<string[]>
   // size is in bytes, for a file
   listFiles(path: string): Promise<{ name: string; size: number }[]>
