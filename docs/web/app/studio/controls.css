@@ -1,12 +1,12 @@
 .st-root .acc h2{font:inherit;margin:0}
 .st-root .acc-sec+.acc-sec{border-top:1px solid var(--faint)}
-.st-root .acc h2 button{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:0 16px;font:600 14px Geist,sans-serif;text-align:left}
+.st-root .acc h2 button{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:0 16px;font:600 14px var(--font-ui);text-align:left}
 .st-root .acc h2 button:hover{background:color-mix(in srgb,var(--text) 5%,transparent)}
 .st-root .acc h2 button svg{flex:none;color:var(--dim);transition:transform .15s}
 .st-root .acc h2 button[aria-expanded=true] svg{transform:rotate(90deg)}
 .st-root .acc-body{display:flex;flex-direction:column;gap:16px;padding:4px 16px 18px}
 .st-root .acc-body[hidden]{display:none}
-.st-root .acc h3{font:500 12.5px Geist,sans-serif;color:var(--dim);margin:0 0 6px}
+.st-root .acc h3{font:500 12.5px var(--font-ui);color:var(--dim);margin:0 0 6px}
 
 .st-root .fld{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--dim);min-width:0}
 .st-root .chk{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-size:14px}
@@ -25,34 +25,14 @@
 .st-root .petrows li{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px}
 .st-root .petrows li>canvas{background:var(--panel);border-radius:6px}
 .st-root .petrows .fld>span{display:flex;justify-content:space-between;gap:8px}
-.st-root .petrows output{font-family:'JetBrains Mono',monospace;color:var(--text)}
-.st-root .cmd{display:block;font:12px/1.5 'JetBrains Mono',monospace;background:var(--bg);border:1px solid var(--faint);border-radius:8px;padding:8px 10px;overflow-wrap:anywhere;user-select:all}
+.st-root .petrows output{font-family:var(--font-code);color:var(--text)}
+.st-root .cmd{display:block;font:12px/1.5 var(--font-code);background:var(--bg);border:1px solid var(--faint);border-radius:8px;padding:8px 10px;overflow-wrap:anywhere;user-select:all}
 .st-root .glyphs{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px 10px}
 
-.st-root select,.st-root input[type=text],.st-root input[type=number]{appearance:none;-webkit-appearance:none;font:13px 'JetBrains Mono',monospace;color:var(--text);background-color:var(--panel);border:1px solid var(--faint);border-radius:8px;padding:0 10px;min-height:44px;min-width:0;max-width:100%;width:100%}
-.st-root input[type=text]:hover,.st-root input[type=number]:hover,.st-root select:hover{border-color:var(--dim)}
-.st-root input[aria-invalid=true]{border-color:var(--fail)}
-.st-root select{padding-right:30px;cursor:pointer;background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);background-position:calc(100% - 17px) 55%,calc(100% - 12px) 55%;background-size:5px 5px;background-repeat:no-repeat}
-.st-root select option{background:var(--panel);color:var(--text)}
-.st-root input[type=number]{-moz-appearance:textfield}
-.st-root input[type=number]::-webkit-inner-spin-button,.st-root input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .st-root .glyphs input{text-align:center}
-
-.st-root input[type=checkbox],.st-root input[type=radio]{appearance:none;-webkit-appearance:none;flex:none;position:relative;width:18px;height:18px;margin:0;background:var(--panel);border:1px solid var(--dim);cursor:pointer}
-.st-root input[type=checkbox]{border-radius:5px}
-.st-root input[type=radio]{border-radius:50%}
-.st-root input[type=checkbox]:checked{background:var(--accent);border-color:var(--accent)}
-.st-root input[type=checkbox]:checked::after{content:'';position:absolute;left:5px;top:1px;width:5px;height:10px;border:solid var(--bg);border-width:0 2px 2px 0;transform:rotate(45deg)}
-.st-root input[type=radio]:checked{background:var(--accent);border-color:var(--accent);box-shadow:inset 0 0 0 3px var(--panel)}
-
-.st-root input[type=range]{appearance:none;-webkit-appearance:none;width:100%;height:24px;margin:0;background:transparent;cursor:pointer}
-.st-root input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:color-mix(in srgb,var(--dim) 45%,var(--panel))}
-.st-root input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:color-mix(in srgb,var(--dim) 45%,var(--panel))}
-.st-root input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;margin-top:-6px;border-radius:50%;background:var(--accent);border:2px solid var(--panel)}
-.st-root input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid var(--panel)}
 .st-root .knobs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 14px}
 .st-root .knob span{display:flex;justify-content:space-between;gap:8px}
-.st-root .knob output{font-family:'JetBrains Mono',monospace;color:var(--text)}
+.st-root .knob output{font-family:var(--font-code);color:var(--text)}
 
 .st-root .colors{display:flex;flex-direction:column;gap:16px}
 .st-root .swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px}
@@ -62,7 +42,7 @@
 .st-root .sw[aria-pressed=true]{border-color:var(--text);color:var(--text)}
 .st-root .pick{display:flex;flex-direction:column;gap:10px;padding-top:14px;border-top:1px solid var(--faint)}
 .st-root .pick-name{margin:0;display:flex;flex-direction:column;gap:2px}
-.st-root .pick-name b{font:600 13px 'JetBrains Mono',monospace}
+.st-root .pick-name b{font:600 13px var(--font-code)}
 .st-root .pick-name span{color:var(--dim);font-size:12.5px}
 .st-root .pick-edit{display:flex;gap:14px;align-items:flex-start}
 .st-root .pick-side{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
@@ -70,10 +50,6 @@
 .st-root .ratio{margin:0;font-size:12.5px;color:var(--dim)}
 .st-root .pet-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
 .st-root .pet-link p{margin:0;font-size:12.5px;color:var(--dim)}
-.st-root .link{min-height:44px;padding:0 4px;font-size:12.5px;color:var(--accent);text-decoration:underline;text-underline-offset:3px}
-
-.st-root .cpick-btn{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:0 10px;border:1px solid var(--faint);border-radius:8px;background:var(--panel);font:13px 'JetBrains Mono',monospace;color:var(--text)}
-.st-root .cpick-btn:hover{border-color:var(--dim)}
 .st-root .cpick-btn i{flex:none;width:18px;height:18px;border-radius:4px;border:1px solid color-mix(in srgb,var(--text) 30%,transparent)}
 .st-root .cpick .pick-edit{margin-top:6px}
 
@@ -85,15 +61,10 @@
 .st-root input[type=range].wheel-v{flex:none;writing-mode:vertical-lr;direction:rtl;width:44px;height:156px}
 
 .st-root .order{display:flex;flex-direction:column}
-.st-root .orow{display:flex;align-items:center;gap:6px}
+.st-root .orow{display:flex;align-items:center;gap:2px}
 .st-root .orow .chk{flex:1}
-.st-root .orow button{min-height:44px;min-width:44px;border:1px solid var(--faint);border-radius:8px;background:var(--panel);font-size:13px}
-.st-root .orow button:hover:not(:disabled){border-color:var(--accent)}
 
 @media (min-width:900px){
   .st-root .sw{min-height:36px}
   .st-root .chk,.st-root .orow .chk{min-height:32px}
-  .st-root select,.st-root input[type=text],.st-root input[type=number],.st-root .cpick-btn{min-height:40px}
-  .st-root .orow button{min-height:32px;min-width:32px}
-  .st-root .link{min-height:32px}
 }

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The default `bubbles.moods` includes all seven moments. A setup saved before this release that still holds the old default, `needs-you,fail,done`, gets all seven.
 - Haiku bubble lines speak in each pet's own voice instead of always as Clawd.
+- The website's landing page and studio share one set of buttons, toggles, selects and popovers, and they all follow the pack you pick. The studio's selects open a themed list instead of the browser's own, and its Send to my Claude popover takes keyboard focus when it opens.
 
 ## [0.12.1] - 2026-10-08
 

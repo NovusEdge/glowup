@@ -96,7 +96,7 @@ export function ColorsSection({ draft, look, onDraft, onHover }: { draft: Draft;
         {part && (
           <div className="pet-row">
             <Pet scale={3} mode={{ kind: 'pose', pose: 'idle' }} palette={look.pet} />
-            <button type="button" className="link" onClick={() => { onDraft(resetPet(draft)); setSeparate(false) }}>Reset Clawd</button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => { onDraft(resetPet(draft)); setSeparate(false) }}>Reset Clawd</button>
           </div>
         )}
         {follows ? (

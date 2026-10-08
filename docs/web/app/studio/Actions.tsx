@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import { Popover } from '@base-ui/react/popover'
 import type { PetFile } from '../landing/data.ts'
+import { CheckIcon, DownloadIcon, LinkIcon, SendIcon } from '../ui/icons'
+import { usePortal } from '../ui/portal'
 import { LINK_MAX, packJson, sendCommand, shareLink, type Draft, type StudioSetup } from './model.ts'
 
 type Shown = { kind: 'send' | 'link'; text: string }
@@ -8,25 +11,35 @@ export function Actions({ draft, setup, pet, blocked }: { draft: Draft; setup: S
   const [copied, setCopied] = useState<string>()
   const [shown, setShown] = useState<Shown>()
   const box = useRef<HTMLDivElement>(null)
-  const code = useRef<HTMLElement>(null)
+  const linkBtn = useRef<HTMLButtonElement>(null)
+  const sendBtn = useRef<HTMLButtonElement>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const container = usePortal()
+  // The popup keeps its last content while it animates out.
+  const last = useRef<Shown>(undefined)
+  if (shown) last.current = shown
+  const pop = shown ?? last.current
   useEffect(() => () => clearTimeout(timer.current), [])
 
-  useEffect(() => {
-    if (!shown) return
-    const el = code.current
-    if (el) {
-      const range = document.createRange()
-      range.selectNodeContents(el)
-      getSelection()?.removeAllRanges()
-      getSelection()?.addRange(range)
+  const selectAll = (el: HTMLElement | null) => {
+    if (!el) return
+    const range = document.createRange()
+    range.selectNodeContents(el)
+    getSelection()?.removeAllRanges()
+    getSelection()?.addRange(range)
+  }
+
+  // A press or focus move onto the share or send button is not "away": both set the popover themselves, and
+  // closing here first would make the send button's toggling click open it again.
+  const onOpenChange = (open: boolean, details: Popover.Root.ChangeEventDetails) => {
+    if (open) return
+    if (details.reason === 'outside-press' || details.reason === 'focus-out') {
+      const e = details.event as Event & { relatedTarget?: EventTarget | null }
+      const to = (e.type === 'focusout' ? e.relatedTarget : e.target) as Node | null
+      if (to && (linkBtn.current?.contains(to) || sendBtn.current?.contains(to))) return
     }
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setShown(undefined) }
-    const away = (e: PointerEvent) => { if (!box.current?.contains(e.target as Node)) setShown(undefined) }
-    document.addEventListener('keydown', key)
-    document.addEventListener('pointerdown', away)
-    return () => { document.removeEventListener('keydown', key); document.removeEventListener('pointerdown', away) }
-  }, [shown])
+    setShown(undefined)
+  }
 
   // navigator.clipboard is undefined outside secure contexts; the popover then shows the text, selected, to copy by hand.
   const copy = (kind: Shown['kind'], text: string) => {
@@ -52,16 +65,24 @@ export function Actions({ draft, setup, pet, blocked }: { draft: Draft; setup: S
 
   return (
     <div className="st-actions" ref={box}>
-      <button type="button" className="primary" disabled={blocked} onClick={() => copy('link', shareLink(draft))}>{copied === 'link' ? 'Copied' : 'Copy share link'}</button>
-      <button type="button" disabled={blocked} aria-expanded={shown?.kind === 'send'} onClick={() => (shown?.kind === 'send' ? setShown(undefined) : copy('send', sendCommand(draft, setup, pet)))}>{copied === 'send' ? 'Copied' : 'Send to my Claude'}</button>
-      <button type="button" disabled={blocked} onClick={download}>Download pack.json</button>
-      {shown && (
-        <div className="st-pop" role="dialog" aria-label={shown.kind === 'send' ? 'Send to my Claude' : 'Share link'}>
-          <p>{shown.kind === 'send' ? 'Paste this into Claude Code' : 'Copy this link'}</p>
-          <code ref={code}>{shown.text}</code>
-          {shown.kind === 'link' && shown.text.length > LINK_MAX &&<p className="note">This link is long; some chat apps cut it. Download pack.json instead if it fails.</p>}
-        </div>
-      )}
+      <button ref={linkBtn} type="button" className="btn btn-primary" disabled={blocked} onClick={() => copy('link', shareLink(draft))}>
+        {copied === 'link' ? <CheckIcon /> : <LinkIcon />}{copied === 'link' ? 'Copied' : 'Copy share link'}
+      </button>
+      <button ref={sendBtn} type="button" className="btn btn-secondary" disabled={blocked} aria-expanded={shown?.kind === 'send'} onClick={() => (shown?.kind === 'send' ? setShown(undefined) : copy('send', sendCommand(draft, setup, pet)))}>
+        {copied === 'send' ? <CheckIcon /> : <SendIcon />}{copied === 'send' ? 'Copied' : 'Send to my Claude'}
+      </button>
+      <button type="button" className="btn btn-secondary" disabled={blocked} onClick={download}><DownloadIcon />Download pack.json</button>
+      <Popover.Root open={!!shown} onOpenChange={onOpenChange}>
+        <Popover.Portal container={container}>
+          <Popover.Positioner className="pop-positioner" anchor={pop?.kind === 'link' ? linkBtn : sendBtn} align="end" sideOffset={8} collisionPadding={12}>
+            <Popover.Popup className="pop st-pop" aria-label={pop?.kind === 'send' ? 'Send to my Claude' : 'Share link'}>
+              <Popover.Title className="st-pop-title">{pop?.kind === 'send' ? 'Paste this into Claude Code' : 'Copy this link'}</Popover.Title>
+              <code ref={selectAll} tabIndex={0}>{pop?.text}</code>
+              {pop?.kind === 'link' && pop.text.length > LINK_MAX && <p className="note">This link is long; some chat apps cut it. Download pack.json instead if it fails.</p>}
+            </Popover.Popup>
+          </Popover.Positioner>
+        </Popover.Portal>
+      </Popover.Root>
     </div>
   )
 }

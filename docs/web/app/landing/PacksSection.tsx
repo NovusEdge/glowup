@@ -24,7 +24,7 @@ export function PacksSection() {
       </div>
       <div className="themes">
         {THEME_NAMES.map(n => (
-          <button type="button" key={n} aria-pressed={n === theme} onClick={() => setTheme(n)}>
+          <button type="button" className="chip" key={n} aria-pressed={n === theme} onClick={() => setTheme(n)}>
             <i aria-hidden="true">{SWATCH.map(k => <u key={k} style={{ background: PRESETS[n]?.colors?.[k] ?? 'transparent' }} />)}</i>
             {n}
           </button>
