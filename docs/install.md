@@ -47,7 +47,7 @@ Set `GLOWUP_VERSION=v0.3.0` to use that release's installer instead of the lates
 
 ### The config TUI binary
 
-The first time you run `/glowup config`, glowup downloads the `glowup-installer` that matches the installed glowup version to `~/.local/share/glowup/bin/<version>/` (under `$XDG_DATA_HOME` if you set it) and checks it against the release's `checksums.txt`. Later runs reuse that copy. Set `GLOWUP_BIN` to the path of a `glowup-installer` to use that one instead of downloading. A clone with `installer/glowup-installer` built (`just installer-build`) uses it without the variable.
+The first time you run `/glowup config`, glowup downloads the `glowup-installer` that matches the installed glowup version to `~/.local/share/glowup/bin/<version>/` (under `$XDG_DATA_HOME` if you set it; on Windows the file is `glowup-installer.exe` in `%XDG_DATA_HOME%\glowup\bin\<version>\` or `%USERPROFILE%\.local\share\glowup\bin\<version>\`) and checks it against the release's `checksums.txt`. Later runs reuse that copy. Set `GLOWUP_BIN` to the path of a `glowup-installer` to use that one instead of downloading. A clone with `installer/glowup-installer` built (`just installer-build`) uses it without the variable.
 
 ### Terminals
 

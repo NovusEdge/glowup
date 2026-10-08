@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `/glowup config` opens a settings screen in its own terminal window, with a live preview in the session itself. Esc undoes everything since it opened.
+- `/glowup config` opens a settings screen in its own terminal window, with a live preview in the session itself. Esc undoes everything since it opened. It works on Linux, macOS and Windows.
 
 ### Changed
 

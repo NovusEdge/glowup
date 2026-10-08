@@ -10,6 +10,7 @@ function boot(on: any, files: Record<string, string> = {}, surfaces = ['terminal
     ran.push(argv)
     if (argv.join(' ') === 'uname -s') return { exitCode: 0, stdout: 'Linux\n' }
     if (argv[0] === 'sh' && argv[1] === '-c' && argv[2]!.startsWith('setsid')) return { exitCode: 0, stdout: '' }
+    if (argv[0] === 'cmd.exe') return { exitCode: 0, stdout: '' }
   }, env)
   mock.store(on)
   const clock = mock.clock(on)
@@ -189,4 +190,26 @@ test('session start removes day-old runs', async ($, on) => {
   b.mtimes[`${R}/old/owner`] = Date.now() - 86_400_001
   await start($)
   expect(b.ran).toContainEqual(['rm', '-rf', `${R}/old`])
+})
+
+const WIN_ENV = { OS: 'Windows_NT', PROCESSOR_ARCHITECTURE: 'AMD64', GLOWUP_BIN: '/Users/A B/gi.exe' }
+
+test('on Windows /glowup config opens a window with cmd start and never runs uname', async ($, on) => {
+  const b = boot(on, { '/Users/A B/gi.exe': '' }, ['terminal'], WIN_ENV)
+  await start($)
+  const out = await runGlowup($, 'config')
+  const dir = runDir(b.files)
+  expect(b.ran).toContainEqual(['cmd.exe', '/c', 'start', 'glowup config', '/Users/A B/gi.exe', 'config', '--run', dir])
+  expect(b.ran.filter(a => a[0] === 'uname' || a[0] === 'sh')).toEqual([])
+  expect(out.text).toBe(`glowup config is opening in a new window. If no window appears, run this in a terminal: "/Users/A B/gi.exe" config --run ${dir}`)
+})
+
+test('on Windows session start removes day-old runs with PowerShell', async ($, on) => {
+  const b = boot(on, { [`${R}/old/owner`]: 's9' }, ['terminal'], WIN_ENV)
+  b.mtimes[`${R}/old/owner`] = Date.now() - 86_400_001
+  await start($)
+  const rm = b.ran.find(a => a[0] === 'powershell.exe')!
+  expect(rm.slice(0, 4)).toEqual(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command'])
+  expect(rm[4]).toContain('Remove-Item')
+  expect(b.ran.filter(a => a[0] === 'rm')).toEqual([])
 })

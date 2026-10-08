@@ -42,7 +42,7 @@ import { ditherMeters, turnDivider } from './effects.ts'
 import type { FieldClientProps } from './client/field.tsx'
 import type { Seg } from './layout.tsx'
 import { allowed, createRun, isLive, newLines, restoreUndo, runTimes, scanRuns, snapshotOf, type Cursor, type Undo } from './remote.ts'
-import { detached, ensureBinary, pickTerminal, platformOf, releaseTarget, shellLine, type TermEnv } from './launch.ts'
+import { detached, ensureBinary, pickTerminal, platformOf, releaseTarget, removeTree, shellLine, type TermEnv } from './launch.ts'
 
 type Engine = EngineInterface
 type SpinKey = { turnAt: number; detail: string; state: OrbState }
@@ -609,6 +609,9 @@ async function pollRemote($: Engine) {
   }
 }
 
+// the engine has no platform API; Windows sets OS everywhere, and WSL reports Linux
+const onWindows = async ($: Engine) => (await $.env.get('OS')) === 'Windows_NT'
+
 // $.env.get takes literal names only
 async function termEnv($: Engine): Promise<TermEnv> {
   return {
@@ -633,13 +636,15 @@ async function openConfigTui($: Engine): Promise<string> {
   const dir = await createRun(host, sessionId, Math.random().toString(36).slice(2, 10))
   startRemote($, dir, { seq: 0, lines: 0 })
   await writeRemoteState($)
-  const unameS = (await host.run(['uname', '-s']).catch(() => undefined))?.stdout ?? ''
-  const unameM = (await host.run(['uname', '-m']).catch(() => undefined))?.stdout ?? ''
-  const bin = await ensureBinary(host, { glowupBin: (await $.env.get('GLOWUP_BIN')) || undefined, pluginRoot: $.plugin.root, version: await versionOf($), target: releaseTarget(unameS, unameM) })
+  const windows = await onWindows($)
+  // no uname on native Windows; WSL reports Linux and takes the Unix path
+  const unameS = windows ? 'Windows_NT' : (await host.run(['uname', '-s']).catch(() => undefined))?.stdout ?? ''
+  const unameM = windows ? (await $.env.get('PROCESSOR_ARCHITECTURE')) ?? '' : (await host.run(['uname', '-m']).catch(() => undefined))?.stdout ?? ''
+  const platform = platformOf(unameS)
+  const bin = await ensureBinary(host, { glowupBin: (await $.env.get('GLOWUP_BIN')) || undefined, pluginRoot: $.plugin.root, version: await versionOf($), target: releaseTarget(unameS, unameM), windows })
   if ('error' in bin) return `glowup config needs its installer binary: ${bin.error}`
   const cmd = [bin.path, 'config', '--run', dir]
-  const manual = `Run this in a terminal: ${shellLine(cmd)}`
-  const platform = platformOf(unameS)
+  const manual = `Run this in a terminal: ${shellLine(cmd, platform)}`
   if (!platform) return manual
   const onPath = async (name: string) => platform === 'linux' && (await host.run(['sh', '-c', `command -v ${name}`]).catch(() => undefined))?.exitCode === 0
   const has = { xdgTerminalExec: await onPath('xdg-terminal-exec'), xTerminalEmulator: await onPath('x-terminal-emulator') }
@@ -903,10 +908,11 @@ export const register: Register = (on, options) => {
     interactive = e.isInteractive
     cancelHaiku()
     // $.env.get takes literal names only; an empty CLAUDE_CONFIG_DIR counts as unset
-    home = (await $.env.get('HOME')) ?? ''
+    // cmd and PowerShell set USERPROFILE, not HOME
+    home = (await $.env.get('HOME')) || (await $.env.get('USERPROFILE')) || ''
     configDir = (await $.env.get('CLAUDE_CONFIG_DIR')) || `${home}/.claude`
     const xdg = await $.env.get('XDG_DATA_HOME')
-    dataHome = xdg?.startsWith('/') ? xdg : `${home}/.local/share`
+    dataHome = xdg && /^([/\\]|[A-Za-z]:[/\\])/.test(xdg) ? xdg : `${home}/.local/share`
     const host = hostOf($)
     off = false
     guardSid = safeId(await $.session.id())
@@ -935,7 +941,8 @@ export const register: Register = (on, options) => {
     // drop runs nobody has touched for a day.
     try {
       const { live, stale } = await scanRuns(host, sessionId, Date.now())
-      for (const d of stale) await host.run(['rm', '-rf', d]).catch(() => {})
+      const platform = (await onWindows($)) ? 'windows' : 'linux'
+      for (const d of stale) await removeTree(host, d, platform)
       if (live[0]) {
         const st = JSON.parse(await host.readFile(`${live[0]}/state.json`).catch(() => '{}')) as { seq?: unknown; lines?: unknown }
         startRemote($, live[0], { seq: Number(st.seq) || 0, lines: Number(st.lines) || 0 })

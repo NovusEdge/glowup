@@ -1,6 +1,6 @@
 import { expect } from 'claude-code/testing'
 import { fakeHost, test } from './kit.ts'
-import { assetName, detached, ensureBinary, pickTerminal, platformOf, releaseTarget, shellLine } from '../hooks/launch.ts'
+import { assetName, detached, ensureBinary, pickTerminal, platformOf, releaseTarget, removeTree, shellLine } from '../hooks/launch.ts'
 
 const CMD = ['/b/glowup-installer', 'config', '--run', '/c/glowup/remote/r1']
 const X = { DISPLAY: ':0' }
@@ -154,6 +154,77 @@ test('ensureBinary says why a download failed and removes the part folder', asyn
   const r = await ensureBinary(host, { pluginRoot: '/q', version: '0.12.0', target: { os: 'linux', arch: 'amd64' } }, 'x')
   expect('error' in r && r.error).toMatch(/^could not download glowup-installer_v0\.12\.0_linux_amd64\.tar\.gz/)
   expect(ran.at(-1)).toBe(`rm -rf ${T}`)
+})
+
+const WIN = { os: 'windows', arch: 'amd64' }
+
+test('Windows env values pick the release target; only amd64 is released', () => {
+  expect(platformOf('Windows_NT')).toBe('windows')
+  expect(releaseTarget('Windows_NT', 'AMD64')).toEqual(WIN)
+  expect(releaseTarget('Windows_NT', 'ARM64')).toBeUndefined()
+  expect(releaseTarget('Windows_NT', 'x86')).toBeUndefined()
+  expect(releaseTarget('Windows_NT', '')).toBeUndefined()
+  expect(assetName('0.12.0', WIN)).toBe('glowup-installer_v0.12.0_windows_amd64.zip')
+})
+
+test('Windows opens a new window with start, runs as is, and quotes for cmd and PowerShell', () => {
+  const cmd = ['C:/Users/A B/glowup-installer.exe', 'config', '--run', 'C:\\Users\\a\\r1']
+  expect(pickTerminal({}, 'windows', NONE, cmd)).toEqual({ name: 'a new window', argv: ['cmd.exe', '/c', 'start', 'glowup config', ...cmd] })
+  expect(pickTerminal({ TMUX: '/t' }, 'windows', NONE, cmd)?.name).toBe('tmux')
+  expect(detached(['cmd.exe', '/c', 'start'], 'windows')).toEqual(['cmd.exe', '/c', 'start'])
+  expect(shellLine(cmd, 'windows')).toBe('"C:/Users/A B/glowup-installer.exe" config --run C:\\Users\\a\\r1')
+  expect(shellLine(['a', '', 'say "hi"'], 'windows')).toBe('a "" "say \\"hi\\""')
+})
+
+test('removeTree uses rm on Unix and Remove-Item on Windows, the path never in the script', async () => {
+  const u = fakeHost()
+  await removeTree(u.host, '/r/old', 'linux')
+  expect(u.ran).toEqual(['rm -rf /r/old'])
+  const w = fakeHost({ runs: {} })
+  await removeTree(w.host, 'C:/r/o ld', 'windows')
+  expect(w.ran).toHaveLength(1)
+  expect(w.ran[0]).toMatch(/^powershell\.exe -NoProfile -NonInteractive -Command .*Remove-Item/)
+  expect(w.ran[0]).not.toContain('o ld')
+  expect(w.envs[0]).toEqual({ GLOWUP_PATH: 'C:/r/o ld' })
+})
+
+test('ensureBinary on Windows downloads the zip with curl.exe and tar.exe, checks it, and removes the part folder last', async () => {
+  const D = 'C:/Users/u/.local/share/glowup/bin/0.12.0', T = `${D}.part-x`, A = 'glowup-installer_v0.12.0_windows_amd64.zip', U = 'https://github.com/NovusEdge/glowup/releases/download/v0.12.0'
+  const { host, ran, envs, timeouts } = fakeHost()
+  host.dataHome = 'C:/Users/u/.local/share'
+  host.run = async (argv, env, t) => { ran.push(argv.join(' ')); envs.push(env); timeouts.push(t); return { exitCode: 0, stdout: '', stderr: '' } }
+  const r =await ensureBinary(host, { pluginRoot: '/q', version: '0.12.0', target: WIN, windows: true }, 'x')
+  expect(r).toEqual({ path: `${D}/glowup-installer.exe` })
+  const head = (s: string) => s.split(' ').slice(0, 4).join(' ')
+  const ps = 'powershell.exe -NoProfile -NonInteractive -Command'
+  expect(ran.map(s => (s.startsWith('powershell') ? head(s) : s))).toEqual([
+    ps, `curl.exe -fsSL -o ${T}/${A} ${U}/${A}`, `curl.exe -fsSL -o ${T}/checksums.txt ${U}/checksums.txt`, ps, ps,
+    `tar.exe -xf ${T}/${A} -C ${T} glowup-installer.exe`, ps, ps, ps,
+  ])
+  expect(envs[0]).toEqual({ GLOWUP_PATH: T })
+  expect(envs[3]).toEqual({ GLOWUP_DIR: T, GLOWUP_ASSET: A })
+  expect(envs[4]).toEqual({ GLOWUP_DIR: T, GLOWUP_ASSET: A })
+  expect(envs[6]).toEqual({ GLOWUP_PATH: D })
+  expect(envs[7]).toEqual({ GLOWUP_FROM: `${T}/glowup-installer.exe`, GLOWUP_TO: `${D}/glowup-installer.exe` })
+  expect(ran[3]).toContain('Get-Content')
+  expect(ran[4]).toContain('Get-FileHash -Algorithm SHA256')
+  expect(ran[8]).toContain('Remove-Item')
+  expect(envs[8]).toEqual({ GLOWUP_PATH: T })
+  expect(timeouts.slice(0, -1)).toEqual(Array(8).fill(120_000))
+  for (const s of ran) expect(s).not.toMatch(/^(sh|mkdir|mv|rm|curl|tar) /)
+})
+
+test('ensureBinary on Windows finds the .exe in a cache or dev build and names a failed download', async () => {
+  const c = fakeHost({ files: { 'C:/d/glowup/bin/0.12.0/glowup-installer.exe': '', '/p/installer/glowup-installer.exe': '' } })
+  c.host.dataHome = 'C:/d'
+  expect(await ensureBinary(c.host, { pluginRoot: '/q', version: '0.12.0', windows: true })).toEqual({ path: 'C:/d/glowup/bin/0.12.0/glowup-installer.exe' })
+  expect(await ensureBinary(c.host, { pluginRoot: '/p', version: '0.12.0', windows: true })).toEqual({ path: '/p/installer/glowup-installer.exe' })
+  expect(await ensureBinary(c.host, { pluginRoot: '/q', version: '0.12.0', windows: true, target: undefined })).toEqual({ path: 'C:/d/glowup/bin/0.12.0/glowup-installer.exe' })
+  const f = fakeHost()
+  f.host.run = async argv => { f.ran.push(argv.join(' ')); if (argv[0] === 'curl.exe') throw new Error('spawn curl.exe ENOENT'); return { exitCode: 0, stdout: '', stderr: '' } }
+  const r = await ensureBinary(f.host, { pluginRoot: '/q', version: '0.12.0', target: WIN, windows: true }, 'x')
+  expect('error' in r && r.error).toBe('could not download glowup-installer_v0.12.0_windows_amd64.zip: spawn curl.exe ENOENT')
+  expect(f.ran.at(-1)).toContain('Remove-Item')
 })
 
 test('a dev version or an unknown system has nothing to download', async () => {

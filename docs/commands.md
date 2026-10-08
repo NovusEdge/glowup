@@ -133,7 +133,7 @@ Your layout and behavior settings. They are yours alone: installing someone's pa
 
 ## config
 
-`/glowup config` opens glowup's settings screen in a new terminal window. Changes apply to the session you ran it in as you make them. `q` keeps them, and Esc puts back what you had when the screen opened. In the desktop Code tab, where there is no terminal to open, `/glowup config` opens the pane described below instead, and `/glowup config pane` opens that pane anywhere.
+`/glowup config` opens glowup's settings screen in a new terminal window. On Windows that is a new window in your default terminal app; WSL behaves as Linux. Changes apply to the session you ran it in as you make them. `q` keeps them, and Esc puts back what you had when the screen opened. In the desktop Code tab, where there is no terminal to open, `/glowup config` opens the pane described below instead, and `/glowup config pane` opens that pane anywhere.
 
 The window opens in the first of these that applies:
 
