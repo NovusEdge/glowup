@@ -97,6 +97,14 @@ test('format 2 takes lines and a voice, and the sheet carries them', () => {
   expect(sheet.voice).toBe('a sleepy blob')
 })
 
+test('level keys are accepted from 2 to 99, alone or with a flavour', () => {
+  const ok = (lines: unknown) => () => validatePetFile(v2({ lines }))
+  expect(ok({ 'done@lv2': ['x'], 'done@lv99': ['x'], 'hello@night@lv4': ['x'], 'level-up': ['up: {unlock}'], 'level-up@lv3': ['x'] })).not.toThrow()
+  for (const k of ['done@lv1', 'done@lv100', 'done@lvx', 'done@lv02', 'done@lv4@night', 'done@lv', 'done@night@lv4@lv5']) {
+    expect(ok({ [k]: ['x'] })).toThrow(`"${k}"`)
+  }
+})
+
 test('lines or voice under format 1 point at format 2', () => {
   expect(() => validatePetFile({ ...base, lines: { done: ['x'] } })).toThrow('"lines" and "voice" need "format": 2')
   expect(() => validatePetFile({ ...base, voice: 'x' })).toThrow('"lines" and "voice" need "format": 2')

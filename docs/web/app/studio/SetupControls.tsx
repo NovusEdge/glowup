@@ -5,7 +5,7 @@ import { Order } from './ui'
 
 const MOOD_LABEL: Record<string, string> = {
   'needs-you': 'needs you', fail: 'failed test', done: 'turn done',
-  green: 'tests green again', hello: 'hello', 'long-done': 'long turn done', compact: 'compacted',
+  green: 'tests green again', hello: 'hello', 'long-done': 'long turn done', compact: 'compacted', 'level-up': 'level up',
 }
 
 // Keeps what the user typed until it parses, so "6" on the way to "60" is not snapped back by a rejected edit.

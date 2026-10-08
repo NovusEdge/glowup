@@ -103,7 +103,12 @@ export function validatePetFile(file: unknown): asserts file is PetFile {
 function validateLines(lines: unknown) {
   if (!isPlain(lines)) throw new Error('"lines" must be an object of moment keys and lists of lines')
   for (const [key, list] of Object.entries(lines)) {
-    const [moment, flavour, more] = key.split('@')
+    const parts = key.split('@')
+    // "@lvN" comes last; "done@lv4@night" is refused as an unknown flavour "lv4".
+    const lv = parts.length > 1 ? /^lv([1-9]\d?)$/.exec(parts.at(-1)!) : null
+    if (lv) parts.pop()
+    if (lv && Number(lv[1]) < 2) throw new Error(`lines: level must be 2 to 99 in "${shown(key)}"`)
+    const [moment, flavour, more] = parts
     if (!(MOMENTS as readonly string[]).includes(moment!)) throw new Error(`lines: unknown moment "${shown(moment!)}"; known: ${MOMENTS.join(', ')}`)
     if (more !== undefined || (flavour !== undefined && !(FLAVOURS as readonly string[]).includes(flavour))) throw new Error(`lines: unknown flavour "${shown(flavour ?? '')}" in "${shown(key)}"; known: ${FLAVOURS.join(', ')}`)
     const at = `lines.${shown(key)}`

@@ -1,16 +1,17 @@
 // JSX-free: the studio imports it.
 import { daypart, type LocalTime } from './eggs.ts'
 
-export const MOMENTS = ['done', 'fail', 'needs-you', 'green', 'hello', 'long-done', 'compact'] as const
+export const MOMENTS = ['done', 'fail', 'needs-you', 'green', 'hello', 'long-done', 'compact', 'level-up'] as const
 export type Moment = (typeof MOMENTS)[number]
 export const FLAVOURS = ['morning', 'afternoon', 'evening', 'night', 'friday', 'christmas', 'halloween', 'birthday'] as const
 export type Flavour = (typeof FLAVOURS)[number]
-// Keys are a moment ("done") or a moment and a flavour ("done@night").
+// Keys are a moment ("done"), optionally with a flavour ("done@night") and/or a level from which
+// they apply ("done@lv4", "done@night@lv4").
 export type PetLines = Partial<Record<string, string[]>>
 
 // The vars moodOf fills for each moment; any other slot would draw as "…".
-export const MOMENT_SLOTS: Record<Moment, readonly ('file' | 'n' | 'command')[]> = {
-  done: ['file'], 'long-done': ['file'], fail: ['n'], 'needs-you': ['command'], green: [], hello: [], compact: [],
+export const MOMENT_SLOTS: Record<Moment, readonly ('file' | 'n' | 'command' | 'unlock')[]> = {
+  done: ['file'], 'long-done': ['file'], fail: ['n'], 'needs-you': ['command'], green: [], hello: [], compact: [], 'level-up': ['unlock'],
 }
 
 export const DEFAULT_LINES: Record<Moment, string[]> = {
@@ -21,6 +22,7 @@ export const DEFAULT_LINES: Record<Moment, string[]> = {
   hello: ['hi!', 'hello', 'welcome back', 'ready', 'hey', 'here again'],
   'long-done': ['long one, done', 'finally!', 'all done at last', 'that took a while', 'done, phew', 'finished at last'],
   compact: ['context compacted', 'tidied up', 'lighter now', 'memory trimmed', 'squeezed it down', 'fresh start-ish'],
+  'level-up': ['level up!', 'new level!', 'we leveled up', 'stronger now', 'unlocked: {unlock}', 'new: {unlock}', 'level up! {unlock}', 'you unlocked {unlock}'],
 }
 
 export const BUILTIN_LINES: Record<'clawd' | 'robot' | 'egg', PetLines> = {
@@ -43,6 +45,16 @@ export const BUILTIN_LINES: Record<'clawd' | 'robot' | 'egg', PetLines> = {
     'hello@birthday': ['hey, our anniversary!'],
     'long-done': ['finally done', 'that was a long one', 'done. I aged a bit', 'marathon over', 'phew. done', 'done. {file} got a lot'],
     compact: ['tidied up my notes', 'memory squeezed', 'lighter now', 'compacted. where were we?', 'fresh-ish context', 'packed it down'],
+    'level-up': ['level up. look at us', 'ding. we grew', 'new level, same crab', 'ooh, a level', 'unlocked {unlock}. fancy', 'we earned {unlock}', 'level up! {unlock}, hm?', '{unlock}? we earned it'],
+    'done@lv2': ['done. we make a decent team', 'done. I could get used to this'],
+    'hello@lv2': ['oh, you again. good', 'back for more? nice'],
+    'green@lv2': ['green. we did that', 'green! told you so'],
+    'done@lv4': ['done. just like old times', "done. you're good company"],
+    'hello@lv4': ['there you are!', 'missed you. a little'],
+    'green@lv4': ['green. we make this look easy', 'green again. our usual'],
+    'done@lv7': ['done. best crew I know', 'done, partner. as ever'],
+    'hello@lv7': ['my favorite human is back', "oh good, it's you"],
+    'green@lv7': ['green. never doubted us', 'green! we are unstoppable'],
   },
   robot: {
     done: ['TASK COMPLETE.', 'JOB DONE. AWAITING INPUT.', 'PROCESS EXITED 0.', 'OUTPUT DELIVERED.', 'COMPLETE. {file} UPDATED.', 'END OF LINE.'],
@@ -57,6 +69,16 @@ export const BUILTIN_LINES: Record<'clawd' | 'robot' | 'egg', PetLines> = {
     'hello@halloween': ['BOO.WAV'],
     'long-done': ['LONG JOB COMPLETE.', 'UPTIME EXCEEDED. DONE.', 'BATCH FINISHED.', 'COMPLETE AT LAST.', 'DONE. FANS COOLING.', 'MARATHON PROCESS ENDED.'],
     compact: ['MEMORY DEFRAGMENTED.', 'BUFFER COMPACTED.', 'CACHE CLEARED.', 'CONTEXT COMPRESSED.', 'FREE MEMORY: MORE.', 'GARBAGE COLLECTED.'],
+    'level-up': ['LEVEL UP.', 'UPGRADE COMPLETE.', 'RANK INCREASED.', 'FIRMWARE UPDATED.', 'UNLOCKED: {unlock}', 'NEW MODULE: {unlock}', 'UPGRADE: {unlock}', 'LEVEL UP. {unlock} ONLINE.'],
+    'done@lv2': ['TASK COMPLETE. EFFICIENCY UP.', 'DONE. SYNC IMPROVING.'],
+    'hello@lv2': ['OPERATOR RECOGNIZED.', 'WELCOME BACK, OPERATOR.'],
+    'green@lv2': ['TESTS: GREEN. EFFICIENT.', 'FAULT CLEARED. GOOD WORK.'],
+    'done@lv4': ['TASK COMPLETE, PARTNER.', 'DONE. TEAM PERFORMANCE: HIGH.'],
+    'hello@lv4': ['HELLO, PARTNER.', 'PARTNER DETECTED. ONLINE.'],
+    'green@lv4': ['TESTS: GREEN, PARTNER.', 'GREEN. PARTNER SYNC: STRONG.'],
+    'done@lv7': ['DONE, PARTNER. OPTIMAL.', 'MISSION COMPLETE, PARTNER.'],
+    'hello@lv7': ['PARTNER. I MISSED YOU.', 'BOOT COMPLETE. PARTNER PRESENT.'],
+    'green@lv7': ['GREEN. PARTNER, WE ARE ELITE.', 'ALL GREEN. BEST TEAM ON RECORD.'],
   },
   egg: {
     done: ['*tap tap*', '*wiggle*', '…!', '*happy wobble*', '*warm*', 'done?'],
@@ -67,6 +89,16 @@ export const BUILTIN_LINES: Record<'clawd' | 'robot' | 'egg', PetLines> = {
     'hello@night': ['*zzz*'],
     'long-done': ['*sleepy wobble*', 'long…', '*stretch*', '*tired tap*', 'phew', '*sigh*'],
     compact: ['*shrink*', '*hum*', '*settle*', '*snug*', '*tidy tap*', '*smaller*'],
+    'level-up': ['*crack*', '*wobble wobble*', '!!!', '*glow*', '*tap* {unlock}!', '{unlock}?!', '*shiver* {unlock}', '*peep!* {unlock}'],
+    'done@lv2': ['*tap tap*', '*warm wiggle*'],
+    'hello@lv2': ['*peep peep*', '*tap* hi'],
+    'green@lv2': ['*happy tap*', '*wiggle*'],
+    'done@lv4': ['*tap tap tap*', '*content wobble*'],
+    'hello@lv4': ['*excited peep*', '*wobble* hi!'],
+    'green@lv4': ['*bounce bounce*', '*glow glow*'],
+    'done@lv7': ['*tap* almost hatching', '*crack* soon…'],
+    'hello@lv7': ['*peep* hatching soon?', '*wobble* nearly hatched'],
+    'green@lv7': ['*crack!* hatching…', '*glow* hatch soon!'],
   },
 }
 
@@ -76,9 +108,17 @@ export function linesFor(pet: string, user?: PetLines): PetLines {
   return user ?? {}
 }
 
-export function pool(lines: PetLines, moment: Moment, flavours: readonly Flavour[]): string[] {
+// Order is base, flavour lines, then level lines by ascending level, whatever the table's key order.
+export function pool(lines: PetLines, moment: Moment, flavours: readonly Flavour[], level = 1): string[] {
   const base = lines[moment]?.length ? lines[moment]! : DEFAULT_LINES[moment]
-  return [...base, ...flavours.flatMap(f => lines[`${moment}@${f}`] ?? [])]
+  const tier: [number, string[]][] = []
+  for (const [key, list] of Object.entries(lines)) {
+    const m = /^([^@]+)(?:@([^@]+?))?@lv(\d+)$/.exec(key)
+    if (!m || m[1] !== moment || (m[2] !== undefined && !flavours.includes(m[2] as Flavour)) || Number(m[3]) > level) continue
+    tier.push([Number(m[3]), list ?? []])
+  }
+  tier.sort((a, b) => a[0] - b[0])
+  return [...base, ...flavours.flatMap(f => lines[`${moment}@${f}`] ?? []), ...tier.flatMap(([, l]) => l)]
 }
 
 // Holidays follow the outfits, so the hat and the line change on the same day. The "friday"
