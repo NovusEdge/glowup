@@ -24,7 +24,7 @@ export const turnXp = (t: TurnXp) =>
   (t.answered ? 5 + Math.min(t.combo, 20) : 0) + 15 * t.green + 10 * Math.min(t.commits, 3)
 
 export const isCommitCommand = (command: string) =>
-  command.split(/&&|;|\|\|?/).some(part => {
+  command.split(/&&|;|\|\|?|\n/).some(part => {
     const p = part.trim().replace(/^(\w+=\S+\s+)+/, '')
     return /^git\s+(-C\s+\S+\s+)?commit(\s|$)/.test(p) && !p.includes('--dry-run')
   })

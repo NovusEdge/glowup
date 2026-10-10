@@ -479,7 +479,7 @@ function feed($: Engine, ev: Ev) {
   // XP does not depend on the green bubble being on
   if (said?.moment === 'green') turnGain.green++
   if (ev.type === 'turn-done') {
-    if (pendingLevelUp && (said?.moment === 'done' || said?.moment === 'long-done') && speaks('level-up', setup.bubbles.moods)) said = { moment: 'level-up', vars: { unlock: pendingLevelUp.unlock } }
+    if (pendingLevelUp && (said === undefined || said.moment === 'done' || said?.moment === 'long-done') && speaks('level-up', setup.bubbles.moods)) said = { moment: 'level-up', vars: { unlock: pendingLevelUp.unlock } }
     pendingLevelUp = undefined
   }
   if (said) void say($, said.moment, said.vars)

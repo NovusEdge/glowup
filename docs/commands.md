@@ -108,7 +108,7 @@ An override sits on top of whatever pack and theme are active and survives switc
 | `/glowup bubbles on` | Turn speech bubbles on. Prints `Bubbles: on`. |
 | `/glowup bubbles off` | Turn them off. |
 | `/glowup bubbles haiku` | Let Claude Haiku write some lines. Each one is a small call on your account. Prints `Bubbles: haiku`. |
-| `/glowup level` | Print your level, your XP total, the XP to the next level, the unlocks you have earned and the next one. Outfit and move unlocks are marked `(coming soon)` until they ship. Once you have every unlock it prints `All unlocks earned.` in place of the next one. |
+| `/glowup level` | Print your level, your XP total, the XP to the next level, the unlocks you have earned and the next one. Outfit and move unlocks are marked coming soon until they ship. Once you have every unlock it prints `All unlocks earned.` in place of the next one. |
 
 See [Pets](pets.md), and [Pet sprites](pet-sprites.md) for drawing your own.
 

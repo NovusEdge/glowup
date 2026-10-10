@@ -18,7 +18,7 @@ test('turn XP: answered base, capped combo, green, capped commits', async () => 
 })
 
 test('commit detection', async () => {
-  for (const c of ['git commit -m x', 'git -C sub commit -s', 'A=1 git commit', 'git add . && git commit -m y', 'npm test; git commit -am z'])
+  for (const c of ['git commit -m x', 'git -C sub commit -s', 'A=1 git commit', 'git add . && git commit -m y', 'npm test; git commit -am z', 'git add -A\ngit commit -m x'])
     expect({ c, ok: isCommitCommand(c) }).toEqual({ c, ok: true })
   for (const c of ['git commit --dry-run', 'git log', 'echo git commit', 'git commit-tree abc', 'gitx commit'])
     expect({ c, ok: isCommitCommand(c) }).toEqual({ c, ok: false })

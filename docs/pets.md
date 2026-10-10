@@ -134,7 +134,7 @@ Level n needs 100 × n XP to reach level n + 1, so level 2 comes at 100 XP and l
 | 6 | An outfit |
 | 7 | New lines |
 | 8 | An outfit |
-| 10 | A new move |
+| 10 | A new move (idle) |
 
 Outfits and moves are coming in a later release. Until then they are earned but not shown, and the level-up bubble names only the lines.
 

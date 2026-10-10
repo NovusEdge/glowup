@@ -59,9 +59,12 @@ test('an answered turn at combo 4 earns 9 and the level field shows Lv 1', async
 
 test('a subagent earns nothing; a main-loop commit earns 10, and four in a turn earn 30', async ($, on) => {
   const store: Record<string, unknown> = {}
-  const clock = base(on, store)
+  let out = 'Tests: 3 failed, 9 passed'
+  const clock = base(on, store, { toolText: () => out })
   await $.turn.start({ text: 'hi', turnId: 't1' })
   await bash($, 'git commit -m x', { agentId: 'a1' })
+  await bash($, 'npm test', { agentId: 'a1' })
+  out = 'Tests: 12 passed'
   await bash($, 'npm test', { agentId: 'a1' })
   await $.turn.complete({ reason: 'error', answer: '', durationMs: 10, isAborted: false, turnId: 't1' })
   await clock.advance(1)
@@ -70,6 +73,7 @@ test('a subagent earns nothing; a main-loop commit earns 10, and four in a turn 
   await bash($, 'git commit -m x')
   await $.turn.complete({ reason: 'error', answer: '', durationMs: 10, isAborted: false, turnId: 't2' })
   expect(xpOf(store)).toBe(10)
+  out = 'ok'
   await $.turn.start({ text: 'hi', turnId: 't3' })
   for (let i = 0; i < 4; i++) await bash($, 'git commit -m x')
   await $.turn.complete({ reason: 'error', answer: '', durationMs: 10, isAborted: false, turnId: 't3' })
@@ -102,6 +106,17 @@ test('crossing into a lines level shows a level-up bubble that names the unlock,
   const body = await paneText($)
   expect(body).toContain('new lines')
   expect(DONE_SAY.some(l => body.includes(l))).toBe(false)
+})
+
+test('a level crossed on an aborted turn is still announced', async ($, on) => {
+  const store: Record<string, unknown> = { level: { format: 1, xp: 95 } }
+  const clock = base(on, store)
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await bash($, 'git commit -m x')
+  await $.turn.complete({ reason: 'aborted', answer: '', durationMs: 10, isAborted: true, turnId: 't1' })
+  await clock.advance(1)
+  expect(xpOf(store)).toBe(105)
+  expect(await paneText($)).toContain('new lines')
 })
 
 test('crossing into an outfit level with no art ready shows a level-up line with no unlock name', async ($, on) => {
