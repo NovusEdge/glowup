@@ -19,7 +19,7 @@ export type { TabId }
 // window the model's window that m.ctxPercent and m.ctxHistory are measured against.
 export type CtxDetail = { autoCompact: boolean; threshold?: number; window?: number; heavy: Heavy[]; cacheHit?: number }
 export type PaneView = { tab: TabId; offset?: number; categories?: { name: string; tokens: number; kind: ContextCategoryKind }[]; maxTokens?: number; ctx?: CtxDetail; reduced?: boolean; meter?: Meter; diff?: Diffs }
-export const TABS: [TabId, string][] = [['plan', 'Plan & context'], ['agents', 'Agents'], ['diff', 'Diff'], ['changes', 'Changes']]
+export const TABS: [TabId, string][] = [['plan', 'Plan & context'], ['agents', 'Agents'], ['diff', 'Diff'], ['changes', 'Changes'], ['music', 'Music']]
 export function visibleTabs(order: readonly TabId[] | undefined, open: TabId): { tabs: [TabId, string][]; tab: TabId } {
   const tabs = order ? order.map(id => TABS.find(([t]) => t === id)!).filter(Boolean) : TABS
   return { tabs, tab: tabs.some(([id]) => id === open) ? open : tabs[0]![0] }

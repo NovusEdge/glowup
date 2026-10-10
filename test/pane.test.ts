@@ -333,12 +333,12 @@ test('HP and COMBO show in the status box under an arcade look', async () => {
   expect(text(statusRows({ ...M, limits: [{ kind: 'seven_day', percentUsed: 20 }] }, T, 54, 0, arcade))[1]).toContain('80% weekly limit left')
 })
 
-test('renderPane draws four tab buttons with hotkeys 1-4 and presses switch tab', async () => {
+test('renderPane draws five tab buttons with hotkeys 1-5 and presses switch tab', async () => {
   const picked: TabId[] = []
   const tree = renderPane(els, M, T, { tab: 'agents' }, 54, false, 0, id => picked.push(id))
   const buttons = walk(tree).filter(n => n.type === 'Button')
-  expect(buttons.map(b => [b.props.key, b.props.hotkey])).toEqual([['tab-plan', '1'], ['tab-agents', '2'], ['tab-diff', '3'], ['tab-changes', '4']])
-  expect(buttons.map(b => b.props.variant)).toEqual([undefined, 'primary', undefined, undefined])
+  expect(buttons.map(b => [b.props.key, b.props.hotkey])).toEqual([['tab-plan', '1'], ['tab-agents', '2'], ['tab-diff', '3'], ['tab-changes', '4'], ['tab-music', '5']])
+  expect(buttons.map(b => b.props.variant)).toEqual([undefined, 'primary', undefined, undefined, undefined])
   buttons[2].onPress({})
   expect(picked).toEqual(['diff'])
 })
@@ -572,6 +572,6 @@ test('the context warning follows meter.danger', () => {
 })
 
 test('tabs follow the setup and an open hidden tab falls to the first shown one', () => {
-  expect(visibleTabs(undefined, 'agents')).toEqual({ tabs: [['plan', 'Plan & context'], ['agents', 'Agents'], ['diff', 'Diff'], ['changes', 'Changes']], tab: 'agents' })
+  expect(visibleTabs(undefined, 'agents')).toEqual({ tabs: [['plan', 'Plan & context'], ['agents', 'Agents'], ['diff', 'Diff'], ['changes', 'Changes'], ['music', 'Music']], tab: 'agents' })
   expect(visibleTabs(['plan', 'changes'], 'agents')).toEqual({ tabs: [['plan', 'Plan & context'], ['changes', 'Changes']], tab: 'plan' })
 })

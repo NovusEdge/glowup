@@ -4,16 +4,16 @@ import { shown } from './themes.ts'
 
 export const BAND_ITEMS = ['combo', 'agents', 'meter', 'plan'] as const
 export type BandItem = (typeof BAND_ITEMS)[number]
-export const TAB_IDS = ['plan', 'agents', 'diff', 'changes'] as const
+export const TAB_IDS = ['plan', 'agents', 'diff', 'changes', 'music'] as const
 export type TabId = (typeof TAB_IDS)[number]
 export const SETUP_MOODS: readonly Moment[] = ['needs-you', 'fail', 'done', 'green', 'hello', 'long-done', 'compact', 'level-up']
 export type Meter = { warn: number; danger: number }
-export type Setup = { format: 3; band: BandItem[]; tabs: TabId[]; meter: Meter; bubbles: { moods: Moment[]; ms: number }; pet: { sleepMs: number } }
+export type Setup = { format: 4; band: BandItem[]; tabs: TabId[]; meter: Meter; bubbles: { moods: Moment[]; ms: number }; pet: { sleepMs: number } }
 
 export const DEFAULT_SETUP: Setup = {
-  format: 3,
+  format: 4,
   band: ['combo', 'agents', 'meter', 'plan'],
-  tabs: ['plan', 'agents', 'diff', 'changes'],
+  tabs: ['plan', 'agents', 'diff', 'changes', 'music'],
   meter: { warn: 50, danger: 80 },
   bubbles: { moods: [...SETUP_MOODS], ms: 3000 },
   pet: { sleepMs: 60_000 },
@@ -36,11 +36,15 @@ function ids<T extends string>(v: unknown, known: readonly T[], what: string, no
 }
 
 const OLD_DEFAULT_TABS = 'changes,agents,plan'
+// 0.11-0.12's default, stored by any setup save before music existed
+const PRE_MUSIC_TABS = 'plan,agents,diff,changes'
 // Every moment a setup format knew. Saving any setup field stored the moods too, so a list holding all of them
 // is that format's default, not a choice, and reads as today's default.
 const MOODS_KNOWN: Record<number, readonly Moment[]> = {
   1: ['needs-you', 'fail', 'done'],
   2: ['needs-you', 'fail', 'done', 'green', 'hello', 'long-done', 'compact'],
+  3: SETUP_MOODS,
+  4: SETUP_MOODS,
 }
 const holdsAll = (got: readonly Moment[], known: readonly Moment[] | undefined) =>
   known !== undefined && got.length === known.length && known.every(m => got.includes(m))
@@ -60,8 +64,10 @@ export function parseSetup(raw: unknown): { setup: Setup; notices: string[] } {
   let tabs = d.tabs
   if (raw.tabs !== undefined) {
     const got = ids(raw.tabs, TAB_IDS, 'tab', notices)
-    // Saving any setup field stored the tabs too, so the pre-0.11 default order is the default, not a choice.
-    if (got?.length) tabs = got.join() === OLD_DEFAULT_TABS ? d.tabs : got
+    // Saving any setup field stored the tabs too, so an older default order is the default, not a choice.
+    // Format 4 is the first to know Music, so only a stored older format can hold the pre-music default.
+    const stale = typeof raw.format !== 'number' || raw.format < 4
+    if (got?.length) tabs = stale && (got.join() === OLD_DEFAULT_TABS || got.join() === PRE_MUSIC_TABS) ? d.tabs : got
     else notices.push(`tabs must name at least one of: ${TAB_IDS.join(', ')}`)
   }
 
@@ -95,7 +101,7 @@ export function parseSetup(raw: unknown): { setup: Setup; notices: string[] } {
     else notices.push('pet.sleepMs must be a whole number from 15000 to 600000')
   }
 
-  return { setup: { format: 3, band, tabs, meter, bubbles: { moods, ms }, pet: { sleepMs } }, notices }
+  return { setup: { format: 4, band, tabs, meter, bubbles: { moods, ms }, pet: { sleepMs } }, notices }
 }
 
 const list = (v: string) => (v === 'none' ? [] : v.split(',').map(s => s.trim()).filter(Boolean))

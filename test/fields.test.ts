@@ -90,6 +90,7 @@ test('effort is in the default fields, after ctx', () => {
   expect(DEFAULT_FIELDS).toEqual(['activity', 'ctx', 'effort', '5h', 'week'])
 })
 
+<<<<<<< HEAD
 test('level: hidden until xp is read, then Lv N and five cells', () => {
   const lv = (xp?: number) => plain({ ...initialModel(), xp }, ['level'])
   expect(FIELD_IDS).toContain('level')
@@ -98,4 +99,15 @@ test('level: hidden until xp is read, then Lv N and five cells', () => {
   expect(lv(0)).toBe('Lv 1 ▱▱▱▱▱')
   expect(lv(100 + 80)).toBe('Lv 2 ▰▰▱▱▱')
   expect(lv(100 + 199)).toBe('Lv 2 ▰▰▰▰▱')
+})
+
+test('music field shows the playing track only', () => {
+  const track = { id: 'x', title: 'Fembrook Dr', artist: 'Khary', album: '', durationMs: 1 }
+  const m = (music: Model['music']): Model => ({ ...initialModel(), music })
+  expect(DEFAULT_FIELDS).not.toContain('music')
+  expect(plain(m({ status: 'open', playing: true, ad: false, progressMs: 0, readAt: 0, track }), ['music'])).toBe('♪ Fembrook Dr — Khary')
+  expect(plain(m({ status: 'open', playing: false, ad: false, progressMs: 0, readAt: 0, track }), ['music'])).toBe('')
+  expect(plain(m({ status: 'open', playing: true, ad: true, progressMs: 0, readAt: 0, track }), ['music'])).toBe('')
+  expect(plain(m({ status: 'closed' }), ['music'])).toBe('')
+>>>>>>> c501d1b (feat(music): music on the model, a music tab id and status field)
 })

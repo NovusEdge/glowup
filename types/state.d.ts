@@ -15,7 +15,7 @@ export type GlowupModel = {
   needsYou?: { toolUseId: string; what: string; before: GlowupAct }
 }
 export type GlowupPaneView = {
-  tab: 'changes' | 'agents' | 'diff' | 'plan'
+  tab: 'changes' | 'agents' | 'diff' | 'plan' | 'music'
   diff?: Record<string, { kind: 'hunk' | 'add' | 'del' | 'ctx' | 'note'; text: string }[]>
   categories?: { name: string; tokens: number; kind: 'used' | 'free' | 'buffer' | 'deferred' }[]
   maxTokens?: number

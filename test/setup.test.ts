@@ -24,7 +24,7 @@ test('bad values fall back per field with a notice', () => {
   expect(r.setup).toEqual(DEFAULT_SETUP)
   expect(r.notices).toEqual([
     'band must be a list of: combo, agents, meter, plan',
-    'tabs must name at least one of: plan, agents, diff, changes',
+    'tabs must name at least one of: plan, agents, diff, changes, music',
     'meter.warn must be below meter.danger',
     'bubbles.ms must be a whole number from 1500 to 10000',
     'pet.sleepMs must be a whole number from 15000 to 600000',
@@ -32,7 +32,7 @@ test('bad values fall back per field with a notice', () => {
 })
 
 test('the default tabs open on plan and the diff tab is a valid choice', () => {
-  expect(DEFAULT_SETUP.tabs).toEqual(['plan', 'agents', 'diff', 'changes'])
+  expect(DEFAULT_SETUP.tabs).toEqual(['plan', 'agents', 'diff', 'changes', 'music'])
   expect(parseSetup({ tabs: ['diff', 'changes'] })).toEqual({ setup: { ...DEFAULT_SETUP, tabs: ['diff', 'changes'] }, notices: [] })
   expect(setSetupField(DEFAULT_SETUP, 'tabs', 'diff,plan')).toMatchObject({ setup: { tabs: ['diff', 'plan'] } })
 })
@@ -96,7 +96,7 @@ test('a format 3 setup keeps its moods as a choice, and a saved setup is format 
 test('describeSetup lists every key with its value', () => {
   expect(describeSetup(DEFAULT_SETUP)).toBe([
     'band           combo, agents, meter, plan',
-    'tabs           plan, agents, diff, changes',
+    'tabs           plan, agents, diff, changes, music',
     'meter.warn     50',
     'meter.danger   80',
     'bubbles.moods  needs-you, fail, done, green, hello, long-done, compact, level-up',
@@ -110,4 +110,11 @@ test('toneFor uses the meter', () => {
   const m = { warn: 50, danger: 80 }
   expect([0, 49, 50, 79, 80, 100].map(p => toneFor(p, m))).toEqual(['pass', 'pass', 'edit', 'edit', 'fail', 'fail'])
   expect(toneFor(30, { warn: 20, danger: 30 })).toBe('fail')
+})
+
+test('music is a tab, last by default; a stored 0.11 default order gains it', () => {
+  expect(DEFAULT_SETUP.tabs).toEqual(['plan', 'agents', 'diff', 'changes', 'music'])
+  expect(parseSetup({ tabs: ['plan', 'agents', 'diff', 'changes'] }).setup.tabs).toEqual(DEFAULT_SETUP.tabs)
+  expect(parseSetup({ tabs: ['changes', 'plan'] }).setup.tabs).toEqual(['changes', 'plan'])
+  expect(parseSetup({ tabs: ['music'] }).setup.tabs).toEqual(['music'])
 })

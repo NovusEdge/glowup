@@ -82,7 +82,7 @@ test('hex input accepts #rgb, #rrggbb, a bare hex and spaces, and refuses a name
 
 test('list inputs take commas or spaces and reorder', () => {
   const s = base()
-  expect(inputValue('tabs', s)).toBe('plan, agents, diff, changes')
+  expect(inputValue('tabs', s)).toBe('plan, agents, diff, changes, music')
   expect(inputCommand('tabs', 'plan, changes', s)).toEqual({ cmd: 'setup tabs plan,changes' })
   expect(inputCommand('band', 'meter plan', s)).toEqual({ cmd: 'setup band meter,plan' })
   expect(inputCommand('moods', 'fail', s)).toEqual({ cmd: 'setup bubbles.moods fail' })
@@ -100,6 +100,6 @@ test('an empty list means none for band and moods, default for fields, and is re
 test('unknown list ids are refused before anything runs', () => {
   const s = base()
   expect(inputCommand('tabs', 'plan; rm -rf', s)).toHaveProperty('error')
-  expect(inputCommand('fields', 'ctx bogus', s)).toEqual({ error: 'Unknown field: bogus. Choose from: activity, ctx, 5h, week, cost, model, effort, agents, plan, branch, changes, cwd, level.' })
+  expect(inputCommand('fields', 'ctx bogus', s)).toEqual({ error: 'Unknown field: bogus. Choose from: activity, ctx, 5h, week, cost, model, effort, agents, plan, branch, changes, cwd, level, music.' })
   expect(inputValue('fields', s)).toBe(DEFAULT_FIELDS.join(' '))
 })

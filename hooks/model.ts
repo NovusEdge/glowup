@@ -1,4 +1,5 @@
 import { describeTool, testOutcome, planFrom, editCounts, type PlanItem } from './events.ts'
+import type { Music } from './music/parse.ts'
 export type { PlanItem }
 
 export type Act = { glyph: string; label: string; kind?: string; tone: 'text' | 'dim' | 'read' | 'edit' | 'shell' | 'agent' | 'pass' | 'fail' | 'accent' }
@@ -30,6 +31,8 @@ export type Model = {
   branch?: string
   // undefined until the level store is read
   xp?: number
+  // the local Spotify player, polled by register.tsx; undefined until the first read
+  music?: Music
 }
 export type Ev =
   | { type: 'turn-start'; at: number }
@@ -47,6 +50,7 @@ export type Ev =
   // a field left out keeps its last value: model() and root() are read separately and either can fail
   | { type: 'session-info'; modelName?: string; root?: string }
   | { type: 'branch'; branch?: string }
+  | { type: 'music'; music: Music }
   // from each main-loop model request; a request without one (a model with no effort support) clears it
   | { type: 'effort'; effort?: string }
   | { type: 'level'; xp: number }
@@ -77,6 +81,8 @@ export function normalizeModel(raw: unknown): Model {
   if (!Number.isInteger(m.xp) || m.xp! < 0) m.xp = undefined
   // before 0.3.5 reads were stored here too
   m.files = m.files.filter(f => (f.how as string) !== 'read').sort((a, b) => b.at - a.at)
+  const mu = m.music as { status?: unknown } | undefined
+  if (!mu || typeof mu !== 'object' || !['open', 'closed', 'unsupported'].includes(mu.status as string)) m.music = undefined
   return m
 }
 // The task count while the plan shows as one line: it finished before the last prompt and nothing has
@@ -145,6 +151,7 @@ export function applyEvent(m: Model, ev: Ev): Model {
     case 'effort': return { ...m, effort: ev.effort }
     case 'branch': return { ...m, branch: ev.branch }
     case 'level': return { ...m, xp: ev.xp }
+    case 'music': return { ...m, music: ev.music }
     case 'needs-you': return { ...m, actAt: ev.at, needsYou: { toolUseId: ev.toolUseId, what: ev.what, before: m.needsYou?.before ?? m.act }, act: { glyph: '!', label: `Needs you: ${ev.what}`, tone: 'fail' } }
     case 'agent-bind': return { ...m, agents: m.agents.map(a => a.key === ev.toolUseId ? { ...a, agentId: ev.agentId } : a) }
     case 'agent-done': return { ...m, agents: m.agents.map(a => a.agentId === ev.agentId && a.state === 'running' ? { ...a, state: 'done' as const, endedAt: ev.at, now: undefined, tokens: ev.tokens ?? a.tokens } : a) }
