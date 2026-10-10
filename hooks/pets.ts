@@ -17,11 +17,12 @@ export type PetSetting = BuiltinPet | 'off' | (string & {})
 // `string & {}` stays in the union, so the type cannot exclude 'off'; the pane's render hook checks it.
 export type PetId = Exclude<PetSetting, 'off'>
 // 'fail' is optional in a sheet; without one it plays 'alert'. The others fall back to idle.
-export type Pose = 'idle' | 'walk' | 'working' | 'hop' | 'alert' | 'done' | 'sleep' | 'fail' | 'juggle' | 'scrunch' | 'pant' | 'pant-walk'
+export type Pose = 'idle' | 'walk' | 'working' | 'hop' | 'alert' | 'done' | 'sleep' | 'fail' | 'juggle' | 'scrunch' | 'pant' | 'pant-walk' | 'dance' | 'work-dance'
 export type PetSpan = { text: string; color: string; bg?: string }
 export type PetKind = 'read' | 'search' | 'edit' | 'shell' | 'agent' | 'plan' | 'think'
 // agents is the number of subagents running; ctx the context window's percent used.
-export type PetInput = { working: boolean; kind?: PetKind; needsYou: boolean; lastTest?: { passed: boolean; at: number }; doneAt?: number; doneOk?: boolean; actAt?: number; agents?: number; compactAt?: number; ctx?: number; sleepMs?: number; pantAt?: number; juggleAt?: number }
+// music: Spotify is playing on this machine (not an ad)
+export type PetInput = { music?: boolean; working: boolean; kind?: PetKind; needsYou: boolean; lastTest?: { passed: boolean; at: number }; doneAt?: number; doneOk?: boolean; actAt?: number; agents?: number; compactAt?: number; ctx?: number; sleepMs?: number; pantAt?: number; juggleAt?: number }
 
 // Pixel rows of single-char palette keys, '.' = transparent. Two pixel rows make one terminal row.
 // head is [x, y] of the top-centre of the head, where outfits anchor; dx is horizontal travel in pixels.
@@ -78,7 +79,9 @@ export function petPose(p: PetInput, now: number): Pose {
   if ((p.agents ?? 0) >= JUGGLE_AGENTS) return 'juggle'
   const tired = (p.ctx ?? 0) >= (p.pantAt ?? PANT_CTX)
   // typing while he writes code, runs commands or has subagents at it; walking while he reads, searches, plans or waits
-  if (p.working) return p.kind === 'edit' || p.kind === 'shell' || p.kind === 'agent' ? 'working' : tired ? 'pant-walk' : 'walk'
+  if (p.working) return p.music ? 'work-dance' : p.kind === 'edit' || p.kind === 'shell' || p.kind === 'agent' ? 'working' : tired ? 'pant-walk' : 'walk'
+  // music keeps him up
+  if (p.music) return 'dance'
   // 0 is initialModel's "nothing yet", not a real time
   if (p.actAt !== undefined && p.actAt > 0 && now - p.actAt >= (p.sleepMs ?? SLEEP_MS)) return 'sleep'
   return tired ? 'pant' : 'idle'
@@ -198,8 +201,8 @@ export function validateSheet(sheet: PetSheet): void {
   for (const [name, o] of Object.entries(sheet.outfits ?? {})) for (const r of o.px) for (const k of r) if (!known(k)) throw new Error(`outfit ${name}: unknown palette key "${k}"`)
 }
 
-// A missing animation falls back: fail to alert, a panting walk to the walk, anything else to idle.
-const FALLBACK: Record<string, string> = { fail: 'alert', 'pant-walk': 'walk', 'pant-walk-left': 'walk-left' }
+// A missing animation falls back: fail to alert, a panting walk to the walk, the working dance to typing, anything else to idle.
+const FALLBACK: Record<string, string> = { fail: 'alert', 'pant-walk': 'walk', 'pant-walk-left': 'walk-left', 'work-dance': 'working' }
 export const animFor = (sheet: PetSheet, name: string): PetAnim => sheet.animations[name] ?? sheet.animations[FALLBACK[name] ?? ''] ?? sheet.animations.idle!
 
 const clipMs = (c: { frames: { ms: number }[] }) => c.frames.reduce((n, f) => n + f.ms, 0)
