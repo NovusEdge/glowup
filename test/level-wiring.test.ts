@@ -80,6 +80,15 @@ test('a subagent earns nothing; a main-loop commit earns 10, and four in a turn 
   expect(xpOf(store)).toBe(40)
 })
 
+test('two commits chained in one Bash call earn 20', async ($, on) => {
+  const store: Record<string, unknown> = {}
+  base(on, store, { toolText: () => 'ok' })
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await bash($, 'git commit -m one && git commit -m two')
+  await $.turn.complete({ reason: 'error', answer: '', durationMs: 10, isAborted: false, turnId: 't1' })
+  expect(xpOf(store)).toBe(20)
+})
+
 test('a green run after a red one earns 15 even with the green mood off', async ($, on) => {
   const store: Record<string, unknown> = {}
   let out = 'Tests: 3 failed, 9 passed'

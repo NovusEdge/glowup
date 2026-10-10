@@ -11,7 +11,7 @@ import { loadUserPet, userPetNames, PET_DIR } from './userpets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, voiceFor, type BubbleSetting, type BubbleVars, type HaikuContext } from './bubbles.ts'
 import { linesFor, pool, flavoursOf, type Moment } from './lines.ts'
 import { momentOf } from './moments.ts'
-import { turnXp, isCommitCommand, levelUp, levelOf, parseLevelStore, levelStore } from './levels.ts'
+import { turnXp, countCommits, levelUp, levelOf, parseLevelStore, levelStore } from './levels.ts'
 import { recordPass, unlockEgg, eggUnlocked, hintDue, EGG_HINTS, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, rebase, refreshCounts, serial, type Repo } from './changes.ts'
 import { readDiff } from './diff.ts'
@@ -1062,7 +1062,7 @@ export const register: Register = (on, options) => {
       agentTokens: e.tool === 'Agent' && typeof result?.totalTokens === 'number' ? result.totalTokens : undefined,
       writeType: e.tool === 'Write' && (result?.type === 'create' || result?.type === 'update') ? result.type : undefined,
     })
-    if (!denied && !ran.isError && !e.agentId && e.tool === 'Bash' && typeof input.command === 'string' && isCommitCommand(input.command)) turnGain.commits++
+    if (!denied && !ran.isError && !e.agentId && e.tool === 'Bash' && typeof input.command === 'string') turnGain.commits += countCommits(input.command)
     if (!e.agentId && model.lastTest?.at === endAt && !model.lastTest.passed) {
       failed = true
       publishPet($)
@@ -1120,6 +1120,8 @@ export const register: Register = (on, options) => {
       refresh($)
       return r
     }
+    // the guard heartbeat can flip `off` while next() is awaited
+    if (off) return r
     // turn-done leaves combo alone (turn-start resets it), so the model still holds this turn's count
     try {
       const host = hostOf($)

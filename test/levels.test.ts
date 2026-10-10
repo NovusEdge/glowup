@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { levelOf, xpToReach, turnXp, isCommitCommand, UNLOCKS, unlocksBetween, parseLevelStore, levelStore, levelUp, groupDigits } from '../hooks/levels.ts'
+import { levelOf, xpToReach, turnXp, countCommits, UNLOCKS, unlocksBetween, parseLevelStore, levelStore, levelUp, groupDigits } from '../hooks/levels.ts'
 
 test('the curve: 100 x n per level, endless', async () => {
   expect(levelOf(0)).toEqual({ level: 1, into: 0, need: 100 })
@@ -19,9 +19,14 @@ test('turn XP: answered base, capped combo, green, capped commits', async () => 
 
 test('commit detection', async () => {
   for (const c of ['git commit -m x', 'git -C sub commit -s', 'A=1 git commit', 'git add . && git commit -m y', 'npm test; git commit -am z', 'git add -A\ngit commit -m x'])
-    expect({ c, ok: isCommitCommand(c) }).toEqual({ c, ok: true })
+    expect({ c, n: countCommits(c) }).toEqual({ c, n: 1 })
   for (const c of ['git commit --dry-run', 'git log', 'echo git commit', 'git commit-tree abc', 'gitx commit'])
-    expect({ c, ok: isCommitCommand(c) }).toEqual({ c, ok: false })
+    expect({ c, n: countCommits(c) }).toEqual({ c, n: 0 })
+})
+
+test('commit count: one per qualifying commit in a chained command', async () => {
+  expect(countCommits('git commit -m one && git commit -m two')).toBe(2)
+  expect(countCommits('git commit -m a; git commit --dry-run; git -C x commit -s\ngit commit -m b')).toBe(3)
 })
 
 test('unlocks: the table and the ones a jump crosses', async () => {
