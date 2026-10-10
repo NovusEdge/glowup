@@ -13,6 +13,7 @@ import { comboSegs, fit, hearts, hpBar, levelSegs, renderSegs, toneColor, visibl
 import { liveLimit } from './fields.ts'
 import { DEFAULT_SETUP, type Meter, type TabId } from './setup.ts'
 import type { DiffLine, Diffs } from './diff.ts'
+import { progressAt, type MusicCmd } from './music/parse.ts'
 
 export type { TabId }
 // ctx comes from the context breakdown: threshold is the auto-compact point in tokens (absent when it is off),
@@ -77,7 +78,39 @@ export function section(title: string, right: string, body: Seg[][], w: number, 
   return [top, ...body.map(row), [edge(b.bl + b.h.repeat(w - 2) + b.br)]]
 }
 
-type Part = { rows: Seg[][]; n: number }
+export type MusicButton = { cmd: MusicCmd; label: string; hotkey: string }
+type Part = { rows: Seg[][]; n: number; controls?: MusicButton[] }
+
+const mmss = (ms: number) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
+
+// Letters, not digits: the tab strip owns 1-n. Not b or a, which the pet Client's Konami code takes after a click.
+function music(m: Model, t: Theme, w: number, compact: boolean, now: number, border: Border): Part {
+  const c = t.colors, s = m.music ?? { status: 'closed' as const }
+  const lead = compact ? '  ' : '', iw = compact ? w : boxInner(w)
+  const note = (text: string): Seg[][] => [[{ text: lead + text, color: c.dim }]]
+  let body: Seg[][]
+  if (s.status === 'unsupported') body = note(s.hint)
+  else if (s.status === 'closed') body = note("Open Spotify to see what's playing.")
+  else if (s.ad) body = note('Ad')
+  else if (!s.track) body = note('Nothing playing.')
+  else if (compact) body = [fit([{ text: `${lead}♪ `, color: c.accent }, { text: s.track.title, color: c.text, bold: true }, { text: `${s.track.artist ? ` — ${s.track.artist}` : ''} ${s.playing ? '▶' : '⏸'}`, color: c.dim }], w)]
+  else {
+    const at = progressAt(s, now), dur = s.track.durationMs
+    const left = `${s.playing ? '▶' : '⏸'} ${mmss(at)} `, right = dur > 0 ? ` ${mmss(dur)}` : ''
+    const bar = Math.max(4, iw - left.length - right.length)
+    const done = dur > 0 ? Math.round(bar * Math.min(1, at / dur)) : 0
+    body = [
+      fit([{ text: s.track.title, color: c.text, bold: true }], iw),
+      fit([{ text: [s.track.artist, s.track.album].filter(Boolean).join(' · '), color: c.dim }], iw),
+      fit([{ text: left, color: c.text }, { text: '━'.repeat(done), color: c.accent }, { text: '─'.repeat(bar - done), color: c.faint }, { text: right, color: c.dim }], iw),
+    ]
+  }
+  if (compact) return { rows: body.map(r => fit(r, w)), n: -1 }
+  const controls: MusicButton[] | undefined = s.status === 'open'
+    ? [{ cmd: 'previous', label: 'Prev', hotkey: 'r' }, { cmd: 'playpause', label: s.playing ? 'Pause' : 'Play', hotkey: 'p' }, { cmd: 'next', label: 'Next', hotkey: 'n' }]
+    : undefined
+  return { rows: section('NOW PLAYING', 'Spotify', body, w, t, border), n: body.length, ...(controls && { controls }) }
+}
 
 function fileRow(f: Model['files'][number], t: Theme, iw: number, lead: string): Seg[] {
   const c = t.colors, name = shortPath(f.path) + (f.how === 'new' ? '  new' : '')
@@ -234,13 +267,14 @@ function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, limi
 }
 
 // body is the half-open row range of the first section's body: row 0 is its top edge (or the unboxed header).
-export function tabParts(model: Model, t: Theme, v: PaneView, width: number, compact: boolean, now: number, limit = COMPACT_ROWS, border: Border = 'round'): { rows: Seg[][]; body: [number, number] } {
+export function tabParts(model: Model, t: Theme, v: PaneView, width: number, compact: boolean, now: number, limit = COMPACT_ROWS, border: Border = 'round'): { rows: Seg[][]; body: [number, number]; controls?: MusicButton[] } {
   const m = normalizeModel(model)
-  const { rows, n } = v.tab === 'changes' ? changes(m, t, width, compact, limit, border)
+  const { rows, n, controls } = v.tab === 'changes' ? changes(m, t, width, compact, limit, border)
     : v.tab === 'diff' ? diff(m, t, v, width, compact, limit, border)
     : v.tab === 'agents' ? agents(m, t, v, width, compact, now, limit, border)
+    : v.tab === 'music' ? music(m, t, width, compact, now, border)
     : plan(m, t, v, width, compact, limit, border)
-  return { rows, body: n < 0 ? [0, rows.length] : [1, 1 + n] }
+  return { rows, body: n < 0 ? [0, rows.length] : [1, 1 + n], ...(controls && { controls }) }
 }
 
 export const tabRows = (...a: Parameters<typeof tabParts>): Seg[][] => tabParts(...a).rows
@@ -279,7 +313,7 @@ export function statusRows(model: Model, base: Theme, width: number, now: number
 // rows is the strip height, from stripRows: the sheet's height, plus headroom while an outfit is worn.
 // meter and field come from a renderer plugin: rows for the status box, and a builder for the
 // field's player given the rows left open between the tab and the status box.
-export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Moment }; friday?: boolean; minRows?: number; bodyRows?: number; onRange?: (last: number, win: number) => void; meter?: Seg[][]; field?: (rows: number) => unknown; tabs?: readonly TabId[] }
+export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Moment }; friday?: boolean; minRows?: number; bodyRows?: number; onRange?: (last: number, win: number) => void; meter?: Seg[][]; field?: (rows: number) => unknown; tabs?: readonly TabId[]; onMusic?: (cmd: MusicCmd) => void }
 export const PET_STRIP_COLS = 46
 const BUBBLE_ROOM = 16
 
@@ -361,11 +395,11 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
   // the drawer shows a tab strip, the tab content and one pet row, all within COMPACT_ROWS
   let rowsLeft = compact && extra?.pet ? COMPACT_ROWS - 2 : COMPACT_ROWS
   if (compact && extra?.bodyRows) rowsLeft = Math.max(1, Math.min(rowsLeft, extra.bodyRows - 1 - (extra.pet ? 1 : 0)))
-  let { rows, body } = tabParts(m, t, v, inner, compact, now, rowsLeft, look?.border ?? 'round')
+  let { rows, body, controls } = tabParts(m, t, v, inner, compact, now, rowsLeft, look?.border ?? 'round')
   let hint: any = null, open = 0, last = 0, win = 0
   if (!compact && extra?.bodyRows) {
     // tab strip and its margin sit above, the footer below; the tab gets the rest and scrolls on its own
-    const room = Math.max(2, extra.bodyRows - 2 - footerRows(m, t, extra, width, now))
+    const room = Math.max(2, extra.bodyRows - 2 - footerRows(m, t, extra, width, now) - (controls ? 2 : 0))
     open = Math.max(0, room - rows.length)
     if (rows.length > room) {
       // box edges and what follows the first box stay put; only that box's body rows scroll
@@ -394,6 +428,11 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
       <Box flexDirection="column" flexGrow={1} marginTop={compact ? 0 : 1}>
         {rows.map((r, i) => renderSegs(els, r, 'r' + i))}
         {hint}
+        {controls && (
+          <Box key="music-controls" flexDirection="row" gap={2} marginTop={1}>
+            {controls.map(b => <Button key={'music-' + b.cmd} label={b.label} hotkey={b.hotkey} plain onPress={() => extra?.onMusic?.(b.cmd)} />)}
+          </Box>
+        )}
         {open > 0 && extra?.field?.(open)}
       </Box>
       {compact && extra?.pet && petLine(els, t, extra, inner)}
