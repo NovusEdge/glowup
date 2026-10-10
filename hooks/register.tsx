@@ -45,6 +45,8 @@ import { ditherMeters, turnDivider } from './effects.ts'
 import type { FieldClientProps } from './client/field.tsx'
 import type { Seg } from './layout.tsx'
 import { allowed, createRun, isLive, isUndo, newLines, restoreUndo, runTimes, scanRuns, snapshotOf, type Cursor } from './remote.ts'
+import { sameMusic, type MusicCmd } from './music/parse.ts'
+import { MusicReader, pickBackend, type Platform } from './music/reader.ts'
 import { detached, ensureBinary, pickTerminal, platformOf, releaseTarget, removeTree, shellLine, type TermEnv } from './launch.ts'
 
 type Engine = EngineInterface
@@ -142,6 +144,11 @@ let configFocus: string | undefined
 let remote: { dir: string; cursor: Cursor; seen: boolean } | undefined
 let remoteTimer: Timer | undefined
 let remotePolling = false
+// The local Spotify player. One poll loop: each pollMusic bumps musicSeq, and a read that
+// returns after a newer poll started drops its answer, so a control click cannot fork the loop.
+let musicReader: MusicReader | undefined
+let musicTimer: Timer | undefined
+let musicSeq = 0
 let modVersion: string | undefined
 // the plugin's userConfig, kept for loadSettings: an undo reloads settings outside register()
 let pluginOptions: Readonly<Record<string, unknown>> = {}
@@ -302,6 +309,7 @@ const petInput = (): PetInput => ({
   compactAt: model.compactAt,
   ctx: model.ctxPercent,
   juggleAt: eggJuggleAt,
+  music: model.music?.status === 'open' && model.music.playing && !model.music.ad,
 })
 // Through JSON because Client props refuse undefined fields.
 function petSnap(): PetSnap {
@@ -328,6 +336,36 @@ function publish($: Engine) {
   void $.state.set(BAND, { model, at })
   void $.state.set(PANE, { model, view, at })
   publishPet($)
+}
+
+// not launch.ts's platformOf, which names the release target
+async function musicPlatform($: Engine): Promise<Platform> {
+  if (await onWindows($)) return 'windows'
+  const r = await hostOf($).run(['uname', '-s'], undefined, 2000).catch(() => undefined)
+  return r?.stdout.trim() === 'Darwin' ? 'mac' : 'linux'
+}
+const musicPlaying = () => model.music?.status === 'open' && model.music.playing
+const musicDelay = () => (musicPlaying() ? (view.tab === 'music' ? 1000 : 2000) : 10_000)
+async function pollMusic($: Engine) {
+  const mine = ++musicSeq
+  musicTimer?.cancel(); musicTimer = undefined
+  if (off || !musicReader) return
+  const now = Date.now()
+  const next = await musicReader.read(hostOf($), now)
+  if (off || mine !== musicSeq) return
+  // the open Music tab redraws on every read so its bar moves
+  if (!sameMusic(model.music, next, now) || (view.tab === 'music' && next.status === 'open' && next.playing)) feed($, { type: 'music', music: next })
+  musicTimer = $.clock.after(musicDelay(), () => void pollMusic($))
+}
+async function startMusic($: Engine) {
+  const platform = await musicPlatform($)
+  musicReader = new MusicReader(await pickBackend(hostOf($), platform), platform)
+  void pollMusic($)
+}
+function stopMusic() { musicSeq++; musicTimer?.cancel(); musicTimer = undefined; musicReader = undefined }
+function pressMusic($: Engine, cmd: MusicCmd) {
+  const r = musicReader
+  if (r) void r.control(hostOf($), cmd).then(() => pollMusic($))
 }
 
 function cancelHaiku() {
@@ -892,6 +930,7 @@ function goOff($: Engine, winner: string) {
   beatTimer?.cancel(); beatTimer = undefined
   planTimer?.cancel(); planTimer = undefined
   bubbleTimer?.cancel(); bubbleTimer = undefined
+  stopMusic()
   stopRemote()
   takenOver = false
   $.ui.status(undefined)
@@ -966,6 +1005,7 @@ export const register: Register = (on, options) => {
     void checkStale($)
     await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|setup|level|restore' })
     await loadSettings($, host)
+    if (e.isInteractive) void startMusic($)
     sessionId = await $.session.id()
     try { helloDue = e.isInteractive && (await $.state.get(HELLO)).value?.sid !== sessionId } catch { helloDue = e.isInteractive }
     // A hot reload restarts this module mid-run: pick this session's live run back up, and
@@ -1215,7 +1255,7 @@ export const register: Register = (on, options) => {
       extra = { ...extra, pet: { id: pid, node, rows: stripRows(sheet, snap.overlays) }, bubble: bubbleNow, friday: snap.friday }
     }
     // the engine scrolls the whole body, which would carry the pet off with a long tab: budget the tab to bodyRows instead
-    extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onRange: (last, win) => { scroll = { last, win } } }
+    extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onRange: (last, win) => { scroll = { last, win } }, onMusic: (cmd: MusicCmd) => pressMusic($, cmd) }
     if (e.props.placement === 'dock') extra = { ...extra, minRows: e.props.scroll.bodyRows }
     const m = live ? normalizeModel(live.model) : model, pack = mix.colors, colors = palette(), picked = lookKey()
     if (!compact) {
@@ -1247,6 +1287,7 @@ export const register: Register = (on, options) => {
       publish($)
       if (id === 'plan') void feedContext($)
       if (id === 'diff') refresh($)
+      if (id === 'music') void pollMusic($)
     }, extra)
   })
 
