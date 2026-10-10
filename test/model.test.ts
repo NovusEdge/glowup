@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { initialModel, applyEvent, normalizeModel,bandVisible, isBusy, mergeCounts, planFold, type Ev, type Model } from '../hooks/model.ts'
+import { initialModel, applyEvent, normalizeModel, bandVisible, isBusy, mergeCounts, planFold, type Ev, type Model } from '../hooks/model.ts'
 
 const run = (evs: Ev[]) => evs.reduce(applyEvent, initialModel())
 

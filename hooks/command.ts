@@ -69,7 +69,7 @@ function levelReport(xp: number): string {
   ].join('\n')
 }
 
-const eggsOf =async (host: Host) => (await host.storeGet('eggs')) as EggStore | undefined
+const eggsOf = async (host: Host) => (await host.storeGet('eggs')) as EggStore | undefined
 
 async function packList(host: Host, ctl: Ctl): Promise<string> {
   const user = await loadUserPacks(host)

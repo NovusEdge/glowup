@@ -6,12 +6,12 @@ test('no stored setup is the default with no notices', () => {
 })
 
 test('a full valid setup round-trips', () => {
-  const s: Setup = { format: 2, band: ['plan', 'meter'], tabs: ['plan', 'changes'], meter: { warn: 40, danger: 90 }, bubbles: { moods: ['done'], ms: 5000 }, pet: { sleepMs: 120000 } }
+  const s: Setup = { format: 3, band: ['plan', 'meter'], tabs: ['plan', 'changes'], meter: { warn: 40, danger: 90 }, bubbles: { moods: ['done'], ms: 5000 }, pet: { sleepMs: 120000 } }
   expect(parseSetup(JSON.parse(JSON.stringify(s)))).toEqual({ setup: s, notices: [] })
 })
 
 test('a setup from a later glowup loads with notices for what it does not know', () => {
-  const r = parseSetup({ format: 2, band: ['plan', 'weather'], tabs: ['agents', 'timeline'], bubbles: { moods: ['done', 'cheer'] }, sound: { on: true } })
+  const r = parseSetup({ format: 3, band: ['plan', 'weather'], tabs: ['agents', 'timeline'], bubbles: { moods: ['done', 'cheer'] }, sound: { on: true } })
   expect(r.setup.band).toEqual(['plan'])
   expect(r.setup.tabs).toEqual(['agents'])
   expect(r.setup.bubbles.moods).toEqual(['done'])
@@ -75,13 +75,22 @@ test('a format 1 setup holding the old mood default reads as the new default; an
   expect(parseSetup({ format: 1, bubbles: { moods: ['fail', 'needs-you'] } }).setup.bubbles.moods).toEqual(['fail', 'needs-you'])
 })
 
-test('a format 2 setup keeps the three old moods as a choice', () => {
+test('a format 2 setup holding every moment it knew reads as the default; any other list is kept', () => {
+  const seven = ['compact', 'long-done', 'hello', 'green', 'done', 'fail', 'needs-you']
+  expect(parseSetup({ format: 2, bubbles: { moods: seven } }).setup.bubbles.moods).toEqual([...SETUP_MOODS])
+  expect(parseSetup({ format: 2, bubbles: { moods: ['fail', 'done'] } }).setup.bubbles.moods).toEqual(['fail', 'done'])
   expect(parseSetup({ format: 2, bubbles: { moods: ['needs-you', 'fail', 'done'] } }).setup.bubbles.moods).toEqual(['needs-you', 'fail', 'done'])
+})
+
+test('a format 3 setup keeps its moods as a choice, and a saved setup is format 3', () => {
+  const seven = SETUP_MOODS.filter(m => m !== 'level-up')
+  expect(parseSetup({ format: 3, bubbles: { moods: seven } }).setup.bubbles.moods).toEqual(seven)
   const r = setSetupField(DEFAULT_SETUP, 'bubbles.moods', 'needs-you,fail,done')
   if (!('setup' in r)) throw new Error(r.error)
-  expect(r.setup.format).toBe(2)
-  expect(r.setup.bubbles.moods).toEqual(['needs-you', 'fail', 'done'])
+  expect(r.setup.format).toBe(3)
   expect(parseSetup(JSON.parse(JSON.stringify(r.setup))).setup.bubbles.moods).toEqual(['needs-you', 'fail', 'done'])
+  expect(DEFAULT_SETUP.format).toBe(3)
+  expect(SETUP_MOODS.at(-1)).toBe('level-up')
 })
 
 test('describeSetup lists every key with its value', () => {
@@ -90,7 +99,7 @@ test('describeSetup lists every key with its value', () => {
     'tabs           plan, agents, diff, changes',
     'meter.warn     50',
     'meter.danger   80',
-    'bubbles.moods  needs-you, fail, done, green, hello, long-done, compact',
+    'bubbles.moods  needs-you, fail, done, green, hello, long-done, compact, level-up',
     'bubbles.ms     3000',
     'pet.sleepMs    60000',
   ].join('\n'))
