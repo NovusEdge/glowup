@@ -4,6 +4,7 @@ import { cellWidth } from './cells.ts'
 import { gradient } from './color.ts'
 import type { Look } from './packs.ts'
 import type { Seg } from './segs.ts'
+import { levelBar } from './levels.ts'
 
 export type Tier = 'wide' | 'medium' | 'compact'
 export type { Seg }
@@ -60,6 +61,11 @@ export function comboSegs(n: number, look?: Look): Seg[] {
   if (!look?.extras.combo || n < 3) return []
   const c = look.theme.colors, [a, b] = look.gradient ?? [c.accent, c.pass]
   return gradient(` COMBO x${n} `, a, b).map(s => ({ ...s, bold: true }))
+}
+
+export function levelSegs(xp: number, t: Theme, cells: number): Seg[] {
+  const { level, filled } = levelBar(xp, cells)
+  return [{ text: `Lv ${level} `, color: t.colors.accent }, { text: '▰'.repeat(filled), color: t.colors.accent }, { text: '▱'.repeat(cells - filled), color: t.colors.faint }]
 }
 
 // Act tones are a subset of the theme's color keys, so this is the one place they meet.

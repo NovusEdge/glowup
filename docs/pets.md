@@ -49,7 +49,7 @@ With bubbles on, the pet says a short line (40 characters at most) at the moment
 
 ### What pets say
 
-A bubble is about one moment. There are seven, and all are on by default.
+A bubble is about one moment. There are eight, and all are on by default.
 
 | Moment | When it speaks |
 | --- | --- |
@@ -60,6 +60,7 @@ A bubble is about one moment. There are seven, and all are on by default.
 | `hello` | The pane is first drawn in a session, unless another bubble spoke first, and when a turn starts after 30 minutes away. |
 | `long-done` | A turn that ran 5 minutes or more ends with an answer. |
 | `compact` | The context is compacted. |
+| `level-up` | A turn takes you to a new [level](#levels). It replaces that turn's `done` or `long-done` line and names what you unlocked. |
 
 Clawd, the robot and the egg each have their own lines, about six per moment: Clawd is dry and warm, the robot reports in capitals, and the egg mostly makes small sounds. `clawd-shiny` uses Clawd's. A pet you draw yourself speaks a neutral default line unless its file carries [its own lines](pet-sprites.md#lines-and-voice).
 
@@ -71,7 +72,9 @@ To silence a moment, list the ones you want to keep:
 /glowup setup bubbles.moods done,fail,needs-you,green
 ```
 
-With `long-done` off, a long turn speaks a plain `done` line. A setup saved before these moments existed that still holds the old default, `needs-you,fail,done`, gets all seven.
+With `long-done` off, a long turn speaks a plain `done` line. With `level-up` off, the turn that reaches a new level shows its `done` line instead.
+
+A setup that lists every moment its glowup version knew counts as "all moments", so a new moment such as `level-up` reaches you if you never turned one off. That covers the old default, `needs-you,fail,done`, and the seven moments before `level-up`. Any other list is kept as you saved it, and you add a new moment to it yourself.
 
 ### Lines written by Haiku
 
@@ -79,7 +82,7 @@ With `/glowup bubbles haiku`, glowup sometimes asks Claude Haiku for the line. T
 
 **Cost.** Each line is a small Haiku call billed to your account, made with your session's credentials.
 
-`hello` and `compact` lines never use Haiku. Haiku speaks as the pet, using the pet's voice: built in for Clawd, the robot and the egg, and the `voice` key in a [custom pet file](pet-sprites.md#lines-and-voice).
+`hello`, `compact` and `level-up` lines never use Haiku. Haiku speaks as the pet, using the pet's voice: built in for Clawd, the robot and the egg, and the `voice` key in a [custom pet file](pet-sprites.md#lines-and-voice).
 
 What it sends: the moment, the pose, the short label glowup already shows for the current tool, a test summary such as `failed 3`, and the time of day. It never sends your prompts, file contents, code or secrets. The reply is cleaned to one plain line of at most 40 characters; an empty reply falls back to the template.
 
@@ -106,6 +109,40 @@ There is a secret egg. Click the pet in the pane and it hops. A click gives the 
 The egg wobbles while Claude works. After the unlock it gets a crack every 10 passing test runs, up to three. It does not hatch.
 
 Clicking and typing at the pet needs a terminal where Claude Code receives mouse clicks, and the pet has to be in the pane: docked, or in the drawer from `/glowup pane`.
+
+## Levels
+
+Working with Claude earns XP. All your pets share one level, and it carries across sessions.
+
+| Source | XP |
+| --- | --- |
+| A turn that ends with an answer | 5 |
+| The turn's combo, up to 20, on an answered turn | up to 20 |
+| Tests going green | 15 |
+| Each `git commit` Claude runs, at most 3 a turn | 10 |
+
+Subagents earn nothing. Only `git commit` calls Claude itself runs in the main conversation count; commits run by a subagent, or by you in your own terminal, do not.
+
+Level n needs 100 × n XP to reach level n + 1, so level 2 comes at 100 XP and level 10 at 4,500. Levels never end, but every unlock sits in the first ten.
+
+| Level | Unlocks |
+| --- | --- |
+| 2 | New lines |
+| 3 | An outfit |
+| 4 | New lines |
+| 5 | A new move (idle) |
+| 6 | An outfit |
+| 7 | New lines |
+| 8 | An outfit |
+| 10 | A new move (idle) |
+
+Outfits and moves are coming in a later release. Until then they are earned but not shown, and the level-up bubble names only the lines.
+
+When a turn takes you up a level, the pet speaks the [`level-up`](#what-pets-say) moment instead of its done line. It names the unlock when there is one. To turn this off, leave `level-up` out of the moments you keep with `/glowup setup bubbles.moods`.
+
+The pane shows your level and a ten-cell XP bar on the activity row when the row is wide enough. The status line shows them with the opt-in [`level` field](statusline.md#choosing-the-fields). `/glowup level` prints your level, your XP, the XP to the next level, what you have unlocked and the next unlock.
+
+If two sessions finish a turn at the same instant, one turn's XP can be lost. This is rare.
 
 ## Outfits
 

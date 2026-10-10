@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { initialModel, applyEvent, bandVisible, isBusy, mergeCounts, planFold, type Ev, type Model } from '../hooks/model.ts'
+import { initialModel, applyEvent, normalizeModel, bandVisible, isBusy, mergeCounts, planFold, type Ev, type Model } from '../hooks/model.ts'
 
 const run = (evs: Ev[]) => evs.reduce(applyEvent, initialModel())
 
@@ -313,4 +313,14 @@ test('the effort event sets the level and an empty one clears it', () => {
   const a = applyEvent(initialModel(), { type: 'effort', effort: 'max' })
   expect(a.effort).toBe('max')
   expect(applyEvent(a, { type: 'effort', effort: undefined }).effort).toBeUndefined()
+})
+
+test('the level event sets xp, and a model without a valid xp normalizes to undefined', () => {
+  expect(initialModel().xp).toBeUndefined()
+  expect(applyEvent(initialModel(), { type: 'level', xp: 2310 }).xp).toBe(2310)
+  const old = { ...initialModel() }
+  expect(normalizeModel(old).xp).toBeUndefined()
+  for (const bad of [-1, 1.5, NaN, Infinity, '9']) expect(normalizeModel({ ...old, xp: bad }).xp).toBeUndefined()
+  expect(normalizeModel({ ...old, xp: 0 }).xp).toBe(0)
+  expect(normalizeModel({ ...old, xp: 120 }).xp).toBe(120)
 })

@@ -220,6 +220,13 @@ test('status rows say the action and context in words', async () => {
   expect(rows[2]).toBe('◆ scout 2 working')
 })
 
+test('the first status row carries Lv N and a ten-cell bar when it fits, and drops them when it does not', async () => {
+  const row = (m: Partial<Model>, width = 54) => text(statusRows({ ...M, ...m }, T, width, 0))[0]
+  expect(row({})).toBe('✎ Editing src/auth.ts')
+  expect(row({ xp: 180 })).toBe('✎ Editing src/auth.ts  Lv 2 ▰▰▰▰▱▱▱▱▱▱')
+  expect(row({ xp: 180 }, 30)).toBe('✎ Editing src/auth.ts')
+})
+
 test('the life row shows the tighter usage window, then spend, then context', async () => {
   const life = (m: Partial<Model>, now = 0) => text(statusRows({ ...M, ...m }, T, 54, now))[1]
   const limits = [{ kind: 'five_hour', percentUsed: 30, resetsAt: '1970-01-01T05:00:00Z' }, { kind: 'seven_day', percentUsed: 62.4 }]

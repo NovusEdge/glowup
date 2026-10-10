@@ -89,3 +89,13 @@ test('effort shows the level after a half-circle, and nothing before the first r
 test('effort is in the default fields, after ctx', () => {
   expect(DEFAULT_FIELDS).toEqual(['activity', 'ctx', 'effort', '5h', 'week'])
 })
+
+test('level: hidden until xp is read, then Lv N and five cells', () => {
+  const lv = (xp?: number) => plain({ ...initialModel(), xp }, ['level'])
+  expect(FIELD_IDS).toContain('level')
+  expect(DEFAULT_FIELDS).not.toContain('level')
+  expect(lv(undefined)).toBe('')
+  expect(lv(0)).toBe('Lv 1 ▱▱▱▱▱')
+  expect(lv(100 + 80)).toBe('Lv 2 ▰▰▱▱▱')
+  expect(lv(100 + 199)).toBe('Lv 2 ▰▰▰▰▱')
+})

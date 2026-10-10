@@ -11,6 +11,7 @@ import { loadUserPet, userPetNames, PET_DIR } from './userpets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, voiceFor, type BubbleSetting, type BubbleVars, type HaikuContext } from './bubbles.ts'
 import { linesFor, pool, flavoursOf, type Moment } from './lines.ts'
 import { momentOf } from './moments.ts'
+import { turnXp, countCommits, levelUp, levelOf, parseLevelStore, levelStore } from './levels.ts'
 import { recordPass, unlockEgg, eggUnlocked, hintDue, EGG_HINTS, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, rebase, refreshCounts, serial, type Repo } from './changes.ts'
 import { readDiff } from './diff.ts'
@@ -115,6 +116,10 @@ let friday = false
 let failed = false
 // The last main-loop test run in this session failed; a pass then speaks `green`.
 let red = false
+// What this turn has earned so far besides the answer; turn.complete turns it into XP.
+let turnGain = { green: 0, commits: 0 }
+// Set by turn.complete, spoken (or dropped) by the turn-done feed that follows it.
+let pendingLevelUp: { level: number; unlock?: string } | undefined
 // A fresh session greets once, at its first pane draw, unless something else spoke first.
 let helloDue = false
 let tzOffset = 0
@@ -402,14 +407,14 @@ async function say($: Engine, mood: Moment, vars: BubbleVars) {
   const hint = mood === 'done' || mood === 'long-done' ? await eggHint($) : undefined
   const now = Date.now(), t = localTime(now, tzOffset)
   const flavours = flavoursOf(t, overlays(t, installed === undefined ? undefined : localTime(installed, tzOffset), friday, failed))
-  const line = hint === undefined ? bubbleFor(pool(linesFor(pet, petSheet?.lines), mood, flavours), vars, lastTemplate, Math.random) : undefined
+  const line = hint === undefined ? bubbleFor(pool(linesFor(pet, petSheet?.lines), mood, flavours, levelOf(model.xp ?? 0).level), vars, lastTemplate, Math.random) : undefined
   if (line) lastTemplate = line.template
   const mine: Bubble = { text: hint ?? line!.text, mood, until: 0 }
   bubble = mine
   armBubble($, mine)
   publishPet($)
   // Haiku never sees a hint turn: it could improvise the code.
-  if (hint === undefined && mood !== 'hello' && mood !== 'compact') void askHaiku($, mine, ctx)
+  if (hint === undefined && mood !== 'hello' && mood !== 'compact' && mood !== 'level-up') void askHaiku($, mine, ctx)
 }
 async function eggHint($: Engine): Promise<string | undefined> {
   try {
@@ -468,9 +473,15 @@ function feed($: Engine, ev: Ev) {
   model = applyEvent(model, ev)
   syncTicker($)
   redraw($)
-  const said = momentOf(old, model, ev, { red, moods: setup.bubbles.moods })
+  let said = momentOf(old, model, ev, { red, moods: setup.bubbles.moods })
   // applyEvent sets lastTest only for main-loop runs, so a subagent's tests never flip this
   if (model.lastTest && model.lastTest.at !== old.lastTest?.at) red = !model.lastTest.passed
+  // XP does not depend on the green bubble being on
+  if (said?.moment === 'green') turnGain.green++
+  if (ev.type === 'turn-done') {
+    if (pendingLevelUp && (said === undefined || said.moment === 'done' || said?.moment === 'long-done') && speaks('level-up', setup.bubbles.moods)) said = { moment: 'level-up', vars: { unlock: pendingLevelUp.unlock } }
+    pendingLevelUp = undefined
+  }
   if (said) void say($, said.moment, said.vars)
   // Only the spinner's readers redraw, and only when what it shows changes.
   const next: SpinKey = { turnAt: model.turnAt ?? 0, detail: model.act.label, state: orbStateOf(model) }
@@ -745,8 +756,10 @@ function schedulePlan($: Engine) {
 // A new session id means a new conversation: nothing from the old one carries over.
 async function adoptSession($: Engine, endedId: string) {
   const id = await $.session.id()
-  const { limits } = model
-  model = { ...initialModel(), limits }
+  const { limits, xp } = model
+  model = { ...initialModel(), limits, xp }
+  turnGain = { green: 0, commits: 0 }
+  pendingLevelUp = undefined
   view = { tab: setup.tabs[0]! }
   bubble = undefined
   xpByMessage.clear()
@@ -951,7 +964,7 @@ export const register: Register = (on, options) => {
     }
     startBeat($)
     void checkStale($)
-    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|setup|restore' })
+    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|setup|level|restore' })
     await loadSettings($, host)
     sessionId = await $.session.id()
     try { helloDue = e.isInteractive && (await $.state.get(HELLO)).value?.sid !== sessionId } catch { helloDue = e.isInteractive }
@@ -975,6 +988,9 @@ export const register: Register = (on, options) => {
     tzOffset = localOffset(tzo, zone)
     const at = await host.storeGet('installed-at')
     installed = typeof at === 'number' ? at : undefined
+    turnGain = { green: 0, commits: 0 }
+    pendingLevelUp = undefined
+    try { feed($, { type: 'level', xp: parseLevelStore(await host.storeGet('level')) }) } catch {}
     // After the saved choices are loaded: the commands read and extend them (a spinner is added to
     // the current mix), and write the new choice to the store by the same path a typed command does.
     try {
@@ -1010,6 +1026,8 @@ export const register: Register = (on, options) => {
     turnNo++
     friday = false
     failed = false
+    turnGain = { green: 0, commits: 0 }
+    pendingLevelUp = undefined
     feed($, { type: 'turn-start', at: Date.now() })
     return next(e)
   })
@@ -1044,6 +1062,7 @@ export const register: Register = (on, options) => {
       agentTokens: e.tool === 'Agent' && typeof result?.totalTokens === 'number' ? result.totalTokens : undefined,
       writeType: e.tool === 'Write' && (result?.type === 'create' || result?.type === 'update') ? result.type : undefined,
     })
+    if (!denied && !ran.isError && !e.agentId && e.tool === 'Bash' && typeof input.command === 'string') turnGain.commits += countCommits(input.command)
     if (!e.agentId && model.lastTest?.at === endAt && !model.lastTest.passed) {
       failed = true
       publishPet($)
@@ -1100,6 +1119,19 @@ export const register: Register = (on, options) => {
       feed($, { type: 'agent-done', at: Date.now(), agentId: e.agentId, tokens })
       refresh($)
       return r
+    }
+    // the guard heartbeat can flip `off` while next() is awaited
+    if (off) return r
+    // turn-done leaves combo alone (turn-start resets it), so the model still holds this turn's count
+    try {
+      const host = hostOf($)
+      const before = parseLevelStore(await host.storeGet('level'))
+      const after = before + turnXp({ answered: e.reason === 'answer', combo: model.combo, ...turnGain })
+      await host.storeSet('level', levelStore(after))
+      feed($, { type: 'level', xp: after })
+      pendingLevelUp = levelUp(before, after)
+    } catch (err) {
+      $.ui.log(`level store failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
     }
     feed($, { type: 'turn-done', at: Date.now(), reason: e.reason })
     refresh($)

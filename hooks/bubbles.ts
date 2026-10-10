@@ -10,11 +10,11 @@ export const BUBBLE_SETTINGS: readonly BubbleSetting[] = ['on', 'off', 'haiku']
 export const HAIKU_MODEL = 'haiku'
 export const HAIKU_TIMEOUT_MS = 4000
 export const HAIKU_COOLDOWN_MS = 90_000
-export type BubbleVars = { file?: string; n?: number; command?: string; agent?: string }
+export type BubbleVars = { file?: string; n?: number; command?: string; agent?: string; unlock?: string }
 export const BUBBLE_MAX = 40
 
 export function fill(template: string, v: BubbleVars): string {
-  const s = [...template.replace(/\{(file|n|command|agent)\}/g, (_, k: keyof BubbleVars) => String(v[k] ?? '…'))].filter(c => !isUnsafe(c.codePointAt(0)!)).join('')
+  const s = [...template.replace(/\{(file|n|command|agent|unlock)\}/g, (_, k: keyof BubbleVars) => String(v[k] ?? '…'))].filter(c => !isUnsafe(c.codePointAt(0)!)).join('')
   const cps = [...s]
   return cps.length > BUBBLE_MAX ? cps.slice(0, BUBBLE_MAX - 1).join('') + '…' : s
 }
@@ -25,9 +25,11 @@ export function pickLine(lines: string[], last: string | undefined, rand: () => 
 }
 
 // Lines whose every slot has a value; the whole pool when none does, so a fail with no count still speaks.
+// With an unlock to announce, only lines that name it: a level-up must say what it unlocked.
 export function fillable(lines: string[], v: BubbleVars): string[] {
-  const ok = lines.filter(l => [...l.matchAll(/\{(file|n|command|agent)\}/g)].every(m => v[m[1] as keyof BubbleVars] !== undefined))
-  return ok.length ? ok : lines
+  const ok = lines.filter(l => [...l.matchAll(/\{(file|n|command|agent|unlock)\}/g)].every(m => v[m[1] as keyof BubbleVars] !== undefined))
+  const named = v.unlock === undefined ? ok : ok.filter(l => l.includes('{unlock}'))
+  return named.length ? named : ok.length ? ok : lines
 }
 
 export function bubbleFor(lines: string[], vars: BubbleVars, last: string | undefined, rand: () => number) {

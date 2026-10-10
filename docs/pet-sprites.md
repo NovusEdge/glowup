@@ -86,10 +86,12 @@ Each `px` row is a string with one palette key per pixel, and `.` is a transpare
 
 A pet can say its own lines and describe itself to Haiku in a file with `"format": 2`. The file then takes two more optional keys:
 
-- `lines` maps a moment (`done`, `fail`, `needs-you`, `green`, `hello`, `long-done`, `compact`) or a moment and a flavour (`done@night`, `hello@christmas`) to a list of 1 to 12 lines. Each line is printable text of at most 40 characters. The flavours are `morning`, `afternoon`, `evening`, `night`, `friday`, `christmas`, `halloween` and `birthday`. A flavour key adds its lines to the moment's pool while that flavour is active. See [Pets](pets.md#what-pets-say) for when each moment speaks.
+- `lines` maps a moment (`done`, `fail`, `needs-you`, `green`, `hello`, `long-done`, `compact`, `level-up`) or a moment and a flavour (`done@night`, `hello@christmas`) to a list of 1 to 12 lines. Each line is printable text of at most 40 characters. The flavours are `morning`, `afternoon`, `evening`, `night`, `friday`, `christmas`, `halloween` and `birthday`. A flavour key adds its lines to the moment's pool while that flavour is active. See [Pets](pets.md#what-pets-say) for when each moment speaks.
 - `voice` is printable text of at most 120 characters. When bubbles are set to haiku (`/glowup bubbles haiku`), it describes the pet to the model that writes the line, in place of the default "a small pixel pet. Friendly and brief."
 
-A line can use only the variables its moment fills: `{file}` in `done` and `long-done`, `{n}` in `fail`, `{command}` in `needs-you`. `hello`, `green` and `compact` take none. An unknown moment, flavour or variable, a line over the limit, or more than 12 lines to a key is rejected with the key named.
+A key can end in `@lvN`, with N a whole number from 2 to 99, to add its lines to the pool once the player reaches level N: `done@lv4`, or `hello@night@lv7` for a flavour. See [Pets](pets.md#levels) for how levels are earned.
+
+A line can use only the variables its moment fills: `{file}` in `done` and `long-done`, `{n}` in `fail`, `{command}` in `needs-you`, `{unlock}` in `level-up`. `{unlock}` is the name of what the level unlocks, such as "new lines"; when a level-up has an unlock, only lines that use `{unlock}` are considered, so write some of each kind. `hello`, `green` and `compact` take none. An unknown moment, flavour or variable, a line over the limit, or more than 12 lines to a key is rejected with the key named.
 
 A moment with no lines in the file speaks a neutral default line, never another pet's. Using `lines` or `voice` in a `"format": 1` file is an error.
 

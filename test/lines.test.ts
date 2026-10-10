@@ -2,14 +2,16 @@ import { test, expect } from 'claude-code/testing'
 import { BUILTIN_LINES, DEFAULT_LINES, MOMENTS, MOMENT_SLOTS, FLAVOURS, linesFor, pool, flavoursOf } from '../hooks/lines.ts'
 import { BUBBLE_MAX } from '../hooks/bubbles.ts'
 
-const LONG = { file: 'f'.repeat(12), n: 999, command: 'c'.repeat(12) }
+const LONG = { file: 'f'.repeat(12), n: 999, command: 'c'.repeat(12), unlock: 'a new outfit' }
 const tables = { ...BUILTIN_LINES, default: DEFAULT_LINES }
 
 test('every built-in line fits the bubble and uses only its moment\'s slots', async () => {
   for (const [pet, t] of Object.entries(tables)) for (const [key, lines] of Object.entries(t)) {
-    const moment = key.split('@')[0] as (typeof MOMENTS)[number]
+    const parts = key.split('@')
+    const moment = parts[0] as (typeof MOMENTS)[number]
     expect(MOMENTS.includes(moment)).toBe(true)
-    const flavour = key.split('@')[1]
+    if (/^lv\d+$/.test(parts.at(-1)!)) parts.pop()
+    const flavour = parts[1]
     if (flavour !== undefined) expect((FLAVOURS as readonly string[]).includes(flavour)).toBe(true)
     for (const l of lines!) {
       // fill caps at 40 itself, so measure the line with its slots filled before any cap
@@ -22,6 +24,26 @@ test('every built-in line fits the bubble and uses only its moment\'s slots', as
 
 test('every built-in pet has six base lines per moment', async () => {
   for (const t of Object.values(tables)) for (const m of MOMENTS) expect(t[m]!.length).toBeGreaterThanOrEqual(6)
+})
+
+test('level-up has six or more lines per table, some naming the unlock and some not', async () => {
+  for (const t of Object.values(tables)) {
+    const l = t['level-up']!
+    expect(l.filter(x => x.includes('{unlock}')).length).toBeGreaterThanOrEqual(3)
+    expect(l.filter(x => !x.includes('{unlock}')).length).toBeGreaterThanOrEqual(3)
+  }
+})
+
+test('each built-in pet has tier lines for done, hello and green at levels 2, 4 and 7', async () => {
+  for (const t of Object.values(BUILTIN_LINES)) for (const m of ['done', 'hello', 'green']) for (const n of [2, 4, 7]) expect(t[`${m}@lv${n}`]!.length).toBeGreaterThanOrEqual(2)
+})
+
+test('level keys join at their level, alone or with a flavour', async () => {
+  const t = { done: ['a'], 'done@lv4': ['four'], 'done@night@lv7': ['n7'], 'done@night': ['n'] }
+  expect(pool(t, 'done', [], 1)).toEqual(['a'])
+  expect(pool(t, 'done', [], 4)).toEqual(['a', 'four'])
+  expect(pool(t, 'done', ['night'], 6)).toEqual(['a', 'n', 'four'])
+  expect(pool(t, 'done', ['night'], 7)).toEqual(['a', 'n', 'four', 'n7'])
 })
 
 test('pool joins flavour lines to the base lines', async () => {

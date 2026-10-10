@@ -13,10 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Four new bubble moments: `green` (a passing test run after a failed one), `hello` (when the pane first opens in a session unless another bubble spoke first, and when a turn starts after 30 minutes away), `long-done` (a turn of 5 minutes or more) and `compact`.
 - Lines that join the pool by time of day, on Fridays, and at Christmas, Halloween and your install anniversary.
 - Pet files with `"format": 2` can carry `lines` and a Haiku `voice`. glowup 0.12 and earlier refuse them.
+- Levels. Answered turns, combos, passing tests and commits Claude makes earn XP, shared by all pets and kept across sessions. Level 2 unlocks new lines; the outfits and moves up to level 10 are earned now and arrive in a later release. `/glowup level` shows your progress, the opt-in `level` status field draws `Lv 7 ▰▰▰▱▱`, and the pane shows an XP bar on the activity row.
+- The `level-up` bubble moment, the eighth, replaces the done line on the turn that reaches a new level and names the unlock. It never uses Haiku.
+- Pet files can add lines by level with an `@lvN` key suffix, such as `done@lv4`, and `level-up` lines can use `{unlock}`.
 
 ### Changed
 
-- The default `bubbles.moods` includes all seven moments. A setup saved before this release that still holds the old default, `needs-you,fail,done`, gets all seven.
+- The default `bubbles.moods` includes all eight moments. A saved list that holds every moment its version knew, including the old default `needs-you,fail,done`, now counts as all moments, so new ones reach you. Any other list is kept.
 - Haiku bubble lines speak in each pet's own voice instead of always as Clawd.
 - The website's landing page and studio share one set of buttons, toggles, selects and popovers, and they all follow the pack you pick. The studio's selects open a themed list instead of the browser's own, and its Send to my Claude popover takes keyboard focus when it opens.
 

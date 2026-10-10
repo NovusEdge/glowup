@@ -108,6 +108,7 @@ An override sits on top of whatever pack and theme are active and survives switc
 | `/glowup bubbles on` | Turn speech bubbles on. Prints `Bubbles: on`. |
 | `/glowup bubbles off` | Turn them off. |
 | `/glowup bubbles haiku` | Let Claude Haiku write some lines. Each one is a small call on your account. Prints `Bubbles: haiku`. |
+| `/glowup level` | Print your level, your XP total, the XP to the next level, the unlocks you have earned and the next one. Outfit and move unlocks are marked coming soon until they ship. Once you have every unlock it prints `All unlocks earned.` in place of the next one. |
 
 See [Pets](pets.md), and [Pet sprites](pet-sprites.md) for drawing your own.
 
@@ -127,7 +128,7 @@ Your layout and behavior settings. They are yours alone: installing someone's pa
 | `tabs` | Comma list of `plan`, `agents`, `diff`, `changes`; at least one. The first one is the tab the pane opens on. | `plan,agents,diff,changes` |
 | `meter.warn` | Percent at which the status line's percentages turn the `edit` color. | `50` |
 | `meter.danger` | Percent at which the status line's percentages turn `fail`, the pane warns about context and the pet pants. | `80` |
-| `bubbles.moods` | Comma list of `needs-you`, `fail`, `done`, or `none`. | all three |
+| `bubbles.moods` | Comma list of `needs-you`, `fail`, `done`, `green`, `hello`, `long-done`, `compact`, `level-up`, or `none`. | all eight |
 | `bubbles.ms` | How long a bubble stays, 1500 to 10000. | `3000` |
 | `pet.sleepMs` | Idle time before the pet sleeps, 15000 to 600000. | `60000` |
 
@@ -189,6 +190,6 @@ See [Accessibility](accessibility.md) for what reduced motion changes.
 | `/glowup statusline fields <id> <id> …` | Set the fields in the order typed. An unknown id refuses the whole command and lists the valid ids. |
 | `/glowup statusline fields default` | Go back to the `statusline` setting's value, `activity ctx effort 5h week` unless you changed it. |
 
-The fields are `activity`, `ctx`, `5h`, `week`, `cost`, `model`, `effort`, `agents`, `plan`, `branch`, `changes` and `cwd`. See [Choosing the fields](statusline.md#choosing-the-fields).
+The fields are `activity`, `ctx`, `5h`, `week`, `cost`, `model`, `effort`, `agents`, `plan`, `branch`, `changes`, `cwd` and `level`. See [Choosing the fields](statusline.md#choosing-the-fields).
 
 Without `statusline on`, glowup only adds its own entry under the prompt while Claude works. `restore` puts your line back only if the current one is still glowup's. See [Status line](statusline.md).

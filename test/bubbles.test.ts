@@ -18,6 +18,13 @@ test('fill replaces placeholders, strips unsafe characters and caps at 40', asyn
   expect(long.endsWith('…')).toBe(true)
 })
 
+test('fill and fillable handle {unlock}; a level-up that has an unlock always names it', async () => {
+  expect(fill('level up: {unlock}', { unlock: 'new lines' })).toBe('level up: new lines')
+  expect(fillable(['lv up', 'lv up: {unlock}'], {})).toEqual(['lv up'])
+  expect(fillable(['lv up', 'lv up: {unlock}'], { unlock: 'x' })).toEqual(['lv up: {unlock}'])
+  expect(fillable(['a', 'b'], { unlock: 'x' })).toEqual(['a', 'b'])
+})
+
 test('pickLine never repeats the last line when there is a choice', async () => {
   const lines = ['a', 'b', 'c']
   for (const r of [0, 0.4, 0.99]) expect(pickLine(lines, 'b', () => r)).not.toBe('b')
