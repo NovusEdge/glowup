@@ -27,6 +27,12 @@ test('several changes come back in a fixed order', () => {
   expect(r).toEqual([{ key: 'pack', value: 'crt' }, { key: 'pet', value: 'off' }, { key: 'reducedMotion', value: true }])
 })
 
+test('a key the snapshot lacks is not a change', () => {
+  const { reducedMotion: _, ...older } = base
+  expect(changedOptions(older, { ...base, reducedMotion: true })).toEqual([])
+  expect(changedOptions(older, { ...base, reducedMotion: true, pack: 'crt' })).toEqual([{ key: 'pack', value: 'crt' }])
+})
+
 const run = (log: string[], errors: Record<string, string> = {}) => async (cmd: string) => {
   log.push(cmd)
   return errors[cmd] ?? ({ pack: 'Pack: ', theme: 'Theme: ', spinner: 'Spinner: ', pet: 'Pet: ', bubbles: 'Bubbles: ', motion: 'Motion: ', statusline: 'Status line fields: ' }[cmd.split(' ')[0]!]! + cmd.split(' ').slice(1).join(' '))
@@ -38,6 +44,16 @@ test('with no snapshot, the current values are written and nothing is applied', 
   expect(await syncPlugin(host, base, run(log))).toBeUndefined()
   expect(log).toEqual([])
   expect(store[SEEN_KEY]).toEqual({ ...base })
+})
+
+test('a key added after the snapshot is recorded with its current value and applies nothing', async () => {
+  const { host, store } = fakeHost()
+  const { reducedMotion: _, ...older } = base
+  store[SEEN_KEY] = older
+  const log: string[] = []
+  expect(await syncPlugin(host, { ...base, reducedMotion: true }, run(log))).toBeUndefined()
+  expect(log).toEqual([])
+  expect(store[SEEN_KEY]).toEqual({ ...base, reducedMotion: true })
 })
 
 test('a changed value is applied through its /glowup command, saved, and announced once', async () => {

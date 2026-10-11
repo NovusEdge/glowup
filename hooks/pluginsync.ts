@@ -25,7 +25,8 @@ function normalize(o: Readonly<Record<string, unknown>> | undefined): Seen {
 export function changedOptions(seen: unknown, options: Readonly<Record<string, unknown>>): { key: Key; value: string | boolean }[] {
   if (seen === undefined || seen === null || typeof seen !== 'object') return []
   const was = normalize(seen as Record<string, unknown>), now = normalize(options)
-  return KEYS.flatMap(key => now[key] !== undefined && now[key] !== was[key] ? [{ key, value: now[key]! }] : [])
+  // A key the snapshot lacks was added by a later release: syncPlugin records it, and the user's /glowup choice stands.
+  return KEYS.flatMap(key => now[key] !== undefined && was[key] !== undefined && now[key] !== was[key] ? [{ key, value: now[key]! }] : [])
 }
 
 // `spinner pack` is the userConfig spelling of "the pack's own", which the command calls default.
