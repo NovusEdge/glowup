@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clawd, the robot and the egg each speak in their own voice, with about six lines per moment.
 - Four new bubble moments: `green` (a passing test run after a failed one), `hello` (when the pane first opens in a session unless another bubble spoke first, and when a turn starts after 30 minutes away), `long-done` (a turn of 5 minutes or more) and `compact`.
 - Lines that join the pool by time of day, on Fridays, and at Christmas, Halloween and your install anniversary.
+- A Music tab in the pane shows the track playing in the Spotify desktop app with a progress bar and Prev, Pause and Next buttons (`r`, `p`, `n`). It reads the app on your machine through `busctl` or `playerctl` on Linux and `osascript` on macOS, so it needs no login. Windows is not supported.
+- Pets dance while Spotify plays, with a speaker beside them, and wear headphones while Claude works. Clawd, the robot and the egg have their own dances; a custom pet without one keeps its idle and working poses.
+- A `music` status line field, `♪ Title — Artist`, off by default.
 - Pet files with `"format": 2` can carry `lines` and a Haiku `voice`. glowup 0.12 and earlier refuse them.
 - Levels. Answered turns, combos, passing tests and commits Claude makes earn XP, shared by all pets and kept across sessions. Level 2 unlocks new lines; the outfits and moves up to level 10 are earned now and arrive in a later release. `/glowup level` shows your progress, the opt-in `level` status field draws `Lv 7 ▰▰▰▱▱`, and the pane shows an XP bar on the activity row.
 - The `level-up` bubble moment, the eighth, replaces the done line on the turn that reaches a new level and names the unlock. It never uses Haiku.
@@ -20,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The default `bubbles.moods` includes all eight moments. A saved list that holds every moment its version knew, including the old default `needs-you,fail,done`, now counts as all moments, so new ones reach you. Any other list is kept.
+- The default `tabs` setting gains `music`. A setup saved before this release that still holds the old default, `plan,agents,diff,changes`, gets it; typing those four tabs yourself keeps four.
 - Haiku bubble lines speak in each pet's own voice instead of always as Clawd.
 - The website's landing page and studio share one set of buttons, toggles, selects and popovers, and they all follow the pack you pick. The studio's selects open a themed list instead of the browser's own, and its Send to my Claude popover takes keyboard focus when it opens.
 

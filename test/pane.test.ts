@@ -359,7 +359,7 @@ test('music tab: now playing box with title, artist · album and a moving bar', 
 
 test('music tab: paused, ad, closed, unsupported and an empty album', async () => {
   const at = (m?: Music) => text(tabRows(withMusic(m), T, { tab: 'music' }, 54, false, 12000)).map(inside)
-  expect(at({ ...playing, playing: false })[3]).toMatch(/^⏸ 1:13 /)
+  expect(at({ ...playing, playing: false })[3]).toMatch(/^‖ 1:13 /)
   expect(at({ ...playing, ad: true })[1]).toBe('Ad')
   expect(at({ status: 'closed' })[1]).toBe("Open Spotify to see what's playing.")
   expect(at(undefined)[1]).toBe("Open Spotify to see what's playing.")

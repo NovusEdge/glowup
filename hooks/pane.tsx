@@ -93,10 +93,11 @@ function music(m: Model, t: Theme, w: number, compact: boolean, now: number, bor
   else if (s.status === 'closed') body = note("Open Spotify to see what's playing.")
   else if (s.ad) body = note('Ad')
   else if (!s.track) body = note('Nothing playing.')
-  else if (compact) body = [fit([{ text: `${lead}♪ `, color: c.accent }, { text: s.track.title, color: c.text, bold: true }, { text: `${s.track.artist ? ` — ${s.track.artist}` : ''} ${s.playing ? '▶' : '⏸'}`, color: c.dim }], w)]
+  else if (compact) body = [fit([{ text: `${lead}♪ `, color: c.accent }, { text: s.track.title, color: c.text, bold: true }, { text: `${s.track.artist ? ` — ${s.track.artist}` : ''} ${s.playing ? '▶' : '‖'}`, color: c.dim }], w)]
   else {
     const at = progressAt(s, now), dur = s.track.durationMs
-    const left = `${s.playing ? '▶' : '⏸'} ${mmss(at)} `, right = dur > 0 ? ` ${mmss(dur)}` : ''
+    // ⏸ has emoji presentation in some terminals and fonts, which draws two cells and pushes the box border out
+    const left = `${s.playing ? '▶' : '‖'} ${mmss(at)} `, right = dur > 0 ? ` ${mmss(dur)}` : ''
     const bar = Math.max(4, iw - left.length - right.length)
     const done = dur > 0 ? Math.round(bar * Math.min(1, at / dur)) : 0
     body = [
