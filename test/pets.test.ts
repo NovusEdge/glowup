@@ -497,3 +497,17 @@ test('an alert cuts into a variant mid-loop', () => {
   stepPlayer(p, s, 'alert', p.seg!.start + 150, 50, dice)
   expect(p.seg!.pose).toBe('alert')
 })
+
+test('the rows the pane reserves equal the height composeFrame draws, with a level hat and with headphones', () => {
+  const o = { anchor: [0, 0] as [number, number], px: ['a'] }
+  const s: PetSheet = { w: 2, h: 4, palette: { a: '#111111' }, animations: {}, outfits: { cap: o, headphones: o, santa: o } }
+  const fr = { px: ['..', '..', '..', '..'], head: [0, 0] as [number, number] }
+  const rows = (overlays: string[], outfit?: string, extra: string[] = []) =>
+    [stripRows(s, withLevelOutfit(s, overlays, outfit)), composeFrame(s, fr, withLevelOutfit(s, [...overlays, ...extra], outfit), false).length / 2]
+  for (const [ov, outfit, extra] of [[[], undefined, []], [[], 'cap', []], [['santa'], 'cap', []], [[], 'cap', ['headphones']]] as const) {
+    const [reserved, drawn] = rows([...ov], outfit, [...extra])
+    // headphones sit inside the pad a hat would reserve, so the strip may only be shorter by the pad
+    if (extra.length) expect(drawn!).toBeLessThanOrEqual(reserved!)
+    else expect(drawn).toBe(reserved)
+  }
+})
