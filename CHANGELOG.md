@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-11
+
 ### Added
 
 - The ghost, a new built-in pet beside Clawd and the robot: `/glowup pet ghost`. It has the full set of reactions, its own dance, and headphones while Claude works.
