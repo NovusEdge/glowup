@@ -564,6 +564,18 @@ test('setup rewrites keep the keys a later release added to a format 4 record', 
   expect(store.setup).toMatchObject({ format: 4, meter: { warn: 50, danger: 90 }, hologram: { on: true } })
 })
 
+test('setup rewrites and link setups keep keys a later release added inside meter, bubbles and pet', async () => {
+  const nested = () => ({ format: 4, meter: { warn: 50, danger: 80, tint: 'x' }, bubbles: { ms: 3000, style: 'y' }, pet: { sleepMs: 60000, nap: true } })
+  const a = fakeHost()
+  a.store.setup = nested()
+  await runCommand(a.host, 'setup meter.danger 90', ctl().ctl)
+  expect(a.store.setup).toMatchObject({ meter: { danger: 90, tint: 'x' }, bubbles: { style: 'y' }, pet: { nap: true } })
+  const b = fakeHost()
+  b.store.setup = nested()
+  await runCommand(b.host, `pack ${encodeLink({ setup: { meter: { warn: 40, danger: 90 } } })}`, ctl(true).ctl)
+  expect(b.store.setup).toMatchObject({ meter: { warn: 40, danger: 90, tint: 'x' }, bubbles: { style: 'y' }, pet: { nap: true } })
+})
+
 test('setup refuses a bad value and keeps the old setup', async () => {
   const { host, store } = fakeHost()
   const { ctl: c } = ctl()
