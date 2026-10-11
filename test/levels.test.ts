@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { levelOf, xpToReach, turnXp, countCommits, UNLOCKS, unlocksBetween, parseLevelStore, levelStore, levelUp, groupDigits, OUTFIT_LEVELS, outfitsOf, unlockedOutfits, resolveOutfit, parseOutfitStore, outfitStore, outfitUnlocked } from '../hooks/levels.ts'
+import { levelOf, xpToReach, turnXp, countCommits, UNLOCKS, unlocksBetween, parseLevelStore, levelStoreIsNewer, levelStore, levelUp, groupDigits, OUTFIT_LEVELS, outfitsOf, unlockedOutfits, resolveOutfit, parseOutfitStore, outfitStore, outfitUnlocked } from '../hooks/levels.ts'
 
 test('the curve: 100 x n per level, endless', async () => {
   expect(levelOf(0)).toEqual({ level: 1, into: 0, need: 100 })
@@ -41,6 +41,11 @@ test('the store record: malformed reads as 0', async () => {
   for (const bad of [undefined, null, 'x', { xp: -1 }, { xp: 1.5 }, { xp: NaN }, { format: 2, xp: 10 }, { format: 1 }])
     expect(parseLevelStore(bad)).toBe(0)
   expect(levelStore(42)).toEqual({ format: 1, xp: 42 })
+})
+
+test('a record with a newer format is told apart from a malformed one', async () => {
+  for (const newer of [{ format: 2, xp: 10 }, { format: 3 }, { format: 2, xp: 'x' }]) expect(levelStoreIsNewer(newer)).toBe(true)
+  for (const mine of [undefined, null, 'x', {}, { format: 1, xp: 5 }, { format: 0 }, { format: '2' }, { format: 1.5 }]) expect(levelStoreIsNewer(mine)).toBe(false)
 })
 
 test('levelUp: none, one level, a jump across two, art not ready', async () => {

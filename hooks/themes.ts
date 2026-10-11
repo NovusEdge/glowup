@@ -65,28 +65,38 @@ export const shown = (s: string) => [...s].filter(c => !isUnsafe(c.codePointAt(0
 
 export const isPlain = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
-function validate(file: unknown): asserts file is ThemeFile {
+// A file may use a key or value a later 1.x added: it is skipped and reported, never fatal.
+export const NOTICE_TAIL = ' skipped'
+export const skippedKey = (parent: string, key: string) => `unknown key "${parent ? parent + '.' : ''}${shown(key)}"${NOTICE_TAIL}`
+
+// The theme as this build reads it: unknown color roles and glyphs left out and named in `notes`.
+function validate(file: unknown, notes: string[]): ThemeFile {
   if (typeof file !== 'object' || file === null || Array.isArray(file)) throw new Error('a theme must be a JSON object')
   const f = file as Record<string, unknown>
   if (f.extends !== undefined && typeof f.extends !== 'string') throw new Error('"extends" must be a theme name')
-  const colors = (f.colors ?? {}) as Record<string, unknown>
-  for (const [k, v] of Object.entries(colors)) {
-    if (!(COLOR_KEYS as readonly string[]).includes(k)) throw new Error(`unknown color "${shown(k)}"`)
+  const colors: Record<string, string> = {}
+  for (const [k, v] of Object.entries((f.colors ?? {}) as Record<string, unknown>)) {
+    if (!(COLOR_KEYS as readonly string[]).includes(k)) { notes.push(skippedKey('colors', k)); continue }
     if (typeof v !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(v)) throw new Error(`color "${k}" must be #rrggbb`)
+    colors[k] = v
   }
-  checkGlyphs(f.glyphs, 'glyphs')
+  const glyphs = checkGlyphs(f.glyphs, 'glyphs', notes)
   checkHearts((f.band as { hearts?: unknown } | undefined)?.hearts, 'band.hearts')
   checkWords((f.spinner as { words?: unknown } | undefined)?.words, 'spinner.words')
+  return { ...f, colors, ...(glyphs && { glyphs }) } as ThemeFile
 }
 
 // `where` names the field in the message, so a theme file and a pack each report their own key.
-export function checkGlyphs(v: unknown, where: string): void {
-  if (v === undefined) return
+export function checkGlyphs(v: unknown, where: string, notes: string[] = []): Partial<Theme['glyphs']> | undefined {
+  if (v === undefined) return undefined
   if (!isPlain(v)) throw new Error(`"${where}" must be an object`)
+  const out: Record<string, string> = {}
   for (const [k, g] of Object.entries(v)) {
-    if (!(GLYPH_KEYS as readonly string[]).includes(k)) throw new Error(`unknown glyph "${shown(k)}"`)
+    if (!(GLYPH_KEYS as readonly string[]).includes(k)) { notes.push(skippedKey(where, k)); continue }
     if (!isGlyph(g)) throw new Error(`glyph "${k}" must be one width-1 character`)
+    out[k] = g as string
   }
+  return out
 }
 
 export function checkHearts(v: unknown, where: string): void {
@@ -97,13 +107,15 @@ export function checkWords(v: unknown, where: string): void {
   if (v !== undefined && (!Array.isArray(v) || !v.every(isWord))) throw new Error(`${where} must be short strings of printable characters`)
 }
 
-function chain(name: string, user: Record<string, unknown>, seen: string[] = []): ThemeFile[] {
+function chain(name: string, user: Record<string, unknown>, notices: string[], seen: string[] = []): ThemeFile[] {
   if (seen.includes(name)) throw new Error(`"extends" loops: ${[...seen, name].map(shown).join(' -> ')}`)
   const raw = Object.hasOwn(user, name) ? user[name] : Object.hasOwn(PRESETS, name) ? PRESETS[name] : undefined
   if (raw === undefined) throw new Error(`no theme named "${shown(name)}"`)
   if (raw instanceof Error) throw raw
-  validate(raw)
-  return raw.extends ? [...chain(raw.extends, user, [...seen, name]), raw] : [raw]
+  const notes: string[] = []
+  const file = validate(raw, notes)
+  notices.push(...notes.map(n => `theme "${shown(name)}": ${n}`))
+  return file.extends ? [...chain(file.extends, user, notices, [...seen, name]), file] : [file]
 }
 
 function merge(files: ThemeFile[], name: string): Theme {
@@ -118,7 +130,8 @@ function merge(files: ThemeFile[], name: string): Theme {
   return t
 }
 
-export function resolveTheme(name: string, user: Record<string, unknown>): { theme: Theme; error?: string } {
-  try { return { theme: merge(chain(name, user), name) } }
-  catch (err) { return { theme: merge([PRESETS[DEFAULT_THEME]!], DEFAULT_THEME), error: `theme "${shown(name)}": ${(err as Error).message}` } }
+export function resolveTheme(name: string, user: Record<string, unknown>): { theme: Theme; error?: string; notices: string[] } {
+  const notices: string[] = []
+  try { return { theme: merge(chain(name, user, notices), name), notices } }
+  catch (err) { return { theme: merge([PRESETS[DEFAULT_THEME]!], DEFAULT_THEME), error: `theme "${shown(name)}": ${(err as Error).message}`, notices: [] } }
 }

@@ -16,8 +16,8 @@ import type { BubbleSetting } from './bubbles.ts'
 import { eggUnlocked, type EggStore } from './eggs.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 import { FIELD_IDS, isFieldId, type FieldId } from './fields.ts'
-import { levelOf, parseLevelStore, groupDigits, UNLOCKS, ART_READY, OUTFIT_LEVELS, outfitsOf, resolveOutfit, parseOutfitStore, outfitStore } from './levels.ts'
-import { parseSetup, setSetupField, describeSetup, DEFAULT_SETUP, type Setup } from './setup.ts'
+import { levelOf, parseLevelStore, levelStoreIsNewer, outfitStoreIsNewer, groupDigits, UNLOCKS, ART_READY, OUTFIT_LEVELS, outfitsOf, resolveOutfit, parseOutfitStore, outfitStore } from './levels.ts'
+import { parseSetup, setupIsNewer, setupRecord, SETUP_NEWER, setSetupField, describeSetup, DEFAULT_SETUP, type Setup } from './setup.ts'
 
 // What a command that needs more input falls back to, and what a headless config run prints.
 export const USAGE = FULL_TEXT
@@ -75,8 +75,10 @@ async function outfitCommand(host: Host, ctl: Ctl, want: string | undefined): Pr
   const pet = ctl.pet(), names = outfitsOf(pet)
   if (pet === 'off') return 'No pet is on, so there is nothing to dress.'
   if (!names.length) return `${pet} has no level outfits.`
-  const level = levelOf(parseLevelStore(await host.storeGet('level'))).level
-  const choice = parseOutfitStore(await host.storeGet('outfit'))
+  const storedLevel = await host.storeGet('level'), storedOutfit = await host.storeGet('outfit')
+  if (levelStoreIsNewer(storedLevel)) return 'Your level was saved by a newer glowup, so this version cannot tell which outfits are unlocked and leaves them as they are.'
+  const level = levelOf(parseLevelStore(storedLevel)).level
+  const choice = parseOutfitStore(storedOutfit)
   if (want === undefined) {
     const worn = resolveOutfit(pet, level, choice)
     const rows = names.map((n, i) => level < OUTFIT_LEVELS[i]! ? `· ${n} (level ${OUTFIT_LEVELS[i]})` : `${n === worn ? '●' : '○'} ${n}${n === worn ? ' (worn)' : ''}`)
@@ -86,6 +88,7 @@ async function outfitCommand(host: Host, ctl: Ctl, want: string | undefined): Pr
   const at = names.indexOf(name)
   if (name !== 'off' && at < 0) return `No outfit named "${shown(want)}" for ${pet}. Choose one of: ${names.join(', ')}, or off.`
   if (at >= 0 && level < OUTFIT_LEVELS[at]!) return `The ${name} unlocks at level ${OUTFIT_LEVELS[at]}; you are level ${level}.`
+  if (outfitStoreIsNewer(storedOutfit)) return 'Your outfit was saved by a newer glowup, so this version leaves it as it is.'
   await host.storeSet('outfit', outfitStore(name))
   ctl.setOutfit(name)
   return `Outfit: ${name}`
@@ -143,10 +146,10 @@ async function resetColor(host: Host, ctl: Ctl, role: string | undefined): Promi
 async function usePack(host: Host, ctl: Ctl, name: string): Promise<string> {
   const keep = ctl.mix().overrides
   const mix: Mix = { colors: name, motion: name, ...(keep && { overrides: keep }) }
-  const { errors } = resolveLook(mix, await loadUserPacks(host), await loadUserThemes(host))
+  const { errors, notices } = resolveLook(mix, await loadUserPacks(host), await loadUserThemes(host))
   if (errors.length) return errors.join('\n')
   await applyMix(host, ctl, mix)
-  return `Pack: ${name}`
+  return [`Pack: ${name}`, ...notices].join('\n')
 }
 
 async function importScheme(host: Host, ctl: Ctl, rawPath: string, force: boolean): Promise<string> {
@@ -174,14 +177,15 @@ async function packFromLink(host: Host, ctl: Ctl, link: string, force: boolean):
     else {
       const keep = ctl.mix().overrides
       await applyMix(host, ctl, { colors: r.name, motion: r.name, ...(keep && { overrides: keep }) })
-      out.push(`Pack: ${r.name}`)
+      out.push(`Pack: ${r.name}`, ...(r.notices ?? []))
     }
   }
   if (parts.setup !== undefined) {
     const { setup, notices } = parseSetup(parts.setup)
     if (typeof parts.setup !== 'object' || parts.setup === null || Array.isArray(parts.setup)) out.push(`Setup not applied: ${notices[0]}`)
+    else if (setupIsNewer(await host.storeGet('setup'))) out.push(`Setup not applied: ${SETUP_NEWER}`)
     else if (await ctl.confirm(`This link also carries a layout setup (band, tabs, meter, bubbles, pet sleep${'statusline' in parts.setup ? ', status line' : ''}). Apply it?`)) {
-      await host.storeSet('setup', setup)
+      await host.storeSet('setup', setupRecord(await host.storeGet('setup'), setup))
       ctl.setSetup(setup)
       out.push('Setup: applied', ...notices.map(n => `  dropped: ${n}`))
       const sl = (parts.setup as { statusline?: unknown }).statusline
@@ -202,7 +206,7 @@ async function packFromLink(host: Host, ctl: Ctl, link: string, force: boolean):
     else {
       await host.storeSet('pet', r.name)
       ctl.setPet(r.name, r.sheet)
-      out.push(`Pet: ${r.name}`)
+      out.push(`Pet: ${r.name}`, ...(r.notices ?? []))
     }
   }
   return out.join('\n') || 'This link carries nothing to install.'
@@ -250,7 +254,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     if (r.error) return r.error
     await host.storeSet('theme', a1)
     await applyMix(host, ctl, { ...ctl.mix(), theme: a1 })
-    return `Theme: ${a1}`
+    return [`Theme: ${a1}`, ...r.notices].join('\n')
   }
   if (sub === 'pack' && a1 === 'list') return packList(host, ctl)
   if (sub === 'pack' && a1 === 'save') {
@@ -264,7 +268,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     if (!r.name) return r.message
     const keep = ctl.mix().overrides
     await applyMix(host, ctl, { colors: r.name, motion: r.name, ...(keep && { overrides: keep }) })
-    return `Pack: ${r.name}`
+    return [`Pack: ${r.name}`, ...(r.notices ?? [])].join('\n')
   }
   if (sub === 'pack' && a1) return usePack(host, ctl, a1)
   if (sub === 'spinner' && a1 === 'list') {
@@ -304,24 +308,26 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   if (sub === 'pet' && a1 === 'add') {
     if (!a2) return 'Use /glowup pet add <file|https url> with a pet .json from the studio or the pet sprites page.'
     const r = await addPet(host, a2, args.trim().split(/\s+/)[3] === '--force')
-    if (!r.name || !r.sheet || r.name !== ctl.pet()) return r.message
+    if (!r.name || !r.sheet || r.name !== ctl.pet()) return [r.message, ...(r.notices ?? [])].join('\n')
     ctl.setPet(r.name, r.sheet)
-    return `Installed pet "${r.name}".`
+    return [`Installed pet "${r.name}".`, ...(r.notices ?? [])].join('\n')
   }
   if (sub === 'pet' && a1) {
     const eggs = await eggsOf(host)
     if (a1 === 'clawd-shiny' && eggs?.shinyAt === undefined) return 'The shiny pet is not unlocked yet.'
     if (a1 === 'egg' && !eggUnlocked(eggs)) return 'The egg is not unlocked yet.'
     let sheet: PetSheet | undefined
+    let notices: string[] = []
     if (a1 === 'egg') sheet = eggSheet(eggs)
     else if (a1 !== 'off' && !BUILTIN_PET_NAMES.includes(a1)) {
       const r = await loadUserPet(host, a1)
       if ('error' in r) return r.error
       sheet = r.sheet
+      notices = r.notices ?? []
     }
     await host.storeSet('pet', a1)
     ctl.setPet(a1, sheet)
-    return `Pet: ${a1}`
+    return [`Pet: ${a1}`, ...notices].join('\n')
   }
   if (sub === 'bubbles' && (a1 === 'on' || a1 === 'off' || a1 === 'haiku')) {
     await host.storeSet('bubbles', a1)
@@ -355,6 +361,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   if (sub === 'statusline' && a1 === 'on') return takeOver(host, q => ctl.confirm(q))
   if (sub === 'statusline' && a1 === 'restore') return restore(host)
   if (sub === 'setup' && !a1) return describeSetup(ctl.setup())
+  if (sub === 'setup' && (a1 === 'reset' || (a1 && a2)) && setupIsNewer(await host.storeGet('setup'))) return SETUP_NEWER
   if (sub === 'setup' && a1 === 'reset') {
     await host.storeDelete('setup')
     ctl.setSetup(DEFAULT_SETUP)
@@ -363,13 +370,16 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   if (sub === 'setup' && a1 && a2) {
     const r = setSetupField(ctl.setup(), a1, args.trim().split(/\s+/).slice(2).join(' '))
     if ('error' in r) return r.error
-    await host.storeSet('setup', r.setup)
+    await host.storeSet('setup', setupRecord(await host.storeGet('setup'), r.setup))
     ctl.setSetup(r.setup)
     return describeSetup(r.setup)
   }
   if (sub === 'setup') return 'Use /glowup setup <key> <value>, /glowup setup, or /glowup setup reset.'
   if (sub === 'outfit') return outfitCommand(host, ctl, a1)
-  if (sub === 'level') return levelReport(parseLevelStore(await host.storeGet('level')))
+  if (sub === 'level') {
+    const stored = await host.storeGet('level')
+    return levelStoreIsNewer(stored) ? 'Your level was saved by a newer glowup. This version cannot read it and leaves it as it is.' : levelReport(parseLevelStore(stored))
+  }
   if (sub === 'help' && a1 === 'all') return FULL_TEXT
   return sub && sub !== 'help' ? `Unknown: ${args.trim()}\n\n${SHORT_TEXT}` : SHORT_TEXT
 }

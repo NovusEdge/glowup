@@ -162,6 +162,27 @@ test('/clear keeps the level field showing', async ($, on) => {
   expect(await paneText($)).toContain('Lv 2')
 })
 
+test('a level record from a newer glowup is left alone, and no outfit is worn over it', async ($, on) => {
+  const newer = { format: 2, xp: 5000, extra: 'kept' }
+  const store: Record<string, unknown> = { level: newer, outfit: { format: 1, name: 'off' } }
+  const clock = base(on, store)
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await bash($, 'git commit -m x')
+  await answer($, clock, 't1')
+  expect(store.level).toEqual(newer)
+  expect(store.outfit).toEqual({ format: 1, name: 'off' })
+})
+
+test('an outfit record from a newer glowup is not replaced when a level unlocks an outfit', async ($, on) => {
+  const record = { format: 2, name: 'cap', hue: 'red' }
+  const store: Record<string, unknown> = { level: { format: 1, xp: 295 }, outfit: record }
+  const clock = base(on, store)
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await answer($, clock, 't1')
+  expect(xpOf(store)).toBeGreaterThanOrEqual(300)
+  expect(store.outfit).toEqual(record)
+})
+
 test('a junk level store reads as 0 without throwing', async ($, on) => {
   const store: Record<string, unknown> = { level: 'junk' }
   const clock = base(on, store)

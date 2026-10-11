@@ -54,6 +54,9 @@ test('/glowup level: level, XP to the next, what is unlocked and what is next', 
     'Unlocked: new lines (2), a new outfit (3), new lines (4), a new move (5), a new outfit (6), new lines (7), a new outfit (8), a new move (10)',
     'All unlocks earned.',
   ])
+  const { host, store } = fakeHost()
+  store.level = { format: 2, xp: 9000 }
+  expect(await runCommand(host, 'level', ctl().ctl)).toMatch(/saved by a newer glowup/)
 })
 
 const SETTINGS = '/home/u/.claude/settings.json'
@@ -76,6 +79,23 @@ test('/glowup outfit lists the level outfits: worn, unlocked, and the level of t
   expect((await run(1600, undefined, 'ghost'))[1]).toBe('○ bow')
   expect((await run(1600, undefined, 'egg'))[2]).toBe('● sprout (worn)')
   expect((await run(1600, undefined, 'off'))[0]).toMatch(/nothing to dress/)
+})
+
+test('/glowup outfit leaves a level or outfit record from a newer glowup as it is', async () => {
+  const newerLevel = fakeHost()
+  newerLevel.store.level = { format: 2, xp: 9000 }
+  const a = ctl()
+  for (const args of ['outfit', 'outfit cap']) expect(await runCommand(newerLevel.host, args, a.ctl)).toMatch(/level was saved by a newer glowup/)
+  expect(newerLevel.store.outfit).toBeUndefined()
+
+  const newerOutfit = fakeHost()
+  newerOutfit.store.level = { format: 1, xp: 1600 }
+  const record = { format: 2, name: 'cap', hue: 'red' }
+  newerOutfit.store.outfit = record
+  const b = ctl()
+  expect(await runCommand(newerOutfit.host, 'outfit wizard', b.ctl)).toMatch(/outfit was saved by a newer glowup/)
+  expect(newerOutfit.store.outfit).toEqual(record)
+  expect(b.calls).toEqual([])
 })
 
 test('/glowup outfit <name> wears an unlocked outfit and stores the choice', async () => {
@@ -158,6 +178,18 @@ test('a user theme resolves and switches', async () => {
   expect(await runCommand(host, 'theme mine', c)).toBe('Theme: mine')
   expect(store.theme).toBe('mine')
   expect(calls).toEqual(['mix:classic/classic/mine'])
+})
+
+test('a user pack with a key this build does not know applies, and the notice follows the result', async () => {
+  const { host } = fakeHost({ files: { '/home/u/.claude/glowup/packs/later.json': '{"format":1,"name":"later","motion":{"swirl":1}}' } })
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'pack later', c)).toBe('Pack: later\npack "later": unknown key "motion.swirl" skipped')
+  expect(calls).toEqual(['mix:later/later'])
+})
+
+test('a user theme with an unknown color role switches and names it', async () => {
+  const { host } = fakeHost({ files: { '/home/u/.claude/glowup/themes/mine.json': '{"name":"mine","colors":{"glow":"#ffffff"}}' } })
+  expect(await runCommand(host, 'theme mine', ctl().ctl)).toBe('Theme: mine\ntheme "mine": unknown key "colors.glow" skipped')
 })
 
 test('unknown theme is refused and nothing changes', async () => {
@@ -527,6 +559,38 @@ test('setup keeps a comma list that was typed with spaces', async () => {
   const { ctl: c } = ctl()
   await runCommand(host, 'setup band plan, meter', c)
   expect((store.setup as Setup).band).toEqual(['plan', 'meter'])
+})
+
+test('setup commands refuse to rewrite a setup saved by a newer glowup', async () => {
+  const { host, store } = fakeHost()
+  const newer = { format: 5, band: ['plan', 'weather'], hologram: { on: true } }
+  store.setup = newer
+  const { calls, ctl: c } = ctl()
+  const refusal = /saved by a newer glowup/
+  expect(await runCommand(host, 'setup meter.danger 90', c)).toMatch(refusal)
+  expect(await runCommand(host, 'setup reset', c)).toMatch(refusal)
+  expect(await runCommand(host, `pack ${encodeLink({ setup: { band: ['plan'] } })}`, ctl(true).ctl)).toMatch(/Setup not applied: .*saved by a newer glowup/)
+  expect(store.setup).toEqual(newer)
+  expect(calls).not.toContain('setup')
+})
+
+test('setup rewrites keep the keys a later release added to a format 4 record', async () => {
+  const { host, store } = fakeHost()
+  store.setup = { format: 4, hologram: { on: true } }
+  await runCommand(host, 'setup meter.danger 90', ctl().ctl)
+  expect(store.setup).toMatchObject({ format: 4, meter: { warn: 50, danger: 90 }, hologram: { on: true } })
+})
+
+test('setup rewrites and link setups keep keys a later release added inside meter, bubbles and pet', async () => {
+  const nested = () => ({ format: 4, meter: { warn: 50, danger: 80, tint: 'x' }, bubbles: { ms: 3000, style: 'y' }, pet: { sleepMs: 60000, nap: true } })
+  const a = fakeHost()
+  a.store.setup = nested()
+  await runCommand(a.host, 'setup meter.danger 90', ctl().ctl)
+  expect(a.store.setup).toMatchObject({ meter: { danger: 90, tint: 'x' }, bubbles: { style: 'y' }, pet: { nap: true } })
+  const b = fakeHost()
+  b.store.setup = nested()
+  await runCommand(b.host, `pack ${encodeLink({ setup: { meter: { warn: 40, danger: 90 } } })}`, ctl(true).ctl)
+  expect(b.store.setup).toMatchObject({ meter: { warn: 40, danger: 90, tint: 'x' }, bubbles: { style: 'y' }, pet: { nap: true } })
 })
 
 test('setup refuses a bad value and keeps the old setup', async () => {

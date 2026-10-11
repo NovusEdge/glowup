@@ -83,7 +83,7 @@ Each `px` row is a string with one palette key per pixel, and `.` is a transpare
 - `palette` maps single characters to `#rrggbb` colors, 60 at most.
 - Frames are at most 32 pixels wide and 16 rows tall, and every frame in the file is the same size.
 - `ms` is a whole number from 80 to 10000.
-- A row has at most 32 frames, and the animation names are the ones in the table above.
+- A row has at most 32 frames, and the animation names are the ones in the table above. An animation or a frame key glowup does not know is skipped with a notice.
 - A frame can also set `dx`, a whole number from -4 to 4 for how many pixels the pet travels right when the frame shows, and `exit: true` to mark a neutral frame where glowup may cut away to the next animation. The last frame of a row that plays once counts as one. An optional `description` is at most 80 characters.
 
 ### Lines and voice
@@ -95,7 +95,7 @@ A pet can say its own lines and describe itself to Haiku in a file with `"format
 
 A key can end in `@lvN`, with N a whole number from 2 to 99, to add its lines to the pool once the player reaches level N: `done@lv4`, or `hello@night@lv7` for a flavour. See [Pets](pets.md#levels) for how levels are earned.
 
-A line can use only the variables its moment fills: `{file}` in `done` and `long-done`, `{n}` in `fail`, `{command}` in `needs-you`, `{unlock}` in `level-up`. `{unlock}` is the name of what the level unlocks, such as "new lines"; when a level-up has an unlock, only lines that use `{unlock}` are considered, so write some of each kind. `hello`, `green` and `compact` take none. An unknown moment, flavour or variable, a line over the limit, or more than 12 lines to a key is rejected with the key named.
+A line can use only the variables its moment fills: `{file}` in `done` and `long-done`, `{n}` in `fail`, `{command}` in `needs-you`, `{unlock}` in `level-up`. `{unlock}` is the name of what the level unlocks, such as "new lines"; when a level-up has an unlock, only lines that use `{unlock}` are considered, so write some of each kind. `hello`, `green` and `compact` take none. An unknown variable, a line over the limit, or more than 12 lines to a key is rejected with the key named. An unknown moment or flavour is skipped with a notice instead, so a pet made for a later release still loads.
 
 A moment with no lines in the file speaks a neutral default line, never another pet's. Using `lines` or `voice` in a `"format": 1` file is an error.
 
@@ -113,5 +113,11 @@ A moment with no lines in the file speaks a neutral default line, never another 
   "animations": { "idle": [{ "px": ["aa", "aa"], "ms": 400 }] }
 }
 ```
+
+### Files from a later release
+
+A pet file may use a key, animation, moment or flavour that a later 1.x added. glowup skips it, shows a notice that names the key and its path, such as `pet "blob": unknown key "lines.dance" skipped`, and loads the rest. A `format` newer than the highest this release reads, which is 2, is the one hard refusal: the file is rejected with "made for a newer glowup". A known key with the wrong shape is still an error.
+
+Pets that use 14-row sheets (`idle2` and `idle3`), `@lvN` keys or `level-up` lines need glowup 1.0 or later.
 
 glowup 0.12 and earlier refuse a format 2 file with a "made for a newer glowup" error. The studio opens format 2 files but drops `lines` and `voice` when you export, because it writes format 1.

@@ -11,7 +11,7 @@ import { loadUserPet, userPetNames, PET_DIR } from './userpets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, voiceFor, type BubbleSetting, type BubbleVars, type HaikuContext } from './bubbles.ts'
 import { linesFor, pool, flavoursOf, type Moment } from './lines.ts'
 import { momentOf } from './moments.ts'
-import { turnXp, countCommits, levelUp, levelOf, parseLevelStore, levelStore, parseOutfitStore, outfitStore, resolveOutfit, outfitUnlocked, unlockedOutfits } from './levels.ts'
+import { turnXp, countCommits, levelUp, levelOf, parseLevelStore, levelStoreIsNewer, outfitStoreIsNewer, levelStore, parseOutfitStore, outfitStore, resolveOutfit, outfitUnlocked, unlockedOutfits } from './levels.ts'
 import { recordPass, unlockEgg, eggUnlocked, hintDue, EGG_HINTS, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, rebase, refreshCounts, serial, type Repo } from './changes.ts'
 import { readDiff } from './diff.ts'
@@ -28,7 +28,7 @@ import type { PetClientProps } from './client/pet.tsx'
 import type { OrbState } from './motion.ts'
 import { statusText, writeStatusFile, drawsStatusLine, ensureRefresh, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
 import { parseFields, DEFAULT_FIELDS, type ColorMode, type FieldId } from './fields.ts'
-import { DEFAULT_SETUP, parseSetup, type Setup } from './setup.ts'
+import { DEFAULT_SETUP, parseSetup, setupIsNewer, type Setup } from './setup.ts'
 import { runCommand, pastedGlowup, type Ctl } from './command.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 import { renderHelp, renderColorList } from './helpcard.tsx'
@@ -895,7 +895,9 @@ async function loadSettings($: Engine, host: Host, undo = false) {
   reducedMotion = typeof motion === 'boolean' ? motion : pluginOptions.reducedMotion === true
   configFields = parseFields(pluginOptions.statusline) ?? DEFAULT_FIELDS
   fields = parseFields(await host.storeGet('statusline')) ?? configFields
-  const parsed = parseSetup(await host.storeGet('setup'))
+  const storedSetup = await host.storeGet('setup')
+  const parsed = parseSetup(storedSetup)
+  if (setupIsNewer(storedSetup)) parsed.notices.unshift('saved by a newer glowup, so shown as far as this version reads it and not changed')
   setup = parsed.setup
   if (!undo || !setup.tabs.includes(view.tab)) view = { ...view, tab: setup.tabs[0]! }
   if (parsed.notices.length && !undo) $.ui.toast(`glowup setup: ${parsed.notices.join('; ')}`)
@@ -1179,14 +1181,16 @@ export const register: Register = (on, options) => {
     // turn-done leaves combo alone (turn-start resets it), so the model still holds this turn's count
     try {
       const host = hostOf($)
-      const before = parseLevelStore(await host.storeGet('level'))
+      const stored = await host.storeGet('level')
+      if (levelStoreIsNewer(stored)) throw new Error('saved by a newer glowup; left as it is')
+      const before = parseLevelStore(stored)
       const after = before + turnXp({ answered: e.reason === 'answer', combo: model.combo, ...turnGain })
       await host.storeSet('level', levelStore(after))
       feed($, { type: 'level', xp: after })
       pendingLevelUp = levelUp(before, after)
       // Own try: a failed outfit write must not drop the level-up bubble.
       try {
-        if (outfitUnlocked(levelOf(before).level, levelOf(after).level)) {
+        if (outfitUnlocked(levelOf(before).level, levelOf(after).level) && !outfitStoreIsNewer(await host.storeGet('outfit'))) {
           // With no built-in pet on there is nothing to wear; clearing the choice lets the newest outfit show when one returns.
           const worn = unlockedOutfits(pet, levelOf(after).level).at(-1)
           if (worn) await host.storeSet('outfit', outfitStore(worn))

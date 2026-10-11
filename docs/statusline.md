@@ -51,7 +51,7 @@ List the fields you want in order, or go back to the default:
 /glowup statusline fields default
 ```
 
-An unknown id rejects the whole command and lists the valid ones. The Status row in `/glowup config` takes the same list, and the `statusline` setting in the `/plugin` menu accepts them comma-separated.
+An unknown id rejects the whole command and lists the valid ones. The Status row in `/glowup config` takes the same list, and the `statusline` setting in the `/plugin` menu accepts them comma-separated. The `/plugin` setting is more lenient: it drops an unknown id without a message and keeps the rest, and a list with no known id gives the default fields. That is how an id added in a later 1.x passes through an earlier one without breaking the setting.
 
 A field with nothing to show is left out; `5h` and `week` only appear on a subscription that reports those limits. The usage numbers are the latest Claude Code gave this session, so usage from another session on the same account shows up here after your next response.
 

@@ -27,6 +27,22 @@ test('several changes come back in a fixed order', () => {
   expect(r).toEqual([{ key: 'pack', value: 'crt' }, { key: 'pet', value: 'off' }, { key: 'reducedMotion', value: true }])
 })
 
+const KNOWN = ['pack', 'theme', 'spinner', 'pet', 'bubbles', 'statusline', 'reducedMotion']
+const { reducedMotion: _, ...withoutMotion } = base
+
+test('a key the snapshot lists as unknown to the build that wrote it is not a change', () => {
+  const older = { ...withoutMotion, keys: KNOWN.filter(k => k !== 'reducedMotion') }
+  expect(changedOptions(older, { ...base, reducedMotion: true })).toEqual([])
+  expect(changedOptions(older, { ...base, reducedMotion: true, pack: 'crt' })).toEqual([{ key: 'pack', value: 'crt' }])
+})
+
+test('a key the build knew but the host never passed applies on its first edit', () => {
+  const had = { ...withoutMotion, keys: KNOWN }
+  expect(changedOptions(had, { ...base, reducedMotion: true })).toEqual([{ key: 'reducedMotion', value: true }])
+  // a snapshot from before keys were stored: the seven keys 1.0 knew
+  expect(changedOptions(withoutMotion, { ...base, reducedMotion: true })).toEqual([{ key: 'reducedMotion', value: true }])
+})
+
 const run = (log: string[], errors: Record<string, string> = {}) => async (cmd: string) => {
   log.push(cmd)
   return errors[cmd] ?? ({ pack: 'Pack: ', theme: 'Theme: ', spinner: 'Spinner: ', pet: 'Pet: ', bubbles: 'Bubbles: ', motion: 'Motion: ', statusline: 'Status line fields: ' }[cmd.split(' ')[0]!]! + cmd.split(' ').slice(1).join(' '))
@@ -37,7 +53,26 @@ test('with no snapshot, the current values are written and nothing is applied', 
   const log: string[] = []
   expect(await syncPlugin(host, base, run(log))).toBeUndefined()
   expect(log).toEqual([])
-  expect(store[SEEN_KEY]).toEqual({ ...base })
+  expect(store[SEEN_KEY]).toEqual({ ...base, keys: KNOWN })
+})
+
+test('a key added after the snapshot was written is recorded with its current value and applies nothing', async () => {
+  const { host, store } = fakeHost()
+  store[SEEN_KEY] = { ...withoutMotion, keys: KNOWN.filter(k => k !== 'reducedMotion') }
+  const log: string[] = []
+  expect(await syncPlugin(host, { ...base, reducedMotion: true }, run(log))).toBeUndefined()
+  expect(log).toEqual([])
+  expect(store[SEEN_KEY]).toEqual({ ...base, reducedMotion: true, keys: KNOWN })
+  // once recorded, the next edit applies
+  expect(await syncPlugin(host, { ...base, reducedMotion: false }, run(log))).toMatch(/motion full/)
+})
+
+test('a key the host never passed still applies when the user first sets it', async () => {
+  const { host, store } = fakeHost()
+  store[SEEN_KEY] = { ...withoutMotion, keys: KNOWN }
+  const log: string[] = []
+  await syncPlugin(host, { ...base, reducedMotion: true }, run(log))
+  expect(log).toEqual(['motion reduced'])
 })
 
 test('a changed value is applied through its /glowup command, saved, and announced once', async () => {
@@ -47,7 +82,7 @@ test('a changed value is applied through its /glowup command, saved, and announc
   const toast = await syncPlugin(host, { ...base, pack: 'crt', pet: 'off', reducedMotion: true, spinner: 'comet', bubbles: 'haiku', theme: 'aurora', statusline: 'cost, model' }, run(log))
   expect(log).toEqual(['pack crt', 'theme aurora', 'spinner comet', 'pet off', 'bubbles haiku', 'statusline fields cost model', 'motion reduced'])
   expect(toast).toBe('Applied from /plugin: pack crt, theme aurora, spinner comet, pet off, bubbles haiku, statusline cost,model, motion reduced.')
-  expect(store[SEEN_KEY]).toEqual({ ...base, pack: 'crt', theme: 'aurora', spinner: 'comet', pet: 'off', bubbles: 'haiku', statusline: 'cost,model', reducedMotion: true })
+  expect(store[SEEN_KEY]).toEqual({ ...base, pack: 'crt', theme: 'aurora', spinner: 'comet', pet: 'off', bubbles: 'haiku', statusline: 'cost,model', reducedMotion: true, keys: KNOWN })
   const again: string[] = []
   expect(await syncPlugin(host, { ...base, pack: 'crt', pet: 'off', reducedMotion: true, spinner: 'comet', bubbles: 'haiku', theme: 'aurora', statusline: 'cost,model' }, run(again))).toBeUndefined()
   expect(again).toEqual([])

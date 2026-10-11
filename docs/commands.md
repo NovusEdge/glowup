@@ -167,7 +167,7 @@ Each row has the same effect as the matching command (`pack`, `spinner`, `color`
 
 The mod's settings in Claude Code's `/plugin` menu (`pack`, `theme`, `spinner`, `pet`, `bubbles`, `statusline` and `reducedMotion`) and the `/glowup` commands change the same saved choices, and the most recent change is the one in effect.
 
-glowup remembers the `/plugin` values it last saw. If one differs at the next session start or after `/reload-plugins`, glowup runs the matching command (`/glowup pack crt` for a new `pack`, and so on) and shows a toast saying what it applied. A value it cannot apply, such as an unknown pack name, gets a toast and is not retried. When `pack` changes, glowup puts the `/plugin` theme and spinner back on top of the new pack.
+glowup remembers the `/plugin` values it last saw. If one differs at the next session start or after `/reload-plugins`, glowup runs the matching command (`/glowup pack crt` for a new `pack`, and so on) and shows a toast saying what it applied. A value it cannot apply, such as an unknown pack name, gets a toast and is not retried. A setting that a later release adds is recorded the first time, with nothing applied, so your `/glowup` choice stands. When `pack` changes, glowup puts the `/plugin` theme and spinner back on top of the new pack.
 
 Setting `theme` back to `classic`, `spinner` to `pack` or `statusline` to its default list clears the saved choice, as `/glowup theme default`, `/glowup spinner default` and `/glowup statusline fields default` do, rather than saving the default value.
 

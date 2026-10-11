@@ -35,6 +35,20 @@ function ids<T extends string>(v: unknown, known: readonly T[], what: string, no
   return out
 }
 
+export const setupIsNewer = (stored: unknown): boolean => isObj(stored) && Number.isInteger(stored.format) && (stored.format as number) > 4
+export const SETUP_NEWER = 'Your setup was saved by a newer glowup, so this version leaves it as it is. Update glowup to change it.'
+
+const KNOWN_TOP = ['format', 'band', 'tabs', 'meter', 'bubbles', 'pet']
+
+// A later 1.x may add keys to a format 4 record, at the top or inside meter, bubbles and pet; rewriting it must not drop them.
+export function setupRecord(stored: unknown, setup: Setup): Record<string, unknown> {
+  if (!isObj(stored) || stored.format !== 4) return { ...setup }
+  const out: Record<string, unknown> = Object.fromEntries(Object.entries(stored).filter(([k]) => !KNOWN_TOP.includes(k)))
+  Object.assign(out, setup)
+  for (const k of ['meter', 'bubbles', 'pet'] as const) if (isObj(stored[k])) out[k] = { ...stored[k], ...setup[k] }
+  return out
+}
+
 const OLD_DEFAULT_TABS = 'changes,agents,plan'
 // 0.11-0.12's default, stored by any setup save before music existed
 const PRE_MUSIC_TABS = 'plan,agents,diff,changes'

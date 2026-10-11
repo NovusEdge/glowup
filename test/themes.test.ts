@@ -81,9 +81,9 @@ test('spinner words reject the same unsafe characters as glyphs, but allow wide 
 
 test('error messages strip control characters and cap echoed names', async () => {
   const key = '\u001b[2J' + 'k'.repeat(100)
-  const err = resolveTheme('x', { x: { name: 'x', colors: { [key]: '#000000' } } }).error!
-  expect(err).not.toContain('\u001b')
-  expect(err).toContain('[2J' + 'k'.repeat(37) + '"')
+  const note = resolveTheme('x', { x: { name: 'x', colors: { [key]: '#000000' } } }).notices[0]!
+  expect(note).not.toContain('\u001b')
+  expect(note).toContain('[2J' + 'k'.repeat(37) + '"')
   const ext = resolveTheme('y', { y: { name: 'y', extends: 'evil‮' + 'e'.repeat(80) } }).error!
   expect(ext).not.toContain('‮')
   expect(ext.length).toBeLessThan(100)
@@ -94,7 +94,21 @@ test('glyphs must be an object with known keys', async () => {
   for (const glyphs of [[], 'abc', 5, null]) {
     expect(resolveTheme('g', { g: { name: 'g', glyphs } }).error).toContain('"glyphs" must be an object')
   }
-  expect(resolveTheme('g', { g: { name: 'g', glyphs: { bogus: 'a' } } }).error).toContain('unknown glyph "bogus"')
+})
+
+test('an unknown color role or glyph is skipped with one notice naming it; the rest loads', async () => {
+  const r = resolveTheme('mine', { mine: { name: 'mine', colors: { accent: '#123456', glow: '#ffffff' }, glyphs: { read: '»', bogus: 'a' } } })
+  expect(r.error).toBeUndefined()
+  expect(r.theme.colors.accent).toBe('#123456')
+  expect(r.theme.glyphs.read).toBe('»')
+  expect(r.theme.colors).not.toHaveProperty('glow')
+  expect(r.theme.glyphs).not.toHaveProperty('bogus')
+  expect(r.notices).toEqual(['theme "mine": unknown key "colors.glow" skipped', 'theme "mine": unknown key "glyphs.bogus" skipped'])
+  expect(resolveTheme('classic', {}).notices).toEqual([])
+})
+
+test('a known color with a bad value still fails beside an unknown one', async () => {
+  expect(resolveTheme('m', { m: { name: 'm', colors: { glow: '#ffffff', accent: 'red' } } }).error).toContain('#rrggbb')
 })
 
 test('names inherited from Object.prototype are not themes', async () => {

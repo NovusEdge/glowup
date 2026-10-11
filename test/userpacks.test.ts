@@ -14,7 +14,7 @@ test('loads pack files; a broken one keeps its error', async () => {
 })
 
 test('addPack: https only, validated, built-in names refused, no silent overwrite', async () => {
-  const { host, files } = fakeHost({ fetches: { 'https://x.dev/neon.json': NEON, 'https://x.dev/crt.json': '{"format":1,"name":"crt"}', 'https://x.dev/bad.json': '{"format":1,"name":"bad","colors":{"rows":"fancy"}}' } })
+  const { host, files } = fakeHost({ fetches: { 'https://x.dev/neon.json': NEON, 'https://x.dev/crt.json': '{"format":1,"name":"crt"}', 'https://x.dev/bad.json': '{"format":1,"name":"bad","colors":{"rows":5}}' } })
   expect((await addPack(host, 'http://x.dev/neon.json', false)).message).toContain('https://')
   expect(await addPack(host, 'https://x.dev/neon.json', false)).toEqual({ name: 'neon', message: expect.stringContaining('neon') })
   expect(files[`${DIR}/neon.json`]).toBe(NEON)
@@ -29,6 +29,15 @@ test('addPack installs a pack that names a spinner this build lacks', async () =
   const body = '{"format":1,"name":"later","motion":{"spinner":"hologram"}}'
   const { host, files } = fakeHost({ fetches: { 'https://x.dev/later.json': body } })
   expect((await addPack(host, 'https://x.dev/later.json', false)).name).toBe('later')
+  expect(files[`${DIR}/later.json`]).toBe(body)
+})
+
+test('addPack installs a pack with a key this build does not know, and hands back one notice for it', async () => {
+  const body = '{"format":1,"name":"later","colors":{"hologram":true}}'
+  const { host, files } = fakeHost({ fetches: { 'https://x.dev/later.json': body } })
+  const r = await addPack(host, 'https://x.dev/later.json', false)
+  expect(r.name).toBe('later')
+  expect(r.notices).toEqual(['pack "later": unknown key "colors.hologram" skipped'])
   expect(files[`${DIR}/later.json`]).toBe(body)
 })
 

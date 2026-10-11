@@ -74,16 +74,23 @@ test('motion.field as an object sets the knobs it names and leaves the rest at t
 
 test('a bad effect value is refused with the allowed values', async () => {
   const bad = (colors: object, motion: object = {}) => () => validatePack({ format: 1, name: 'x', colors, motion })
-  expect(bad({ meters: 'bars' })).toThrow('colors.meters must be one of default, dither')
+  expect(bad({ meters: 5 })).toThrow('colors.meters must be one of default, dither')
   expect(bad({ dividers: 'yes' })).toThrow('colors.dividers must be true or false')
-  expect(bad({}, { field: 'plasma' })).toThrow('motion.field must be one of none, warp, simplex, or an object with a shape')
+  expect(bad({}, { field: 5 })).toThrow('motion.field must be one of none, warp, simplex, or an object with a shape')
   expect(bad({}, { field: { speed: 1 } })).toThrow('motion.field.shape must be one of none, warp, simplex')
   expect(bad({}, { field: { shape: 'simplex', speed: 9 } })).toThrow('motion.field.speed must be a number from 0 to 4')
   expect(bad({}, { field: { shape: 'simplex', size: 2.5 } })).toThrow('motion.field.size must be a whole number of dots')
-  expect(bad({}, { field: { shape: 'simplex', dither: '3x3' } })).toThrow('motion.field.dither must be one of 2x2, 4x4, 8x8')
-  expect(bad({}, { field: { shape: 'simplex', hue: 1 } })).toThrow('unknown key "hue" in motion.field')
+  expect(bad({}, { field: { shape: 'simplex', dither: 3 } })).toThrow('motion.field.dither must be one of 2x2, 4x4, 8x8')
   expect(bad({}, { field: { shape: 'simplex', fps: 30 } })).toThrow('motion.field.fps must be a number from 1 to 12')
   expect(bad({}, { field: { shape: 'simplex', color: 'red' } })).toThrow('motion.field.color must be #rrggbb')
+})
+
+test('an unknown field shape, dither or knob is skipped with a notice, not refused', async () => {
+  const run = (motion: object) => resolveLook({ colors: 'classic', motion: 'x' }, { x: { format: 1, name: 'x', motion } }, {})
+  expect(run({ field: 'plasma' }).notices).toEqual(['pack "x": unknown value "plasma" for motion.field skipped'])
+  const r = run({ field: { shape: 'simplex', dither: '3x3', hue: 1, speed: 2 } })
+  expect(r.notices).toEqual(['pack "x": unknown key "motion.field.hue" skipped', 'pack "x": unknown value "3x3" for motion.field.dither skipped'])
+  expect(r.look.motion.field).toMatchObject({ shape: 'simplex', speed: 2, dither: FIELD_DEFAULTS.dither })
 })
 
 test('the field is one colour, one segment a row: field.color, else the palette faint', async () => {

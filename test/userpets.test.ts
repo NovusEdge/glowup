@@ -15,6 +15,17 @@ test('installPetText writes <name>.json and returns the sheet', async () => {
   expect(files[`${DIR}/mochi.json`]).toBe(file('mochi'))
 })
 
+test('a pet file with a key this build lacks installs and loads, with one notice naming the pet and the key', async () => {
+  const later = JSON.stringify({ ...JSON.parse(file('mochi')), tail: 'long' })
+  const notice = ['pet "mochi": unknown key "tail" skipped']
+  const { host, files } = fakeHost()
+  const r = await installPetText(host, later, false)
+  expect(r.notices).toEqual(notice)
+  expect(files[`${DIR}/mochi.json`]).toBe(later)
+  const loaded = await loadUserPet(host, 'mochi')
+  expect('sheet' in loaded && loaded.notices).toEqual(notice)
+})
+
 test('an installed name needs --force; over 64 KB and invalid files are refused', async () => {
   const { host } = fakeHost({ files: { [`${DIR}/mochi.json`]: file('mochi') } })
   expect((await installPetText(host, file('mochi'), false)).message).toBe('A pet named "mochi" is installed already. Add --force to replace it.')

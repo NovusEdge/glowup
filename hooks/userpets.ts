@@ -1,6 +1,6 @@
 import type { Host } from './host.ts'
 import { parseJsonc, shown } from './themes.ts'
-import { validatePetFile, petSheet, petNameProblem, type PetFile } from './petfile.ts'
+import { readPetFile, petSheet, petNameProblem, type PetFile } from './petfile.ts'
 import { readLocal } from './readlocal.ts'
 import type { PetSheet } from './pets.ts'
 
@@ -15,16 +15,17 @@ export async function userPetNames(host: Host): Promise<string[]> {
   return (await host.listDir(dir)).filter(f => f.endsWith('.json')).map(f => f.slice(0, -5)).filter(n => !petNameProblem(n)).sort()
 }
 
-function parse(text: string): { file: PetFile } | { error: string } {
+// notices name what the file holds that this build does not know and so left out
+function parse(text: string): { file: PetFile; notices: string[] } | { error: string } {
   if (text.length > MAX_BYTES) return { error: 'The pet is over 64 KB.' }
   try {
-    const file = parseJsonc(text)
-    validatePetFile(file)
-    return { file }
+    const notes: string[] = []
+    const file = readPetFile(parseJsonc(text), notes)
+    return { file, notices: notes.map(n => `pet "${shown(file.name)}": ${n}`) }
   } catch (err) { return { error: msg(err) } }
 }
 
-export async function loadUserPet(host: Host, name: string): Promise<{ sheet: PetSheet } | { error: string }> {
+export async function loadUserPet(host: Host, name: string): Promise<{ sheet: PetSheet; notices?: string[] } | { error: string }> {
   const problem = petNameProblem(name)
   // a typed `pet Nope!` is a missing pet, not a naming lesson; only reserved names explain themselves
   if (problem) return { error: problem.startsWith('A pet needs') ? noPet(name) : problem }
@@ -35,21 +36,21 @@ export async function loadUserPet(host: Host, name: string): Promise<{ sheet: Pe
   const r = parse(text)
   if ('error' in r) return { error: `${path}: ${r.error}` }
   if (r.file.name !== name) return { error: `${path} holds a pet named "${shown(r.file.name)}"; rename the file or the pet.` }
-  return { sheet: petSheet(r.file) }
+  return { sheet: petSheet(r.file), ...(r.notices.length && { notices: r.notices }) }
 }
 
 // validatePetFile refuses reserved names, so no separate name check here.
-export async function installPetText(host: Host, text: string, force: boolean): Promise<{ name?: string; sheet?: PetSheet; message: string }> {
+export async function installPetText(host: Host, text: string, force: boolean): Promise<{ name?: string; sheet?: PetSheet; message: string; notices?: string[] }> {
   const r = parse(text)
   if ('error' in r) return { message: r.error }
   const { file } = r
   const path = `${PET_DIR(host.configDir)}/${file.name}.json`
   if (!force && (await host.exists(path))) return { message: `A pet named "${file.name}" is installed already. Add --force to replace it.` }
   await host.writeFile(path, text)
-  return { name: file.name, sheet: petSheet(file), message: `Installed pet "${file.name}". Switch to it with /glowup pet ${file.name}` }
+  return { name: file.name, sheet: petSheet(file), message: `Installed pet "${file.name}". Switch to it with /glowup pet ${file.name}`, ...(r.notices.length && { notices: r.notices }) }
 }
 
-export async function addPet(host: Host, source: string, force: boolean): Promise<{ name?: string; sheet?: PetSheet; message: string }> {
+export async function addPet(host: Host, source: string, force: boolean): Promise<{ name?: string; sheet?: PetSheet; message: string; notices?: string[] }> {
   if (/^[a-z]+:\/\//i.test(source)) {
     if (!source.startsWith('https://')) return { message: 'Pet URLs must start with https://' }
     let res: Awaited<ReturnType<Host['fetchText']>>

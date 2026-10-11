@@ -15,6 +15,9 @@ A theme is a JSON file with comments allowed. glowup accepts `//` line comments 
 | Size limit | 65536 bytes (64 KB) |
 | Top level | Must be a JSON object |
 | Unknown top-level keys | Ignored |
+| Unknown color roles and glyph keys | Skipped, with a notice |
+
+A theme made for a later 1.x may use a color role or a glyph key this release does not know. glowup skips it, shows a notice that names the key and its path, such as `theme "mine": unknown key "colors.glow" skipped`, and loads the rest. A key it knows with a bad value is still an error.
 
 A file in the folder with the name of a built-in theme replaces that theme for you.
 
@@ -31,7 +34,7 @@ A file in the folder with the name of a built-in theme replaces that theme for y
 
 ## Colors
 
-Every value must match `#rrggbb`: a hash and six hex digits, upper or lower case. Short forms like `#fff` are refused. An unknown key is an error: `unknown color "<key>"`. A bad value is an error: `color "<key>" must be #rrggbb`.
+Every value must match `#rrggbb`: a hash and six hex digits, upper or lower case. Short forms like `#fff` are refused. An unknown key is skipped with a notice: `unknown key "colors.<key>" skipped`. A bad value is an error: `color "<key>" must be #rrggbb`.
 
 | Key | Used for |
 | --- | --- |
@@ -64,7 +67,7 @@ Each glyph, and each heart, must be exactly one character in the Basic Multiling
 - Wide East Asian characters, which take two cells.
 - Anything above U+FFFF, which includes emoji.
 
-Errors: `unknown glyph "<key>"`, `glyph "<key>" must be one width-1 character`, `"glyphs" must be an object`, and `band.hearts must be two width-1 characters`.
+An unknown glyph key is skipped with a notice: `unknown key "glyphs.<key>" skipped`. Errors: `glyph "<key>" must be one width-1 character`, `"glyphs" must be an object`, and `band.hearts must be two width-1 characters`.
 
 ## Spinner words
 

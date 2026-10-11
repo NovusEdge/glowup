@@ -83,11 +83,15 @@ test('documented palette colors and glyphs are the ones themes accept', () => {
 })
 
 // The theme loader has no key list: its fields are literals in validate(), so probe them.
-test('documented theme file fields each load, and the loader refuses a made-up color or glyph', () => {
+test('documented theme file fields each load, and the loader skips a made-up color or glyph with a notice', () => {
   assert.deepEqual(names('Theme file'), ['band.hearts', 'colors', 'extends', 'glyphs', 'name', 'spinner.words'])
   const file = { name: 'x', extends: 'classic', colors: { accent: '#112233' }, glyphs: { read: '>' }, band: { hearts: ['a', 'b'] }, spinner: { words: ['Hm'] } }
   assert.equal(resolveTheme('x', { x: file }).error, undefined)
-  for (const bad of [{ colors: { nope: '#112233' } }, { glyphs: { nope: '>' } }]) assert.ok(resolveTheme('x', { x: bad }).error)
+  for (const bad of [{ colors: { nope: '#112233' } }, { glyphs: { nope: '>' } }]) {
+    const r = resolveTheme('x', { x: bad })
+    assert.equal(r.error, undefined)
+    assert.equal(r.notices.length, 1)
+  }
 })
 
 test('documented row styles, borders, spinners and shimmer levels match the code', () => {
@@ -97,8 +101,13 @@ test('documented row styles, borders, spinners and shimmer levels match the code
   assert.deepEqual(values('Motion layer', 'shimmer'), ['0', '1', '2'])
 })
 
-test('every documented value is accepted by validatePack', () => {
-  const ok = (f: object) => validatePack({ format: 1, name: 'x', ...f })
+// validatePack skips unknown values with a notice, so acceptance means resolveLook reports nothing.
+test('every documented value is accepted by validatePack and skipped by nothing', () => {
+  const ok = (f: object) => {
+    const file = { format: 1, name: 'x', ...f }
+    validatePack(file)
+    assert.deepEqual(resolveLook({ colors: 'x', motion: 'x' }, { x: file }, {}).errors, [])
+  }
   for (const rows of values('Colors layer', 'rows')) ok({ colors: { rows } })
   for (const border of values('Colors layer', 'border')) ok({ colors: { border } })
   for (const spinner of values('Motion layer', 'spinner')) ok({ motion: { spinner } })
