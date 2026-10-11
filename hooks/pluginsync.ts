@@ -22,11 +22,17 @@ function normalize(o: Readonly<Record<string, unknown>> | undefined): Seen {
   return out
 }
 
+// What 1.0 wrote its snapshots without a `keys` list; never add to it.
+const KEYS_1_0: readonly string[] = ['pack', 'theme', 'spinner', 'pet', 'bubbles', 'statusline', 'reducedMotion']
+
 export function changedOptions(seen: unknown, options: Readonly<Record<string, unknown>>): { key: Key; value: string | boolean }[] {
   if (seen === undefined || seen === null || typeof seen !== 'object') return []
   const was = normalize(seen as Record<string, unknown>), now = normalize(options)
-  // A key the snapshot lacks was added by a later release: syncPlugin records it, and the user's /glowup choice stands.
-  return KEYS.flatMap(key => now[key] !== undefined && was[key] !== undefined && now[key] !== was[key] ? [{ key, value: now[key]! }] : [])
+  const listed = (seen as { keys?: unknown }).keys
+  const knew: readonly unknown[] = Array.isArray(listed) ? listed : KEYS_1_0
+  // A key the writing build did not know came with a later release: syncPlugin records it, and the user's /glowup choice stands.
+  // A key it knew but the host had no value for is the user's first edit, and applies.
+  return KEYS.flatMap(key => now[key] !== undefined && knew.includes(key) && now[key] !== was[key] ? [{ key, value: now[key]! }] : [])
 }
 
 // `spinner pack` is the userConfig spelling of "the pack's own", which the command calls default.
@@ -48,7 +54,7 @@ export async function syncPlugin(host: Host, options: Readonly<Record<string, un
   const seen = await host.storeGet(SEEN_KEY)
   const changes = changedOptions(seen, options)
   // recorded even when a command fails, so a bad value is reported once and not every session
-  await host.storeSet(SEEN_KEY, { ...normalize(seen as Record<string, unknown> | undefined), ...normalize(options) })
+  await host.storeSet(SEEN_KEY, { ...normalize(seen as Record<string, unknown> | undefined), ...normalize(options), keys: KEYS })
   const applied: string[] = [], failed: string[] = []
   // `pack <name>` rebuilds the mix and drops the saved theme and spinner, so those /plugin values,
   // changed or not, go back on top of the new pack. A default needs nothing: the pack's own is what shows.
