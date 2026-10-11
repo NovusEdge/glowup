@@ -1,5 +1,5 @@
 import type { Host } from '../host.ts'
-import { OSA_READ, PLAYERCTL_FORMAT, parseBusctl, parseOsascript, parsePlayerctl, type Music, type MusicCmd } from './parse.ts'
+import { OSA_READ, PLAYERCTL_FORMAT, osaGuarded, parseBusctl, parseOsascript, parsePlayerctl, type Music, type MusicCmd } from './parse.ts'
 
 export type Platform = 'linux' | 'mac' | 'windows'
 export type Backend = 'busctl' | 'playerctl' | 'osascript'
@@ -11,7 +11,6 @@ const DEST = ['org.mpris.MediaPlayer2.spotify', '/org/mpris/MediaPlayer2', 'org.
 const BUS_READ = ['busctl', '--user', '--json=short', 'get-property', ...DEST, 'PlaybackStatus', 'Metadata', 'Position']
 const BUS_CMD: Record<MusicCmd, string> = { playpause: 'PlayPause', next: 'Next', previous: 'Previous' }
 const PCTL_CMD: Record<MusicCmd, string> = { playpause: 'play-pause', next: 'next', previous: 'previous' }
-// `tell` without the guard would launch Spotify to answer.
 const OSA_CMD: Record<MusicCmd, string> = { playpause: 'playpause', next: 'next track', previous: 'previous track' }
 
 const works = (host: Host, argv: string[]) => host.run(argv, undefined, RUN_MS).then(r => r.exitCode === 0, () => false)
@@ -19,7 +18,8 @@ const works = (host: Host, argv: string[]) => host.run(argv, undefined, RUN_MS).
 export async function pickBackend(host: Host, platform: Platform): Promise<Backend | undefined> {
   if (platform === 'mac') return 'osascript'
   if (platform === 'windows') return undefined
-  if (await works(host, ['busctl', '--version'])) return 'busctl'
+  // busctl --json needs systemd 240; older builds pass a plain --version but fail every read.
+  if (await works(host, ['busctl', '--json=short', '--version'])) return 'busctl'
   if (await works(host, ['playerctl', '--version'])) return 'playerctl'
   return undefined
 }
@@ -56,7 +56,7 @@ export class MusicReader {
   async control(host: Host, cmd: MusicCmd): Promise<void> {
     const argv = this.backend === 'busctl' ? ['busctl', '--user', 'call', ...DEST, BUS_CMD[cmd]]
       : this.backend === 'playerctl' ? ['playerctl', '--player=spotify', PCTL_CMD[cmd]]
-      : this.backend === 'osascript' ? ['osascript', '-e', `if application "Spotify" is running then tell application "Spotify" to ${OSA_CMD[cmd]}`]
+      : this.backend === 'osascript' ? ['osascript', '-e', `if application "Spotify" is running then run script ${osaGuarded(`tell application "Spotify" to ${OSA_CMD[cmd]}`)}`]
       : undefined
     if (argv) await host.run(argv, undefined, RUN_MS).catch(() => undefined)
   }

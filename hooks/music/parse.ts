@@ -34,13 +34,24 @@ export function parsePlayerctl(stdout: string, readAt: number): OpenMusic | unde
   return open(f[0]!, f[1]!, f[2]!, f[3]!, f[4]!, (Number(f[5]) || 0) / 1000, (Number(f[6]) || 0) / 1000, readAt)
 }
 
+// AppleScript compiles every `tell application "Spotify"` in a script before it runs, which launches
+// the app or, with Spotify not installed, shows a "Where is Spotify?" chooser. Keeping the tell inside
+// `run script` defers that compilation until the `is running` check has passed.
+export const osaGuarded = (inner: string) => `"${inner.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`
+
 // Spotify's duration is ms, its player position seconds; a comma-decimal locale prints "73,8".
 export const OSA_READ = [
   'if application "Spotify" is running then',
-  '  tell application "Spotify"',
-  '    set t to current track',
-  '    return (player state as string) & tab & (id of t) & tab & (name of t) & tab & (artist of t) & tab & (album of t) & tab & (duration of t) & tab & (player position as string)',
-  '  end tell',
+  `  return run script ${osaGuarded([
+    'tell application "Spotify"',
+    '  try',
+    '    set t to current track',
+    '  on error',
+    '    return "open"',
+    '  end try',
+    '  return (player state as string) & tab & (id of t) & tab & (name of t) & tab & (artist of t) & tab & (album of t) & tab & (duration of t) & tab & (player position as string)',
+    'end tell',
+  ].join('\n'))}`,
   'end if',
   'return "closed"',
 ].join('\n')
@@ -48,6 +59,7 @@ export const OSA_READ = [
 export function parseOsascript(stdout: string, readAt: number): Music | undefined {
   const s = stdout.replace(/\n$/, '')
   if (s === 'closed') return { status: 'closed' }
+  if (s === 'open') return { status: 'open', playing: false, ad: false, progressMs: 0, readAt }
   const f = s.split('\t')
   if (f.length !== 7) return undefined
   return open(f[0]!, f[1]!, f[2]!, f[3]!, f[4]!, Number(f[5]) || 0, (Number(f[6]!.replace(',', '.')) || 0) * 1000, readAt)

@@ -48,6 +48,7 @@ test('osascript: running, closed, and a comma-decimal position', () => {
     track: { id: 'spotify:track:abc', title: 'Song', artist: 'Artist', album: 'Album', durationMs: 200000 },
   })
   expect(parseOsascript('closed\n', 2)).toEqual({ status: 'closed' })
+  expect(parseOsascript('open\n', 2)).toEqual({ status: 'open', playing: false, ad: false, progressMs: 0, readAt: 2 })
   expect((parseOsascript(['playing', 'spotify:ad:1', '', '', '', '30000', '1.0'].join('\t'), 2) as OpenMusic).ad).toBe(true)
   expect(parseOsascript('', 2)).toBeUndefined()
 })
