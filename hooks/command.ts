@@ -251,7 +251,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     if (r.error) return r.error
     await host.storeSet('theme', a1)
     await applyMix(host, ctl, { ...ctl.mix(), theme: a1 })
-    return `Theme: ${a1}`
+    return [`Theme: ${a1}`, ...r.notices].join('\n')
   }
   if (sub === 'pack' && a1 === 'list') return packList(host, ctl)
   if (sub === 'pack' && a1 === 'save') {

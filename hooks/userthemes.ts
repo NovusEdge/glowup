@@ -30,5 +30,5 @@ export async function addTheme(host: Host, url: string): Promise<string> {
   const check = resolveTheme(name, { ...(await loadUserThemes(host)), [name]: file })
   if (check.error) return check.error
   await host.writeFile(`${THEME_DIR(host.configDir)}/${name}.json`, r.text)
-  return `Installed theme "${name}". Switch with /glowup theme ${name}`
+  return [`Installed theme "${name}". Switch with /glowup theme ${name}`, ...check.notices].join('\n')
 }
