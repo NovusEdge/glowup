@@ -76,7 +76,7 @@ test('a pane link named after a built-in loads renamed, with the pane descriptio
 })
 
 test('a broken pack part still loads the setup and names the pack part', () => {
-  const link = encodeLink({ pack: { format: 1, name: 'x', colors: { rows: 'wavy' } }, setup: { meter: { warn: 40, danger: 90 } } })
+  const link = encodeLink({ pack: { format: 1, name: 'x', colors: { rows: 5 } }, setup: { meter: { warn: 40, danger: 90 } } })
   const r = fromHash(hashOf(link))
   assert.equal(r.draft, undefined)
   assert.equal(r.setup!.meter.warn, 40)
