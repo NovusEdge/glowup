@@ -11,11 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Pack, theme and pet files now load when they hold a key or value a later 1.x added. glowup skips it and shows a notice that names the key and its path, instead of refusing the file or the layer. This covers unknown keys at every level, unknown values of the pack enums (`rows`, `border`, `meters`, `shimmer`, `field`), unknown theme color roles and glyph keys, and unknown pet animations, moments and flavours. A `format` newer than glowup reads is still refused, and a known key with the wrong type is still an error.
 - The reserved `sound` and `voice` pack keys must be objects; any other value is ignored with a notice.
-- `/glowup pack <name>` applies a pack that only produced notices, and prints them after the result.
+- `/glowup pack <name>` applies a pack that only produced notices, and prints them after the result. Notices show where you act (the command or a link import), not again at every session start; a layer that falls back to classic still toasts its error.
 
 ### Fixed
 
-- An older glowup no longer overwrites data a newer one saved. A level record with a newer format is left as it is: no XP is added, no outfit is worn, and `/glowup level` says so. A setup with a newer format is shown as far as it can be read and refuses `/glowup setup` and a studio link's setup; a format 4 setup keeps top-level keys a later release added when it is rewritten.
+- An older glowup no longer overwrites data a newer one saved. A level or outfit record with a newer format is left as it is: no XP is added, no outfit is worn, and `/glowup level` and `/glowup outfit` say so. A setup with a newer format is shown as far as it can be read and refuses `/glowup setup` and a studio link's setup; a format 4 setup keeps keys a later release added, at the top level and inside `meter`, `bubbles` and `pet`, when it is rewritten.
 - A `/plugin` setting that a later release adds no longer replaces your `/glowup` choice the first time you upgrade. glowup records its value and applies nothing.
 
 ## [1.0.0] - 2026-10-12

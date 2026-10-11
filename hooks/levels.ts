@@ -95,7 +95,9 @@ export const levelStoreIsNewer = (v: unknown): boolean => {
   return Number.isInteger(f) && (f as number) > 1
 }
 
-export const levelStore =(xp: number) => ({ format: 1 as const, xp })
+export const outfitStoreIsNewer = levelStoreIsNewer
+
+export const levelStore = (xp: number) => ({ format: 1 as const, xp })
 
 // Not toLocaleString: its output depends on the host's locale and ICU build.
 export const groupDigits = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',')

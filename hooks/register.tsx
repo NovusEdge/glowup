@@ -11,7 +11,7 @@ import { loadUserPet, userPetNames, PET_DIR } from './userpets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, voiceFor, type BubbleSetting, type BubbleVars, type HaikuContext } from './bubbles.ts'
 import { linesFor, pool, flavoursOf, type Moment } from './lines.ts'
 import { momentOf } from './moments.ts'
-import { turnXp, countCommits, levelUp, levelOf, parseLevelStore, levelStoreIsNewer, levelStore, parseOutfitStore, outfitStore, resolveOutfit, outfitUnlocked, unlockedOutfits } from './levels.ts'
+import { turnXp, countCommits, levelUp, levelOf, parseLevelStore, levelStoreIsNewer, outfitStoreIsNewer, levelStore, parseOutfitStore, outfitStore, resolveOutfit, outfitUnlocked, unlockedOutfits } from './levels.ts'
 import { recordPass, unlockEgg, eggUnlocked, hintDue, EGG_HINTS, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, rebase, refreshCounts, serial, type Repo } from './changes.ts'
 import { readDiff } from './diff.ts'
@@ -1190,7 +1190,7 @@ export const register: Register = (on, options) => {
       pendingLevelUp = levelUp(before, after)
       // Own try: a failed outfit write must not drop the level-up bubble.
       try {
-        if (outfitUnlocked(levelOf(before).level, levelOf(after).level)) {
+        if (outfitUnlocked(levelOf(before).level, levelOf(after).level) && !outfitStoreIsNewer(await host.storeGet('outfit'))) {
           // With no built-in pet on there is nothing to wear; clearing the choice lets the newest outfit show when one returns.
           const worn = unlockedOutfits(pet, levelOf(after).level).at(-1)
           if (worn) await host.storeSet('outfit', outfitStore(worn))

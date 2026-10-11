@@ -81,6 +81,23 @@ test('/glowup outfit lists the level outfits: worn, unlocked, and the level of t
   expect((await run(1600, undefined, 'off'))[0]).toMatch(/nothing to dress/)
 })
 
+test('/glowup outfit leaves a level or outfit record from a newer glowup as it is', async () => {
+  const newerLevel = fakeHost()
+  newerLevel.store.level = { format: 2, xp: 9000 }
+  const a = ctl()
+  for (const args of ['outfit', 'outfit cap']) expect(await runCommand(newerLevel.host, args, a.ctl)).toMatch(/level was saved by a newer glowup/)
+  expect(newerLevel.store.outfit).toBeUndefined()
+
+  const newerOutfit = fakeHost()
+  newerOutfit.store.level = { format: 1, xp: 1600 }
+  const record = { format: 2, name: 'cap', hue: 'red' }
+  newerOutfit.store.outfit = record
+  const b = ctl()
+  expect(await runCommand(newerOutfit.host, 'outfit wizard', b.ctl)).toMatch(/outfit was saved by a newer glowup/)
+  expect(newerOutfit.store.outfit).toEqual(record)
+  expect(b.calls).toEqual([])
+})
+
 test('/glowup outfit <name> wears an unlocked outfit and stores the choice', async () => {
   const { host, store } = fakeHost()
   store.level = { format: 1, xp: 1600 }

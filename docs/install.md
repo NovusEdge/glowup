@@ -104,9 +104,9 @@ These settings and the `/glowup` commands change the same saved choices, and whi
 
 ## Compatibility
 
-> Packs, themes and pet files that load in glowup 1.0 load the same way in every 1.x release, and studio links from 1.0 open in every 1.x. A later 1.x may add keys, values, status line fields and commands, but never removes or renames one. An earlier 1.x skips what it does not know and tells you, and it refuses a file whose `format` is newer than it understands. Your settings and XP carry forward to every later 1.x. Going back to an earlier version is not supported, but it does not erase what a newer one saved.
+> Packs, themes and pet files that load in glowup 1.0 load the same way in every 1.x release, and studio links from 1.0 open in every 1.x. A later 1.x may add keys, values, status line fields and commands, but never removes or renames one. An earlier 1.x skips what it does not know and tells you, and it refuses a file whose `format` is newer than it understands. Your settings and XP carry forward to every later 1.x. Going back to an earlier version is not supported, but it does not erase the setup, level or outfit a newer one saved.
 
-In practice, a pack, theme or pet file made for a later 1.x still loads in an earlier one. What the earlier release does not know is skipped, and a notice names each key it skipped. See the [pack](pack-reference.md#keys-and-values-from-a-later-release), [theme](theme-reference.md) and [pet file](pet-sprites.md#files-from-a-later-release) references. After you go back to an earlier release, `/glowup setup` and `/glowup level` leave a setup or level saved by the newer one as it was.
+In practice, a pack, theme or pet file made for a later 1.x still loads in an earlier one. What the earlier release does not know is skipped, and a notice names each key it skipped. See the [pack](pack-reference.md#keys-and-values-from-a-later-release), [theme](theme-reference.md) and [pet file](pet-sprites.md#files-from-a-later-release) references. After you go back to an earlier release, it leaves a setup, level or outfit saved by the newer one as it was: `/glowup setup`, `/glowup outfit` and earning XP refuse to rewrite them.
 
 ## Run from a clone
 

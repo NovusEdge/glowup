@@ -16,7 +16,7 @@ import type { BubbleSetting } from './bubbles.ts'
 import { eggUnlocked, type EggStore } from './eggs.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 import { FIELD_IDS, isFieldId, type FieldId } from './fields.ts'
-import { levelOf, parseLevelStore, levelStoreIsNewer, groupDigits, UNLOCKS, ART_READY, OUTFIT_LEVELS, outfitsOf, resolveOutfit, parseOutfitStore, outfitStore } from './levels.ts'
+import { levelOf, parseLevelStore, levelStoreIsNewer, outfitStoreIsNewer, groupDigits, UNLOCKS, ART_READY, OUTFIT_LEVELS, outfitsOf, resolveOutfit, parseOutfitStore, outfitStore } from './levels.ts'
 import { parseSetup, setupIsNewer, setupRecord, SETUP_NEWER, setSetupField, describeSetup, DEFAULT_SETUP, type Setup } from './setup.ts'
 
 // What a command that needs more input falls back to, and what a headless config run prints.
@@ -75,8 +75,10 @@ async function outfitCommand(host: Host, ctl: Ctl, want: string | undefined): Pr
   const pet = ctl.pet(), names = outfitsOf(pet)
   if (pet === 'off') return 'No pet is on, so there is nothing to dress.'
   if (!names.length) return `${pet} has no level outfits.`
-  const level = levelOf(parseLevelStore(await host.storeGet('level'))).level
-  const choice = parseOutfitStore(await host.storeGet('outfit'))
+  const storedLevel = await host.storeGet('level'), storedOutfit = await host.storeGet('outfit')
+  if (levelStoreIsNewer(storedLevel)) return 'Your level was saved by a newer glowup, so this version cannot tell which outfits are unlocked and leaves them as they are.'
+  const level = levelOf(parseLevelStore(storedLevel)).level
+  const choice = parseOutfitStore(storedOutfit)
   if (want === undefined) {
     const worn = resolveOutfit(pet, level, choice)
     const rows = names.map((n, i) => level < OUTFIT_LEVELS[i]! ? `· ${n} (level ${OUTFIT_LEVELS[i]})` : `${n === worn ? '●' : '○'} ${n}${n === worn ? ' (worn)' : ''}`)
@@ -86,6 +88,7 @@ async function outfitCommand(host: Host, ctl: Ctl, want: string | undefined): Pr
   const at = names.indexOf(name)
   if (name !== 'off' && at < 0) return `No outfit named "${shown(want)}" for ${pet}. Choose one of: ${names.join(', ')}, or off.`
   if (at >= 0 && level < OUTFIT_LEVELS[at]!) return `The ${name} unlocks at level ${OUTFIT_LEVELS[at]}; you are level ${level}.`
+  if (outfitStoreIsNewer(storedOutfit)) return 'Your outfit was saved by a newer glowup, so this version leaves it as it is.'
   await host.storeSet('outfit', outfitStore(name))
   ctl.setOutfit(name)
   return `Outfit: ${name}`
