@@ -25,7 +25,7 @@ export const DEFAULT_LINES: Record<Moment, string[]> = {
   'level-up': ['level up!', 'new level!', 'we leveled up', 'stronger now', 'unlocked: {unlock}', 'new: {unlock}', 'level up! {unlock}', 'you unlocked {unlock}'],
 }
 
-export const BUILTIN_LINES: Record<'clawd' | 'robot' | 'egg', PetLines> = {
+export const BUILTIN_LINES: Record<'clawd' | 'robot' | 'ghost' | 'egg', PetLines> = {
   clawd: {
     done: ['all done', "that's a wrap", 'done and dusted', 'shipped it. sort of.', 'done. {file} looks better', 'that one went smoothly'],
     'done@morning': ['done before coffee'],
@@ -100,11 +100,35 @@ export const BUILTIN_LINES: Record<'clawd' | 'robot' | 'egg', PetLines> = {
     'hello@lv7': ['*peep* hatching soon?', '*wobble* nearly hatched'],
     'green@lv7': ['*crack!* hatching…', '*glow* hatch soon!'],
   },
+  ghost: {
+    done: ['done… quietly', 'finished. no ghosts in it', 'laid that one to rest', 'done. {file} feels lighter', 'all done. I barely helped', 'done. floating off now'],
+    'done@friday': ['done. haunting the weekend now'],
+    fail: ['oh… {n} failed', 'eek. red', '{n} gave me a fright', 'something went bump', "I'll just fade a bit", 'red… not the cozy kind'],
+    'needs-you': ['um… need you', 'psst… {command}?', 'may I {command}?', 'a tiny yes, please?', 'waiting, like ghosts do', 'still there? {command}?'],
+    green: ['green… oh, lovely', 'all clear. no spooks', 'the red has passed on', 'green. I feel less see-through', 'tests at peace now', 'boo-tiful green'],
+    hello: ['oh… hello', 'boo. sorry. hi', 'still haunting this repo', 'you came back', 'hi… I kept it warm', 'floating by to say hi'],
+    'hello@morning': ['morning… ghosts are up too'],
+    'hello@night': ['ah. my hours'],
+    'hello@christmas': ['hi from the ghost of christmas now'],
+    'hello@halloween': ['my big night!'],
+    'long-done': ['done. that took ages, and I would know', 'finally. I waited centuries', 'long one. laid to rest', 'done at last. so floaty', 'done. even I got tired', 'done. {file} haunted us a while'],
+    compact: ['faded out the old bits', 'lighter than air now', 'let some memories go', 'more see-through now', 'compacted. ghost of a context', 'forgot a little. it happens'],
+    'level-up': ['level up… oh my', 'I feel more solid', 'a stronger haunt', 'oh. a new level', 'unlocked {unlock}… for me?', 'new: {unlock}. eek', 'level up! {unlock}, ooh', '{unlock}? spooky good'],
+    'done@lv2': ['done. I like haunting with you', 'done. you make this less lonely'],
+    'hello@lv2': ["oh, it's you. good", 'back. I hoped you would'],
+    'green@lv2': ['green. we scared the red off', 'green… we did that'],
+    'done@lv4': ['done. like old haunts', "done. you're my favorite visitor"],
+    'hello@lv4': ['there you are… I waited', 'hello, old friend'],
+    'green@lv4': ['green. our usual haunt', 'green again. easy as boo'],
+    'done@lv7': ["done. I'd haunt anywhere with you", 'done. stay forever?'],
+    'hello@lv7': ['you! I lit up a little', 'oh good, my human is back'],
+    'green@lv7': ['green. nothing haunts us now', 'green. we are the legend now'],
+  },
 }
 
 export function linesFor(pet: string, user?: PetLines): PetLines {
   if (pet === 'clawd' || pet === 'clawd-shiny') return BUILTIN_LINES.clawd
-  if (pet === 'robot' || pet === 'egg') return BUILTIN_LINES[pet]
+  if (pet === 'robot' || pet === 'ghost' || pet === 'egg') return BUILTIN_LINES[pet]
   return user ?? {}
 }
 

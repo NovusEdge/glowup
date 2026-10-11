@@ -41,6 +41,7 @@ export const DEFAULT_VOICE = 'a small pixel pet. Friendly and brief.'
 const VOICES: Record<string, string> = {
   clawd: 'Clawd, a small pixel crab. Dry, warm, a little irreverent.',
   robot: 'a small CRT robot. Terse, literal, speaks in status reports.',
+  ghost: 'a tiny shy ghost. Soft, hesitant, gently spooky, fond of a quiet haunted-house pun.',
   egg: 'an egg that has not hatched. Mostly sounds, rarely a word.',
 }
 // hasOwn: a custom pet may be named "constructor"

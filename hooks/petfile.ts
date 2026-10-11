@@ -19,7 +19,7 @@ export const ANIM_MS: Record<PetAnimName, number> = { idle: 400, walk: 110, work
 export const ONCE: readonly PetAnimName[] = ['hop', 'fail', 'scrunch']
 export const WALKS: readonly PetAnimName[] = ['walk', 'pant-walk']
 // Every place that lists the built-ins derives from this; BUILTIN_SHEETS in pets.ts must have the same keys (a test checks).
-export const BUILTIN_PET_NAMES = ['clawd', 'clawd-shiny', 'robot', 'egg']
+export const BUILTIN_PET_NAMES = ['clawd', 'clawd-shiny', 'robot', 'ghost', 'egg']
 export const builtinPets = (shiny: boolean, egg: boolean) => BUILTIN_PET_NAMES.filter(n => (shiny || n !== 'clawd-shiny') && (egg || n !== 'egg'))
 const COMMANDS = ['off', 'list', 'add']
 

@@ -76,6 +76,7 @@ test('voiceFor: built-ins, shiny as Clawd, a custom voice, and the default', asy
   expect(voiceFor('clawd')).toBe(voiceFor('clawd-shiny'))
   expect(voiceFor('clawd')).toContain('Clawd')
   expect(voiceFor('robot')).toContain('robot')
+  expect(voiceFor('ghost')).toContain('ghost')
   expect(voiceFor('egg')).toContain('egg')
   expect(voiceFor('blob', 'a sleepy blob')).toBe('a sleepy blob')
   expect(voiceFor('blob')).toBe(DEFAULT_VOICE)

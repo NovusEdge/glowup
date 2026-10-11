@@ -106,7 +106,7 @@ func TestClawdColumnAppearsFrom104Columns(t *testing.T) {
 
 func TestEveryBuiltInPetGetsAColumnWideEnoughForIt(t *testing.T) {
 	m, _ := newModel(t)
-	for pet, from := range map[string]int{"robot": withPreview + gap + 32, "egg": withClawd, "clawd-shiny": withClawd} {
+	for pet, from := range map[string]int{"robot": withPreview + gap + 32, "egg": withClawd, "ghost": withClawd, "clawd-shiny": withClawd} {
 		m.snap.State.Pet = pet
 		// The preview's footer says "pet <id>" too; the bubble is the second.
 		for w, want := range map[int]int{from - 1: 1, from: 2} {
@@ -133,7 +133,7 @@ func petColumn(m Model) string {
 }
 
 func TestThePetPlaysItsIdleAnimationUnlessMotionIsReduced(t *testing.T) {
-	for _, pet := range []string{"clawd", "robot", "egg"} {
+	for _, pet := range []string{"clawd", "robot", "ghost", "egg"} {
 		m, _ := newModel(t)
 		m.snap.State.Pet = pet
 		seen := map[string]bool{}

@@ -30,6 +30,13 @@ test('reserved names: a stray robot.json is never listed or loaded', async () =>
   expect((await installPetText(host, file('robot'), true)).message).toBe('"robot" is a built-in pet name; pick another.')
 })
 
+test('a user pet cannot be named ghost', async () => {
+  const { host } = fakeHost({ files: { [`${DIR}/ghost.json`]: file('ghost'), [`${DIR}/mochi.json`]: file('mochi') } })
+  expect(await userPetNames(host)).toEqual(['mochi'])
+  expect(await loadUserPet(host, 'ghost')).toEqual({ error: '"ghost" is a built-in pet name; pick another.' })
+  expect((await installPetText(host, file('ghost'), true)).message).toBe('"ghost" is a built-in pet name; pick another.')
+})
+
 test('loadUserPet names a missing, broken or renamed file', async () => {
   const { host } = fakeHost({ files: { [`${DIR}/bad.json`]: '{nope', [`${DIR}/moved.json`]: file('other') } })
   expect(await loadUserPet(host, 'gone')).toEqual({ error: 'No pet named "gone". /glowup pet list shows the pets you have.' })

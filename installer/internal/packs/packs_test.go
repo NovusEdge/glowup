@@ -69,7 +69,7 @@ func TestThemesSpinnersAndClawd(t *testing.T) {
 	if !ok || len(c.Frames[0].Rows) != 6 || c.Cols != 24 {
 		t.Fatalf("Clawd is %+v", c)
 	}
-	for _, id := range []string{"clawd-shiny", "robot", "egg"} {
+	for _, id := range []string{"clawd-shiny", "robot", "ghost", "egg"} {
 		if p, ok := PetByID(id); !ok || len(p.Frames) < 2 {
 			t.Errorf("pet %s missing or not animated", id)
 		}

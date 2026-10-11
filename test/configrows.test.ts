@@ -36,16 +36,16 @@ test('spinner starts at the pack default and walks the spinner ids', () => {
 test('pet offers shiny and the egg only once they are unlocked', () => {
   expect(cycleCommands('pet', base())).toEqual(['pet robot'])
   expect(cycleCommands('pet', base({ shiny: true }))).toEqual(['pet clawd-shiny'])
-  expect(cycleCommands('pet', base({ egg: true, pet: 'robot' }))).toEqual(['pet egg'])
+  expect(cycleCommands('pet', base({ egg: true, pet: 'ghost' }))).toEqual(['pet egg'])
   expect(cycleCommands('pet', base({ pet: 'off' }))).toEqual(['pet clawd'])
 })
 
-test('the pet cycle runs clawd, robot, user pets, off', () => {
+test('the pet cycle runs clawd, robot, ghost, user pets, off', () => {
   const s = base({ userPets: ['mochi'] })
   const seq: string[] = []
   let cur = s.pet
-  for (let i = 0; i < 4; i++) { const cmd = cycleCommands('pet', { ...s, pet: cur })[0]!; cur = cmd.slice(4); seq.push(cur) }
-  expect(seq).toEqual(['robot', 'mochi', 'off', 'clawd'])
+  for (let i = 0; i < 5; i++) { const cmd = cycleCommands('pet', { ...s, pet: cur })[0]!; cur = cmd.slice(4); seq.push(cur) }
+  expect(seq).toEqual(['robot', 'ghost', 'mochi', 'off', 'clawd'])
 })
 
 test('bubbles and motion toggle through their settings', () => {

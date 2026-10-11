@@ -1,6 +1,6 @@
 ---
 title: Pets
-description: Clawd and the robot at the bottom of the glowup pane, how they react, speech bubbles, the shiny one, and your own pets.
+description: Clawd, the robot and the ghost at the bottom of the glowup pane, how they react, speech bubbles, the shiny one, and your own pets.
 ---
 
 ## Clawd
@@ -37,6 +37,10 @@ The robot is the CRT monitor that is the mascot of the crt pack, drawn at 32 × 
 
 It reacts to the same moments as Clawd, without his outfits.
 
+## The ghost
+
+The ghost is a small white ghost with a pink blush, drawn at 24 × 12 pixels like Clawd. Pick it with `/glowup pet ghost`. It reacts to the same moments as Clawd, dances while Spotify plays, and wears headphones while Claude works.
+
 ## Speech bubbles
 
 With bubbles on, the pet says a short line (40 characters at most) at the moments listed under [What pets say](#what-pets-say), and the bubble stays for 3 seconds by default. Lines come from a set of templates per moment, never the same one twice in a row, and some fill in details such as the failure count or the command. In the narrow drawer the line appears beside the one-row pet. Choose which moments get a bubble and how long it stays with /glowup setup bubbles.moods and /glowup setup bubbles.ms.
@@ -62,7 +66,7 @@ A bubble is about one moment. There are eight, and all are on by default.
 | `compact` | The context is compacted. |
 | `level-up` | A turn takes you to a new [level](#levels). It replaces that turn's `done` or `long-done` line and names what you unlocked. |
 
-Clawd, the robot and the egg each have their own lines, about six per moment: Clawd is dry and warm, the robot reports in capitals, and the egg mostly makes small sounds. `clawd-shiny` uses Clawd's. A pet you draw yourself speaks a neutral default line unless its file carries [its own lines](pet-sprites.md#lines-and-voice).
+Clawd, the robot, the ghost and the egg each have their own lines, about six per moment: Clawd is dry and warm, the robot reports in capitals, the ghost is shy and fond of haunted-house puns, and the egg mostly makes small sounds. `clawd-shiny` uses Clawd's. A pet you draw yourself speaks a neutral default line unless its file carries [its own lines](pet-sprites.md#lines-and-voice).
 
 Lines also change with the clock. Mornings, afternoons, evenings and nights add their own lines to the pool, and so do Fridays and the holiday outfits (Christmas, Halloween and your install anniversary).
 
@@ -82,7 +86,7 @@ With `/glowup bubbles haiku`, glowup sometimes asks Claude Haiku for the line. T
 
 **Cost.** Each line is a small Haiku call billed to your account, made with your session's credentials.
 
-`hello`, `compact` and `level-up` lines never use Haiku. Haiku speaks as the pet, using the pet's voice: built in for Clawd, the robot and the egg, and the `voice` key in a [custom pet file](pet-sprites.md#lines-and-voice).
+`hello`, `compact` and `level-up` lines never use Haiku. Haiku speaks as the pet, using the pet's voice: built in for Clawd, the robot, the ghost and the egg, and the `voice` key in a [custom pet file](pet-sprites.md#lines-and-voice).
 
 What it sends: the moment, the pose, the short label glowup already shows for the current tool, a test summary such as `failed 3`, and the time of day. It never sends your prompts, file contents, code or secrets. The reply is cleaned to one plain line of at most 40 characters; an empty reply falls back to the template.
 
@@ -90,7 +94,7 @@ glowup makes one call at a time, at most one per turn, at least 90 seconds apart
 
 ## Choosing a pet
 
-`/glowup pet clawd|robot|off` picks Clawd, the robot, or no pet. `/glowup pet list` shows the pets you can pick: Clawd, the robot, the shiny one once you have earned him, the egg once you have unlocked it, and any pet you have installed. The Pet row in `/glowup config` cycles through the same list, and the Bubbles row changes the bubbles.
+`/glowup pet clawd|robot|ghost|off` picks Clawd, the robot, the ghost, or no pet. `/glowup pet list` shows the pets you can pick: Clawd, the robot, the ghost, the shiny one once you have earned him, the egg once you have unlocked it, and any pet you have installed. The Pet row in `/glowup config` cycles through the same list, and the Bubbles row changes the bubbles.
 
 ## Your own pet
 

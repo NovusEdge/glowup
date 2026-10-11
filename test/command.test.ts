@@ -15,7 +15,7 @@ test('/glowup and /glowup help print the short card', { timeoutMs: 20000 }, asyn
   for (const args of ['', 'help']) {
     const out = (await runGlowup($, args)).text!
     expect(out).toBe(SHORT_TEXT)
-    for (const c of ['/glowup config', '/glowup pack <name>', '/glowup pet clawd|robot|off', '/glowup pane', '/glowup motion reduced', '/glowup help all', DOCS_URL]) expect(out).toContain(c)
+    for (const c of ['/glowup config', '/glowup pack <name>', '/glowup pet clawd|robot|ghost|off', '/glowup pane', '/glowup motion reduced', '/glowup help all', DOCS_URL]) expect(out).toContain(c)
     expect(out).toContain('arcade classic cozy crt')
     expect(out).not.toContain('theme add')
   }
@@ -576,7 +576,7 @@ const petFile = (name: string) => JSON.stringify({ format: 1, name, palette: { A
 
 test('pet list shows built-ins, the locked egg as ???, then user pets, then off', async () => {
   const { host } = fakeHost({ files: { [`${PETS}/mochi.json`]: petFile('mochi') } })
-  expect(await runCommand(host, 'pet list', ctl().ctl)).toBe(['● clawd', '○ robot', '○ ???', '○ mochi', '○ off'].join('\n'))
+  expect(await runCommand(host, 'pet list', ctl().ctl)).toBe(['● clawd', '○ robot', '○ ghost', '○ ???', '○ mochi', '○ off'].join('\n'))
 })
 
 test('pet robot switches with no sheet; a user pet passes its sheet', async () => {
@@ -586,6 +586,14 @@ test('pet robot switches with no sheet; a user pet passes its sheet', async () =
   expect(await runCommand(host, 'pet mochi', c)).toBe('Pet: mochi')
   expect(store.pet).toBe('mochi')
   expect(calls).toEqual(['pet:robot', 'pet:mochi+sheet'])
+})
+
+test('pet ghost switches with no sheet', async () => {
+  const { host, store } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'pet ghost', c)).toBe('Pet: ghost')
+  expect(store.pet).toBe('ghost')
+  expect(calls).toEqual(['pet:ghost'])
 })
 
 test('pet <unknown> is refused and nothing changes', async () => {

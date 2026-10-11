@@ -97,7 +97,7 @@ test('the snapshot carries state, look fields and the option lists', () => {
   expect(s.format).toBe(1)
   expect(s.seq).toBe(2)
   expect(s.lines).toBe(3)
-  expect(s.options.pets).toEqual(['clawd', 'robot', 'mochi', 'off'])
+  expect(s.options.pets).toEqual(['clawd', 'robot', 'ghost', 'mochi', 'off'])
   expect(s.options.packs).toEqual(['classic', 'crt'])
   expect(s.look.border).toBe(look.border)
   expect(s.state.colors.accent).toBe(look.theme.colors.accent)

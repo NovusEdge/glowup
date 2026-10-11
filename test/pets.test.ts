@@ -320,7 +320,19 @@ test('a juggle right after the egg unlock, then back to idle', () => {
   expect(petPose(p, 1000 + 3001)).toBe('idle')
 })
 
-test('the built-in sheets are clawd and the robot, all playable', () => {
+test('the ghost follows the user-pet rules: the spec animations plus the dances, walks facing right, headphones and lie-down', () => {
+  const s = BUILTIN_SHEETS.ghost!
+  expect([s.w, s.h]).toEqual([24, 12])
+  expect(Object.keys(s.animations).sort()).toEqual([...PET_ANIMS, 'dance', 'work-dance'].sort())
+  expect(Object.keys(s.outfits ?? {})).toEqual(['headphones'])
+  expect(Object.keys(s.transitions ?? {})).toEqual(['lie-down'])
+  for (const f of s.animations.walk!.frames) expect(f.dx).toBe(1)
+  expect(isClawd('ghost')).toBe(false)
+  expect(petPalette(s, 'ghost', { body: '#000001' })).toEqual(s.palette)
+  expect(stripRows(s, [])).toBe(6)
+})
+
+test('the built-in sheets are clawd, the robot and the ghost, all playable', () => {
   expect(Object.keys(BUILTIN_SHEETS)).toEqual(BUILTIN_PET_NAMES)
   for (const s of Object.values(BUILTIN_SHEETS)) expect(() => validateSheet(s)).not.toThrow()
 })
