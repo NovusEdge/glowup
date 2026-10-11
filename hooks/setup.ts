@@ -61,6 +61,9 @@ export function parseSetup(raw: unknown): { setup: Setup; notices: string[] } {
     else notices.push(`band must be a list of: ${BAND_ITEMS.join(', ')}`)
   }
 
+  // Format 3 saves are the user's own choice, so only older stored setups are migrated.
+  const fmt = typeof raw.format === 'number' ? raw.format : 0
+
   let tabs = d.tabs
   if (raw.tabs !== undefined) {
     const got = ids(raw.tabs, TAB_IDS, 'tab', notices)
