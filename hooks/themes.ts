@@ -66,7 +66,6 @@ export const shown = (s: string) => [...s].filter(c => !isUnsafe(c.codePointAt(0
 export const isPlain = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
 // A file may use a key or value a later 1.x added: it is skipped and reported, never fatal.
-// Every such notice ends in NOTICE_TAIL so callers can tell it from a refusal.
 export const NOTICE_TAIL = ' skipped'
 export const skippedKey = (parent: string, key: string) => `unknown key "${parent ? parent + '.' : ''}${shown(key)}"${NOTICE_TAIL}`
 

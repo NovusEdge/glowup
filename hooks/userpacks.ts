@@ -1,7 +1,7 @@
 import type { Host } from './host.ts'
 import { parseJsonc, isUnsafe } from './themes.ts'
 import { loadUserThemes } from './userthemes.ts'
-import { resolveLook, validatePack, isNotice, packNameProblem, type PackFile } from './packs.ts'
+import { resolveLook, validatePack, isNewerSpinner, packNameProblem, type PackFile } from './packs.ts'
 
 export const PACK_DIR = (configDir: string) => `${configDir}/glowup/packs`
 export { SAFE_NAME } from './packs.ts'
@@ -47,10 +47,10 @@ export async function installPackText(host: Host, text: string, force: boolean):
   if (problem) return { message: problem }
   const check = resolveLook({ colors: name, motion: name }, { ...(await loadUserPacks(host)), [name]: file }, await loadUserThemes(host))
   // A spinner this build lacks, or a key or value only a later 1.x knows, is a warning: the pack loads without it.
-  const fatal = check.errors.filter(e => !isNotice(e))
+  const fatal = check.errors.filter(e => !isNewerSpinner(e))
   if (fatal.length) return { message: fatal[0]! }
   await host.writeFile(`${PACK_DIR(host.configDir)}/${name}.json`, text)
-  return { name, message: `Installed pack "${name}". Apply it with /glowup pack ${name}`, ...(check.errors.length && { notices: check.errors }) }
+  return { name, message: `Installed pack "${name}". Apply it with /glowup pack ${name}`, ...(check.notices.length && { notices: check.notices }) }
 }
 
 export async function savePack(host: Host, file: PackFile, force = false): Promise<string> {

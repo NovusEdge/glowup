@@ -44,8 +44,6 @@ export const MOTION_KEYS = ['spinner', 'shimmer', 'color', 'field']
 export const EXTRAS_KEYS = ['hp', 'combo']
 export const ROW_FLAG_KEYS = ['labels', 'markers', 'xp']
 export const isNewerSpinner = (e: string) => /^spinner ".*" needs a newer glowup/.test(e)
-// What resolveLook reports that did not stop the look from loading: a newer spinner, or something skipped.
-export const isNotice = (e: string) => isNewerSpinner(e) || e.endsWith(NOTICE_TAIL)
 
 export const SAFE_NAME = /^[a-z0-9][a-z0-9-]{0,39}$/
 
@@ -250,28 +248,30 @@ function colorsOf(layer: ColorsLayer, override: string | undefined, userThemes: 
   }
 }
 
-export function resolveLook(mix: Mix, userPacks: Record<string, unknown>, userThemes: Record<string, unknown>): { look: Look; errors: string[] } {
+// `errors` are what stopped something from loading (a layer falls back to classic, a spinner to stock);
+// `notices` name what was skipped while the file still loaded.
+export function resolveLook(mix: Mix, userPacks: Record<string, unknown>, userThemes: Record<string, unknown>): { look: Look; errors: string[]; notices: string[] } {
   const errors: string[] = []
   const reason = (name: string, kind: string, err: unknown) => `pack "${shown(name)}" ${kind}: ${err instanceof Error ? err.message : String(err)}`
 
-  // Notices of a layer count only once it resolves: a layer that falls back to classic is reported by its error alone.
+  // A layer's notices are kept only once the layer has produced its part of the look; one that falls back to classic is reported by its error alone.
   const notices = new Set<string>()
-  const layer = (kind: 'colors' | 'motion', name: string): Layer => {
+  const layer = (kind: 'colors' | 'motion', name: string): { out: Layer; found: Set<string> } => {
     const found = new Set<string>()
-    const out = collect(name, kind, userPacks, [], found)
-    found.forEach(n => notices.add(n))
-    return out
+    return { out: collect(name, kind, userPacks, [], found), found }
   }
 
   let colorsFrom = mix.colors
   let c: ColorsOut
   try {
-    const colors = layer('colors', mix.colors) as ColorsLayer
+    const { out, found } = layer('colors', mix.colors)
+    const colors = out as ColorsLayer
     try { c = colorsOf(colors, mix.theme, userThemes, mix.overrides, notices) } catch (err) {
       if (mix.theme === undefined) throw err
       errors.push((err as Error).message)
       c = colorsOf(colors, undefined, userThemes, mix.overrides, notices)
     }
+    found.forEach(n => notices.add(n))
   } catch (err) {
     errors.push(reason(mix.colors, 'colors', err))
     colorsFrom = 'classic'
@@ -280,7 +280,11 @@ export function resolveLook(mix: Mix, userPacks: Record<string, unknown>, userTh
 
   let motionFrom = mix.motion
   let m: MotionLayer
-  try { m = layer('motion', mix.motion) as MotionLayer } catch (err) {
+  try {
+    const { out, found } = layer('motion', mix.motion)
+    m = out as MotionLayer
+    found.forEach(n => notices.add(n))
+  } catch (err) {
     errors.push(reason(mix.motion, 'motion', err))
     motionFrom = 'classic'
     m = collect('classic', 'motion', {}, [], new Set()) as MotionLayer
@@ -290,7 +294,7 @@ export function resolveLook(mix: Mix, userPacks: Record<string, unknown>, userTh
   if (oneOf(SPINNER_IDS, want)) spinner = want as SpinnerId
   else errors.push(`spinner "${shown(want)}" needs a newer glowup; using stock`)
 
-  return { look: { colorsFrom, motionFrom, ...c, motion: { spinner, shimmer: m.shimmer ?? 1, color: m.color ?? c.theme.colors.accent, field: fieldOf(m.field) } }, errors: [...errors, ...notices] }
+  return { look: { colorsFrom, motionFrom, ...c, motion: { spinner, shimmer: m.shimmer ?? 1, color: m.color ?? c.theme.colors.accent, field: fieldOf(m.field) } }, errors, notices: [...notices] }
 }
 
 // A mix based on a user theme exports no theme name; its glyphs, hearts and words are written as differences from classic.

@@ -517,7 +517,7 @@ test('a download over 64 KB is refused before parsing', async ($, on) => {
 })
 
 test('the stored mix loads at session start; a bad layer toasts once', async ($, on) => {
-  fakeFs(on, { '/fake/.claude/glowup/packs/half.json': '{"format":1,"name":"half","colors":{"rows":"fancy"},"motion":"arcade"}' })
+  fakeFs(on, { '/fake/.claude/glowup/packs/half.json': '{"format":1,"name":"half","colors":{"rows":5},"motion":"arcade"}' })
   mock.clock(on)
   mock.store(on, { mix: { colors: 'half', motion: 'half' } })
   bootable(on)
@@ -527,6 +527,18 @@ test('the stored mix loads at session start; a bad layer toasts once', async ($,
   await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
   expect(toasts.filter(t => t.includes('rows'))).toHaveLength(1)
   expect((await runGlowup($, 'pack list')).text).toContain('custom mix: colors half, motion half')
+})
+
+test('a stored pack with a skipped key loads without a toast: the notice is for the command that applied it', async ($, on) => {
+  fakeFs(on, { '/fake/.claude/glowup/packs/later.json': '{"format":1,"name":"later","colors":{"hologram":1}}' })
+  mock.clock(on)
+  mock.store(on, { mix: { colors: 'later', motion: 'later' } })
+  bootable(on)
+  const toasts: string[] = []
+  on('ui.toast', async (_$, e) => { toasts.push(e.text); return { value: undefined } as never })
+  on('session.id', async () => ({ value: 's1' }))
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  expect(toasts.filter(t => t.includes('hologram'))).toEqual([])
 })
 
 test('a stored setup from a later glowup loads with a toast and never breaks session start', async ($, on) => {

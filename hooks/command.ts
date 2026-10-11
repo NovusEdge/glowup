@@ -2,7 +2,7 @@ import type { Host } from './host.ts'
 import { resolveTheme, PRESETS, COLOR_KEYS, ROLE_LABELS, shown } from './themes.ts'
 import { loadUserThemes, addTheme } from './userthemes.ts'
 import { takeOver, restore } from './statusline.ts'
-import { resolveLook, isNotice, exportMix, normalizeHex, cleanOverrides, SPINNER_IDS, type Mix } from './packs.ts'
+import { resolveLook, exportMix, normalizeHex, cleanOverrides, SPINNER_IDS, type Mix } from './packs.ts'
 import { PACKS } from './packpresets.ts'
 import { decodeLink, isStudioLink } from './link.ts'
 import { loadUserPacks, addPack, savePack, installPackText, SAFE_NAME } from './userpacks.ts'
@@ -143,11 +143,10 @@ async function resetColor(host: Host, ctl: Ctl, role: string | undefined): Promi
 async function usePack(host: Host, ctl: Ctl, name: string): Promise<string> {
   const keep = ctl.mix().overrides
   const mix: Mix = { colors: name, motion: name, ...(keep && { overrides: keep }) }
-  const { errors } = resolveLook(mix, await loadUserPacks(host), await loadUserThemes(host))
-  const fatal = errors.filter(e => !isNotice(e))
-  if (fatal.length) return fatal.join('\n')
+  const { errors, notices } = resolveLook(mix, await loadUserPacks(host), await loadUserThemes(host))
+  if (errors.length) return errors.join('\n')
   await applyMix(host, ctl, mix)
-  return [`Pack: ${name}`, ...errors].join('\n')
+  return [`Pack: ${name}`, ...notices].join('\n')
 }
 
 async function importScheme(host: Host, ctl: Ctl, rawPath: string, force: boolean): Promise<string> {

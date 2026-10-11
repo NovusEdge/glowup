@@ -87,9 +87,9 @@ test('a bad effect value is refused with the allowed values', async () => {
 
 test('an unknown field shape, dither or knob is skipped with a notice, not refused', async () => {
   const run = (motion: object) => resolveLook({ colors: 'classic', motion: 'x' }, { x: { format: 1, name: 'x', motion } }, {})
-  expect(run({ field: 'plasma' }).errors).toEqual(['pack "x": unknown value "plasma" for motion.field skipped'])
+  expect(run({ field: 'plasma' }).notices).toEqual(['pack "x": unknown value "plasma" for motion.field skipped'])
   const r = run({ field: { shape: 'simplex', dither: '3x3', hue: 1, speed: 2 } })
-  expect(r.errors).toEqual(['pack "x": unknown key "motion.field.hue" skipped', 'pack "x": unknown value "3x3" for motion.field.dither skipped'])
+  expect(r.notices).toEqual(['pack "x": unknown key "motion.field.hue" skipped', 'pack "x": unknown value "3x3" for motion.field.dither skipped'])
   expect(r.look.motion.field).toMatchObject({ shape: 'simplex', speed: 2, dither: FIELD_DEFAULTS.dither })
 })
 

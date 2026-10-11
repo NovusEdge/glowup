@@ -4,7 +4,7 @@ export { SPINNERS, spinnerCells, spinnerWordSpans, type Cell, type OrbState, typ
 export { PRESETS } from '../../../../hooks/presets.ts'
 export { PACKS } from '../../../../hooks/packpresets.ts'
 export {
-  resolveLook, exportMix, exportName, packNameProblem, validatePack, normalizeHex, isNewerSpinner, isNotice,
+  resolveLook, exportMix, exportName, packNameProblem, validatePack, normalizeHex, isNewerSpinner,
   SPINNER_IDS, ROW_STYLES, BORDERS, METER_STYLES, FIELD_IDS, FIELD_KNOBS, FIELD_DEFAULTS, DITHERS,
   type Look, type PackFile, type ColorsLayer, type MotionLayer, type Field,
 } from '../../../../hooks/packs.ts'

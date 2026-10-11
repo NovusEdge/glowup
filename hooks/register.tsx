@@ -883,10 +883,7 @@ async function loadSettings($: Engine, host: Host, undo = false) {
   else if (want === 'off' || Object.hasOwn(BUILTIN_SHEETS, want)) pet = want
   else {
     const r = await loadUserPet(host, want)
-    if ('sheet' in r) {
-      pet = want; petSheet = r.sheet
-      if (r.notices && interactive && !undo) $.ui.toast(r.notices.join('\n'))
-    }
+    if ('sheet' in r) { pet = want; petSheet = r.sheet }
     // every loadUserPet error already names the pet or its file
     else if (interactive && !undo) $.ui.toast(`${/[.!?]$/.test(r.error) ? r.error : `${r.error}.`} Showing Clawd.`)
   }

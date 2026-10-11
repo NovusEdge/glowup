@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { resolveLook, isNotice, validatePack, exportMix, exportName, packNameProblem, stockMotion, SPINNER_IDS, FIELD_DEFAULTS, type Mix } from '../hooks/packs.ts'
+import { resolveLook, validatePack, exportMix, exportName, packNameProblem, stockMotion, SPINNER_IDS, FIELD_DEFAULTS, type Mix } from '../hooks/packs.ts'
 import { PACKS } from '../hooks/packpresets.ts'
 import { resolveTheme } from '../hooks/themes.ts'
 
@@ -113,7 +113,8 @@ test('validation refuses bad values', async () => {
 test('sound and voice are reserved: objects pass silently, any other value is skipped with a notice', async () => {
   expect(look(pack('s'), { s: { format: 1, name: 's', sound: { anything: 1 }, voice: { on: true } } }).errors).toEqual([])
   const r = look(pack('s'), { s: { format: 1, name: 's', sound: 'on', voice: 5 } })
-  expect(r.errors).toEqual(['pack "s": "sound" must be an object; skipped', 'pack "s": "voice" must be an object; skipped'])
+  expect(r.errors).toEqual([])
+  expect(r.notices).toEqual(['pack "s": "sound" must be an object; skipped', 'pack "s": "voice" must be an object; skipped'])
 })
 
 test('a key or enum value this build does not know is skipped with one notice naming its path, and the pack loads', async () => {
@@ -126,7 +127,7 @@ test('a key or enum value this build does not know is skipped with one notice na
     motion: { shimmer: 3, color: '#abcdef', swirl: true, field: { shape: 'plasma', speed: 2 } },
   }
   const r = look(pack('later'), { later: file })
-  expect(r.errors).toEqual([
+  expect(r.notices).toEqual([
     'pack "later": unknown key "wobble" skipped',
     'pack "later": unknown key "colors.sparkle" skipped',
     'pack "later": unknown key "colors.palette.glow" skipped',
@@ -139,7 +140,7 @@ test('a key or enum value this build does not know is skipped with one notice na
     'pack "later": unknown value "3" for motion.shimmer skipped',
     'pack "later": unknown value "plasma" for motion.field.shape skipped',
   ])
-  expect(r.errors.every(isNotice)).toBe(true)
+  expect(r.errors).toEqual([])
   expect(r.look.colorsFrom).toBe('later')
   expect(r.look.theme.colors.accent).toBe('#010203')
   expect(r.look.rows).toBe('classic')
@@ -152,19 +153,28 @@ test('a key or enum value this build does not know is skipped with one notice na
 })
 
 test('a pack read for both colors and motion reports a top-level notice once', async () => {
-  expect(look(pack('w'), { w: { format: 1, name: 'w', wobble: 1 } }).errors).toEqual(['pack "w": unknown key "wobble" skipped'])
+  const r = look(pack('w'), { w: { format: 1, name: 'w', wobble: 1 } })
+  expect(r.notices).toEqual(['pack "w": unknown key "wobble" skipped'])
+  expect(r.errors).toEqual([])
 })
 
 test('a colors layer that falls back to classic reports its error, not the notices it collected', async () => {
   const r = look(pack('broken'), { broken: { format: 1, name: 'broken', colors: { glow: 1, palette: { accent: 'red' } } } })
   expect(r.errors).toHaveLength(1)
   expect(r.errors[0]).toContain('#rrggbb')
+  expect(r.notices).toEqual([])
+})
+
+test('a theme override that fails keeps the pack layer notices once the pack colors still load', async () => {
+  const r = resolveLook({ colors: 'w', motion: 'classic', theme: 'nope' }, { w: { format: 1, name: 'w', colors: { glow: 1 } } }, {})
+  expect(r.errors).toHaveLength(1)
+  expect(r.notices).toEqual(['pack "w": unknown key "colors.glow" skipped'])
 })
 
 test('a newer format is still refused outright', async () => {
   const r = look(pack('later'), { later: { format: 2, name: 'later', colors: { rows: 'hologram' } } })
   expect(r.errors.some(e => e.includes('made for a newer glowup (format 2)'))).toBe(true)
-  expect(r.errors.some(isNotice)).toBe(false)
+  expect(r.notices).toEqual([])
 })
 
 test('fuzz: unsafe characters in any shown string are refused', async () => {
