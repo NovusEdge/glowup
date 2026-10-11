@@ -23,14 +23,16 @@ function sheet(cols: number, rows: number) {
 
 test('the template PNG decodes back to Clawd, frame for frame', () => {
   const img = decodePng(readFileSync(new URL('../../assets/pet-template.png', import.meta.url)))
-  assert.deepEqual([img.width, img.height], [448, 192])
+  // one row for each animation Clawd has: 12, or 14 with his idle variants
+  const have = PET_ANIMS.filter(n => CLAWD_SHEET.animations[n])
+  assert.deepEqual([img.width, img.height], [448, 16 * have.length])
   const r = petFromPixels(img, 'clawd-copy')
   assert.ok('file' in r, 'error' in r ? r.error : '')
-  const used = PET_ANIMS.flatMap(n => CLAWD_SHEET.animations[n]!.frames.map(f => f.px))
+  const used = have.flatMap(n => CLAWD_SHEET.animations[n]!.frames.map(f => f.px))
   const want = cropAll(used)
-  const got = PET_ANIMS.flatMap(n => r.file.animations[n]!.map(f => colors(f.px, r.file.palette)))
+  const got = have.flatMap(n => r.file.animations[n]!.map(f => colors(f.px, r.file.palette)))
   assert.deepEqual(got, want.map(px => colors(px, CLAWD_SHEET.palette)))
-  for (const n of PET_ANIMS) {
+  for (const n of have) {
     assert.equal(r.file.animations[n]!.length, CLAWD_SHEET.animations[n]!.frames.length, n)
     assert.ok(r.file.animations[n]!.every(f => f.ms === ANIM_MS[n]), n)
   }
@@ -87,7 +89,23 @@ test('refusals: no idle, too many colors, sizes off the grid or too big', () => 
   for (let i = 0; i < 61; i++) many.paint(i % 32, Math.floor(i / 32), [i, 0, 0, 255])
   assert.match((petFromPixels(many.img) as { error: string }).error, /more than 60 colors/)
   assert.match((petFromPixels({ width: 33, height: 16, data: new Uint8Array(33 * 16 * 4) }) as { error: string }).error, /whole number of 32 × 16/)
-  assert.match((petFromPixels({ width: 32, height: 208, data: new Uint8Array(32 * 208 * 4) }) as { error: string }).error, /at most 12 rows/)
+  assert.match((petFromPixels({ width: 32, height: 240, data: new Uint8Array(32 * 240 * 4) }) as { error: string }).error, /at most 14 rows/)
+})
+
+test('rows 13 and 14 are the idle variants; a 12-row sheet has neither', () => {
+  const { img, paint } = sheet(1, 14)
+  for (let r = 0; r < 14; r++) paint(0, r * 16, [r + 1, 0, 0, 255])
+  const r = petFromPixels(img)
+  assert.ok('file' in r, 'error' in r ? r.error : '')
+  assert.equal(r.file.animations.idle2!.length, 1)
+  assert.equal(r.file.animations.idle3!.length, 1)
+  assert.equal(r.file.animations.idle2![0]!.ms, ANIM_MS.idle2)
+  assert.equal(r.file.animations.idle3![0]!.dx, undefined)
+  const twelve = sheet(1, 12)
+  twelve.paint(0, 0, [1, 0, 0, 255])
+  const t = petFromPixels(twelve.img)
+  assert.ok('file' in t)
+  assert.equal(t.file.animations.idle2, undefined)
 })
 
 test('the 60-color cap counts only opaque colors', () => {

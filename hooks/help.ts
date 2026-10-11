@@ -39,6 +39,7 @@ export const SECTIONS: readonly (readonly [title: string, rows: HelpRow[]])[] = 
   ]],
   ['Level', [
     ['/glowup level', 'your level, XP and what unlocks next'],
+    ['/glowup outfit [name|off]', 'level outfits: list, wear one, or take it off'],
   ]],
   ['Layout', [
     ['/glowup setup', 'band, tabs, meter, bubbles, pet sleep'],

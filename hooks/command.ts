@@ -16,7 +16,7 @@ import type { BubbleSetting } from './bubbles.ts'
 import { eggUnlocked, type EggStore } from './eggs.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 import { FIELD_IDS, isFieldId, type FieldId } from './fields.ts'
-import { levelOf, parseLevelStore, groupDigits, UNLOCKS, ART_READY } from './levels.ts'
+import { levelOf, parseLevelStore, groupDigits, UNLOCKS, ART_READY, OUTFIT_LEVELS, outfitsOf, resolveOutfit, parseOutfitStore, outfitStore } from './levels.ts'
 import { parseSetup, setSetupField, describeSetup, DEFAULT_SETUP, type Setup } from './setup.ts'
 
 // What a command that needs more input falls back to, and what a headless config run prints.
@@ -34,6 +34,8 @@ export type Ctl = {
   setMix(mix: Mix): Promise<string[]>
   pet(): PetSetting
   setPet(p: PetSetting, sheet?: PetSheet): void
+  // the stored choice: an outfit name, or 'off'
+  setOutfit(choice: string): void
   bubbles(): BubbleSetting
   setBubbles(b: BubbleSetting): void
   reduced(): boolean
@@ -67,6 +69,26 @@ function levelReport(xp: number): string {
     `Unlocked: ${got.join(', ') || 'nothing yet'}`,
     next ? `Next: ${next.label} at level ${next.level}${soon(next) ? ' (coming soon)' : ''}` : 'All unlocks earned.',
   ].join('\n')
+}
+
+async function outfitCommand(host: Host, ctl: Ctl, want: string | undefined): Promise<string> {
+  const pet = ctl.pet(), names = outfitsOf(pet)
+  if (pet === 'off') return 'No pet is on, so there is nothing to dress.'
+  if (!names.length) return `${pet} has no level outfits.`
+  const level = levelOf(parseLevelStore(await host.storeGet('level'))).level
+  const choice = parseOutfitStore(await host.storeGet('outfit'))
+  if (want === undefined) {
+    const worn = resolveOutfit(pet, level, choice)
+    const rows = names.map((n, i) => level < OUTFIT_LEVELS[i]! ? `· ${n} (level ${OUTFIT_LEVELS[i]})` : `${n === worn ? '●' : '○'} ${n}${n === worn ? ' (worn)' : ''}`)
+    return [`Outfits for ${pet}`, ...rows, '', 'Wear one with /glowup outfit <name>; /glowup outfit off takes it off.'].join('\n')
+  }
+  const name = want.toLowerCase()
+  const at = names.indexOf(name)
+  if (name !== 'off' && at < 0) return `No outfit named "${shown(want)}" for ${pet}. Choose one of: ${names.join(', ')}, or off.`
+  if (at >= 0 && level < OUTFIT_LEVELS[at]!) return `The ${name} unlocks at level ${OUTFIT_LEVELS[at]}; you are level ${level}.`
+  await host.storeSet('outfit', outfitStore(name))
+  ctl.setOutfit(name)
+  return `Outfit: ${name}`
 }
 
 const eggsOf = async (host: Host) => (await host.storeGet('eggs')) as EggStore | undefined
@@ -346,6 +368,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     return describeSetup(r.setup)
   }
   if (sub === 'setup') return 'Use /glowup setup <key> <value>, /glowup setup, or /glowup setup reset.'
+  if (sub === 'outfit') return outfitCommand(host, ctl, a1)
   if (sub === 'level') return levelReport(parseLevelStore(await host.storeGet('level')))
   if (sub === 'help' && a1 === 'all') return FULL_TEXT
   return sub && sub !== 'help' ? `Unknown: ${args.trim()}\n\n${SHORT_TEXT}` : SHORT_TEXT

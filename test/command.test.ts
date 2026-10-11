@@ -58,6 +58,60 @@ test('/glowup level: level, XP to the next, what is unlocked and what is next', 
 
 const SETTINGS = '/home/u/.claude/settings.json'
 
+test('/glowup outfit lists the level outfits: worn, unlocked, and the level of the locked', async () => {
+  const run = async (xp: number, choice?: unknown, pet: PetSetting = 'clawd') => {
+    const { host, store } = fakeHost()
+    store.level = { format: 1, xp }
+    if (choice !== undefined) store.outfit = choice
+    const c = ctl()
+    c.ctl.setPet(pet)
+    return (await runCommand(host, 'outfit', c.ctl)).split('\n')
+  }
+  // level 6: cap and wizard are open, and with no choice the newest is worn
+  expect((await run(1600)).slice(0, 4)).toEqual(['Outfits for clawd', '○ cap', '● wizard (worn)', '· crown (level 8)'])
+  expect((await run(1600, { format: 1, name: 'cap' })).slice(1, 4)).toEqual(['● cap (worn)', '○ wizard', '· crown (level 8)'])
+  expect((await run(1600, { format: 1, name: 'off' })).slice(1, 4)).toEqual(['○ cap', '○ wizard', '· crown (level 8)'])
+  expect((await run(0)).slice(1, 4)).toEqual(['· cap (level 3)', '· wizard (level 6)', '· crown (level 8)'])
+  expect((await run(1600, undefined, 'robot')).slice(0, 2)).toEqual(['Outfits for robot', '○ propeller'])
+  expect((await run(1600, undefined, 'ghost'))[1]).toBe('○ bow')
+  expect((await run(1600, undefined, 'egg'))[2]).toBe('● sprout (worn)')
+  expect((await run(1600, undefined, 'off'))[0]).toMatch(/nothing to dress/)
+})
+
+test('/glowup outfit <name> wears an unlocked outfit and stores the choice', async () => {
+  const { host, store } = fakeHost()
+  store.level = { format: 1, xp: 1600 }
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'outfit cap', c)).toBe('Outfit: cap')
+  expect(store.outfit).toEqual({ format: 1, name: 'cap' })
+  expect(await runCommand(host, 'outfit WIZARD', c)).toBe('Outfit: wizard')
+  expect(calls).toEqual(['outfit:cap', 'outfit:wizard'])
+})
+
+test('/glowup outfit refuses a locked or unknown name and leaves the store alone', async () => {
+  const { host, store } = fakeHost()
+  store.level = { format: 1, xp: 1600 }
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'outfit crown', c)).toBe('The crown unlocks at level 8; you are level 6.')
+  expect(await runCommand(host, 'outfit tophat', c)).toBe('No outfit named "tophat" for clawd. Choose one of: cap, wizard, crown, or off.')
+  expect(store.outfit).toBeUndefined()
+  expect(calls).toEqual([])
+  c.setPet('my-pet')
+  expect(await runCommand(host, 'outfit cap', c)).toBe('my-pet has no level outfits.')
+})
+
+test('/glowup outfit off takes it off, even at level 0', async () => {
+  const { host, store } = fakeHost()
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'outfit off', c)).toBe('Outfit: off')
+  expect(store.outfit).toEqual({ format: 1, name: 'off' })
+  expect(calls).toEqual(['outfit:off'])
+})
+
+test('the help lists /glowup outfit', async () => {
+  expect(FULL_TEXT).toContain('/glowup outfit')
+})
+
 const ctl = (answer = true, current = 'classic') => {
   const calls: string[] = []
   const questions: string[] = []
@@ -75,6 +129,7 @@ const ctl = (answer = true, current = 'classic') => {
     setMix: async m => { mix = m; calls.push(`mix:${m.colors}/${m.motion}${m.theme ? '/' + m.theme : ''}`); return [] },
     pet: () => pet,
     setPet: (p, sheet) => { pet = p; calls.push('pet:' + p + (sheet ? '+sheet' : '')) },
+    setOutfit: choice => { calls.push('outfit:' + choice) },
     bubbles: () => 'on',
     setBubbles: b => { calls.push('bubbles:' + b) },
     reduced: () => false,
