@@ -17,7 +17,7 @@ import { eggUnlocked, type EggStore } from './eggs.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 import { FIELD_IDS, isFieldId, type FieldId } from './fields.ts'
 import { levelOf, parseLevelStore, levelStoreIsNewer, groupDigits, UNLOCKS, ART_READY, OUTFIT_LEVELS, outfitsOf, resolveOutfit, parseOutfitStore, outfitStore } from './levels.ts'
-import { parseSetup, setSetupField, describeSetup, DEFAULT_SETUP, type Setup } from './setup.ts'
+import { parseSetup, setupIsNewer, setupRecord, SETUP_NEWER, setSetupField, describeSetup, DEFAULT_SETUP, type Setup } from './setup.ts'
 
 // What a command that needs more input falls back to, and what a headless config run prints.
 export const USAGE = FULL_TEXT
@@ -180,8 +180,9 @@ async function packFromLink(host: Host, ctl: Ctl, link: string, force: boolean):
   if (parts.setup !== undefined) {
     const { setup, notices } = parseSetup(parts.setup)
     if (typeof parts.setup !== 'object' || parts.setup === null || Array.isArray(parts.setup)) out.push(`Setup not applied: ${notices[0]}`)
+    else if (setupIsNewer(await host.storeGet('setup'))) out.push(`Setup not applied: ${SETUP_NEWER}`)
     else if (await ctl.confirm(`This link also carries a layout setup (band, tabs, meter, bubbles, pet sleep${'statusline' in parts.setup ? ', status line' : ''}). Apply it?`)) {
-      await host.storeSet('setup', setup)
+      await host.storeSet('setup', setupRecord(await host.storeGet('setup'), setup))
       ctl.setSetup(setup)
       out.push('Setup: applied', ...notices.map(n => `  dropped: ${n}`))
       const sl = (parts.setup as { statusline?: unknown }).statusline
@@ -355,6 +356,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   if (sub === 'statusline' && a1 === 'on') return takeOver(host, q => ctl.confirm(q))
   if (sub === 'statusline' && a1 === 'restore') return restore(host)
   if (sub === 'setup' && !a1) return describeSetup(ctl.setup())
+  if (sub === 'setup' && (a1 === 'reset' || (a1 && a2)) && setupIsNewer(await host.storeGet('setup'))) return SETUP_NEWER
   if (sub === 'setup' && a1 === 'reset') {
     await host.storeDelete('setup')
     ctl.setSetup(DEFAULT_SETUP)
@@ -363,7 +365,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   if (sub === 'setup' && a1 && a2) {
     const r = setSetupField(ctl.setup(), a1, args.trim().split(/\s+/).slice(2).join(' '))
     if ('error' in r) return r.error
-    await host.storeSet('setup', r.setup)
+    await host.storeSet('setup', setupRecord(await host.storeGet('setup'), r.setup))
     ctl.setSetup(r.setup)
     return describeSetup(r.setup)
   }

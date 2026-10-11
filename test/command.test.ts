@@ -532,6 +532,26 @@ test('setup keeps a comma list that was typed with spaces', async () => {
   expect((store.setup as Setup).band).toEqual(['plan', 'meter'])
 })
 
+test('setup commands refuse to rewrite a setup saved by a newer glowup', async () => {
+  const { host, store } = fakeHost()
+  const newer = { format: 5, band: ['plan', 'weather'], hologram: { on: true } }
+  store.setup = newer
+  const { calls, ctl: c } = ctl()
+  const refusal = /saved by a newer glowup/
+  expect(await runCommand(host, 'setup meter.danger 90', c)).toMatch(refusal)
+  expect(await runCommand(host, 'setup reset', c)).toMatch(refusal)
+  expect(await runCommand(host, `pack ${encodeLink({ setup: { band: ['plan'] } })}`, ctl(true).ctl)).toMatch(/Setup not applied: .*saved by a newer glowup/)
+  expect(store.setup).toEqual(newer)
+  expect(calls).not.toContain('setup')
+})
+
+test('setup rewrites keep the keys a later release added to a format 4 record', async () => {
+  const { host, store } = fakeHost()
+  store.setup = { format: 4, hologram: { on: true } }
+  await runCommand(host, 'setup meter.danger 90', ctl().ctl)
+  expect(store.setup).toMatchObject({ format: 4, meter: { warn: 50, danger: 90 }, hologram: { on: true } })
+})
+
 test('setup refuses a bad value and keeps the old setup', async () => {
   const { host, store } = fakeHost()
   const { ctl: c } = ctl()

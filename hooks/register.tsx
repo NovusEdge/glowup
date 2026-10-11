@@ -28,7 +28,7 @@ import type { PetClientProps } from './client/pet.tsx'
 import type { OrbState } from './motion.ts'
 import { statusText, writeStatusFile, drawsStatusLine, ensureRefresh, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
 import { parseFields, DEFAULT_FIELDS, type ColorMode, type FieldId } from './fields.ts'
-import { DEFAULT_SETUP, parseSetup, type Setup } from './setup.ts'
+import { DEFAULT_SETUP, parseSetup, setupIsNewer, type Setup } from './setup.ts'
 import { runCommand, pastedGlowup, type Ctl } from './command.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 import { renderHelp, renderColorList } from './helpcard.tsx'
@@ -895,7 +895,9 @@ async function loadSettings($: Engine, host: Host, undo = false) {
   reducedMotion = typeof motion === 'boolean' ? motion : pluginOptions.reducedMotion === true
   configFields = parseFields(pluginOptions.statusline) ?? DEFAULT_FIELDS
   fields = parseFields(await host.storeGet('statusline')) ?? configFields
-  const parsed = parseSetup(await host.storeGet('setup'))
+  const storedSetup = await host.storeGet('setup')
+  const parsed = parseSetup(storedSetup)
+  if (setupIsNewer(storedSetup)) parsed.notices.unshift('saved by a newer glowup, so shown as far as this version reads it and not changed')
   setup = parsed.setup
   if (!undo || !setup.tabs.includes(view.tab)) view = { ...view, tab: setup.tabs[0]! }
   if (parsed.notices.length && !undo) $.ui.toast(`glowup setup: ${parsed.notices.join('; ')}`)
