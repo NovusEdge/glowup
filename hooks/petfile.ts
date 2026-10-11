@@ -1,5 +1,5 @@
 // JSX-free: the studio imports it.
-import { isPlain, isUnsafe, shown } from './themes.ts'
+import { isPlain, isUnsafe, shown, skippedKey } from './themes.ts'
 import { SAFE_NAME } from './packs.ts'
 import type { PetSheet } from './pets.ts'
 import { MOMENTS, FLAVOURS, MOMENT_SLOTS, type Moment, type PetLines } from './lines.ts'
@@ -41,8 +41,18 @@ export function petNameProblem(name: string): string | undefined {
 }
 
 export function validatePetFile(file: unknown): asserts file is PetFile {
-  if (!isPlain(file)) throw new Error('a pet must be a JSON object')
-  for (const k of Object.keys(file)) if (!FILE_KEYS.includes(k)) throw new Error(`unknown key "${shown(k)}"`)
+  readPetFile(file, [])
+}
+
+// The pet as this build reads it. Keys, animations, moments and flavours only a later 1.x knows are left out
+// and named in `notes`; a known one with the wrong shape, or a `format` above 2, throws.
+export function readPetFile(raw: unknown, notes: string[]): PetFile {
+  if (!isPlain(raw)) throw new Error('a pet must be a JSON object')
+  const file: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(raw)) {
+    if (FILE_KEYS.includes(k)) file[k] = v
+    else notes.push(skippedKey('', k))
+  }
   const fmt = file.format
   if (fmt === undefined || (typeof fmt === 'number' && fmt < 1)) throw new Error('"format": 1 is missing')
   if (typeof fmt !== 'number' || !Number.isInteger(fmt)) throw new Error('"format" must be a whole number')
@@ -55,7 +65,7 @@ export function validatePetFile(file: unknown): asserts file is PetFile {
   if ((file.lines !== undefined || file.voice !== undefined) && fmt < 2) throw new Error('"lines" and "voice" need "format": 2')
   const v = file.voice
   if (v !== undefined && !(typeof v === 'string' && [...v].length <= MAX_VOICE && printable(v))) throw new Error(`"voice" must be printable text of at most ${MAX_VOICE} characters`)
-  if (file.lines !== undefined) validateLines(file.lines)
+  if (file.lines !== undefined) file.lines = cleanLines(file.lines, notes)
 
   const pal = file.palette
   if (!isPlain(pal)) throw new Error('"palette" must be an object of single-character keys and #rrggbb colors')
@@ -71,18 +81,23 @@ export function validatePetFile(file: unknown): asserts file is PetFile {
 
   const anims = file.animations
   if (!isPlain(anims)) throw new Error('"animations" must be an object')
-  for (const n of Object.keys(anims)) if (!(PET_ANIMS as readonly string[]).includes(n)) throw new Error(`unknown animation "${shown(n)}"; known: ${PET_ANIMS.join(', ')}`)
+  for (const n of Object.keys(anims)) if (!(PET_ANIMS as readonly string[]).includes(n)) notes.push(skippedKey('animations', n))
   if (anims.idle === undefined) throw new Error('a pet needs an idle animation')
   let size: [number, number] | undefined
+  const kept: Record<string, unknown> = {}
   for (const n of PET_ANIMS) {
     const frames = anims[n]
     if (frames === undefined) continue
     if (!Array.isArray(frames) || !frames.length) throw new Error(`${n} needs at least one frame`)
     if (frames.length > MAX_FRAMES) throw new Error(`${n} has ${frames.length} frames; at most ${MAX_FRAMES}`)
-    frames.forEach((f: unknown, i) => {
+    kept[n] = frames.map((raw: unknown, i) => {
       const at = `${n}[${i}]`
-      if (!isPlain(f)) throw new Error(`${at}: a frame must be an object with px and ms`)
-      for (const k of Object.keys(f)) if (!FRAME_KEYS.includes(k)) throw new Error(`${at}: unknown key "${shown(k)}"`)
+      if (!isPlain(raw)) throw new Error(`${at}: a frame must be an object with px and ms`)
+      const f: Record<string, unknown> = {}
+      for (const [k, v] of Object.entries(raw)) {
+        if (FRAME_KEYS.includes(k)) f[k] = v
+        else notes.push(skippedKey(`animations.${at}`, k))
+      }
       if (!whole(f.ms, MIN_MS, MAX_MS)) throw new Error(`${at}: ms must be a whole number from ${MIN_MS} to ${MAX_MS}`)
       if (f.dx !== undefined && !whole(f.dx, -4, 4)) throw new Error(`${at}: dx must be a whole number from -4 to 4`)
       if (f.exit !== undefined && typeof f.exit !== 'boolean') throw new Error(`${at}: exit must be true or false`)
@@ -97,21 +112,27 @@ export function validatePetFile(file: unknown): asserts file is PetFile {
         if ([...r].length !== size[0]) throw new Error(`${at}: a row is ${[...r].length} wide, want ${size[0]}`)
         for (const c of r) if (c !== '.' && !(c in pal)) throw new Error(`${at}: unknown palette key "${shown(c)}"`)
       }
+      return f
     })
   }
+  return { ...file, animations: kept } as PetFile
 }
 
-function validateLines(lines: unknown) {
+// Entries whose moment or flavour this build lacks are dropped; every kept entry is checked in full.
+function cleanLines(lines: unknown, notes: string[]): Record<string, string[]> {
   if (!isPlain(lines)) throw new Error('"lines" must be an object of moment keys and lists of lines')
+  const out: Record<string, string[]> = {}
   for (const [key, list] of Object.entries(lines)) {
     const parts = key.split('@')
-    // "@lvN" comes last; "done@lv4@night" is refused as an unknown flavour "lv4".
+    // "@lvN" comes last; "done@lv4@night" is an unknown flavour "lv4".
     const lv = parts.length > 1 ? /^lv([1-9]\d?)$/.exec(parts.at(-1)!) : null
     if (lv) parts.pop()
     if (lv && Number(lv[1]) < 2) throw new Error(`lines: level must be 2 to 99 in "${shown(key)}"`)
     const [moment, flavour, more] = parts
-    if (!(MOMENTS as readonly string[]).includes(moment!)) throw new Error(`lines: unknown moment "${shown(moment!)}"; known: ${MOMENTS.join(', ')}`)
-    if (more !== undefined || (flavour !== undefined && !(FLAVOURS as readonly string[]).includes(flavour))) throw new Error(`lines: unknown flavour "${shown(flavour ?? '')}" in "${shown(key)}"; known: ${FLAVOURS.join(', ')}`)
+    if (!(MOMENTS as readonly string[]).includes(moment!) || more !== undefined || (flavour !== undefined && !(FLAVOURS as readonly string[]).includes(flavour))) {
+      notes.push(skippedKey('lines', key))
+      continue
+    }
     const at = `lines.${shown(key)}`
     if (!Array.isArray(list) || list.length < 1 || list.length > MAX_LINES) throw new Error(`${at}: 1 to ${MAX_LINES} lines`)
     list.forEach((l: unknown, i) => {
@@ -122,7 +143,9 @@ function validateLines(lines: unknown) {
         if (!(MOMENT_SLOTS[moment as Moment] as readonly string[]).includes(slot!)) throw new Error(`${at}[${i}]: ${moment} lines cannot use {${shown(slot!)}}`)
       }
     })
+    out[key] = list
   }
+  return out
 }
 
 export function petSheet(file: PetFile): PetSheet {

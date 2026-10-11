@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { validatePetFile, petSheet, petNameProblem, PET_ANIMS, ANIM_MS, ONCE, BUILTIN_PET_NAMES, builtinPets, type PetFile } from '../hooks/petfile.ts'
+import { validatePetFile, readPetFile, petSheet, petNameProblem, PET_ANIMS, ANIM_MS, ONCE, BUILTIN_PET_NAMES, builtinPets, type PetFile } from '../hooks/petfile.ts'
 import { validateSheet, BUILTIN_SHEETS } from '../hooks/pets.ts'
 
 const row = (s: string) => s.padEnd(24, '.')
@@ -31,7 +31,6 @@ test('idle2 and idle3 are optional loops; the sheet has 12 rows, or 14 with them
   const s = petSheet(f)
   expect(s.animations.idle2!.loop).toBe(true)
   expect(s.animations.idle3).toBeUndefined()
-  refuses(pet({ animations: { idle: [frame()], idle4: [frame()] } as never }), /unknown animation "idle4"; known: idle, .*idle2, idle3/)
   refuses(pet({ animations: { idle: [frame()], idle3: [] } }), /idle3 needs at least one frame/)
 })
 
@@ -52,7 +51,6 @@ test('top-level shape: object, format, name, known keys', () => {
   refuses([], /a pet must be a JSON object/)
   refuses({ ...pet(), format: 3 }, /made for a newer glowup/)
   refuses({ ...pet(), format: undefined }, /"format": 1 is missing/)
-  refuses({ ...pet(), hats: {} }, /unknown key "hats"/)
   refuses(pet({ name: 'My Pet' }), /lowercase letters, digits and dashes/)
   refuses(pet({ description: 'x'.repeat(81) }), /description/)
 })
@@ -80,10 +78,9 @@ test('palette: 1 to 60 single printable characters, #rrggbb colors, no "."', () 
   refuses(pet({ palette: many }), /at most 60 colors/)
 })
 
-test('animations: idle required, known names only, no left-facing or outfit keys', () => {
+test('animations: idle required', () => {
   refuses(pet({ animations: {} }), /needs an idle animation/)
   refuses(pet({ animations: { idle: [] } }), /idle needs at least one frame/)
-  refuses(pet({ animations: { idle: [frame()], 'walk-left': [frame()] } as never }), /unknown animation "walk-left"/)
   refuses(pet({ animations: { idle: Array(33).fill(frame()) } }), /idle has 33 frames; at most 32/)
 })
 
@@ -95,7 +92,39 @@ test('frames: size cap, palette keys, ms range, dx and exit types', () => {
   refuses(pet({ animations: { idle: [frame('A', 50)] } }), /idle\[0\]: ms must be a whole number from 80 to 10000/)
   refuses(pet({ animations: { idle: [{ ...frame(), dx: 0.5 }] } }), /idle\[0\]: dx must be a whole number from -4 to 4/)
   refuses(pet({ animations: { idle: [{ ...frame(), exit: 'yes' }] } as never }), /idle\[0\]: exit must be true or false/)
-  refuses(pet({ animations: { idle: [{ ...frame(), head: [1, 1] }] } as never }), /idle\[0\]: unknown key "head"/)
+})
+
+const read = (file: unknown) => { const notes: string[] = []; const out = readPetFile(file, notes); return { out, notes } }
+
+test('a key, animation, frame key, moment or flavour this build lacks is skipped with one notice naming its path', () => {
+  const { out, notes } = read({
+    ...v2({ lines: { done: ['yay'], dance: ['x'], 'done@noon': ['x'], 'hello@night': ['zz'], 'done@lv4@night': ['x'] } }),
+    hats: {}, animations: { idle: [{ ...frame(), head: [1, 1] }], idle4: [frame()], 'walk-left': [frame()] },
+  })
+  expect(notes).toEqual([
+    'unknown key "hats" skipped',
+    'unknown key "lines.dance" skipped',
+    'unknown key "lines.done@noon" skipped',
+    'unknown key "lines.done@lv4@night" skipped',
+    'unknown key "animations.idle4" skipped',
+    'unknown key "animations.walk-left" skipped',
+    'unknown key "animations.idle[0].head" skipped',
+  ])
+  expect(Object.keys(out.animations)).toEqual(['idle'])
+  expect(out.animations.idle![0]).toEqual(frame())
+  expect(out.lines).toEqual({ done: ['yay'], 'hello@night': ['zz'] })
+  expect(out).not.toHaveProperty('hats')
+  expect(() => validatePetFile({ ...base, hats: {} })).not.toThrow()
+})
+
+test('a pet with unknown parts still becomes a sheet of the known parts', () => {
+  const sheet = petSheet(read({ ...v2({ lines: { dance: ['x'] } }), animations: { idle: [frame()], idle4: [frame()] } }).out)
+  expect(Object.keys(sheet.animations)).toEqual(['idle'])
+  expect(sheet.lines).toEqual({})
+})
+
+test('a known key with a wrong shape still throws beside unknown ones', () => {
+  refuses({ ...pet(), hats: 1, animations: { idle: [{ ...frame(), exit: 'yes' }], idle4: [frame()] } }, /idle\[0\]: exit must be true or false/)
 })
 
 const base = pet()
@@ -112,8 +141,12 @@ test('format 2 takes lines and a voice, and the sheet carries them', () => {
 test('level keys are accepted from 2 to 99, alone or with a flavour', () => {
   const ok = (lines: unknown) => () => validatePetFile(v2({ lines }))
   expect(ok({ 'done@lv2': ['x'], 'done@lv99': ['x'], 'hello@night@lv4': ['x'], 'level-up': ['up: {unlock}'], 'level-up@lv3': ['x'] })).not.toThrow()
-  for (const k of ['done@lv1', 'done@lv100', 'done@lvx', 'done@lv02', 'done@lv4@night', 'done@lv', 'done@night@lv4@lv5']) {
-    expect(ok({ [k]: ['x'] })).toThrow(`"${k}"`)
+  expect(ok({ 'done@lv1': ['x'] })).toThrow('"done@lv1"')
+  // anything else after @ is an unknown flavour: skipped, not refused
+  for (const k of ['done@lv100', 'done@lvx', 'done@lv02', 'done@lv4@night', 'done@lv', 'done@night@lv4@lv5']) {
+    const { out, notes } = read(v2({ lines: { [k]: ['x'] } }))
+    expect(out.lines).toEqual({})
+    expect(notes).toEqual([`unknown key "lines.${k}" skipped`])
   }
 })
 
@@ -129,8 +162,6 @@ test('format 2 without lines or voice is still a valid pet; format 3 is newer', 
 
 test('bad lines are refused with the key named', () => {
   const bad = (lines: unknown) => () => validatePetFile(v2({ lines }))
-  expect(bad({ dance: ['x'] })).toThrow('lines: unknown moment "dance"')
-  expect(bad({ 'done@noon': ['x'] })).toThrow('lines: unknown flavour "noon" in "done@noon"')
   expect(bad({ hello: ['hi {file}'] })).toThrow('lines.hello[0]: hello lines cannot use {file}')
   expect(bad({ done: ['x'.repeat(41)] })).toThrow('lines.done[0]: at most 40 characters')
   expect(bad({ done: Array(13).fill('x') })).toThrow('lines.done: 1 to 12 lines')

@@ -204,7 +204,7 @@ async function packFromLink(host: Host, ctl: Ctl, link: string, force: boolean):
     else {
       await host.storeSet('pet', r.name)
       ctl.setPet(r.name, r.sheet)
-      out.push(`Pet: ${r.name}`)
+      out.push(`Pet: ${r.name}`, ...(r.notices ?? []))
     }
   }
   return out.join('\n') || 'This link carries nothing to install.'
@@ -306,24 +306,26 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   if (sub === 'pet' && a1 === 'add') {
     if (!a2) return 'Use /glowup pet add <file|https url> with a pet .json from the studio or the pet sprites page.'
     const r = await addPet(host, a2, args.trim().split(/\s+/)[3] === '--force')
-    if (!r.name || !r.sheet || r.name !== ctl.pet()) return r.message
+    if (!r.name || !r.sheet || r.name !== ctl.pet()) return [r.message, ...(r.notices ?? [])].join('\n')
     ctl.setPet(r.name, r.sheet)
-    return `Installed pet "${r.name}".`
+    return [`Installed pet "${r.name}".`, ...(r.notices ?? [])].join('\n')
   }
   if (sub === 'pet' && a1) {
     const eggs = await eggsOf(host)
     if (a1 === 'clawd-shiny' && eggs?.shinyAt === undefined) return 'The shiny pet is not unlocked yet.'
     if (a1 === 'egg' && !eggUnlocked(eggs)) return 'The egg is not unlocked yet.'
     let sheet: PetSheet | undefined
+    let notices: string[] = []
     if (a1 === 'egg') sheet = eggSheet(eggs)
     else if (a1 !== 'off' && !BUILTIN_PET_NAMES.includes(a1)) {
       const r = await loadUserPet(host, a1)
       if ('error' in r) return r.error
       sheet = r.sheet
+      notices = r.notices ?? []
     }
     await host.storeSet('pet', a1)
     ctl.setPet(a1, sheet)
-    return `Pet: ${a1}`
+    return [`Pet: ${a1}`, ...notices].join('\n')
   }
   if (sub === 'bubbles' && (a1 === 'on' || a1 === 'off' || a1 === 'haiku')) {
     await host.storeSet('bubbles', a1)
