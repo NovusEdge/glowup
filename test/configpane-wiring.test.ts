@@ -129,6 +129,7 @@ test('the Pet row skips a pet file that does not load', async ($, on) => {
   const ui = await mountConfig($)
   await ui.press({ key: 'cycle-pet' })
   await ui.press({ key: 'cycle-pet' })
+  await ui.press({ key: 'cycle-pet' })
   expect((await runGlowup($, 'pet list')).text).toContain('● mochi')
   await ui.unmount()
 })
@@ -136,12 +137,12 @@ test('the Pet row skips a pet file that does not load', async ($, on) => {
 test('a pet deleted after the pane opened is refused once, then dropped from the Pet row', async ($, on) => {
   const files = { [`${PETS}/mochi.json`]: petJson('mochi') }
   await petSetup($, on, files)
-  await runGlowup($, 'pet robot')
+  await runGlowup($, 'pet ghost')
   await runGlowup($, 'config pane')
   const ui = await mountConfig($)
   delete (files as Record<string, string>)[`${PETS}/mochi.json`]
   await ui.press({ key: 'cycle-pet' })
-  expect((await runGlowup($, 'pet list')).text).toContain('● robot')
+  expect((await runGlowup($, 'pet list')).text).toContain('● ghost')
   await ui.press({ key: 'cycle-pet' })
   expect((await runGlowup($, 'pet list')).text).toContain('● off')
   await ui.unmount()

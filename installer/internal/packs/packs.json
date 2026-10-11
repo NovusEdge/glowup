@@ -22504,6 +22504,2510 @@
         }
       ]
     },
+    "ghost": {
+      "cols": 24,
+      "frames": [
+        {
+          "ms": 500,
+          "rows": [
+            [
+              {
+                "text": "         ▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▄▄▄▄",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▄         ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ffffff",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "███████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#a9afe0",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▄      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ██",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "██",
+                "color": "#2a2350"
+              },
+              {
+                "text": "████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "██",
+                "color": "#2a2350"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "     ▄█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "██████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█▄     ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      █",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "         ▄▄▄▄▄▄         ",
+                "color": "#2c2f45"
+              }
+            ]
+          ]
+        },
+        {
+          "ms": 420,
+          "rows": [
+            [
+              {
+                "text": "       ▄▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▀",
+                "color": "#ffffff",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#a9afe0",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▄",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▄       ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▀",
+                "color": "#ffffff",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#e6e9ff",
+                "bg": "#2a2350"
+              },
+              {
+                "text": "████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#e6e9ff",
+                "bg": "#2a2350"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      █",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#ff9cc6"
+              },
+              {
+                "text": "▀",
+                "color": "#2a2350",
+                "bg": "#ff9cc6"
+              },
+              {
+                "text": "▀",
+                "color": "#2a2350",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#2a2350",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#2a2350",
+                "bg": "#ff9cc6"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#ff9cc6"
+              },
+              {
+                "text": "█      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "     ▄███████████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█▄     ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "       ",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀ ",
+                "color": "#a9afe0"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀ ",
+                "color": "#a9afe0"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀ ",
+                "color": "#a9afe0"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "          ▄▄▄▄          ",
+                "color": "#2c2f45"
+              }
+            ]
+          ]
+        },
+        {
+          "ms": 360,
+          "rows": [
+            [
+              {
+                "text": "       ▄▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▀",
+                "color": "#ffffff",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#a9afe0",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▄",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▄       ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▀",
+                "color": "#ffffff",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#e6e9ff",
+                "bg": "#2a2350"
+              },
+              {
+                "text": "████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#e6e9ff",
+                "bg": "#2a2350"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "     ▄█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#ff9cc6"
+              },
+              {
+                "text": "▀",
+                "color": "#2a2350",
+                "bg": "#ff9cc6"
+              },
+              {
+                "text": "▀",
+                "color": "#2a2350",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#2a2350",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#2a2350",
+                "bg": "#ff9cc6"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#ff9cc6"
+              },
+              {
+                "text": "█▄     ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ███████████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ▀ ",
+                "color": "#a9afe0"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀ ",
+                "color": "#a9afe0"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀ ",
+                "color": "#a9afe0"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀ ▀      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "          ▄▄▄▄          ",
+                "color": "#2c2f45"
+              }
+            ]
+          ]
+        },
+        {
+          "ms": 400,
+          "rows": [
+            [
+              {
+                "text": "         ▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▄▄▄▄",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▄         ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ffffff",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "███████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#a9afe0",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▄      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ██",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "██",
+                "color": "#2a2350"
+              },
+              {
+                "text": "████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "██",
+                "color": "#2a2350"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "     ▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "██████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█▀     ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "     █",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀██",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀██",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "         ▄▄▄▄▄▄         ",
+                "color": "#2c2f45"
+              }
+            ]
+          ]
+        },
+        {
+          "ms": 450,
+          "rows": [
+            [
+              {
+                "text": "                        ",
+                "color": "#000000"
+              }
+            ],
+            [
+              {
+                "text": "        ▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▄▄▄▄▄▄",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▄        ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "     ▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ffffff",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█████████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#a9afe0",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▄     ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "     ███",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "██",
+                "color": "#2a2350"
+              },
+              {
+                "text": "████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "██",
+                "color": "#2a2350"
+              },
+              {
+                "text": "██",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█     ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "    ▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "████████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█▀    ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "     ▀",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀ ",
+                "color": "#a9afe0"
+              },
+              {
+                "text": "▀▀",
+                "color": "#e6e9ff",
+                "bg": "#2c2f45"
+              },
+              {
+                "text": "▀",
+                "color": "#a9afe0",
+                "bg": "#2c2f45"
+              },
+              {
+                "text": "▄▄",
+                "color": "#2c2f45"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#2c2f45"
+              },
+              {
+                "text": "▀",
+                "color": "#a9afe0",
+                "bg": "#2c2f45"
+              },
+              {
+                "text": "▄",
+                "color": "#2c2f45"
+              },
+              {
+                "text": "▀▀",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀     ",
+                "color": "#a9afe0"
+              }
+            ]
+          ]
+        },
+        {
+          "ms": 90,
+          "rows": [
+            [
+              {
+                "text": "         ▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▄▄▄▄",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▄         ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ffffff",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "███████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#a9afe0",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▄      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ██",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#a9afe0",
+                "bg": "#2a2350"
+              },
+              {
+                "text": "████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#a9afe0",
+                "bg": "#2a2350"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "     ▄█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "██████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█▄     ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "         ▄▄▄▄▄▄         ",
+                "color": "#2c2f45"
+              }
+            ]
+          ]
+        },
+        {
+          "ms": 90,
+          "rows": [
+            [
+              {
+                "text": "         ▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▄▄▄▄",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▄         ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ffffff",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "███████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#a9afe0",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▄      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ██",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#e6e9ff",
+                "bg": "#2a2350"
+              },
+              {
+                "text": "████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#e6e9ff",
+                "bg": "#2a2350"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "     ▄█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "██████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█▄     ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "         ▄▄▄▄▄▄         ",
+                "color": "#2c2f45"
+              }
+            ]
+          ]
+        },
+        {
+          "ms": 450,
+          "rows": [
+            [
+              {
+                "text": "         ▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▄▄▄▄",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▄         ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ffffff",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "███████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#a9afe0",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▄      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ██",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "██",
+                "color": "#2a2350"
+              },
+              {
+                "text": "████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "██",
+                "color": "#2a2350"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "     ▄█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "██████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█▄     ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "     ▄",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀██",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀██",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "         ▄▄▄▄▄▄         ",
+                "color": "#2c2f45"
+              }
+            ]
+          ]
+        },
+        {
+          "ms": 300,
+          "rows": [
+            [
+              {
+                "text": "         ▄",
+                "color": "#a9aed8"
+              },
+              {
+                "text": "▄",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▄",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▄▄",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▄         ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▀",
+                "color": "#ffffff",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#a9aed8",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#a9afe0",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▄      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "██",
+                "color": "#2a2350"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "██",
+                "color": "#2a2350"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#a9afe0",
+                "bg": "#666b9c"
+              },
+              {
+                "text": "      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "     ▄",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#b07fa6",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#b07fa6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█",
+                "color": "#a9afe0"
+              },
+              {
+                "text": "▄     ",
+                "color": "#666b9c"
+              }
+            ],
+            [
+              {
+                "text": "      █",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#666b9c"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "         ▄▄▄▄▄▄         ",
+                "color": "#2c2f45"
+              }
+            ]
+          ]
+        },
+        {
+          "ms": 300,
+          "rows": [
+            [
+              {
+                "text": "         ▄",
+                "color": "#a9aed8"
+              },
+              {
+                "text": "▄▄",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▄",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▄",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▄         ",
+                "color": "#666b9c"
+              }
+            ],
+            [
+              {
+                "text": "      ▄",
+                "color": "#a9aed8"
+              },
+              {
+                "text": "▀",
+                "color": "#a9aed8",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#a9aed8",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "█",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "█",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#666b9c",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▄      ",
+                "color": "#666b9c"
+              }
+            ],
+            [
+              {
+                "text": "      █",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "██",
+                "color": "#2a2350"
+              },
+              {
+                "text": "█",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "██",
+                "color": "#2a2350"
+              },
+              {
+                "text": "█",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "█      ",
+                "color": "#666b9c"
+              }
+            ],
+            [
+              {
+                "text": "     ▄█",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#b07fa6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#b07fa6",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "█",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "██",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#b07fa6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#b07fa6",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "█▄     ",
+                "color": "#666b9c"
+              }
+            ],
+            [
+              {
+                "text": "      ▀█",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#666b9c"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#666b9c"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#666b9c"
+              },
+              {
+                "text": "▀█",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "█      ",
+                "color": "#666b9c"
+              }
+            ],
+            [
+              {
+                "text": "         ▄▄▄▄▄▄         ",
+                "color": "#2c2f45"
+              }
+            ]
+          ]
+        },
+        {
+          "ms": 900,
+          "rows": [
+            [
+              {
+                "text": "       ▄▄",
+                "color": "#a9aed8"
+              },
+              {
+                "text": "▀",
+                "color": "#a9aed8",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "████",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#666b9c",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▄",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▄       ",
+                "color": "#666b9c"
+              }
+            ],
+            [
+              {
+                "text": "      ",
+                "color": "#a9aed8"
+              },
+              {
+                "text": "▀",
+                "color": "#a9aed8",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "█",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀▀",
+                "color": "#8c92c4",
+                "bg": "#2a2350"
+              },
+              {
+                "text": "████",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀▀",
+                "color": "#8c92c4",
+                "bg": "#2a2350"
+              },
+              {
+                "text": "█",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "█      ",
+                "color": "#666b9c"
+              }
+            ],
+            [
+              {
+                "text": "      █",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#b07fa6"
+              },
+              {
+                "text": "▀",
+                "color": "#2a2350",
+                "bg": "#b07fa6"
+              },
+              {
+                "text": "▀",
+                "color": "#2a2350",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "████",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#2a2350",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#2a2350",
+                "bg": "#b07fa6"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#b07fa6"
+              },
+              {
+                "text": "█      ",
+                "color": "#666b9c"
+              }
+            ],
+            [
+              {
+                "text": "     ▀███████████",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "█▀     ",
+                "color": "#666b9c"
+              }
+            ],
+            [
+              {
+                "text": "      ▀ ",
+                "color": "#666b9c"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀ ",
+                "color": "#666b9c"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀ ",
+                "color": "#666b9c"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀ ▀      ",
+                "color": "#666b9c"
+              }
+            ],
+            [
+              {
+                "text": "          ▄▄▄▄          ",
+                "color": "#2c2f45"
+              }
+            ]
+          ]
+        },
+        {
+          "ms": 700,
+          "rows": [
+            [
+              {
+                "text": "       ▄▄",
+                "color": "#a9aed8"
+              },
+              {
+                "text": "▀",
+                "color": "#a9aed8",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "████",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#666b9c",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▄",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▄       ",
+                "color": "#666b9c"
+              }
+            ],
+            [
+              {
+                "text": "      ",
+                "color": "#a9aed8"
+              },
+              {
+                "text": "▀",
+                "color": "#a9aed8",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▀▀",
+                "color": "#8c92c4",
+                "bg": "#2a2350"
+              },
+              {
+                "text": "████",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀▀",
+                "color": "#8c92c4",
+                "bg": "#2a2350"
+              },
+              {
+                "text": "██",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "█      ",
+                "color": "#666b9c"
+              }
+            ],
+            [
+              {
+                "text": "      █",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀▀",
+                "color": "#2a2350",
+                "bg": "#b07fa6"
+              },
+              {
+                "text": "████",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀▀",
+                "color": "#2a2350",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▀▀",
+                "color": "#8c92c4",
+                "bg": "#b07fa6"
+              },
+              {
+                "text": "█      ",
+                "color": "#666b9c"
+              }
+            ],
+            [
+              {
+                "text": "     ▄███████████",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "█      ",
+                "color": "#666b9c"
+              }
+            ],
+            [
+              {
+                "text": "     ▀",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀ ",
+                "color": "#666b9c"
+              },
+              {
+                "text": "▀▀",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀ ",
+                "color": "#666b9c"
+              },
+              {
+                "text": "▀▀",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀ ",
+                "color": "#666b9c"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀      ",
+                "color": "#666b9c"
+              }
+            ],
+            [
+              {
+                "text": "          ▄▄▄▄          ",
+                "color": "#2c2f45"
+              }
+            ]
+          ]
+        },
+        {
+          "ms": 300,
+          "rows": [
+            [
+              {
+                "text": "         ▄",
+                "color": "#a9aed8"
+              },
+              {
+                "text": "▄",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▄▄",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▄",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▄         ",
+                "color": "#666b9c"
+              }
+            ],
+            [
+              {
+                "text": "      ▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▀",
+                "color": "#a9aed8",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#ffffff",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#a9afe0",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▄      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "██",
+                "color": "#2a2350"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "██",
+                "color": "#2a2350"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "     ▄",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#b07fa6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#ff9cc6",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "██",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "██",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█",
+                "color": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#b07fa6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█▄     ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      █",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#666b9c"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#8c92c4"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#8c92c4",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "         ▄▄▄▄▄▄         ",
+                "color": "#2c2f45"
+              }
+            ]
+          ]
+        },
+        {
+          "ms": 600,
+          "rows": [
+            [
+              {
+                "text": "         ▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▄▄▄▄",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▄         ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ffffff",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "███████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#a9afe0",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▄      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ███",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "██",
+                "color": "#2a2350"
+              },
+              {
+                "text": "████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "██",
+                "color": "#2a2350"
+              },
+              {
+                "text": "█      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "     ▄█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "██████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█▄     ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "         ▄▄▄▄▄▄         ",
+                "color": "#2c2f45"
+              }
+            ]
+          ]
+        },
+        {
+          "ms": 400,
+          "rows": [
+            [
+              {
+                "text": "         ▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▄▄▄▄",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▄         ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ▄",
+                "color": "#ffffff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ffffff",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "███████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#a9afe0",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "▄      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ██",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "██",
+                "color": "#2a2350"
+              },
+              {
+                "text": "████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "██",
+                "color": "#2a2350"
+              },
+              {
+                "text": "█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "     ▄█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "██████",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀▀",
+                "color": "#ff9cc6",
+                "bg": "#e6e9ff"
+              },
+              {
+                "text": "█▄     ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "      ",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀█",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff",
+                "bg": "#a9afe0"
+              },
+              {
+                "text": "▀",
+                "color": "#e6e9ff"
+              },
+              {
+                "text": "█      ",
+                "color": "#a9afe0"
+              }
+            ],
+            [
+              {
+                "text": "         ▄▄▄▄▄▄         ",
+                "color": "#2c2f45"
+              }
+            ]
+          ]
+        }
+      ]
+    },
     "egg": {
       "cols": 24,
       "frames": [

@@ -1,6 +1,6 @@
 ---
 title: Pets
-description: Clawd and the robot at the bottom of the glowup pane, how they react, speech bubbles, the shiny one, and your own pets.
+description: Clawd, the robot and the ghost at the bottom of the glowup pane, how they react, speech bubbles, the shiny one, and your own pets.
 ---
 
 ## Clawd
@@ -36,6 +36,10 @@ The robot is the CRT monitor that is the mascot of the crt pack, drawn at 32 × 
 ![The robot standing idle](assets/robot/idle/clip.gif)
 
 It reacts to the same moments as Clawd, without his outfits.
+
+## The ghost
+
+The ghost is a small white ghost with a pink blush, drawn at 24 × 12 pixels like Clawd. Pick it with `/glowup pet ghost`. It reacts to the same moments as Clawd, dances while Spotify plays, and wears headphones while Claude works.
 
 ## Speech bubbles
 
@@ -90,7 +94,7 @@ glowup makes one call at a time, at most one per turn, at least 90 seconds apart
 
 ## Choosing a pet
 
-`/glowup pet clawd|robot|off` picks Clawd, the robot, or no pet. `/glowup pet list` shows the pets you can pick: Clawd, the robot, the shiny one once you have earned him, the egg once you have unlocked it, and any pet you have installed. The Pet row in `/glowup config` cycles through the same list, and the Bubbles row changes the bubbles.
+`/glowup pet clawd|robot|ghost|off` picks Clawd, the robot, the ghost, or no pet. `/glowup pet list` shows the pets you can pick: Clawd, the robot, the ghost, the shiny one once you have earned him, the egg once you have unlocked it, and any pet you have installed. The Pet row in `/glowup config` cycles through the same list, and the Bubbles row changes the bubbles.
 
 ## Your own pet
 

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The ghost, a new built-in pet beside Clawd and the robot: `/glowup pet ghost`. It has the full set of reactions, its own dance, and headphones while Claude works.
 - Clawd, the robot and the egg each speak in their own voice, with about six lines per moment.
 - Four new bubble moments: `green` (a passing test run after a failed one), `hello` (when the pane first opens in a session unless another bubble spoke first, and when a turn starts after 30 minutes away), `long-done` (a turn of 5 minutes or more) and `compact`.
 - Lines that join the pool by time of day, on Fridays, and at Christmas, Halloween and your install anniversary.
