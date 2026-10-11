@@ -325,11 +325,11 @@ test('the built-in sheets are clawd and the robot, all playable', () => {
   for (const s of Object.values(BUILTIN_SHEETS)) expect(() => validateSheet(s)).not.toThrow()
 })
 
-test('the robot follows the user-pet rules: the spec animations only, mirrored walks, no outfits', () => {
+test('the robot follows the user-pet rules: the spec animations plus the dances, mirrored walks, only headphones', () => {
   const s = BUILTIN_SHEETS.robot!
   expect([s.w, s.h]).toEqual([32, 16])
-  expect(Object.keys(s.animations).sort()).toEqual([...PET_ANIMS].sort())
-  expect(s.outfits ?? {}).toEqual({})
+  expect(Object.keys(s.animations).sort()).toEqual([...PET_ANIMS, 'dance', 'work-dance'].sort())
+  expect(Object.keys(s.outfits ?? {})).toEqual(['headphones'])
   expect(s.transitions ?? {}).toEqual({})
   for (const f of s.animations.walk!.frames) expect(f.dx).toBe(1)
 })
