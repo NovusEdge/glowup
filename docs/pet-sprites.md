@@ -11,7 +11,7 @@ A pet is one PNG. Every frame sits in a cell 32 pixels wide and 16 tall, each an
 
 [Download the template](assets/pet-template.png) to start from Clawd's frames.
 
-- The sheet is 192 px tall (12 rows of 16 px) and `32 × (your longest row)` px wide. A row can have 32 frames at most.
+- The sheet is 192 px tall (12 rows of 16 px), or 224 px (14 rows) if it also has the two idle variants, and `32 × (your longest row)` px wide. A row can have 32 frames at most.
 - Only `idle` is required. A pet that has no row for an animation plays `idle` instead, except that a missing `fail` plays `alert` and a missing `pant-walk` plays `walk`.
 - A pixel with alpha below 50% is transparent. Fully opaque pixels keep their exact color. The browser can shift the color of a semi-transparent pixel by 1 per channel when it reads the PNG, so soft edges can add near-duplicate colors; export without anti-aliasing. The sheet can have at most 60 colors.
 - Art smaller than a cell is fine. The studio trims every frame to the smallest box that holds them all, and the pane gives the pet one terminal row for every two pixel rows of that box. Clawd is 24 × 12, so he takes six rows; the robot uses the full 32 × 16.
@@ -34,6 +34,10 @@ The rows run top to bottom in this order. The frame time is how long each frame 
 | `pant` | The context window is nearly full | 290 ms | Loops |
 | `pant-walk` | The same, while walking | 140 ms | Loops |
 | `scrunch` | The context is compacted | 150 ms | Once |
+| `idle2` | Now and then instead of `idle`, from level 5 | 400 ms | One loop |
+| `idle3` | The same from level 10, chosen at random with `idle2` | 400 ms | One loop |
+
+The last two rows are optional, and a 12-row sheet stays valid. When the pet settles back to idle, glowup plays `idle2` instead of `idle` about one time in eight once the player is level 5, and from level 10 it picks `idle2` or `idle3` at random. The variant plays one loop and then returns to `idle` at an exit frame, so keep it the same size as `idle` and mark a neutral frame with `exit` in a pet file. A sheet without the row never plays it. The studio and the PNG import take 12 to 14 rows.
 
 See [Pets](pets.md) for what each moment looks like on Clawd.
 
