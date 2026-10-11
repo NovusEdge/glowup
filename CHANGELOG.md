@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-12
+
 ### Added
 
 - `/glowup outfit` lists a pet's level outfits, `/glowup outfit <name>` wears an unlocked one and `/glowup outfit off` takes it off. Clawd, the robot, the ghost and the egg each have three, unlocked at levels 3, 6 and 8, and a level-up wears the newest one. A Santa hat, party hat, nightcap or the dance headphones keep the head while they last.
