@@ -272,7 +272,7 @@ function stateMachine() {
   ];
 
   for (const name of ['idle', 'walk', 'hop', 'alert', 'done', 'sleep', 'working', 'fail',
-                          'juggle', 'pant', 'pant-walk', 'scrunch']) {
+                          'juggle', 'pant', 'pant-walk', 'scrunch', 'idle2', 'idle3']) {
     const b = document.createElement('button');
     b.textContent = name;
     b.onclick = () => { setScript(false); L('event').textContent = 'manual'; m.request(name); };
