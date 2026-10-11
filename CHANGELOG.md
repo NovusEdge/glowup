@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-12
+
 ### Changed
 
 - Pack, theme and pet files now load when they hold a key or value a later 1.x added. glowup skips it and shows a notice that names the key and its path, instead of refusing the file or the layer. This covers unknown keys at every level, unknown values of the pack enums (`rows`, `border`, `meters`, `shimmer`, `field`), unknown theme color roles and glyph keys, and unknown pet animations, moments and flavours. A `format` newer than glowup reads is still refused, and a known key with the wrong type is still an error.
