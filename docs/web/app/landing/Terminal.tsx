@@ -129,6 +129,21 @@ function AgentsView({ s, m }: { s: TermState; m: Marks }) {
   )
 }
 
+function MusicView() {
+  return (
+    <>
+      <div className="phead">NOW PLAYING<span className="tot">Spotify</span></div>
+      <div className="plist">
+        <div className="pf"><span className="n"><b>Midnight City</b></span></div>
+        <div className="pf"><span className="n"><i>M83 · Hurry Up, We're Dreaming</i></span></div>
+        <div className="pf"><span className="g">▶</span><span className="n">1:42</span><span className="s">4:03</span></div>
+      </div>
+      <div className="ctxbar" role="img" aria-label="1:42 of 4:03"><i style={{ transform: 'scaleX(0.42)', background: 'var(--accent)' }} /></div>
+      <div className="pf"><span className="n">[Prev] [Pause] [Next]</span></div>
+    </>
+  )
+}
+
 function PlanView({ s, meter, m }: { s: TermState; meter: Setup['meter']; m: Marks }) {
   const plan = planOf(s)
   return (
@@ -212,7 +227,7 @@ export function Terminal({ setup = DEFAULT_SETUP, interactive = false, scale = 1
                   ))}
                 </div>
               </>
-            ) : active === 'agents' ? <AgentsView s={state} m={marks} /> : active === 'diff' ? <DiffView s={state} /> : <PlanView s={state} meter={setup.meter} m={marks} />}
+            ) : active === 'agents' ? <AgentsView s={state} m={marks} /> : active === 'diff' ? <DiffView s={state} /> : active === 'music' ? <MusicView /> : <PlanView s={state} meter={setup.meter} m={marks} />}
           </div>
           <div className="pcard">
             <span className={`st${state.status.tone === 'work' ? ' wk' : state.status.tone === 'bad' ? ' bad' : ''}`}>{state.status.text}</span>
