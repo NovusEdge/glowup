@@ -2,7 +2,7 @@ import type { Host } from './host.ts'
 import { resolveTheme, PRESETS, COLOR_KEYS, ROLE_LABELS, shown } from './themes.ts'
 import { loadUserThemes, addTheme } from './userthemes.ts'
 import { takeOver, restore } from './statusline.ts'
-import { resolveLook, exportMix, normalizeHex, cleanOverrides, SPINNER_IDS, type Mix } from './packs.ts'
+import { resolveLook, isNotice, exportMix, normalizeHex, cleanOverrides, SPINNER_IDS, type Mix } from './packs.ts'
 import { PACKS } from './packpresets.ts'
 import { decodeLink, isStudioLink } from './link.ts'
 import { loadUserPacks, addPack, savePack, installPackText, SAFE_NAME } from './userpacks.ts'
@@ -144,9 +144,10 @@ async function usePack(host: Host, ctl: Ctl, name: string): Promise<string> {
   const keep = ctl.mix().overrides
   const mix: Mix = { colors: name, motion: name, ...(keep && { overrides: keep }) }
   const { errors } = resolveLook(mix, await loadUserPacks(host), await loadUserThemes(host))
-  if (errors.length) return errors.join('\n')
+  const fatal = errors.filter(e => !isNotice(e))
+  if (fatal.length) return fatal.join('\n')
   await applyMix(host, ctl, mix)
-  return `Pack: ${name}`
+  return [`Pack: ${name}`, ...errors].join('\n')
 }
 
 async function importScheme(host: Host, ctl: Ctl, rawPath: string, force: boolean): Promise<string> {
@@ -174,7 +175,7 @@ async function packFromLink(host: Host, ctl: Ctl, link: string, force: boolean):
     else {
       const keep = ctl.mix().overrides
       await applyMix(host, ctl, { colors: r.name, motion: r.name, ...(keep && { overrides: keep }) })
-      out.push(`Pack: ${r.name}`)
+      out.push(`Pack: ${r.name}`, ...(r.notices ?? []))
     }
   }
   if (parts.setup !== undefined) {
@@ -265,7 +266,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
     if (!r.name) return r.message
     const keep = ctl.mix().overrides
     await applyMix(host, ctl, { colors: r.name, motion: r.name, ...(keep && { overrides: keep }) })
-    return `Pack: ${r.name}`
+    return [`Pack: ${r.name}`, ...(r.notices ?? [])].join('\n')
   }
   if (sub === 'pack' && a1) return usePack(host, ctl, a1)
   if (sub === 'spinner' && a1 === 'list') {

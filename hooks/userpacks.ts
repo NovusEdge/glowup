@@ -1,7 +1,7 @@
 import type { Host } from './host.ts'
 import { parseJsonc, isUnsafe } from './themes.ts'
 import { loadUserThemes } from './userthemes.ts'
-import { resolveLook, validatePack, isNewerSpinner, packNameProblem, type PackFile } from './packs.ts'
+import { resolveLook, validatePack, isNotice, packNameProblem, type PackFile } from './packs.ts'
 
 export const PACK_DIR = (configDir: string) => `${configDir}/glowup/packs`
 export { SAFE_NAME } from './packs.ts'
@@ -29,7 +29,7 @@ async function nameProblem(host: Host, name: string, force: boolean): Promise<st
   return undefined
 }
 
-export async function addPack(host: Host, url: string, force: boolean): Promise<{ name?: string; message: string }> {
+export async function addPack(host: Host, url: string, force: boolean): Promise<{ name?: string; message: string; notices?: string[] }> {
   if (!url.startsWith('https://')) return { message: 'Pack URLs must start with https://' }
   let r: Awaited<ReturnType<Host['fetchText']>>
   try { r = await host.fetchText(url) } catch (err) { return { message: `Could not download the pack: ${msg(err)}` } }
@@ -38,7 +38,7 @@ export async function addPack(host: Host, url: string, force: boolean): Promise<
 }
 
 // The checks every installed pack passes, from a URL or a studio link.
-export async function installPackText(host: Host, text: string, force: boolean): Promise<{ name?: string; message: string }> {
+export async function installPackText(host: Host, text: string, force: boolean): Promise<{ name?: string; message: string; notices?: string[] }> {
   if (text.length > MAX_BYTES) return { message: 'The pack is over 64 KB.' }
   let file: unknown
   try { file = parseJsonc(text); validatePack(file) } catch (err) { return { message: msg(err) } }
@@ -46,11 +46,11 @@ export async function installPackText(host: Host, text: string, force: boolean):
   const problem = await nameProblem(host, name, force)
   if (problem) return { message: problem }
   const check = resolveLook({ colors: name, motion: name }, { ...(await loadUserPacks(host)), [name]: file }, await loadUserThemes(host))
-  // A spinner this build lacks is a warning: the pack was made for a newer glowup and falls back to stock.
-  const fatal = check.errors.filter(e => !isNewerSpinner(e))
+  // A spinner this build lacks, or a key or value only a later 1.x knows, is a warning: the pack loads without it.
+  const fatal = check.errors.filter(e => !isNotice(e))
   if (fatal.length) return { message: fatal[0]! }
   await host.writeFile(`${PACK_DIR(host.configDir)}/${name}.json`, text)
-  return { name, message: `Installed pack "${name}". Apply it with /glowup pack ${name}` }
+  return { name, message: `Installed pack "${name}". Apply it with /glowup pack ${name}`, ...(check.errors.length && { notices: check.errors }) }
 }
 
 export async function savePack(host: Host, file: PackFile, force = false): Promise<string> {

@@ -1,7 +1,7 @@
 // JSX-free: node --test runs it. Every rule the studio applies is the mod's own, through data.ts.
 import {
   COLOR_KEYS, DEFAULT_FIELDS, DEFAULT_SETUP, FIELD_DEFAULTS, FIELD_KNOBS, GLYPH_KEYS, PET_LINK_MAX, STATUS_FIELD_IDS, STUDIO_URL, checkGlyphs,
-  checkHearts, checkWords, decodeLink, encodeLink, exportMix, exportName, isNewerSpinner, normalizeHex, packNameProblem,
+  checkHearts, checkWords, decodeLink, encodeLink, exportMix, exportName, isNotice, normalizeHex, packNameProblem,
   parseSetup, petNameProblem, resolveLook, resolveTheme, validatePack, validatePetFile,
   type ColorsLayer, type Field, type Look, type MotionLayer, type PackFile, type PetAnimName, type PetFile, type Setup, type StatusFieldId,
 } from '../landing/data.ts'
@@ -23,7 +23,7 @@ const KEY = 'studio:draft'
 
 const resolveDraft = (file: PackFile) => {
   const r = resolveLook({ colors: KEY, motion: KEY }, { [KEY]: { ...file, name: KEY } }, {})
-  return { look: r.look, errors: r.errors.filter(e => !isNewerSpinner(e)).map(e => e.replaceAll(KEY, file.name)) }
+  return { look: r.look, errors: r.errors.filter(e => !isNotice(e)).map(e => e.replaceAll(KEY, file.name)) }
 }
 
 export const startDraft = (pack: string): Draft => exportMix(packLook(pack), exportName(pack)) as Draft

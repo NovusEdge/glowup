@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { resolveLook, validatePack, exportMix, exportName, packNameProblem, stockMotion, SPINNER_IDS, FIELD_DEFAULTS, type Mix } from '../hooks/packs.ts'
+import { resolveLook, isNotice, validatePack, exportMix, exportName, packNameProblem, stockMotion, SPINNER_IDS, FIELD_DEFAULTS, type Mix } from '../hooks/packs.ts'
 import { PACKS } from '../hooks/packpresets.ts'
 import { resolveTheme } from '../hooks/themes.ts'
 
@@ -72,7 +72,7 @@ test('mix.overrides sit on top of the pack, a theme override, and the classic fa
 })
 
 test('a bad layer falls back alone, with its reason', async () => {
-  const user = { half: { format: 1, name: 'half', colors: { rows: 'fancy' }, motion: { spinner: 'comet' } } }
+  const user = { half: { format: 1, name: 'half', colors: { rows: 5 }, motion: { spinner: 'comet' } } }
   const r = look(pack('half'), user)
   expect([r.look.rows, r.look.colorsFrom, r.look.motion.spinner]).toEqual(['classic', 'classic', 'comet'])
   expect(r.errors[0]).toContain('rows')
@@ -96,15 +96,13 @@ test('cycles and chains deeper than 8 are refused', async () => {
 test('validation refuses bad values', async () => {
   const bad: [unknown, string][] = [
     [{ format: 1, name: 'x', colors: { palette: { accent: 'red' } } }, '#rrggbb'],
-    [{ format: 1, name: 'x', colors: { palette: { glow: '#ffffff' } } }, 'unknown color'],
-    [{ format: 1, name: 'x', colors: { border: 'dotted' } }, 'border'],
+    [{ format: 1, name: 'x', colors: { border: 5 } }, 'border'],
     [{ format: 1, name: 'x', colors: { gradient: ['#ffffff'] } }, 'gradient'],
     [{ format: 1, name: 'x', colors: { extras: { hp: 'yes' } } }, 'extras'],
     [{ format: 1, name: 'x', colors: { rowFlags: { labels: 'no' } } }, 'rowFlags'],
-    [{ format: 1, name: 'x', colors: { rowFlags: { sparkle: true } } }, 'rowFlags'],
     [{ format: 1, name: 'x', motion: { spinner: 'Disco Ball' } }, 'spinner'],
-    [{ format: 1, name: 'x', motion: { shimmer: 3 } }, 'shimmer'],
-    [{ format: 1, name: 'x', wobble: true }, 'unknown key'],
+    [{ format: 1, name: 'x', motion: { shimmer: '3' } }, 'shimmer'],
+    [{ format: 1, name: 'x', motion: { field: 5 } }, 'motion.field'],
     [{ name: 'x' }, '"format"'],
     [{ format: 2, name: 'x' }, 'newer glowup'],
     ['x', 'JSON object'],
@@ -112,8 +110,61 @@ test('validation refuses bad values', async () => {
   for (const [file, msg] of bad) expect(() => validatePack(file)).toThrow(msg)
 })
 
-test('sound and voice are reserved and ignored', async () => {
-  expect(() => validatePack({ format: 1, name: 'x', sound: { anything: 1 }, voice: 'later' })).not.toThrow()
+test('sound and voice are reserved: objects pass silently, any other value is skipped with a notice', async () => {
+  expect(look(pack('s'), { s: { format: 1, name: 's', sound: { anything: 1 }, voice: { on: true } } }).errors).toEqual([])
+  const r = look(pack('s'), { s: { format: 1, name: 's', sound: 'on', voice: 5 } })
+  expect(r.errors).toEqual(['pack "s": "sound" must be an object; skipped', 'pack "s": "voice" must be an object; skipped'])
+})
+
+test('a key or enum value this build does not know is skipped with one notice naming its path, and the pack loads', async () => {
+  const file = {
+    format: 1, name: 'later', wobble: true,
+    colors: {
+      theme: 'dusk', rows: 'hologram', border: 'bold', sparkle: 1, palette: { accent: '#010203', glow: '#ffffff' },
+      extras: { hp: true, mood: true }, rowFlags: { labels: false, shine: true }, glyphs: { read: '»', orb: 'o' }, pet: { body: '#112233', fur: '#445566' },
+    },
+    motion: { shimmer: 3, color: '#abcdef', swirl: true, field: { shape: 'plasma', speed: 2 } },
+  }
+  const r = look(pack('later'), { later: file })
+  expect(r.errors).toEqual([
+    'pack "later": unknown key "wobble" skipped',
+    'pack "later": unknown key "colors.sparkle" skipped',
+    'pack "later": unknown key "colors.palette.glow" skipped',
+    'pack "later": unknown value "hologram" for colors.rows skipped',
+    'pack "later": unknown key "colors.extras.mood" skipped',
+    'pack "later": unknown key "colors.rowFlags.shine" skipped',
+    'pack "later": unknown key "colors.glyphs.orb" skipped',
+    'pack "later": unknown key "colors.pet.fur" skipped',
+    'pack "later": unknown key "motion.swirl" skipped',
+    'pack "later": unknown value "3" for motion.shimmer skipped',
+    'pack "later": unknown value "plasma" for motion.field.shape skipped',
+  ])
+  expect(r.errors.every(isNotice)).toBe(true)
+  expect(r.look.colorsFrom).toBe('later')
+  expect(r.look.theme.colors.accent).toBe('#010203')
+  expect(r.look.rows).toBe('classic')
+  expect(r.look.border).toBe('bold')
+  expect(r.look.extras).toEqual({ hp: true, combo: false })
+  expect(r.look.theme.glyphs.read).toBe('»')
+  expect(r.look.motion.shimmer).toBe(1)
+  expect(r.look.motion.field.shape).toBe('none')
+  expect(() => validatePack(file)).not.toThrow()
+})
+
+test('a pack read for both colors and motion reports a top-level notice once', async () => {
+  expect(look(pack('w'), { w: { format: 1, name: 'w', wobble: 1 } }).errors).toEqual(['pack "w": unknown key "wobble" skipped'])
+})
+
+test('a colors layer that falls back to classic reports its error, not the notices it collected', async () => {
+  const r = look(pack('broken'), { broken: { format: 1, name: 'broken', colors: { glow: 1, palette: { accent: 'red' } } } })
+  expect(r.errors).toHaveLength(1)
+  expect(r.errors[0]).toContain('#rrggbb')
+})
+
+test('a newer format is still refused outright', async () => {
+  const r = look(pack('later'), { later: { format: 2, name: 'later', colors: { rows: 'hologram' } } })
+  expect(r.errors.some(e => e.includes('made for a newer glowup (format 2)'))).toBe(true)
+  expect(r.errors.some(isNotice)).toBe(false)
 })
 
 test('fuzz: unsafe characters in any shown string are refused', async () => {
@@ -185,7 +236,7 @@ test('a pack can set glyphs, hearts and spinner words over its theme', () => {
 test('pack glyphs, hearts and words are checked like theme files', () => {
   const bad = (colors: object) => () => validatePack({ format: 1, name: 'g', colors })
   expect(bad({ glyphs: { read: 'ab' } })).toThrow('glyph "read" must be one width-1 character')
-  expect(bad({ glyphs: { nope: '»' } })).toThrow('unknown glyph "nope"')
+  expect(bad({ glyphs: { nope: 'ab' } })).not.toThrow()
   expect(bad({ hearts: ['♥'] })).toThrow('colors.hearts must be two width-1 characters')
   expect(bad({ words: ['x'.repeat(25)] })).toThrow('colors.words must be short strings of printable characters')
 })
@@ -211,7 +262,7 @@ test("a pack's pet colors are checked, merge per key, and round-trip through exp
   const bad = (pet: object) => () => validatePack({ format: 1, name: 'p', colors: { pet } })
   expect(bad({ body: 'red' })).toThrow('colors.pet.body must be #rrggbb')
   expect(bad({ shade: '#12' })).toThrow('colors.pet.shade must be #rrggbb')
-  expect(bad({ fur: '#112233' })).toThrow('unknown key "fur" in colors.pet')
+  expect(bad({ fur: '#112233' })).not.toThrow()
   const parent = { format: 1, name: 'p', colors: { theme: 'classic', pet: { body: '#112233', light: '#445566' } } }
   const child = { format: 1, name: 'c', extends: 'p', colors: { pet: { light: '#778899' } } }
   const { look, errors } = resolveLook({ colors: 'c', motion: 'classic' }, { p: parent, c: child }, {})

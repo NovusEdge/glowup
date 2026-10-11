@@ -163,6 +163,18 @@ test('a user theme resolves and switches', async () => {
   expect(calls).toEqual(['mix:classic/classic/mine'])
 })
 
+test('a user pack with a key this build does not know applies, and the notice follows the result', async () => {
+  const { host } = fakeHost({ files: { '/home/u/.claude/glowup/packs/later.json': '{"format":1,"name":"later","motion":{"swirl":1}}' } })
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(host, 'pack later', c)).toBe('Pack: later\npack "later": unknown key "motion.swirl" skipped')
+  expect(calls).toEqual(['mix:later/later'])
+})
+
+test('a user theme with an unknown color role switches and names it', async () => {
+  const { host } = fakeHost({ files: { '/home/u/.claude/glowup/themes/mine.json': '{"name":"mine","colors":{"glow":"#ffffff"}}' } })
+  expect(await runCommand(host, 'theme mine', ctl().ctl)).toBe('Theme: mine\ntheme "mine": unknown key "colors.glow" skipped')
+})
+
 test('unknown theme is refused and nothing changes', async () => {
   const { host, store } = fakeHost()
   const { calls, ctl: c } = ctl()
