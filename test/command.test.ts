@@ -46,12 +46,12 @@ test('/glowup level: level, XP to the next, what is unlocked and what is next', 
   expect(await run()).toBe('Level 1 · 0 XP · 100 to level 2\nUnlocked: nothing yet\nNext: new lines at level 2')
   expect(await run(2310)).toBe([
     'Level 7 · 2,310 XP · 490 to level 8',
-    'Unlocked: new lines (2), a new outfit (3, coming soon), new lines (4), a new move (5, coming soon), a new outfit (6, coming soon), new lines (7)',
-    'Next: a new outfit at level 8 (coming soon)',
+    'Unlocked: new lines (2), a new outfit (3), new lines (4), a new move (5), a new outfit (6), new lines (7)',
+    'Next: a new outfit at level 8',
   ].join('\n'))
   expect((await run(20_000)).split('\n')).toEqual([
     'Level 20 · 20,000 XP · 1,000 to level 21',
-    'Unlocked: new lines (2), a new outfit (3, coming soon), new lines (4), a new move (5, coming soon), a new outfit (6, coming soon), new lines (7), a new outfit (8, coming soon), a new move (10, coming soon)',
+    'Unlocked: new lines (2), a new outfit (3), new lines (4), a new move (5), a new outfit (6), new lines (7), a new outfit (8), a new move (10)',
     'All unlocks earned.',
   ])
 })

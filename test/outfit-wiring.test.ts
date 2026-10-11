@@ -112,5 +112,5 @@ test('a failed outfit write still announces the level-up', async ($, on) => {
   const body = walk(await pane.drawn()).filter((n: any) => typeof n === 'string').join(' ')
   await pane.unmount()
   expect(body).toContain('Lv 3')
-  expect(anyLine(BUILTIN_LINES.clawd, 'level-up').some((l: string) => !l.includes('…') && body.includes(l))).toBe(true)
+  expect(anyLine(BUILTIN_LINES.clawd, 'level-up', { unlock: 'a new outfit' }).some((l: string) => !l.includes('…') && body.includes(l))).toBe(true)
 })

@@ -46,10 +46,12 @@ test('the store record: malformed reads as 0', async () => {
 test('levelUp: none, one level, a jump across two, art not ready', async () => {
   expect(levelUp(50, 99)).toBeUndefined()
   expect(levelUp(95, 100)).toEqual({ level: 2, unlock: 'new lines' })
-  // 290 -> 1,000: level 2 -> 5 crosses 3 (outfit), 4 (lines), 5 (idle); only lines ship in PR A
-  expect(levelUp(290, 1000)).toEqual({ level: 5, unlock: 'new lines' })
-  // 300 -> 310 stays level 3; 250 -> 300 reaches 3, whose only unlock is an outfit
-  expect(levelUp(250, 300)).toEqual({ level: 3, unlock: undefined })
+  // 290 -> 1,000: level 2 -> 5 crosses 3 (outfit), 4 (lines), 5 (idle); the newest unlock names it
+  expect(levelUp(290, 1000)).toEqual({ level: 5, unlock: 'a new move' })
+  expect(levelUp(290, 1000, false)).toEqual({ level: 5, unlock: 'new lines' })
+  // 250 -> 300 reaches 3, whose only unlock is an outfit
+  expect(levelUp(250, 300)).toEqual({ level: 3, unlock: 'a new outfit' })
+  expect(levelUp(250, 300, false)).toEqual({ level: 3, unlock: undefined })
   expect(levelUp(4500, 6000)).toEqual({ level: 11, unlock: undefined })
   expect(levelOf(-5)).toEqual({ level: 1, into: 0, need: 100 })
   expect(groupDigits(2310)).toBe('2,310')

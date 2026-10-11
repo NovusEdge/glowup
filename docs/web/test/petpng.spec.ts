@@ -25,7 +25,8 @@ test('the template PNG decodes back to Clawd, frame for frame', () => {
   const img = decodePng(readFileSync(new URL('../../assets/pet-template.png', import.meta.url)))
   // one row for each animation Clawd has: 12, or 14 with his idle variants
   const have = PET_ANIMS.filter(n => CLAWD_SHEET.animations[n])
-  assert.deepEqual([img.width, img.height], [448, 16 * (PET_ANIMS.findLastIndex(n => CLAWD_SHEET.animations[n]) + 1)])
+  const widest = Math.max(...have.map(n => CLAWD_SHEET.animations[n]!.frames.length))
+  assert.deepEqual([img.width, img.height], [32 * widest, 16 *(PET_ANIMS.findLastIndex(n => CLAWD_SHEET.animations[n]) + 1)])
   const r = petFromPixels(img, 'clawd-copy')
   assert.ok('file' in r, 'error' in r ? r.error : '')
   const used = have.flatMap(n => CLAWD_SHEET.animations[n]!.frames.map(f => f.px))

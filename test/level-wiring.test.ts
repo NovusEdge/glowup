@@ -103,7 +103,7 @@ test('a green run after a red one earns 15 even with the green mood off', async 
   expect(xpOf(store)).toBe(15)
 })
 
-const LEVEL_SAY = anyLine(BUILTIN_LINES.clawd, 'level-up')
+const LEVEL_SAY_OUTFIT = anyLine(BUILTIN_LINES.clawd, 'level-up', { unlock: 'a new outfit' }).filter(l => !l.includes('…'))
 const DONE_SAY = anyLine(BUILTIN_LINES.clawd, 'done')
 
 test('crossing into a lines level shows a level-up bubble that names the unlock, in place of done', async ($, on) => {
@@ -128,14 +128,14 @@ test('a level crossed on an aborted turn is still announced', async ($, on) => {
   expect(await paneText($)).toContain('new lines')
 })
 
-test('crossing into an outfit level with no art ready shows a level-up line with no unlock name', async ($, on) => {
+test('crossing into an outfit level shows a level-up line that names the outfit', async ($, on) => {
   const store: Record<string, unknown> = { level: { format: 1, xp: 295 } }
   const clock = base(on, store)
   await $.turn.start({ text: 'hi', turnId: 't1' })
   await answer($, clock, 't1')
   const body = await paneText($)
   expect(body).toContain('Lv 3')
-  expect(LEVEL_SAY.some(l => !l.includes('…') && body.includes(l))).toBe(true)
+  expect(LEVEL_SAY_OUTFIT.some(l => body.includes(l))).toBe(true)
   expect(DONE_SAY.some(l => body.includes(l))).toBe(false)
 })
 
