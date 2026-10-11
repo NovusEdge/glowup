@@ -47,11 +47,40 @@ export const unlocksBetween = (fromLevel: number, toLevel: number) =>
 
 export const ART_READY = false
 
-export const levelUp = (beforeXp: number, afterXp: number): { level: number; unlock?: string } | undefined => {
+// In unlock order, matching the outfit rows of UNLOCKS. Custom pets have none.
+export const LEVEL_OUTFITS: Readonly<Record<string, readonly string[]>> = {
+  clawd: ['cap', 'wizard', 'crown'],
+  'clawd-shiny': ['cap', 'wizard', 'crown'],
+  robot: ['propeller', 'tophat', 'crown'],
+  ghost: ['bow', 'witch', 'crown'],
+  egg: ['bow', 'sprout', 'crown'],
+}
+export const OUTFIT_LEVELS = UNLOCKS.filter(u => u.kind === 'outfit').map(u => u.level)
+
+export const outfitsOf = (pet: string): readonly string[] => (Object.hasOwn(LEVEL_OUTFITS, pet) ? LEVEL_OUTFITS[pet]! : [])
+export const unlockedOutfits = (pet: string, level: number) => outfitsOf(pet).filter((_, i) => level >= OUTFIT_LEVELS[i]!)
+
+// choice is the stored name, or 'off'. One that this pet cannot wear yet falls back to its newest outfit.
+export const resolveOutfit = (pet: string, level: number, choice: string | undefined): string | undefined => {
+  const open = unlockedOutfits(pet, level)
+  if (choice === 'off') return undefined
+  return choice !== undefined && open.includes(choice) ? choice : open.at(-1)
+}
+
+export const outfitUnlocked = (fromLevel: number, toLevel: number) => unlocksBetween(fromLevel, toLevel).some(u => u.kind === 'outfit')
+
+export const parseOutfitStore = (v: unknown): string | undefined => {
+  const r = v as { format?: unknown; name?: unknown } | null
+  return r?.format === 1 && typeof r.name === 'string' && r.name ? r.name : undefined
+}
+
+export const outfitStore = (name: string) => ({ format: 1 as const, name })
+
+export const levelUp = (beforeXp: number, afterXp: number, artReady = ART_READY): { level: number; unlock?: string } | undefined => {
   const from = levelOf(beforeXp).level
   const to = levelOf(afterXp).level
   if (to <= from) return undefined
-  const shipped = unlocksBetween(from, to).filter(u => u.kind === 'lines' || ART_READY)
+  const shipped = unlocksBetween(from, to).filter(u => u.kind === 'lines' || artReady)
   return { level: to, unlock: shipped.at(-1)?.label }
 }
 
