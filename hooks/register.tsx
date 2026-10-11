@@ -799,10 +799,11 @@ function schedulePlan($: Engine) {
 }
 
 // A new session id means a new conversation: nothing from the old one carries over.
-async function adoptSession($: Engine, endedId: string) {
+// cleared: a /clear, which empties the context like a compaction does, so the pet scrunches for it too.
+async function adoptSession($: Engine, endedId: string, cleared = false) {
   const id = await $.session.id()
   const { limits, xp, music } = model
-  model = { ...initialModel(), limits, xp, music }
+  model = { ...initialModel(), limits, xp, music, ...(cleared && { compactAt: Date.now() }) }
   turnGain = { green: 0, commits: 0 }
   pendingLevelUp = undefined
   view = { tab: setup.tabs[0]! }
@@ -1212,7 +1213,7 @@ export const register: Register = (on, options) => {
   on('session.end', async ($, e, next) => {
     if (guardSid) await unregisterCopy(hostOf($), guardSid, guardRoot)
     if (off) return next(e)
-    if (e.reason === 'clear' || e.reason === 'resume') await adoptSession($, e.sessionId)
+    if (e.reason === 'clear' || e.reason === 'resume') await adoptSession($, e.sessionId, e.reason === 'clear')
     return next(e)
   })
 

@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The pet scrunches after `/clear` as it does after a compaction.
 - The default `bubbles.moods` includes all eight moments. A saved list that holds every moment its version knew, including the old default `needs-you,fail,done`, now counts as all moments, so new ones reach you. Any other list is kept.
 - The default `tabs` setting gains `music`. A setup saved before this release that still holds the old default, `plan,agents,diff,changes`, gets it; typing those four tabs yourself keeps four.
 - Haiku bubble lines speak in each pet's own voice instead of always as Clawd.
