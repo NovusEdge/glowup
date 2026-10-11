@@ -1,6 +1,8 @@
 import { test, expect } from 'claude-code/testing'
 import PetClient, { clock } from '../hooks/client/pet.tsx'
-import { PET_ROWS, PET_COLS, CLAWD_ROW, CLAWD_SHEET, newPlayer, stepPlayer, playerFrame, mirrored, petPose, BUILTIN_SHEETS, CRITTER_ROW, mainColor, type PetSheet } from '../hooks/pets.ts'
+import { PET_ROWS, PET_COLS, CLAWD_ROW, CLAWD_SHEET, EXIT_WAIT_MS, newPlayer, stepPlayer, playerFrame, mirrored, petPose, petPalette, composeFrame, frameAt, halfBlock, BUILTIN_SHEETS, CRITTER_ROW, mainColor, type PetInput, type PetSheet } from '../hooks/pets.ts'
+import { renderSegs } from '../hooks/layout.tsx'
+import { SPEAKER_SHEET } from '../hooks/sprites/speaker.ts'
 
 function fakeSurface(columns = 0) {
   const timers: { ms: number; fn: () => void; cancelled: boolean }[] = []
@@ -505,6 +507,57 @@ test('a user pet keeps its frame when the pane redraws with a cloned copy of the
   const drawn = JSON.stringify(atTime(t0 + 460, () => PetClient(structuredClone(props), s)))
   expect(drawn).toContain('#222222')
   expect(drawn).not.toContain('#111111')
+})
+
+test('work-dance wears headphones; dance shows the speaker to his right; neither otherwise', () => {
+  const t0 = 1_000_000
+  const draw = (input: PetInput, at = t0 + 1000) => {
+    const { s, timers } = fakeSurface()
+    atTime(t0, () => PetClient({ ...base, input }, s))
+    // the draw reads the time the tick last stored
+    for (let t = t0; t <= at; t += 83) atTime(t, timers[0]!.fn)
+    const tree = atTime(at, () => PetClient({ ...base, input }, s)) as any
+    return { s, tree, json: JSON.stringify(tree), rows: tree.children.map(rowText) as string[] }
+  }
+
+  const working = draw({ working: true, kind: 'edit', needsYou: false, music: true }, t0 + EXIT_WAIT_MS + 700)
+  expect(working.s.state.player.seg.pose).toBe('work-dance')
+  const px = composeFrame(CLAWD_SHEET, playerFrame(working.s.state.player, working.s.state.now), ['headphones'], false)
+  const els = { Box: 'Box', Text: 'Text' }
+  const expected = halfBlock(px, petPalette(CLAWD_SHEET, 'clawd', undefined)).map((r, i) => renderSegs(els, r, 'p' + i))
+  expect(working.tree.children).toHaveLength(expected.length)
+  expect(JSON.stringify(working.tree.children)).toBe(JSON.stringify(expected))
+  expect(Math.max(...working.rows.map(r => [...r].length))).toBe(CLAWD_SHEET.w)
+
+  const dancing = draw({ working: false, needsYou: false, music: true })
+  expect(dancing.s.state.player.seg.pose).toBe('dance')
+  const plain = draw({ working: false, needsYou: false })
+  expect(plain.s.state.player.seg.pose).not.toBe('dance')
+  const rows = dancing.rows.length
+  const spkRows = SPEAKER_SHEET.h / 2
+  // the speaker is bottom-aligned, so only the rows it reaches are wider
+  for (const r of dancing.rows.slice(rows - spkRows)) expect([...r].length).toBe(CLAWD_SHEET.w + 1 + SPEAKER_SHEET.w)
+  const pulse = SPEAKER_SHEET.animations.pulse!
+  const spk = halfBlock(pulse.frames[frameAt(pulse, dancing.s.state.now)]!.px, SPEAKER_SHEET.palette).map(r => r.map(c => c.text).join(''))
+  spk.forEach((row, i) => expect(dancing.rows[rows - spkRows + i]!.endsWith(row)).toBe(true))
+  expect(Math.max(...plain.rows.map(r => [...r].length))).toBe(CLAWD_SHEET.w)
+})
+
+test('reduced motion: still headphones or a still speaker', () => {
+  const props = { ...base, reduced: true, input: { working: false, needsYou: false, music: true } }
+  const at = (t: number) => JSON.stringify(atTime(t, () => PetClient(props, fakeSurface().s)))
+  const rows = (t: number) => (atTime(t, () => PetClient(props, fakeSurface().s)) as any).children.map(rowText) as string[]
+  expect(Math.max(...rows(1_000_000).map(r => [...r].length))).toBe(CLAWD_SHEET.w + 1 + SPEAKER_SHEET.w)
+  expect(at(1_000_500)).toBe(at(1_000_000))
+})
+
+test('a dancing pet keeps room for the speaker at the right edge', () => {
+  const { s, timers } = fakeSurface(40)
+  const props = { ...base, width: 40, input: { working: false, needsYou: false, music: true } }
+  const t0 = 1_000_000
+  atTime(t0, () => PetClient(props, s))
+  for (let i = 1; i <= 100; i++) atTime(t0 + i * 83, () => timers[0]!.fn())
+  for (const row of (atTime(t0 + 9000, () => PetClient(props, s)) as any).children) expect([...rowText(row)].length).toBeLessThanOrEqual(40)
 })
 
 test('a pet wider than the strip is cut at its right edge, not squeezed', () => {
