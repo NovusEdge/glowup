@@ -90,7 +90,6 @@ test('effort is in the default fields, after ctx', () => {
   expect(DEFAULT_FIELDS).toEqual(['activity', 'ctx', 'effort', '5h', 'week'])
 })
 
-<<<<<<< HEAD
 test('level: hidden until xp is read, then Lv N and five cells', () => {
   const lv = (xp?: number) => plain({ ...initialModel(), xp }, ['level'])
   expect(FIELD_IDS).toContain('level')
@@ -109,5 +108,4 @@ test('music field shows the playing track only', () => {
   expect(plain(m({ status: 'open', playing: false, ad: false, progressMs: 0, readAt: 0, track }), ['music'])).toBe('')
   expect(plain(m({ status: 'open', playing: true, ad: true, progressMs: 0, readAt: 0, track }), ['music'])).toBe('')
   expect(plain(m({ status: 'closed' }), ['music'])).toBe('')
->>>>>>> c501d1b (feat(music): music on the model, a music tab id and status field)
 })

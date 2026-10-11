@@ -315,7 +315,6 @@ test('the effort event sets the level and an empty one clears it', () => {
   expect(applyEvent(a, { type: 'effort', effort: undefined }).effort).toBeUndefined()
 })
 
-<<<<<<< HEAD
 test('the level event sets xp, and a model without a valid xp normalizes to undefined', () => {
   expect(initialModel().xp).toBeUndefined()
   expect(applyEvent(initialModel(), { type: 'level', xp: 2310 }).xp).toBe(2310)
@@ -332,5 +331,4 @@ test('a music event lands on the model; junk music from old state is dropped', (
   expect(normalizeModel({ ...initialModel(), music: { status: 'nope' } }).music).toBeUndefined()
   expect(normalizeModel({ ...initialModel(), music: 'x' }).music).toBeUndefined()
   expect(normalizeModel({ ...initialModel(), music: { status: 'closed' } }).music).toEqual({ status: 'closed' })
->>>>>>> c501d1b (feat(music): music on the model, a music tab id and status field)
 })

@@ -6,7 +6,7 @@ test('no stored setup is the default with no notices', () => {
 })
 
 test('a full valid setup round-trips', () => {
-  const s: Setup = { format: 3, band: ['plan', 'meter'], tabs: ['plan', 'changes'], meter: { warn: 40, danger: 90 }, bubbles: { moods: ['done'], ms: 5000 }, pet: { sleepMs: 120000 } }
+  const s: Setup = { format: 4, band: ['plan', 'meter'], tabs: ['plan', 'changes'], meter: { warn: 40, danger: 90 }, bubbles: { moods: ['done'], ms: 5000 }, pet: { sleepMs: 120000 } }
   expect(parseSetup(JSON.parse(JSON.stringify(s)))).toEqual({ setup: s, notices: [] })
 })
 
