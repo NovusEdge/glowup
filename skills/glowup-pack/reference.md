@@ -2,7 +2,7 @@
 
 Every field glowup's loaders accept. A test checks this file against the code, so a field missing here or listed here and not accepted fails CI.
 
-A pack is a JSON file at `~/.claude/glowup/packs/<name>.json` (`$CLAUDE_CONFIG_DIR/glowup/packs/` when that variable is set). The file name is the pack name. `//` and `/* */` comments are allowed, trailing commas are not. At most 64 KB. Colors are `#rrggbb` only: no `#fff`, no names. Unknown keys are refused, except `sound` and `voice` at the top level.
+A pack is a JSON file at `~/.claude/glowup/packs/<name>.json` (`$CLAUDE_CONFIG_DIR/glowup/packs/` when that variable is set). The file name is the pack name. `//` and `/* */` comments are allowed, trailing commas are not. At most 64 KB. Colors are `#rrggbb` only: no `#fff`, no names. Unknown keys and unknown values of the lists below are skipped with a notice. `sound` and `voice` at the top level must be objects.
 
 ## Pack file
 

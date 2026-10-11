@@ -5,7 +5,7 @@ description: Use when the user asks for a new glowup pack, theme or look, wants 
 
 # Make a glowup pack
 
-A pack is one JSON file that sets a whole look: palette, transcript row style, spinner and shimmer. Every field and allowed value is in [reference.md](reference.md). Use only what it lists. glowup refuses unknown keys and bad values.
+A pack is one JSON file that sets a whole look: palette, transcript row style, spinner and shimmer. Every field and allowed value is in [reference.md](reference.md). Use only what it lists. glowup skips unknown keys and values with a notice and refuses bad values.
 
 ## Steps
 

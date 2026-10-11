@@ -38,8 +38,8 @@ Packs are read from `~/.claude/glowup/packs`, or `$CLAUDE_CONFIG_DIR/glowup/pack
     "color": "#38e8ff",             // defaults to the palette's accent
     "field": { "shape": "simplex", "speed": 0.3, "scale": 0.36, "dither": "4x4" }
   },
-  "sound": {},                      // reserved for a later release
-  "voice": {}                       // reserved for a later release
+  "sound": {},                      // reserved for a later release; an object or nothing
+  "voice": {}                       // reserved for a later release; an object or nothing
 }
 ```
 
@@ -48,13 +48,18 @@ Every field except `format` and `name` is optional. `palette` takes the color ro
 ## Checks and limits
 
 - The file is at most 64 KB.
-- `format` must be `1`. A higher number is refused with `made for a newer glowup`.
+- `format` must be `1`. A higher number is the one hard refusal for a file's shape: the pack is rejected with `made for a newer glowup`.
 - Colors are `#rrggbb`.
 - Names and the description must be printable, with no control, zero-width or bidirectional characters. A description is at most 80 characters.
-- Unknown keys are refused, except `sound` and `voice` at the top level.
+- `sound` and `voice` must be objects. Any other value is ignored with a notice.
 - `extends` and layer references together go at most 8 deep. A loop or a ninth level is refused, with the chain named in the message.
-- An unknown spinner id falls back to `stock` with a notice, so a pack made for a later glowup still loads.
-- Any other bad value refuses the layer it is in, and that layer falls back to `classic`.
+- Any other bad value for a key glowup knows refuses the layer it is in, and that layer falls back to `classic`.
+
+### Keys and values from a later release
+
+A pack made for a later 1.x may use a key or a value this release does not know. glowup skips it, tells you in a notice that names the key and its path, such as `unknown key "colors.sparkle" skipped` or `unknown value "hologram" for colors.rows skipped`, and loads the rest. This holds at every level of the file: unknown keys anywhere, unknown values of `rows`, `border`, `meters`, `shimmer`, `field`, `field.shape` and `field.dither`, and unknown palette colors, glyph keys and `pet` colors. An unknown spinner id falls back to `stock` in the same way.
+
+A key it knows with the wrong type is still an error, so a typo in a known value is caught.
 
 `/glowup pack <url>` accepts `https://` only, waits up to 10 seconds, and validates the whole file and its `extends` chain before writing. It refuses a built-in name, or the name of an installed pack unless `--force` is given.
 
