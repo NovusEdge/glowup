@@ -9,7 +9,6 @@ import { EGG3_SHEET } from './sprites/egg3.ts'
 import { crackStage, type EggStore } from './eggs.ts'
 import type { PetLines } from './lines.ts'
 import { LEVEL_OUTFITS } from './levels.ts'
-import { IDLE_VARIANTS } from './petfile.ts'
 
 export { CLAWD_SHEET }
 export const CLAWD_COLOR = '#d77757'
@@ -49,6 +48,8 @@ export type PetSheet = {
   voice?: string
 }
 
+// Rows 13 and 14 of a sheet; optional.
+export const IDLE_VARIANTS = ['idle2', 'idle3']
 export const PET_COLS = 24
 export const PET_ROWS = 6
 // hats rise up to 4 px above the canvas
@@ -225,7 +226,7 @@ type Named = { name: string; clip: PetClip }
 //    which cuts in;
 //  - then a clip any animation may enter `to` with ("*" -> sleep "lie-down", "*" -> alert "startle").
 function clipsFor(sheet: PetSheet, fromName: string, to: string): Named[] {
-  const from = IDLE_VARIANTS.includes(fromName as never) ? 'idle' : fromName
+  const from = IDLE_VARIANTS.includes(fromName) ? 'idle' : fromName
   const all = Object.entries(sheet.transitions ?? {}).map(([name, clip]) => ({ name, clip }))
   const pair = all.find(c => c.clip.from === from && c.clip.to === to)
   if (pair) return [pair]
@@ -321,7 +322,7 @@ export function stepPlayer(p: Player, sheet: PetSheet, pose: string, now: number
     if (s.pose === pose) {
       p.pending = undefined
       // a variant plays one loop and hands back to idle at an exit frame
-      if (IDLE_VARIANTS.includes(s.name as never)) {
+      if (IDLE_VARIANTS.includes(s.name)) {
         const over = s.start + clipMs(s.anim), at = exitAt(s, over)
         if (now >= at) { travel(p, s, at, maxX, sheet); p.seg = segOf(sheet, 'idle', at, p.dir); continue }
       }

@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `/glowup outfit` lists a pet's level outfits, `/glowup outfit <name>` wears an unlocked one and `/glowup outfit off` takes it off. Clawd, the robot, the ghost and the egg each have three, unlocked at levels 3, 6 and 8, and a level-up wears the newest one. A Santa hat, party hat, nightcap or the dance headphones keep the head while they last.
-- Idle variants. A pet sheet may carry `idle2` and `idle3` as rows 13 and 14; from level 5 the pet plays `idle2` in place of `idle` about one time in eight when it settles, and from level 10 either variant. 12-row sheets stay valid, and the studio and PNG import take 12 to 14 rows.
+- Idle variants. A pet sheet may carry `idle2` and `idle3` as rows 13 and 14; from level 5 the pet plays `idle2` in place of `idle` about one time in eight when it settles, and from level 10 either variant. 12-row sheets stay valid, and the studio and PNG import take 1 to 14 rows, with only `idle` required.
 
 ## [0.13.0] - 2026-10-11
 

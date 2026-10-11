@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { validatePetFile, petSheet, petNameProblem, PET_ANIMS, IDLE_VARIANTS, ANIM_MS, ONCE, BUILTIN_PET_NAMES, builtinPets, type PetFile } from '../hooks/petfile.ts'
+import { validatePetFile, petSheet, petNameProblem, PET_ANIMS, ANIM_MS, ONCE, BUILTIN_PET_NAMES, builtinPets, type PetFile } from '../hooks/petfile.ts'
 import { validateSheet, BUILTIN_SHEETS } from '../hooks/pets.ts'
 
 const row = (s: string) => s.padEnd(24, '.')
@@ -25,7 +25,6 @@ test('hop, fail and scrunch play once; the rest loop', () => {
 
 test('idle2 and idle3 are optional loops; the sheet has 12 rows, or 14 with them', () => {
   expect(PET_ANIMS.slice(-2)).toEqual(['idle2', 'idle3'])
-  expect([...IDLE_VARIANTS]).toEqual(['idle2', 'idle3'])
   const f = pet({ animations: { idle: [frame()], idle2: [frame('B'), frame('A')] } })
   f.palette.B = '#445566'
   validatePetFile(f)

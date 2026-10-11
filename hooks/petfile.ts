@@ -9,7 +9,6 @@ import { BUBBLE_MAX } from './bubbles.ts'
 // A sheet has 12 rows, or 14 with the idle variants as the last two.
 export const PET_ANIMS = ['idle', 'walk', 'working', 'hop', 'alert', 'done', 'sleep', 'fail', 'juggle', 'pant', 'pant-walk', 'scrunch', 'idle2', 'idle3'] as const
 export type PetAnimName = (typeof PET_ANIMS)[number]
-export const IDLE_VARIANTS: readonly PetAnimName[] = ['idle2', 'idle3']
 // The largest frame, and the cell size of a PNG sheet. Clawd is 24 × 12; the robot uses it all.
 export const FRAME_W = 32, FRAME_H = 16
 export const MAX_COLORS = 60, MAX_FRAMES = 32

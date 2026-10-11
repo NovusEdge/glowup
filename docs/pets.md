@@ -172,4 +172,4 @@ Clawd, the robot, the ghost and the egg also earn three outfits each, at levels 
 
 The newest outfit is worn as soon as a level-up unlocks it. `/glowup outfit` lists the ones you have, `/glowup outfit <name>` wears another and `/glowup outfit off` takes it off. The choice is kept across sessions. If you switch to a pet that does not have the outfit you chose, it wears its own newest one, unless you chose `off`. Pets you add yourself have no level outfits.
 
-Only one hat shows at a time. A Santa hat, party hat or nightcap takes the head from the level outfit while its date or hour lasts, and so do the headphones while the pet dances to Spotify. The pumpkin and the sweat show beside the level outfit.
+A Santa hat, party hat or nightcap takes the head from the level outfit while its date or hour lasts, and so do the headphones while Claude works with Spotify playing. (On a December night the Santa hat and nightcap can both show.) The pumpkin and the sweat show beside the level outfit.

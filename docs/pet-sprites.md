@@ -37,7 +37,7 @@ The rows run top to bottom in this order. The frame time is how long each frame 
 | `idle2` | Now and then instead of `idle`, from level 5 | 400 ms | One loop |
 | `idle3` | The same from level 10, chosen at random with `idle2` | 400 ms | One loop |
 
-The last two rows are optional, and a 12-row sheet stays valid. When the pet settles back to idle, glowup plays `idle2` instead of `idle` about one time in eight once the player is level 5, and from level 10 it picks `idle2` or `idle3` at random. The variant plays one loop and then returns to `idle` at an exit frame, so keep it the same size as `idle` and mark a neutral frame with `exit` in a pet file. A sheet without the row never plays it. The studio and the PNG import take 12 to 14 rows.
+The last two rows are optional, and a 12-row sheet stays valid. When the pet settles back to idle, glowup plays `idle2` instead of `idle` about one time in eight once the player is level 5, and from level 10 it picks `idle2` or `idle3` at random. The variant plays one loop and then returns to `idle` at an exit frame, so keep it the same size as `idle` and mark a neutral frame with `exit` in a pet file. A sheet without the row never plays it. The studio and the PNG import take 1 to 14 rows; only `idle`, the first, is required.
 
 See [Pets](pets.md) for what each moment looks like on Clawd.
 

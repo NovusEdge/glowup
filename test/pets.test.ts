@@ -1,6 +1,6 @@
 import { test, expect } from 'claude-code/testing'
-import { petPose, halfBlock, frameAt, shiny, petPalette, composeFrame, validateSheet, animFor, newPlayer, stepPlayer, playerFrame, mirrored, type PetSheet, CLAWD_SHEET, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, PET_COLS, PET_ROWS, OUTFIT_PAD, BUILTIN_SHEETS, isClawd, mainColor, stripRows, CRITTER_ROW, idleVariant, withLevelOutfit, HEAD_OUTFITS } from '../hooks/pets.ts'
-import { PET_ANIMS, IDLE_VARIANTS, BUILTIN_PET_NAMES } from '../hooks/petfile.ts'
+import { petPose, halfBlock, frameAt, shiny, petPalette, composeFrame, validateSheet, animFor, newPlayer, stepPlayer, playerFrame, mirrored, type PetSheet, CLAWD_SHEET, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, PET_COLS, PET_ROWS, OUTFIT_PAD, BUILTIN_SHEETS, isClawd, mainColor, stripRows, CRITTER_ROW, idleVariant, withLevelOutfit, HEAD_OUTFITS, IDLE_VARIANTS } from '../hooks/pets.ts'
+import { PET_ANIMS, BUILTIN_PET_NAMES } from '../hooks/petfile.ts'
 import { cellWidth } from '../hooks/cells.ts'
 
 const width = (s: string) => [...s].reduce((n, c) => n + cellWidth(c.codePointAt(0)!), 0)
@@ -323,7 +323,7 @@ test('a juggle right after the egg unlock, then back to idle', () => {
 test('the ghost follows the user-pet rules: the spec animations plus the dances, walks facing right, headphones and lie-down', () => {
   const s = BUILTIN_SHEETS.ghost!
   expect([s.w, s.h]).toEqual([24, 12])
-  expect(Object.keys(s.animations).filter(n => !IDLE_VARIANTS.includes(n as never)).sort()).toEqual([...PET_ANIMS.filter(n => !IDLE_VARIANTS.includes(n)), 'dance', 'work-dance'].sort())
+  expect(Object.keys(s.animations).filter(n => !IDLE_VARIANTS.includes(n)).sort()).toEqual([...PET_ANIMS.filter(n => !IDLE_VARIANTS.includes(n)), 'dance', 'work-dance'].sort())
   expect(Object.keys(s.outfits ?? {})).toEqual(['headphones'])
   expect(Object.keys(s.transitions ?? {})).toEqual(['lie-down'])
   for (const f of s.animations.walk!.frames) expect(f.dx).toBe(1)
@@ -340,7 +340,7 @@ test('the built-in sheets are clawd, the robot and the ghost, all playable', () 
 test('the robot follows the user-pet rules: the spec animations plus the dances, mirrored walks, only headphones', () => {
   const s = BUILTIN_SHEETS.robot!
   expect([s.w, s.h]).toEqual([32, 16])
-  expect(Object.keys(s.animations).filter(n => !IDLE_VARIANTS.includes(n as never)).sort()).toEqual([...PET_ANIMS.filter(n => !IDLE_VARIANTS.includes(n)), 'dance', 'work-dance'].sort())
+  expect(Object.keys(s.animations).filter(n => !IDLE_VARIANTS.includes(n)).sort()).toEqual([...PET_ANIMS.filter(n => !IDLE_VARIANTS.includes(n)), 'dance', 'work-dance'].sort())
   expect(Object.keys(s.outfits ?? {})).toEqual(['headphones'])
   expect(s.transitions ?? {}).toEqual({})
   for (const f of s.animations.walk!.frames) expect(f.dx).toBe(1)
@@ -472,4 +472,28 @@ test('every level outfit reserves the hat headroom in the strip', () => {
   const s: PetSheet = { w: 1, h: 4, palette: { a: '#111111' }, animations: {}, outfits: { cap: o } }
   expect(stripRows(s, [])).toBe(2)
   expect(stripRows(s, ['cap'])).toBe(4)
+})
+
+test('a variant with no exit frames hands back to idle when its loop ends', () => {
+  const s = variantSheet()
+  s.animations.idle2 = { loop: true, frames: [f('a'), f('b'), f('c')] }
+  const p = newPlayer(), dice = { level: 5, rand: () => 0 }
+  toIdle(p, s, dice)
+  const start = p.seg!.start
+  stepPlayer(p, s, 'idle', start + 290, 50, dice)
+  expect(p.seg!.name).toBe('idle2')
+  stepPlayer(p, s, 'idle', start + 300, 50, dice)
+  expect(p.seg!.name).toBe('idle')
+})
+
+test('an alert cuts into a variant mid-loop', () => {
+  const s = variantSheet()
+  s.animations.alert = { loop: true, frames: [f('!')] }
+  s.transitions = { startle: { from: '*', to: 'alert', frames: [f('s')] } }
+  const p = newPlayer(), dice = { level: 5, rand: () => 0 }
+  toIdle(p, s, dice)
+  stepPlayer(p, s, 'alert', p.seg!.start + 150, 50, dice)
+  expect(p.seg!.name).toBe('startle')
+  stepPlayer(p, s, 'alert', p.seg!.start + 150, 50, dice)
+  expect(p.seg!.pose).toBe('alert')
 })

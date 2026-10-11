@@ -25,7 +25,7 @@ test('the template PNG decodes back to Clawd, frame for frame', () => {
   const img = decodePng(readFileSync(new URL('../../assets/pet-template.png', import.meta.url)))
   // one row for each animation Clawd has: 12, or 14 with his idle variants
   const have = PET_ANIMS.filter(n => CLAWD_SHEET.animations[n])
-  assert.deepEqual([img.width, img.height], [448, 16 * have.length])
+  assert.deepEqual([img.width, img.height], [448, 16 * (PET_ANIMS.findLastIndex(n => CLAWD_SHEET.animations[n]) + 1)])
   const r = petFromPixels(img, 'clawd-copy')
   assert.ok('file' in r, 'error' in r ? r.error : '')
   const used = have.flatMap(n => CLAWD_SHEET.animations[n]!.frames.map(f => f.px))
@@ -106,6 +106,15 @@ test('rows 13 and 14 are the idle variants; a 12-row sheet has neither', () => {
   const t = petFromPixels(twelve.img)
   assert.ok('file' in t)
   assert.equal(t.file.animations.idle2, undefined)
+})
+
+test('a blank row in the middle stays blank: idle3 never lands in the idle2 row', () => {
+  const { img, paint } = sheet(1, 14)
+  for (const r of [0, 12 + 1]) paint(0, r * 16, [r + 1, 0, 0, 255])
+  const r = petFromPixels(img)
+  assert.ok('file' in r, 'error' in r ? r.error : '')
+  assert.equal(r.file.animations.idle2, undefined)
+  assert.equal(r.file.animations.idle3!.length, 1)
 })
 
 test('the 60-color cap counts only opaque colors', () => {

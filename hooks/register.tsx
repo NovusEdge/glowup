@@ -1182,10 +1182,20 @@ export const register: Register = (on, options) => {
       const before = parseLevelStore(await host.storeGet('level'))
       const after = before + turnXp({ answered: e.reason === 'answer', combo: model.combo, ...turnGain })
       await host.storeSet('level', levelStore(after))
-      const worn = outfitUnlocked(levelOf(before).level, levelOf(after).level) ? unlockedOutfits(pet, levelOf(after).level).at(-1) : undefined
-      if (worn) { await host.storeSet('outfit', outfitStore(worn)); outfitChoice = worn }
       feed($, { type: 'level', xp: after })
       pendingLevelUp = levelUp(before, after)
+      // Own try: a failed outfit write must not drop the level-up bubble.
+      try {
+        if (outfitUnlocked(levelOf(before).level, levelOf(after).level)) {
+          // With no built-in pet on there is nothing to wear; clearing the choice lets the newest outfit show when one returns.
+          const worn = unlockedOutfits(pet, levelOf(after).level).at(-1)
+          if (worn) await host.storeSet('outfit', outfitStore(worn))
+          else await host.storeDelete('outfit')
+          outfitChoice = worn
+        }
+      } catch (err) {
+        $.ui.log(`outfit store failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
+      }
     } catch (err) {
       $.ui.log(`level store failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
     }

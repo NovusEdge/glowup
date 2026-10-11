@@ -1,6 +1,7 @@
 import { expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
-import { runGlowup, fakeFs, test } from './kit.ts'
+import { runGlowup, fakeFs, test, anyLine } from './kit.ts'
+import { BUILTIN_LINES } from '../hooks/lines.ts'
 
 const ENGINE_ROW = { type: 'Text', props: {}, children: ['engine row'] } as RenderElement
 const scroll = { offset: 0, bodyRows: 20 }
@@ -8,11 +9,15 @@ const PANE = { title: 'glowup', isFocused: false, bodyColumns: 80, placement: 'd
 const walk = (n: any, out: any[] = []): any[] => { if (typeof n === 'string') out.push(n); else if (n && typeof n === 'object') { out.push(n); for (const c of n.children ?? []) walk(c, out) } return out }
 const petClient = (tree: any) => walk(tree).find(n => n?.type === 'Client' && String(n.props?.module).endsWith('client/pet.tsx'))
 
-function base(on: any, store: Record<string, unknown>) {
+function base(on: any, store: Record<string, unknown>, failOutfit = false) {
   store.eggs ??= { passRuns: 1, eggAt: 1, eggRuns: 0 }
   fakeFs(on, {})
   on('store.get', async (_$: unknown, e: any) => ({ value: store[e.key] }) as never)
-  on('store.set', async (_$: unknown, e: any) => { store[e.key] = e.value; return { value: undefined } as never })
+  on('store.set', async (_$: unknown, e: any) => {
+    if (failOutfit && e.key === 'outfit') throw new Error('disk full')
+    store[e.key] = e.value
+    return { value: undefined } as never
+  })
   on('store.delete', async (_$: unknown, e: any) => { delete store[e.key]; return { value: undefined } as never })
   on('store.keys', async () => ({ value: Object.keys(store) }) as never)
   on('command.register', async () => ({ value: undefined }) as never)
@@ -86,10 +91,26 @@ test('a level-up with no outfit in it leaves the choice alone', async ($, on) =>
   expect(store.outfit).toEqual({ format: 1, name: 'cap' })
 })
 
-test('with no pet on, a level-up stores no outfit', async ($, on) => {
-  const store: Record<string, unknown> = { level: { format: 1, xp: 295 }, pet: 'off' }
+test('with no pet on, a level-up clears the stored choice', async ($, on) => {
+  const store: Record<string, unknown> = { level: { format: 1, xp: 295 }, pet: 'off', outfit: { format: 1, name: 'off' } }
   const clock = base(on, store)
   await start($)
   await answer($, clock, 't1')
   expect(store.outfit).toBeUndefined()
+  // the cleared choice shows the newest outfit when a built-in pet returns
+  await runGlowup($, 'pet clawd')
+  expect((await clientProps($)).outfit).toBe('cap')
+})
+
+test('a failed outfit write still announces the level-up', async ($, on) => {
+  const store: Record<string, unknown> = { level: { format: 1, xp: 295 } }
+  const clock = base(on, store, true)
+  await start($)
+  await answer($, clock, 't1')
+  expect(store.level).toEqual({ format: 1, xp: 300 })
+  const pane = await $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'Pane', requestId: 'glowup', props: PANE })
+  const body = walk(await pane.drawn()).filter((n: any) => typeof n === 'string').join(' ')
+  await pane.unmount()
+  expect(body).toContain('Lv 3')
+  expect(anyLine(BUILTIN_LINES.clawd, 'level-up').some((l: string) => !l.includes('…') && body.includes(l))).toBe(true)
 })
