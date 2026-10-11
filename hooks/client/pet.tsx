@@ -1,10 +1,10 @@
 import type { ClientSurface } from 'claude-code'
-import { HOP_MS, KONAMI, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, CLAWD_SHEET, BUILTIN_SHEETS, CRITTER_ROW, composeFrame, frameAt, halfBlock, isClawd, mainColor, mirrored, newPlayer, petPalette, petPose, playerFrame, stepPlayer, type PetId, type PetInput, type PetSheet, type PetSpan, type PetTint, type Player } from '../pets.ts'
+import { HOP_MS, KONAMI, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, CLAWD_SHEET, BUILTIN_SHEETS, CRITTER_ROW, composeFrame, withLevelOutfit, frameAt, halfBlock, isClawd, mainColor, mirrored, newPlayer, petPalette, petPose, playerFrame, stepPlayer, type PetId, type PetInput, type PetSheet, type PetSpan, type PetTint, type Player } from '../pets.ts'
 import { renderSegs, type Seg } from '../layout.tsx'
 import { SPEAKER_SHEET } from '../sprites/speaker.ts'
 
-// sheet is present only for a user pet; a built-in is looked up by id.
-export type PetClientProps = { pet: PetId; input: PetInput; overlays: string[]; reduced: boolean; compact: boolean; width: number; tint?: PetTint; sheet?: PetSheet }
+// sheet is present only for a user pet; a built-in is looked up by id. level gates the idle variants; outfit is the level outfit worn.
+export type PetClientProps = { pet: PetId; input: PetInput; overlays: string[]; reduced: boolean; compact: boolean; width: number; tint?: PetTint; sheet?: PetSheet; level?: number; outfit?: string }
 // now is wall-clock ms, the scale of the model's event times. The fields are mutated in place: the tick and
 // the draw share one player, and only a changed picture replaces the state object (which redraws).
 // props is the latest the draw saw, for the tick to read; stop cancels the timer.
@@ -18,6 +18,8 @@ const poseOf = (st: { hopAt?: number } | undefined, p: PetClientProps, now: numb
   st?.hopAt !== undefined && now - st.hopAt >= 0 && now - st.hopAt <= HOP_MS ? 'hop' : petPose(p.input, now)
 // The tests move time with this; Date.now is read-only in the test sandbox.
 export const clock = { now: () => Date.now() }
+export const dice = { rand: () => Math.random() }
+const diceOf = (p: PetClientProps) => ({ level: p.level ?? 1, rand: dice.rand })
 const quiet = (p: PetClientProps) => p.reduced || p.compact
 const cols = (surface: ClientSurface<PetState | number>, p: PetClientProps) => (surface.columns > 0 ? surface.columns : p.width)
 const sheetOf = (p: PetClientProps) => p.sheet ?? (Object.hasOwn(BUILTIN_SHEETS, p.pet) ? BUILTIN_SHEETS[p.pet] : undefined) ?? CLAWD_SHEET
@@ -73,7 +75,7 @@ function startClock(surface: ClientSurface<PetState | number>, st: PetState) {
     resheet(cur, sheet)
     const before = look(cur.player, cur.now)
     cur.now = clock.now()
-    stepPlayer(cur.player, sheet, poseOf(cur, cur.props, cur.now), cur.now, maxXOf(surface, cur.props, cur.player))
+    stepPlayer(cur.player, sheet, poseOf(cur, cur.props, cur.now), cur.now, maxXOf(surface, cur.props, cur.player), diceOf(cur.props))
     if (look(cur.player, cur.now) !== before) surface.setState({ ...cur })
   })
 }
@@ -127,9 +129,9 @@ export default function PetClient(props: PetClientProps, surface: ClientSurface<
     }
   }
 
-  stepPlayer(player, sheet, poseOf(typeof st === 'object' ? st : undefined, props, now), now, maxXOf(surface, props, player))
+  stepPlayer(player, sheet, poseOf(typeof st === 'object' ? st : undefined, props, now), now, maxXOf(surface, props, player), diceOf(props))
   const pose = shownPose(player)
-  const worn = pose === 'work-dance' ? [...props.overlays, 'headphones'] : props.overlays
+  const worn = withLevelOutfit(sheet, pose === 'work-dance' ? [...props.overlays, 'headphones'] : props.overlays, props.outfit)
   const rows = halfBlock(composeFrame(sheet, playerFrame(player, now), worn, mirrored(player)), petPalette(sheet, props.pet, props.tint))
   const pad: Seg[] = player.x > 0 ? [{ text: ' '.repeat(player.x), color: CLAWD_COLOR }] : []
   const room = cols(surface, props)

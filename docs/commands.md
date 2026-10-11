@@ -110,6 +110,9 @@ An override sits on top of whatever pack and theme are active and survives switc
 | `/glowup bubbles off` | Turn them off. |
 | `/glowup bubbles haiku` | Let Claude Haiku write some lines. Each one is a small call on your account. Prints `Bubbles: haiku`. |
 | `/glowup level` | Print your level, your XP total, the XP to the next level, the unlocks you have earned and the next one. Outfit and move unlocks are marked coming soon until they ship. Once you have every unlock it prints `All unlocks earned.` in place of the next one. |
+| `/glowup outfit` | List your pet's [level outfits](pets.md#level-outfits). A filled dot marks the one worn, an empty dot the others you have unlocked, and a locked one shows the level it comes at. The custom pets have none. |
+| `/glowup outfit <name>` | Wear an unlocked level outfit. Prints `Outfit: <name>`. A locked outfit prints the level it unlocks at, and an unknown name prints the choices. |
+| `/glowup outfit off` | Take the level outfit off. It stays off until a level-up unlocks the next one or you wear one again. Prints `Outfit: off`. |
 
 See [Pets](pets.md), and [Pet sprites](pet-sprites.md) for drawing your own.
 

@@ -23,6 +23,18 @@ test('hop, fail and scrunch play once; the rest loop', () => {
   expect([...ONCE].sort()).toEqual(['fail', 'hop', 'scrunch'])
 })
 
+test('idle2 and idle3 are optional loops; the sheet has 12 rows, or 14 with them', () => {
+  expect(PET_ANIMS.slice(-2)).toEqual(['idle2', 'idle3'])
+  const f = pet({ animations: { idle: [frame()], idle2: [frame('B'), frame('A')] } })
+  f.palette.B = '#445566'
+  validatePetFile(f)
+  const s = petSheet(f)
+  expect(s.animations.idle2!.loop).toBe(true)
+  expect(s.animations.idle3).toBeUndefined()
+  refuses(pet({ animations: { idle: [frame()], idle4: [frame()] } as never }), /unknown animation "idle4"; known: idle, .*idle2, idle3/)
+  refuses(pet({ animations: { idle: [frame()], idle3: [] } }), /idle3 needs at least one frame/)
+})
+
 test('default frame times follow Clawd and never flash', () => {
   for (const n of PET_ANIMS) expect(ANIM_MS[n]).toBeGreaterThanOrEqual(80)
   expect(ANIM_MS.walk).toBe(110)

@@ -6,12 +6,12 @@ import { shown, type Theme } from './themes.ts'
 import { resolveLook, cleanOverrides, exportMix, exportName, DEFAULT_MIX, SPINNER_IDS, type Mix, type Look } from './packs.ts'
 import { PACKS } from './packpresets.ts'
 import { loadUserPacks, SAFE_NAME } from './userpacks.ts'
-import { BUILTIN_SHEETS, CLAWD_SHEET, eggSheet, stripRows, type PetSetting, type PetInput, type PetKind, type PetSheet } from './pets.ts'
+import { BUILTIN_SHEETS, CLAWD_SHEET, eggSheet, stripRows, withLevelOutfit, type PetSetting, type PetInput, type PetKind, type PetSheet } from './pets.ts'
 import { loadUserPet, userPetNames, PET_DIR } from './userpets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, voiceFor, type BubbleSetting, type BubbleVars, type HaikuContext } from './bubbles.ts'
 import { linesFor, pool, flavoursOf, type Moment } from './lines.ts'
 import { momentOf } from './moments.ts'
-import { turnXp, countCommits, levelUp, levelOf, parseLevelStore, levelStore } from './levels.ts'
+import { turnXp, countCommits, levelUp, levelOf, parseLevelStore, levelStore, parseOutfitStore, outfitStore, resolveOutfit, outfitUnlocked, unlockedOutfits } from './levels.ts'
 import { recordPass, unlockEgg, eggUnlocked, hintDue, EGG_HINTS, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, rebase, refreshCounts, serial, type Repo } from './changes.ts'
 import { readDiff } from './diff.ts'
@@ -69,6 +69,8 @@ let theme: Theme = look.theme
 let pet: PetSetting = 'clawd'
 // A user pet's sheet, read when it is picked: the render hook may not read disk.
 let petSheet: PetSheet | undefined
+// The stored /glowup outfit choice: a name or 'off'. What is worn also depends on the pet and the level.
+let outfitChoice: string | undefined
 let bubbles: BubbleSetting = 'on'
 let view: PaneView = { tab: DEFAULT_SETUP.tabs[0]! }
 // the open tab's last window offset and window height, as the pane drew them; ui.scroll clamps and pages by them
@@ -103,7 +105,7 @@ let lastStatusLine: string | undefined
 let spinKey: SpinKey = { turnAt: 0, detail: '', state: 'think' }
 // Pet state, published to PET for the pane only; the band never reads it.
 type Bubble = { text: string; mood: Moment; until: number }
-type PetSnap = { input: PetInput; overlays: string[]; bubble?: Bubble; friday: boolean }
+type PetSnap = { input: PetInput; overlays: string[]; bubble?: Bubble; friday: boolean; level: number; outfit?: string }
 let bubble: Bubble | undefined
 let lastTemplate: string | undefined
 const haikuGate = new HaikuGate()
@@ -319,6 +321,8 @@ function petSnap(): PetSnap {
     overlays: overlays(localTime(now, tzOffset), installed === undefined ? undefined : localTime(installed, tzOffset), friday, failed),
     bubble,
     friday,
+    level: levelOf(model.xp ?? 0).level,
+    outfit: resolveOutfit(pet, levelOf(model.xp ?? 0).level, outfitChoice),
   }))
 }
 // Writes only when the pet's picture would change, so a 1 s tick costs the pane nothing.
@@ -883,6 +887,7 @@ async function loadSettings($: Engine, host: Host, undo = false) {
     // every loadUserPet error already names the pet or its file
     else if (interactive && !undo) $.ui.toast(`${/[.!?]$/.test(r.error) ? r.error : `${r.error}.`} Showing Clawd.`)
   }
+  outfitChoice = parseOutfitStore(await host.storeGet('outfit'))
   const storedBubbles = await host.storeGet('bubbles')
   bubbles = BUBBLES.includes(storedBubbles as BubbleSetting) ? storedBubbles as BubbleSetting : BUBBLES.includes(pluginOptions.bubbles as BubbleSetting) ? pluginOptions.bubbles as BubbleSetting : 'on'
   await loadLook($)
@@ -908,6 +913,7 @@ function ctlOf($: Engine): Ctl {
     setMix: async m => { mix = m; return loadLook($) },
     pet: () => pet,
     setPet: (p, sheet) => { pet = p; petSheet = sheet; relook($) },
+    setOutfit: choice => { outfitChoice = choice; relook($); publishPet($) },
     bubbles: () => bubbles,
     setBubbles: b => { bubbles = b; if (b !== 'haiku') cancelHaiku(); relook($) },
     reduced: () => reducedMotion,
@@ -1011,7 +1017,7 @@ export const register: Register = (on, options) => {
     }
     startBeat($)
     void checkStale($)
-    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|setup|level|restore' })
+    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|setup|level|outfit|restore' })
     await loadSettings($, host)
     if (e.isInteractive) void startMusic($)
     sessionId = await $.session.id()
@@ -1178,6 +1184,18 @@ export const register: Register = (on, options) => {
       await host.storeSet('level', levelStore(after))
       feed($, { type: 'level', xp: after })
       pendingLevelUp = levelUp(before, after)
+      // Own try: a failed outfit write must not drop the level-up bubble.
+      try {
+        if (outfitUnlocked(levelOf(before).level, levelOf(after).level)) {
+          // With no built-in pet on there is nothing to wear; clearing the choice lets the newest outfit show when one returns.
+          const worn = unlockedOutfits(pet, levelOf(after).level).at(-1)
+          if (worn) await host.storeSet('outfit', outfitStore(worn))
+          else await host.storeDelete('outfit')
+          outfitChoice = worn
+        }
+      } catch (err) {
+        $.ui.log(`outfit store failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
+      }
     } catch (err) {
       $.ui.log(`level store failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
     }
@@ -1255,12 +1273,12 @@ export const register: Register = (on, options) => {
     if (pid !== 'off' && !reduced && (e.surface === 'terminal' || e.surface === 'desktop')) {
       const snap = ((await $.state.get(PET)).value as PetSnap | undefined) ?? petSnap()
       const { Client } = $.ui.resolve(e)
-      const props: PetClientProps = { pet: pid, input: snap.input, overlays: snap.overlays, reduced, compact, width: petStripCols(e.props.bodyColumns), tint: look.pet, ...(petSheet && { sheet: petSheet }) }
+      const props: PetClientProps = { pet: pid, input: snap.input, overlays: snap.overlays, reduced, compact, width: petStripCols(e.props.bodyColumns), tint: look.pet, level: snap.level, ...(snap.outfit && { outfit: snap.outfit }), ...(petSheet && { sheet: petSheet }) }
       const sheet = petSheet ?? (Object.hasOwn(BUILTIN_SHEETS, pid) ? BUILTIN_SHEETS[pid] : undefined) ?? CLAWD_SHEET
       // unsized, the region shrinks to the sprite and surface.columns leaves no room to walk
       const node = <Client key="glowup-pet" module="./client/pet.tsx" props={props} width={compact ? undefined : props.width} />
       const bubbleNow = snap.bubble && snap.bubble.until > Date.now() ? snap.bubble : undefined
-      extra = { ...extra, pet: { id: pid, node, rows: stripRows(sheet, snap.overlays) }, bubble: bubbleNow, friday: snap.friday }
+      extra = { ...extra, pet: { id: pid, node, rows: stripRows(sheet, withLevelOutfit(sheet, snap.overlays, snap.outfit)) }, bubble: bubbleNow, friday: snap.friday }
     }
     // the engine scrolls the whole body, which would carry the pet off with a long tab: budget the tab to bodyRows instead
     extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onRange: (last, win) => { scroll = { last, win } }, onMusic: (cmd: MusicCmd) => pressMusic($, cmd) }

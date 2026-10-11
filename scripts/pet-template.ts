@@ -7,8 +7,11 @@ import { CLAWD_SHEET } from '../hooks/sprites/clawd.ts'
 import { PET_ANIMS, FRAME_W, FRAME_H } from '../hooks/petfile.ts'
 import { encodePng } from './png.ts'
 
-const rows = PET_ANIMS.map(n => CLAWD_SHEET.animations[n]!.frames.map(f => f.px))
-const width = FRAME_W * Math.max(...rows.map(r => r.length)), height = FRAME_H * PET_ANIMS.length
+// A sheet has 12 rows, or 14 once Clawd draws his idle variants. Rows run up to the last animation he has,
+// and one he lacks stays blank, so a later row never shifts into an earlier row's place.
+const last = PET_ANIMS.findLastIndex(n => CLAWD_SHEET.animations[n])
+const rows = PET_ANIMS.slice(0, last + 1).map(n => CLAWD_SHEET.animations[n]?.frames.map(f => f.px) ?? [])
+const width = FRAME_W * Math.max(...rows.map(r => r.length)), height = FRAME_H * rows.length
 const ox = (FRAME_W - CLAWD_SHEET.w) / 2, oy = FRAME_H - CLAWD_SHEET.h
 const rgba = new Uint8Array(width * height * 4)
 rows.forEach((frames, r) => frames.forEach((px, c) => px.forEach((line, y) => [...line].forEach((k, x) => {

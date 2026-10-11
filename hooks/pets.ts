@@ -8,6 +8,7 @@ import { EGG2_SHEET } from './sprites/egg2.ts'
 import { EGG3_SHEET } from './sprites/egg3.ts'
 import { crackStage, type EggStore } from './eggs.ts'
 import type { PetLines } from './lines.ts'
+import { LEVEL_OUTFITS } from './levels.ts'
 
 export { CLAWD_SHEET }
 export const CLAWD_COLOR = '#d77757'
@@ -47,12 +48,20 @@ export type PetSheet = {
   voice?: string
 }
 
+// Rows 13 and 14 of a sheet; optional.
+export const IDLE_VARIANTS = ['idle2', 'idle3']
 export const PET_COLS = 24
 export const PET_ROWS = 6
 // hats rise up to 4 px above the canvas
 export const OUTFIT_PAD = 4
 // Outfits that rise above the canvas and so need OUTFIT_PAD more rows; sweat is a head outfit too, but sits beside the head.
-export const HEAD_OUTFITS = ['santa', 'party', 'nightcap']
+// The level outfits are all hats.
+export const HEAD_OUTFITS = ['santa', 'party', 'nightcap', ...new Set(Object.values(LEVEL_OUTFITS).flat())]
+// The hats that win the head over a level outfit.
+const HATS = ['santa', 'party', 'nightcap', 'headphones']
+// overlays plus the level outfit, unless the sheet has a hat among the overlays (a hand outfit or sweat stays beside it).
+export const withLevelOutfit = (sheet: PetSheet, overlays: readonly string[], outfit: string | undefined): string[] =>
+  outfit && sheet.outfits?.[outfit] && !overlays.some(o => HATS.includes(o) && sheet.outfits?.[o]) ? [...overlays, outfit] : [...overlays]
 // Rows the pane gives the pet: half its pixel height, plus the outfit pad while a hat it has is worn.
 export const stripRows = (sheet: PetSheet, overlays: readonly string[]) =>
   Math.ceil(sheet.h / 2) + (overlays.some(o => HEAD_OUTFITS.includes(o) && sheet.outfits?.[o]) ? OUTFIT_PAD / 2 : 0)
@@ -216,7 +225,8 @@ type Named = { name: string; clip: PetClip }
 //    (a hop or a typing spell starts straight from the stride), sleep's wake-up for anything but alert,
 //    which cuts in;
 //  - then a clip any animation may enter `to` with ("*" -> sleep "lie-down", "*" -> alert "startle").
-function clipsFor(sheet: PetSheet, from: string, to: string): Named[] {
+function clipsFor(sheet: PetSheet, fromName: string, to: string): Named[] {
+  const from = IDLE_VARIANTS.includes(fromName) ? 'idle' : fromName
   const all = Object.entries(sheet.transitions ?? {}).map(([name, clip]) => ({ name, clip }))
   const pair = all.find(c => c.clip.from === from && c.clip.to === to)
   if (pair) return [pair]
@@ -239,8 +249,8 @@ export const newPlayer = (): Player => ({ queue: [], x: 0, dir: 1 })
 // Facing left uses the sheet's own "<pose>-left" animation when it has one (its dx is already negative);
 // otherwise the walk is mirrored and dx is signed by the player's direction.
 const sideName = (sheet: PetSheet, pose: string, dir: number) => (dir < 0 && sheet.animations[`${pose}-left`] ? `${pose}-left` : pose)
-const segOf = (sheet: PetSheet, pose: string, start: number, dir: number): Seg => {
-  const name = sideName(sheet, pose, dir)
+const segOf = (sheet: PetSheet, pose: string, start: number, dir: number, variant?: string): Seg => {
+  const name = variant ?? sideName(sheet, pose, dir)
   return { pose, anim: animFor(sheet, name), start, fi: -1, clip: false, name, to: pose }
 }
 const clipSeg = (pose: string, name: string, clip: PetClip, start: number): Seg => ({ pose, anim: { loop: false, frames: clip.frames }, start, fi: -1, clip: true, name, to: clip.to === '*' ? pose : clip.to })
@@ -277,25 +287,48 @@ function exitAt(s: Seg, since: number): number {
   return since + EXIT_WAIT_MS
 }
 
+// level gates the idle variants; rand is injected so tests are deterministic.
+export type IdleDice = { level: number; rand: () => number }
+const NO_DICE: IdleDice = { level: 1, rand: Math.random }
+
+// One time in eight, an idle variant the level has unlocked and the sheet has: idle2 from level 5, idle3 from level 10.
+export function idleVariant(sheet: Pick<PetSheet, 'animations'>, level: number, rand: () => number): string | undefined {
+  const open = IDLE_VARIANTS.filter((n, i) => level >= (i ? 10 : 5) && sheet.animations[n])
+  if (!open.length || rand() >= 1 / 8) return undefined
+  return open[Math.floor(rand() * open.length)]
+}
+
+// A pose entered by returning to it: idle may start a variant.
+const enter = (sheet: PetSheet, pose: string, start: number, dir: number, dice: IdleDice): Seg =>
+  segOf(sheet, pose, start, dir, pose === 'idle' ? idleVariant(sheet, dice.level, dice.rand) : undefined)
+
 // Moves the player to `pose` as of `now`. A change waits for the next exit frame, then plays the clip
 // between the two animations when the sheet has one; alert cuts in at once.
-export function stepPlayer(p: Player, sheet: PetSheet, pose: string, now: number, maxX: number): void {
+export function stepPlayer(p: Player, sheet: PetSheet, pose: string, now: number, maxX: number, dice: IdleDice = NO_DICE): void {
   if (!p.seg) p.seg = segOf(sheet, pose, now, p.dir)
   for (let guard = 0; guard < 4; guard++) {
     const s: Seg = p.seg
     if (s.clip) {
       const end: number = s.start + clipMs(s.anim)
-      if (pose === 'alert' && s.pose !== 'alert') { travel(p, s, now, maxX, sheet); play(p, sheet, s.to, 'alert', now); continue }
+      if (pose === 'alert' && s.pose !== 'alert') { travel(p, s, now, maxX, sheet); play(p, sheet, s.to, 'alert', now, dice); continue }
       if (now < end) break
       travel(p, s, end, maxX, sheet)
       // the pose moved on while clips were queued: plan again from where the clip left him
-      if (p.dest !== pose) { play(p, sheet, s.to, pose, end); continue }
+      if (p.dest !== pose) { play(p, sheet, s.to, pose, end, dice); continue }
       const next = p.queue.shift()
-      p.seg = next ? clipSeg(pose, next.name, next.clip, end) : segOf(sheet, pose, end, p.dir)
+      p.seg = next ? clipSeg(pose, next.name, next.clip, end) : enter(sheet, pose, end, p.dir, dice)
       continue
     }
-    if (s.pose === pose) { p.pending = undefined; break }
-    if (pose === 'alert') { travel(p, s, now, maxX, sheet); play(p, sheet, s.name, pose, now); continue }
+    if (s.pose === pose) {
+      p.pending = undefined
+      // a variant plays one loop and hands back to idle at an exit frame
+      if (IDLE_VARIANTS.includes(s.name)) {
+        const over = s.start + clipMs(s.anim), at = exitAt(s, over)
+        if (now >= at) { travel(p, s, at, maxX, sheet); p.seg = segOf(sheet, 'idle', at, p.dir); continue }
+      }
+      break
+    }
+    if (pose === 'alert') { travel(p, s, now, maxX, sheet); play(p, sheet, s.name, pose, now, dice); continue }
     // an animation that plays once (hop, fail) runs to its last frame; the pose window only decides what is next
     const over = s.start + clipMs(s.anim)
     if (!s.anim.loop && now < over) break
@@ -303,18 +336,18 @@ export function stepPlayer(p: Player, sheet: PetSheet, pose: string, now: number
     const at = p.pending.at
     if (now < at) break
     travel(p, s, at, maxX, sheet)
-    play(p, sheet, s.name, pose, at)
+    play(p, sheet, s.name, pose, at, dice)
   }
   travel(p, p.seg, now, maxX, sheet)
 }
 
 // Starts the way from animation `from` to `pose` at time `at`: the first clip now, the rest queued.
-function play(p: Player, sheet: PetSheet, from: string, pose: string, at: number) {
+function play(p: Player, sheet: PetSheet, from: string, pose: string, at: number, dice: IdleDice) {
   p.pending = undefined
   p.dest = pose
   p.queue = clipsFor(sheet, from, pose)
   const first = p.queue.shift()
-  p.seg = first ? clipSeg(pose, first.name, first.clip, at) : segOf(sheet, pose, at, p.dir)
+  p.seg = first ? clipSeg(pose, first.name, first.clip, at) : enter(sheet, pose, at, p.dir, dice)
 }
 
 export function playerFrame(p: Player, now: number): PetFrame {

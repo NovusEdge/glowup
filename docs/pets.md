@@ -140,7 +140,7 @@ Level n needs 100 × n XP to reach level n + 1, so level 2 comes at 100 XP and l
 | 8 | An outfit |
 | 10 | A new move (idle) |
 
-Outfits and moves are coming in a later release. Until then they are earned but not shown, and the level-up bubble names only the lines.
+The outfits are listed under [Level outfits](#level-outfits). Level 5 and level 10 each add an idle move: every so often, when the pet settles back to idle, it plays a different idle instead of the usual one. From level 5 that is one time in eight; from level 10 it picks at random between the two moves.
 
 When a turn takes you up a level, the pet speaks the [`level-up`](#what-pets-say) moment instead of its done line. It names the unlock when there is one. To turn this off, leave `level-up` out of the moments you keep with `/glowup setup bubbles.moods`.
 
@@ -158,3 +158,18 @@ Clawd dresses up on some dates and at some hours, by your computer's local time:
 - A nightcap between 23:00 and 04:59.
 
 There are a few more that this page does not list.
+
+### Level outfits
+
+Clawd, the robot, the ghost and the egg also earn three outfits each, at levels 3, 6 and 8:
+
+| Pet | Level 3 | Level 6 | Level 8 |
+| --- | --- | --- | --- |
+| Clawd (and the shiny Clawd) | Cap | Wizard hat | Crown |
+| Robot | Propeller cap | Top hat | Crown |
+| Ghost | Bow | Witch hat | Crown |
+| Egg, at every crack stage | Bow | Sprout | Crown |
+
+The newest outfit is worn as soon as a level-up unlocks it. `/glowup outfit` lists the ones you have, `/glowup outfit <name>` wears another and `/glowup outfit off` takes it off. The choice is kept across sessions. If you switch to a pet that does not have the outfit you chose, it wears its own newest one, unless you chose `off`. Pets you add yourself have no level outfits.
+
+A Santa hat, party hat or nightcap takes the head from the level outfit while its date or hour lasts, and so do the headphones while Claude works with Spotify playing. (On a December night the Santa hat and nightcap can both show.) The pumpkin and the sweat show beside the level outfit.

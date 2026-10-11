@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { petPose, halfBlock, frameAt, shiny, petPalette, composeFrame, validateSheet, animFor, newPlayer, stepPlayer, playerFrame, mirrored, type PetSheet, CLAWD_SHEET, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, PET_COLS, PET_ROWS, OUTFIT_PAD, BUILTIN_SHEETS, isClawd, mainColor, stripRows, CRITTER_ROW } from '../hooks/pets.ts'
+import { petPose, halfBlock, frameAt, shiny, petPalette, composeFrame, validateSheet, animFor, newPlayer, stepPlayer, playerFrame, mirrored, type PetSheet, CLAWD_SHEET, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, PET_COLS, PET_ROWS, OUTFIT_PAD, BUILTIN_SHEETS, isClawd, mainColor, stripRows, CRITTER_ROW, idleVariant, withLevelOutfit, HEAD_OUTFITS, IDLE_VARIANTS } from '../hooks/pets.ts'
 import { PET_ANIMS, BUILTIN_PET_NAMES } from '../hooks/petfile.ts'
 import { cellWidth } from '../hooks/cells.ts'
 
@@ -323,8 +323,8 @@ test('a juggle right after the egg unlock, then back to idle', () => {
 test('the ghost follows the user-pet rules: the spec animations plus the dances, walks facing right, headphones and lie-down', () => {
   const s = BUILTIN_SHEETS.ghost!
   expect([s.w, s.h]).toEqual([24, 12])
-  expect(Object.keys(s.animations).sort()).toEqual([...PET_ANIMS, 'dance', 'work-dance'].sort())
-  expect(Object.keys(s.outfits ?? {})).toEqual(['headphones'])
+  expect(Object.keys(s.animations).filter(n => !IDLE_VARIANTS.includes(n)).sort()).toEqual([...PET_ANIMS.filter(n => !IDLE_VARIANTS.includes(n)), 'dance', 'work-dance'].sort())
+  expect(Object.keys(s.outfits ?? {})).toEqual(['headphones', 'bow', 'witch', 'crown'])
   expect(Object.keys(s.transitions ?? {})).toEqual(['lie-down'])
   for (const f of s.animations.walk!.frames) expect(f.dx).toBe(1)
   expect(isClawd('ghost')).toBe(false)
@@ -337,11 +337,11 @@ test('the built-in sheets are clawd, the robot and the ghost, all playable', () 
   for (const s of Object.values(BUILTIN_SHEETS)) expect(() => validateSheet(s)).not.toThrow()
 })
 
-test('the robot follows the user-pet rules: the spec animations plus the dances, mirrored walks, only headphones', () => {
+test('the robot follows the user-pet rules: the spec animations plus the dances, mirrored walks, headphones and the level outfits', () => {
   const s = BUILTIN_SHEETS.robot!
   expect([s.w, s.h]).toEqual([32, 16])
-  expect(Object.keys(s.animations).sort()).toEqual([...PET_ANIMS, 'dance', 'work-dance'].sort())
-  expect(Object.keys(s.outfits ?? {})).toEqual(['headphones'])
+  expect(Object.keys(s.animations).filter(n => !IDLE_VARIANTS.includes(n)).sort()).toEqual([...PET_ANIMS.filter(n => !IDLE_VARIANTS.includes(n)), 'dance', 'work-dance'].sort())
+  expect(Object.keys(s.outfits ?? {})).toEqual(['headphones', 'propeller', 'tophat', 'crown'])
   expect(s.transitions ?? {}).toEqual({})
   for (const f of s.animations.walk!.frames) expect(f.dx).toBe(1)
 })
@@ -375,4 +375,139 @@ test('mainColor is the commonest color of the first idle frame', () => {
   const s: PetSheet = { w: 3, h: 1, palette: { A: '#111111', B: '#222222' }, animations: { idle: { loop: true, frames: [{ ms: 100, px: ['ABB'] }] } } }
   expect(mainColor(s)).toBe('#222222')
   expect([...CRITTER_ROW]).toHaveLength(5)
+})
+
+test('idle variants: idle2 from level 5, idle3 from level 10, one time in eight', async () => {
+  const sheet = (...names: string[]) => ({ animations: Object.fromEntries(names.map(n => [n, {}])) }) as never
+  const both = sheet('idle', 'idle2', 'idle3')
+  expect(idleVariant(both, 4, () => 0)).toBeUndefined()
+  expect(idleVariant(both, 5, () => 0)).toBe('idle2')
+  expect(idleVariant(both, 5, () => 0.125)).toBeUndefined()
+  expect(idleVariant(sheet('idle', 'idle3'), 9, () => 0)).toBeUndefined()
+  expect(idleVariant(sheet('idle'), 20, () => 0)).toBeUndefined()
+  expect(idleVariant(sheet('idle', 'idle3'), 10, () => 0)).toBe('idle3')
+  const draws = [0.01, 0.9]
+  expect(idleVariant(both, 10, () => draws.shift()!)).toBe('idle3')
+  const low = [0.01, 0.1]
+  expect(idleVariant(both, 10, () => low.shift()!)).toBe('idle2')
+})
+
+// idle: 3 frames of 100 ms, an exit frame at the start and end; idle2: 4 frames, exits at 0 and 3
+const variantSheet = (): PetSheet => ({
+  w: 1, h: 1, palette: {},
+  animations: {
+    idle: { loop: true, frames: [f('i', true), f('i'), f('i', true)] },
+    idle2: { loop: true, frames: [f('a', true), f('b'), f('c'), f('d', true)] },
+    walk: { loop: true, frames: [f('w', true), f('w'), f('w', true)] },
+  },
+})
+const toIdle = (p: ReturnType<typeof newPlayer>, s: PetSheet, dice: { level: number; rand: () => number }) => {
+  stepPlayer(p, s, 'walk', 0, 50, dice)
+  for (let t = 0; t <= 100; t += 20) stepPlayer(p, s, 'idle', t, 50, dice)
+}
+
+test('returning to idle can start the variant, which plays one loop and then idle again', () => {
+  const s = variantSheet(), p = newPlayer()
+  let draws = 0
+  const dice = { level: 5, rand: () => (draws++, 0) }
+  toIdle(p, s, dice)
+  expect(p.seg!.name).toBe('idle2')
+  expect(p.seg!.pose).toBe('idle')
+  const rolled = draws
+  // a loop is 400 ms; it ends at an exit frame
+  const start = p.seg!.start
+  stepPlayer(p, s, 'idle', start + 380, 50, dice)
+  expect(p.seg!.name).toBe('idle2')
+  stepPlayer(p, s, 'idle', start + 400, 50, dice)
+  expect(p.seg!.name).toBe('idle')
+  // back on plain idle it stays there: the variant is rolled on return, not every loop
+  for (let t = start + 420; t < start + 5000; t += 20) stepPlayer(p, s, 'idle', t, 50, dice)
+  expect(p.seg!.name).toBe('idle')
+  expect(draws).toBe(rolled)
+})
+
+test('without the level, the art or luck, idle stays idle', () => {
+  const miss = { level: 5, rand: () => 0.5 }
+  for (const [s, dice] of [[variantSheet(), miss], [variantSheet(), { level: 4, rand: () => 0 }], [{ ...variantSheet(), animations: { idle: variantSheet().animations.idle!, walk: variantSheet().animations.walk! } }, { level: 20, rand: () => 0 }]] as const) {
+    const p = newPlayer()
+    toIdle(p, s, dice)
+    expect(p.seg!.name).toBe('idle')
+  }
+  // no dice at all, as the callers before levels
+  const p = newPlayer()
+  stepPlayer(p, variantSheet(), 'walk', 0, 50)
+  for (let t = 0; t <= 400; t += 20) stepPlayer(p, variantSheet(), 'idle', t, 50)
+  expect(p.seg!.name).toBe('idle')
+})
+
+test('a pose change leaves the variant at its next exit frame and finds the idle clips', () => {
+  const s = variantSheet()
+  s.transitions = { go: { from: 'idle', to: 'walk', frames: [f('g')] } }
+  const p = newPlayer(), dice = { level: 5, rand: () => 0 }
+  toIdle(p, s, dice)
+  const start = p.seg!.start
+  stepPlayer(p, s, 'walk', start + 120, 50, dice)
+  expect(p.seg!.name).toBe('idle2')
+  stepPlayer(p, s, 'walk', start + 300, 50, dice)
+  expect(p.seg!.name).toBe('go')
+})
+
+test('a level outfit is worn unless a hat of the sheet is already on', () => {
+  const o = (slot?: 'hand') => ({ slot, anchor: [0, 0] as [number, number], px: ['a'] })
+  const s: PetSheet = { w: 1, h: 1, palette: { a: '#111111' }, animations: {}, outfits: { cap: o(), santa: o(), headphones: o(), pumpkin: o('hand'), sweat: o() } }
+  expect(withLevelOutfit(s, [], 'cap')).toEqual(['cap'])
+  expect(withLevelOutfit(s, [], undefined)).toEqual([])
+  expect(withLevelOutfit(s, [], 'wizard')).toEqual([])
+  expect(withLevelOutfit(s, ['santa'], 'cap')).toEqual(['santa'])
+  expect(withLevelOutfit(s, ['headphones'], 'cap')).toEqual(['headphones'])
+  expect(withLevelOutfit(s, ['pumpkin'], 'cap')).toEqual(['pumpkin', 'cap'])
+  expect(withLevelOutfit(s, ['sweat', 'pumpkin'], 'cap')).toEqual(['sweat', 'pumpkin', 'cap'])
+  // a holiday hat the sheet does not have yields nothing to wear it with
+  expect(withLevelOutfit({ ...s, outfits: { cap: o() } }, ['santa', 'nightcap'], 'cap')).toEqual(['santa', 'nightcap', 'cap'])
+})
+
+test('every level outfit reserves the hat headroom in the strip', () => {
+  for (const name of ['cap', 'wizard', 'crown', 'propeller', 'tophat', 'bow', 'witch', 'sprout']) expect(HEAD_OUTFITS).toContain(name)
+  const o = { anchor: [0, 0] as [number, number], px: ['a'] }
+  const s: PetSheet = { w: 1, h: 4, palette: { a: '#111111' }, animations: {}, outfits: { cap: o } }
+  expect(stripRows(s, [])).toBe(2)
+  expect(stripRows(s, ['cap'])).toBe(4)
+})
+
+test('a variant with no exit frames hands back to idle when its loop ends', () => {
+  const s = variantSheet()
+  s.animations.idle2 = { loop: true, frames: [f('a'), f('b'), f('c')] }
+  const p = newPlayer(), dice = { level: 5, rand: () => 0 }
+  toIdle(p, s, dice)
+  const start = p.seg!.start
+  stepPlayer(p, s, 'idle', start + 290, 50, dice)
+  expect(p.seg!.name).toBe('idle2')
+  stepPlayer(p, s, 'idle', start + 300, 50, dice)
+  expect(p.seg!.name).toBe('idle')
+})
+
+test('an alert cuts into a variant mid-loop', () => {
+  const s = variantSheet()
+  s.animations.alert = { loop: true, frames: [f('!')] }
+  s.transitions = { startle: { from: '*', to: 'alert', frames: [f('s')] } }
+  const p = newPlayer(), dice = { level: 5, rand: () => 0 }
+  toIdle(p, s, dice)
+  stepPlayer(p, s, 'alert', p.seg!.start + 150, 50, dice)
+  expect(p.seg!.name).toBe('startle')
+  stepPlayer(p, s, 'alert', p.seg!.start + 150, 50, dice)
+  expect(p.seg!.pose).toBe('alert')
+})
+
+test('the rows the pane reserves equal the height composeFrame draws, with a level hat and with headphones', () => {
+  const o = { anchor: [0, 0] as [number, number], px: ['a'] }
+  const s: PetSheet = { w: 2, h: 4, palette: { a: '#111111' }, animations: {}, outfits: { cap: o, headphones: o, santa: o } }
+  const fr = { px: ['..', '..', '..', '..'], head: [0, 0] as [number, number] }
+  const rows = (overlays: string[], outfit?: string, extra: string[] = []) =>
+    [stripRows(s, withLevelOutfit(s, overlays, outfit)), composeFrame(s, fr, withLevelOutfit(s, [...overlays, ...extra], outfit), false).length / 2]
+  for (const [ov, outfit, extra] of [[[], undefined, []], [[], 'cap', []], [['santa'], 'cap', []], [[], 'cap', ['headphones']]] as const) {
+    const [reserved, drawn] = rows([...ov], outfit, [...extra])
+    // headphones sit inside the pad a hat would reserve, so the strip may only be shorter by the pad
+    if (extra.length) expect(drawn!).toBeLessThanOrEqual(reserved!)
+    else expect(drawn).toBe(reserved)
+  }
 })

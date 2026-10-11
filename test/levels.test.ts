@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { levelOf, xpToReach, turnXp, countCommits, UNLOCKS, unlocksBetween, parseLevelStore, levelStore, levelUp, groupDigits } from '../hooks/levels.ts'
+import { levelOf, xpToReach, turnXp, countCommits, UNLOCKS, unlocksBetween, parseLevelStore, levelStore, levelUp, groupDigits, OUTFIT_LEVELS, outfitsOf, unlockedOutfits, resolveOutfit, parseOutfitStore, outfitStore, outfitUnlocked } from '../hooks/levels.ts'
 
 test('the curve: 100 x n per level, endless', async () => {
   expect(levelOf(0)).toEqual({ level: 1, into: 0, need: 100 })
@@ -46,10 +46,12 @@ test('the store record: malformed reads as 0', async () => {
 test('levelUp: none, one level, a jump across two, art not ready', async () => {
   expect(levelUp(50, 99)).toBeUndefined()
   expect(levelUp(95, 100)).toEqual({ level: 2, unlock: 'new lines' })
-  // 290 -> 1,000: level 2 -> 5 crosses 3 (outfit), 4 (lines), 5 (idle); only lines ship in PR A
-  expect(levelUp(290, 1000)).toEqual({ level: 5, unlock: 'new lines' })
-  // 300 -> 310 stays level 3; 250 -> 300 reaches 3, whose only unlock is an outfit
-  expect(levelUp(250, 300)).toEqual({ level: 3, unlock: undefined })
+  // 290 -> 1,000: level 2 -> 5 crosses 3 (outfit), 4 (lines), 5 (idle); the newest unlock names it
+  expect(levelUp(290, 1000)).toEqual({ level: 5, unlock: 'a new move' })
+  expect(levelUp(290, 1000, false)).toEqual({ level: 5, unlock: 'new lines' })
+  // 250 -> 300 reaches 3, whose only unlock is an outfit
+  expect(levelUp(250, 300)).toEqual({ level: 3, unlock: 'a new outfit' })
+  expect(levelUp(250, 300, false)).toEqual({ level: 3, unlock: undefined })
   expect(levelUp(4500, 6000)).toEqual({ level: 11, unlock: undefined })
   expect(levelOf(-5)).toEqual({ level: 1, into: 0, need: 100 })
   expect(groupDigits(2310)).toBe('2,310')
@@ -60,4 +62,51 @@ test('levelUp: none, one level, a jump across two, art not ready', async () => {
 test('non-finite xp counts as 0', async () => {
   expect(levelOf(Infinity)).toEqual(levelOf(0))
   expect(levelOf(NaN)).toEqual(levelOf(0))
+})
+
+test('level outfits: three per built-in pet, unlocked at levels 3, 6 and 8, none for a custom pet', async () => {
+  expect(OUTFIT_LEVELS).toEqual([3, 6, 8])
+  expect(outfitsOf('clawd')).toEqual(['cap', 'wizard', 'crown'])
+  expect(outfitsOf('clawd-shiny')).toEqual(outfitsOf('clawd'))
+  expect(outfitsOf('robot')).toEqual(['propeller', 'tophat', 'crown'])
+  expect(outfitsOf('ghost')).toEqual(['bow', 'witch', 'crown'])
+  expect(outfitsOf('egg')).toEqual(['bow', 'sprout', 'crown'])
+  expect(outfitsOf('my-pet')).toEqual([])
+  expect(outfitsOf('constructor')).toEqual([])
+  expect(unlockedOutfits('clawd', 2)).toEqual([])
+  expect(unlockedOutfits('clawd', 6)).toEqual(['cap', 'wizard'])
+  expect(unlockedOutfits('clawd', 40)).toEqual(['cap', 'wizard', 'crown'])
+  expect(unlockedOutfits('my-pet', 40)).toEqual([])
+})
+
+test('the worn outfit: the choice if unlocked, else the newest, nothing for off', async () => {
+  expect(resolveOutfit('clawd', 2, undefined)).toBeUndefined()
+  expect(resolveOutfit('clawd', 8, undefined)).toBe('crown')
+  expect(resolveOutfit('clawd', 8, 'cap')).toBe('cap')
+  expect(resolveOutfit('clawd', 8, 'off')).toBeUndefined()
+  // a locked choice, or one another pet has, falls back to the newest unlocked
+  expect(resolveOutfit('clawd', 6, 'crown')).toBe('wizard')
+  expect(resolveOutfit('robot', 6, 'wizard')).toBe('tophat')
+  expect(resolveOutfit('my-pet', 8, 'cap')).toBeUndefined()
+})
+
+test('the outfit store record: malformed reads as no choice', async () => {
+  expect(parseOutfitStore({ format: 1, name: 'cap' })).toBe('cap')
+  expect(parseOutfitStore({ format: 1, name: 'off' })).toBe('off')
+  for (const bad of [undefined, null, 'cap', { name: 'cap' }, { format: 2, name: 'cap' }, { format: 1, name: 3 }, { format: 1, name: '' }])
+    expect(parseOutfitStore(bad)).toBeUndefined()
+  expect(outfitStore('cap')).toEqual({ format: 1, name: 'cap' })
+})
+
+test('a level-up names outfit and idle unlocks only once the art is ready', async () => {
+  expect(levelUp(250, 300, true)).toEqual({ level: 3, unlock: 'a new outfit' })
+  expect(levelUp(250, 300, false)).toEqual({ level: 3, unlock: undefined })
+  expect(levelUp(500, 1000, true)).toEqual({ level: 5, unlock: 'a new move' })
+  expect(levelUp(500, 1000, false)).toEqual({ level: 5, unlock: 'new lines' })
+})
+
+test('a level-up wears the newest outfit it unlocked', async () => {
+  expect(outfitUnlocked(2, 3)).toBe(true)
+  expect(outfitUnlocked(3, 5)).toBe(false)
+  expect(outfitUnlocked(1, 9)).toBe(true)
 })

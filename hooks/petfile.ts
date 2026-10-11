@@ -6,7 +6,8 @@ import { MOMENTS, FLAVOURS, MOMENT_SLOTS, type Moment, type PetLines } from './l
 import { BUBBLE_MAX } from './bubbles.ts'
 
 // The sprite spec's rows, top to bottom, and the only animation names a pet file may use.
-export const PET_ANIMS = ['idle', 'walk', 'working', 'hop', 'alert', 'done', 'sleep', 'fail', 'juggle', 'pant', 'pant-walk', 'scrunch'] as const
+// A sheet has 12 rows, or 14 with the idle variants as the last two.
+export const PET_ANIMS = ['idle', 'walk', 'working', 'hop', 'alert', 'done', 'sleep', 'fail', 'juggle', 'pant', 'pant-walk', 'scrunch', 'idle2', 'idle3'] as const
 export type PetAnimName = (typeof PET_ANIMS)[number]
 // The largest frame, and the cell size of a PNG sheet. Clawd is 24 × 12; the robot uses it all.
 export const FRAME_W = 32, FRAME_H = 16
@@ -15,7 +16,7 @@ export const MAX_LINES = 12, MAX_VOICE = 120
 // The pets page promises no frame changes faster than every 80 ms.
 export const MIN_MS = 80, MAX_MS = 10_000
 // One frame time per row, at Clawd's pace; the studio's speed slider scales it.
-export const ANIM_MS: Record<PetAnimName, number> = { idle: 400, walk: 110, working: 120, hop: 120, alert: 180, done: 120, sleep: 450, fail: 250, juggle: 110, pant: 290, 'pant-walk': 140, scrunch: 150 }
+export const ANIM_MS: Record<PetAnimName, number> = { idle: 400, walk: 110, working: 120, hop: 120, alert: 180, done: 120, sleep: 450, fail: 250, juggle: 110, pant: 290, 'pant-walk': 140, scrunch: 150, idle2: 400, idle3: 400 }
 export const ONCE: readonly PetAnimName[] = ['hop', 'fail', 'scrunch']
 export const WALKS: readonly PetAnimName[] = ['walk', 'pant-walk']
 // Every place that lists the built-ins derives from this; BUILTIN_SHEETS in pets.ts must have the same keys (a test checks).

@@ -6,7 +6,7 @@ import { DEFAULT_SETUP } from '../hooks/setup.ts'
 
 const ctl = (colors = 'classic'): Ctl => ({
   current: () => 'classic', setTheme: async () => {}, togglePane: async () => '', setMotion: () => {}, confirm: async () => true,
-  mix: () => ({ colors, motion: colors }), setMix: async () => [], pet: () => 'clawd', setPet: () => {},
+  mix: () => ({ colors, motion: colors }), setMix: async () => [], pet: () => 'clawd', setPet: () => {}, setOutfit: () => {},
   bubbles: () => 'on', setBubbles: () => {}, reduced: () => false, openConfig: async () => 'glowup config open (Esc closes it)', openConfigTui: async () => 'glowup config is opening', headless: async () => true,
   fields: () => DEFAULT_FIELDS, setFields: () => {}, setup: () => DEFAULT_SETUP, setSetup: () => {},
 })

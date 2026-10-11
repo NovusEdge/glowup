@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import PetClient, { clock } from '../hooks/client/pet.tsx'
+import PetClient, { clock, dice } from '../hooks/client/pet.tsx'
 import { PET_ROWS, PET_COLS, CLAWD_ROW, CLAWD_SHEET, EXIT_WAIT_MS, newPlayer, stepPlayer, playerFrame, mirrored, petPose, petPalette, composeFrame, frameAt, halfBlock, BUILTIN_SHEETS, CRITTER_ROW, mainColor, type PetInput, type PetSheet } from '../hooks/pets.ts'
 import { renderSegs } from '../hooks/layout.tsx'
 import { SPEAKER_SHEET } from '../hooks/sprites/speaker.ts'
@@ -569,4 +569,37 @@ test('a pet wider than the strip is cut at its right edge, not squeezed', () => 
     expect([...row].length).toBeLessThanOrEqual(28)
     expect(row).toBe([...full[i]!].slice(0, 28).join(''))
   })
+})
+
+test('the client wears the level outfit, and a holiday hat wins the head', () => {
+  const o = (c: string) => ({ anchor: [0, 0] as [number, number], px: [c] })
+  const sheet: PetSheet = {
+    w: 2, h: 2, palette: { a: '#111111', b: '#222222' },
+    animations: { idle: { loop: true, frames: [{ ms: 100, px: ['..', '..'], head: [0, 0] }] } },
+    outfits: { cap: o('b'), santa: o('a') },
+  }
+  const draw = (p: object) => JSON.stringify(atTime(1000, () => PetClient({ ...idle, pet: 'mochi', sheet, ...p }, fakeSurface().s)))
+  expect(draw({ outfit: 'cap' })).not.toBe(draw({}))
+  expect(draw({ outfit: 'wizard' })).toBe(draw({}))
+  expect(draw({ outfit: 'cap', overlays: ['santa'] })).toBe(draw({ overlays: ['santa'] }))
+})
+
+test('the idle variant is rolled with the level and dice the client holds', () => {
+  const frames = (c: string, ms = 100) => ({ loop: true, frames: [{ ms, px: [c], exit: true }] })
+  const sheet: PetSheet = { w: 1, h: 1, palette: { a: '#111111', b: '#222222' }, animations: { idle: frames('a'), idle2: frames('b', 1000), walk: frames('a') } }
+  const run = (level: number) => {
+    const { s, timers } = fakeSurface()
+    const walking = { ...idle, pet: 'mochi', sheet, level, input: { working: true, needsYou: false, kind: 'read' as const } }
+    atTime(0, () => PetClient(walking, s))
+    const resting = { ...walking, input: { working: false, needsYou: false } }
+    PetClient(resting, s)
+    for (const t of [100, 200, 300]) atTime(t, () => timers[0]!.fn())
+    return s.state.player.seg.name as string
+  }
+  const real = dice.rand
+  dice.rand = () => 0
+  try {
+    expect(run(5)).toBe('idle2')
+    expect(run(4)).toBe('idle')
+  } finally { dice.rand = real }
 })

@@ -191,7 +191,7 @@ VIEWER.write_text((ART / "viewer.template.html").read_text().replace("__PET__", 
 # Row order is the public PNG pet spec: a sheet made from the template is read by
 # position, so reordering breaks every custom pet. Left walks are mirrored at runtime.
 SPEC_ROWS = ["idle", "walk", "working", "hop", "alert", "done", "sleep", "fail",
-             "juggle", "pant", "pant-walk", "scrunch"]
+             "juggle", "pant", "pant-walk", "scrunch", "idle2", "idle3"]
 
 
 def png(path, w, h, rgba_rows):
