@@ -16,7 +16,7 @@ import type { BubbleSetting } from './bubbles.ts'
 import { eggUnlocked, type EggStore } from './eggs.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
 import { FIELD_IDS, isFieldId, type FieldId } from './fields.ts'
-import { levelOf, parseLevelStore, groupDigits, UNLOCKS, ART_READY, OUTFIT_LEVELS, outfitsOf, resolveOutfit, parseOutfitStore, outfitStore } from './levels.ts'
+import { levelOf, parseLevelStore, levelStoreIsNewer, groupDigits, UNLOCKS, ART_READY, OUTFIT_LEVELS, outfitsOf, resolveOutfit, parseOutfitStore, outfitStore } from './levels.ts'
 import { parseSetup, setSetupField, describeSetup, DEFAULT_SETUP, type Setup } from './setup.ts'
 
 // What a command that needs more input falls back to, and what a headless config run prints.
@@ -369,7 +369,10 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   }
   if (sub === 'setup') return 'Use /glowup setup <key> <value>, /glowup setup, or /glowup setup reset.'
   if (sub === 'outfit') return outfitCommand(host, ctl, a1)
-  if (sub === 'level') return levelReport(parseLevelStore(await host.storeGet('level')))
+  if (sub === 'level') {
+    const stored = await host.storeGet('level')
+    return levelStoreIsNewer(stored) ? 'Your level was saved by a newer glowup. This version cannot read it and leaves it as it is.' : levelReport(parseLevelStore(stored))
+  }
   if (sub === 'help' && a1 === 'all') return FULL_TEXT
   return sub && sub !== 'help' ? `Unknown: ${args.trim()}\n\n${SHORT_TEXT}` : SHORT_TEXT
 }

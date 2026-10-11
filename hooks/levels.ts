@@ -89,7 +89,13 @@ export const parseLevelStore = (v: unknown): number => {
   return r?.format === 1 && Number.isInteger(r.xp) && (r.xp as number) >= 0 ? (r.xp as number) : 0
 }
 
-export const levelStore = (xp: number) => ({ format: 1 as const, xp })
+// A later format's XP is unreadable here, and writing a format-1 record over it would erase it.
+export const levelStoreIsNewer = (v: unknown): boolean => {
+  const f = (v as { format?: unknown } | null)?.format
+  return Number.isInteger(f) && (f as number) > 1
+}
+
+export const levelStore =(xp: number) => ({ format: 1 as const, xp })
 
 // Not toLocaleString: its output depends on the host's locale and ICU build.
 export const groupDigits = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',')

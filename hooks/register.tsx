@@ -11,7 +11,7 @@ import { loadUserPet, userPetNames, PET_DIR } from './userpets.ts'
 import { bubbleFor, BUBBLE_SETTINGS, daypart, fitsBubble, haikuLimit, haikuMaxTokens, haikuPrompt, kindWords, HaikuGate, HAIKU_MODEL, HAIKU_TIMEOUT_MS, sanitizeLine, speaks, voiceFor, type BubbleSetting, type BubbleVars, type HaikuContext } from './bubbles.ts'
 import { linesFor, pool, flavoursOf, type Moment } from './lines.ts'
 import { momentOf } from './moments.ts'
-import { turnXp, countCommits, levelUp, levelOf, parseLevelStore, levelStore, parseOutfitStore, outfitStore, resolveOutfit, outfitUnlocked, unlockedOutfits } from './levels.ts'
+import { turnXp, countCommits, levelUp, levelOf, parseLevelStore, levelStoreIsNewer, levelStore, parseOutfitStore, outfitStore, resolveOutfit, outfitUnlocked, unlockedOutfits } from './levels.ts'
 import { recordPass, unlockEgg, eggUnlocked, hintDue, EGG_HINTS, overlays, localTime, localOffset, fridayDeploy, type EggStore } from './eggs.ts'
 import { branchOf, gitBase, rebase, refreshCounts, serial, type Repo } from './changes.ts'
 import { readDiff } from './diff.ts'
@@ -1179,7 +1179,9 @@ export const register: Register = (on, options) => {
     // turn-done leaves combo alone (turn-start resets it), so the model still holds this turn's count
     try {
       const host = hostOf($)
-      const before = parseLevelStore(await host.storeGet('level'))
+      const stored = await host.storeGet('level')
+      if (levelStoreIsNewer(stored)) throw new Error('saved by a newer glowup; left as it is')
+      const before = parseLevelStore(stored)
       const after = before + turnXp({ answered: e.reason === 'answer', combo: model.combo, ...turnGain })
       await host.storeSet('level', levelStore(after))
       feed($, { type: 'level', xp: after })

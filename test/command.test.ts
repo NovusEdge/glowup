@@ -54,6 +54,9 @@ test('/glowup level: level, XP to the next, what is unlocked and what is next', 
     'Unlocked: new lines (2), a new outfit (3), new lines (4), a new move (5), a new outfit (6), new lines (7), a new outfit (8), a new move (10)',
     'All unlocks earned.',
   ])
+  const { host, store } = fakeHost()
+  store.level = { format: 2, xp: 9000 }
+  expect(await runCommand(host, 'level', ctl().ctl)).toMatch(/saved by a newer glowup/)
 })
 
 const SETTINGS = '/home/u/.claude/settings.json'
