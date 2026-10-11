@@ -9,7 +9,7 @@ import { finalState, runScript, type FileStat, type Kind, type Row, type TermSta
 import './terminal.css'
 
 const ORB: Record<Kind | 'fail' | 'pass', OrbState> = { read: 'search', agent: 'agents', edit: 'work', shell: 'run', fail: 'think', pass: 'think' }
-const TAB_LABEL: Record<TabId, string> = { changes: 'Changes', diff: 'Diff', agents: 'Agents', plan: 'Plan & context' }
+const TAB_LABEL: Record<TabId, string> = { changes: 'Changes', diff: 'Diff', agents: 'Agents', plan: 'Plan & context', music: 'Music' }
 // The landing keeps these fixed; only the studio (interactive) swaps in the draft theme's.
 const FIXED = { glyphs: { read: '▸', search: '▸', edit: '✎', shell: '$', agent: '◆', plan: '◉' }, hearts: ['♥', '♡'], word: 'Thinking…' }
 type Marks = { glyphs: Record<'read' | 'search' | 'edit' | 'shell' | 'agent' | 'plan', string>; hearts: readonly [string, string] | string[]; word: string }
