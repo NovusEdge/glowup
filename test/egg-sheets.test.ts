@@ -5,7 +5,7 @@ import { EGG1_SHEET } from '../hooks/sprites/egg1.ts'
 import { EGG2_SHEET } from '../hooks/sprites/egg2.ts'
 import { EGG3_SHEET } from '../hooks/sprites/egg3.ts'
 
-const ROWS = ['idle', 'working', 'walk', 'hop', 'alert', 'done', 'sleep', 'fail']
+const ROWS = ['idle', 'working', 'walk', 'hop', 'alert', 'done', 'sleep', 'fail', 'dance', 'work-dance']
 const SHEETS = [EGG0_SHEET, EGG1_SHEET, EGG2_SHEET, EGG3_SHEET]
 
 test('every egg stage has every row, one size, and a walk that never travels', () => {
