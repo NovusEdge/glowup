@@ -45,7 +45,7 @@ export const UNLOCKS: readonly { level: number; kind: UnlockKind; label: string 
 export const unlocksBetween = (fromLevel: number, toLevel: number) =>
   UNLOCKS.filter(u => u.level > fromLevel && u.level <= toLevel)
 
-export const ART_READY = false
+export const ART_READY = true
 
 // In unlock order, matching the outfit rows of UNLOCKS. Custom pets have none.
 export const LEVEL_OUTFITS: Readonly<Record<string, readonly string[]>> = {
