@@ -18,7 +18,7 @@ export const SECTIONS: readonly (readonly [title: string, rows: HelpRow[]])[] = 
   ['Start here', [
     ['/glowup config', 'open the config TUI in a new terminal window'],
     ['/glowup config pane', 'the same settings in a pane inside Claude'],
-    ['/glowup pane', 'open or close the side pane (Music tab: Spotify)'],
+    ['/glowup pane', 'open or close the side pane (plan, agents, diff, changes and Spotify tabs)'],
   ]],
   ['Look', [
     ['/glowup pack <name>', 'switch the whole look'],

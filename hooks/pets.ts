@@ -16,7 +16,7 @@ export type BuiltinPet = 'clawd' | 'clawd-shiny' | 'robot' | 'egg'
 export type PetSetting = BuiltinPet | 'off' | (string & {})
 // `string & {}` stays in the union, so the type cannot exclude 'off'; the pane's render hook checks it.
 export type PetId = Exclude<PetSetting, 'off'>
-// 'fail' is optional in a sheet; without one it plays 'alert'. The others fall back to idle.
+// A sheet may omit 'fail' (plays 'alert'), 'pant-walk' (plays 'walk') and 'work-dance' (plays 'working'). Any other missing pose falls back to idle.
 export type Pose = 'idle' | 'walk' | 'working' | 'hop' | 'alert' | 'done' | 'sleep' | 'fail' | 'juggle' | 'scrunch' | 'pant' | 'pant-walk' | 'dance' | 'work-dance'
 export type PetSpan = { text: string; color: string; bg?: string }
 export type PetKind = 'read' | 'search' | 'edit' | 'shell' | 'agent' | 'plan' | 'think'
