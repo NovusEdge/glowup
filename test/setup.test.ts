@@ -6,7 +6,7 @@ test('no stored setup is the default with no notices', () => {
 })
 
 test('a full valid setup round-trips', () => {
-  const s: Setup = { format: 3, band: ['plan', 'meter'], tabs: ['plan', 'changes'], meter: { warn: 40, danger: 90 }, bubbles: { moods: ['done'], ms: 5000 }, pet: { sleepMs: 120000 } }
+  const s: Setup = { format: 4, band: ['plan', 'meter'], tabs: ['plan', 'changes'], meter: { warn: 40, danger: 90 }, bubbles: { moods: ['done'], ms: 5000 }, pet: { sleepMs: 120000 } }
   expect(parseSetup(JSON.parse(JSON.stringify(s)))).toEqual({ setup: s, notices: [] })
 })
 
@@ -24,7 +24,7 @@ test('bad values fall back per field with a notice', () => {
   expect(r.setup).toEqual(DEFAULT_SETUP)
   expect(r.notices).toEqual([
     'band must be a list of: combo, agents, meter, plan',
-    'tabs must name at least one of: plan, agents, diff, changes',
+    'tabs must name at least one of: plan, agents, diff, changes, music',
     'meter.warn must be below meter.danger',
     'bubbles.ms must be a whole number from 1500 to 10000',
     'pet.sleepMs must be a whole number from 15000 to 600000',
@@ -32,7 +32,7 @@ test('bad values fall back per field with a notice', () => {
 })
 
 test('the default tabs open on plan and the diff tab is a valid choice', () => {
-  expect(DEFAULT_SETUP.tabs).toEqual(['plan', 'agents', 'diff', 'changes'])
+  expect(DEFAULT_SETUP.tabs).toEqual(['plan', 'agents', 'diff', 'changes', 'music'])
   expect(parseSetup({ tabs: ['diff', 'changes'] })).toEqual({ setup: { ...DEFAULT_SETUP, tabs: ['diff', 'changes'] }, notices: [] })
   expect(setSetupField(DEFAULT_SETUP, 'tabs', 'diff,plan')).toMatchObject({ setup: { tabs: ['diff', 'plan'] } })
 })
@@ -82,21 +82,43 @@ test('a format 2 setup holding every moment it knew reads as the default; any ot
   expect(parseSetup({ format: 2, bubbles: { moods: ['needs-you', 'fail', 'done'] } }).setup.bubbles.moods).toEqual(['needs-you', 'fail', 'done'])
 })
 
-test('a format 3 setup keeps its moods as a choice, and a saved setup is format 3', () => {
+test('format 3 and 4 setups keep their moods as a choice, and a saved setup is format 4', () => {
   const seven = SETUP_MOODS.filter(m => m !== 'level-up')
   expect(parseSetup({ format: 3, bubbles: { moods: seven } }).setup.bubbles.moods).toEqual(seven)
+  expect(parseSetup({ format: 4, bubbles: { moods: seven } }).setup.bubbles.moods).toEqual(seven)
+  expect(parseSetup({ format: 3, bubbles: { moods: [...SETUP_MOODS].reverse() } }).setup.bubbles.moods).toEqual([...SETUP_MOODS])
+  expect(parseSetup({ format: 4, bubbles: { moods: [...SETUP_MOODS].reverse() } }).setup.bubbles.moods).toEqual([...SETUP_MOODS])
   const r = setSetupField(DEFAULT_SETUP, 'bubbles.moods', 'needs-you,fail,done')
   if (!('setup' in r)) throw new Error(r.error)
-  expect(r.setup.format).toBe(3)
+  expect(r.setup.format).toBe(4)
+  expect(r.setup.bubbles.moods).toEqual(['needs-you', 'fail', 'done'])
   expect(parseSetup(JSON.parse(JSON.stringify(r.setup))).setup.bubbles.moods).toEqual(['needs-you', 'fail', 'done'])
-  expect(DEFAULT_SETUP.format).toBe(3)
+  expect(DEFAULT_SETUP.format).toBe(4)
   expect(SETUP_MOODS.at(-1)).toBe('level-up')
+})
+
+test('format 4 neither re-migrates moods nor the pre-music tab list; older formats do', () => {
+  const four = ['plan', 'agents', 'diff', 'changes']
+  expect(parseSetup({ format: 4, bubbles: { moods: ['needs-you', 'fail', 'done'] } }).setup.bubbles.moods).toEqual(['needs-you', 'fail', 'done'])
+  expect(parseSetup({ format: 4, tabs: four }).setup.tabs).toEqual(four)
+  expect(parseSetup({ format: 3, tabs: four }).setup.tabs).toEqual(DEFAULT_SETUP.tabs)
+  expect(parseSetup({ format: 2, tabs: four }).setup.tabs).toEqual(DEFAULT_SETUP.tabs)
+  expect(parseSetup({ tabs: four }).setup.tabs).toEqual(DEFAULT_SETUP.tabs)
+  expect(parseSetup({ format: 3, tabs: ['changes', 'agents', 'plan'] }).setup.tabs).toEqual(DEFAULT_SETUP.tabs)
+  expect(parseSetup({ format: 3, tabs: ['plan', 'music'] }).setup.tabs).toEqual(['plan', 'music'])
+})
+
+test('typing the four pre-music tabs hides the Music tab', () => {
+  const r = setSetupField(DEFAULT_SETUP, 'tabs', 'plan,agents,diff,changes')
+  if (!('setup' in r)) throw new Error(r.error)
+  expect(r.setup.tabs).toEqual(['plan', 'agents', 'diff', 'changes'])
+  expect(parseSetup(JSON.parse(JSON.stringify(r.setup))).setup.tabs).toEqual(['plan', 'agents', 'diff', 'changes'])
 })
 
 test('describeSetup lists every key with its value', () => {
   expect(describeSetup(DEFAULT_SETUP)).toBe([
     'band           combo, agents, meter, plan',
-    'tabs           plan, agents, diff, changes',
+    'tabs           plan, agents, diff, changes, music',
     'meter.warn     50',
     'meter.danger   80',
     'bubbles.moods  needs-you, fail, done, green, hello, long-done, compact, level-up',
@@ -110,4 +132,11 @@ test('toneFor uses the meter', () => {
   const m = { warn: 50, danger: 80 }
   expect([0, 49, 50, 79, 80, 100].map(p => toneFor(p, m))).toEqual(['pass', 'pass', 'edit', 'edit', 'fail', 'fail'])
   expect(toneFor(30, { warn: 20, danger: 30 })).toBe('fail')
+})
+
+test('music is a tab, last by default; a stored 0.11 default order gains it', () => {
+  expect(DEFAULT_SETUP.tabs).toEqual(['plan', 'agents', 'diff', 'changes', 'music'])
+  expect(parseSetup({ tabs: ['plan', 'agents', 'diff', 'changes'] }).setup.tabs).toEqual(DEFAULT_SETUP.tabs)
+  expect(parseSetup({ tabs: ['changes', 'plan'] }).setup.tabs).toEqual(['changes', 'plan'])
+  expect(parseSetup({ tabs: ['music'] }).setup.tabs).toEqual(['music'])
 })

@@ -25,7 +25,7 @@ Claude Code puts a `⚠ glowup:` prefix in front of every mod's status entry. It
 
 ## Choosing the fields
 
-The entry and the takeover line both show the same list of fields, in the order you pick. The default is `activity ctx effort 5h week`.
+The entry and the takeover line both show the same list of fields, in the order you pick. The default is `activity ctx effort 5h week`; `music` is off until you list it. Claude Code re-runs the status script about every 30 seconds, so the track can trail a change by that long.
 
 | Id | Shows |
 | --- | --- |
@@ -42,6 +42,7 @@ The entry and the takeover line both show the same list of fields, in the order 
 | `changes` | lines added and removed: `+42 −7` |
 | `cwd` | the project folder name |
 | `level` | your [pet level](pets.md#levels) and progress to the next: `Lv 7 ▰▰▰▱▱` |
+| `music` | the Spotify track playing: `♪ Title — Artist`. Left out unless a track is playing: paused and ads are left out too. |
 
 List the fields you want in order, or go back to the default:
 

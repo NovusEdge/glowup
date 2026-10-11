@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { tabRows, statusRows, renderPane, section, BOX, MIN_BOX, COMPACT_ROWS, petStripCols, bubbleBox, visibleTabs, type TabId } from '../hooks/pane.tsx'
+import { tabRows, tabParts, statusRows, renderPane, section, BOX, MIN_BOX, COMPACT_ROWS, petStripCols, bubbleBox, visibleTabs, type TabId } from '../hooks/pane.tsx'
 import { BUILTIN_LINES, MOMENTS } from '../hooks/lines.ts'
 import { anyLine } from './kit.ts'
 import { resolveLook, BORDERS } from '../hooks/packs.ts'
@@ -7,6 +7,7 @@ import { PACKS } from '../hooks/packpresets.ts'
 import { visibleLength } from '../hooks/layout.tsx'
 import { initialModel, applyEvent, type Model } from '../hooks/model.ts'
 import { resolveTheme } from '../hooks/themes.ts'
+import type { Music } from '../hooks/music/parse.ts'
 
 const T = resolveTheme('classic', {}).theme
 const text = (rows: { text: string }[][]) => rows.map(r => r.map(s => s.text).join(''))
@@ -333,14 +334,54 @@ test('HP and COMBO show in the status box under an arcade look', async () => {
   expect(text(statusRows({ ...M, limits: [{ kind: 'seven_day', percentUsed: 20 }] }, T, 54, 0, arcade))[1]).toContain('80% weekly limit left')
 })
 
-test('renderPane draws four tab buttons with hotkeys 1-4 and presses switch tab', async () => {
+test('renderPane draws five tab buttons with hotkeys 1-5 and presses switch tab', async () => {
   const picked: TabId[] = []
   const tree = renderPane(els, M, T, { tab: 'agents' }, 54, false, 0, id => picked.push(id))
   const buttons = walk(tree).filter(n => n.type === 'Button')
-  expect(buttons.map(b => [b.props.key, b.props.hotkey])).toEqual([['tab-plan', '1'], ['tab-agents', '2'], ['tab-diff', '3'], ['tab-changes', '4']])
-  expect(buttons.map(b => b.props.variant)).toEqual([undefined, 'primary', undefined, undefined])
+  expect(buttons.map(b => [b.props.key, b.props.hotkey])).toEqual([['tab-plan', '1'], ['tab-agents', '2'], ['tab-diff', '3'], ['tab-changes', '4'], ['tab-music', '5']])
+  expect(buttons.map(b => b.props.variant)).toEqual([undefined, 'primary', undefined, undefined, undefined])
   buttons[2].onPress({})
   expect(picked).toEqual(['diff'])
+})
+
+const track = { id: 'x', title: 'Fembrook Dr', artist: 'Khary', album: 'uhhh 3', durationMs: 176959 }
+const withMusic = (music?: Music): Model => ({ ...initialModel(), music })
+const playing: Music = { status: 'open', playing: true, ad: false, progressMs: 73827, readAt: 10000, track }
+
+test('music tab: now playing box with title, artist · album and a moving bar', async () => {
+  const rows = text(tabRows(withMusic(playing), T, { tab: 'music' }, 54, false, 12000))
+  expect(rows[0]).toMatch(/^╭─ NOW PLAYING ─+ Spotify ─╮$/)
+  expect(inside(rows[1]!)).toBe('Fembrook Dr')
+  expect(inside(rows[2]!)).toBe('Khary · uhhh 3')
+  expect(inside(rows[3]!)).toMatch(/^▶ 1:15 ━+─+ 2:56$/)
+  expect(cellsOf(rows[3]!)).toBe(54)
+})
+
+test('music tab: paused, ad, closed, unsupported and an empty album', async () => {
+  const at = (m?: Music) => text(tabRows(withMusic(m), T, { tab: 'music' }, 54, false, 12000)).map(inside)
+  expect(at({ ...playing, playing: false })[3]).toMatch(/^‖ 1:13 /)
+  expect(at({ ...playing, ad: true })[1]).toBe('Ad')
+  expect(at({ status: 'closed' })[1]).toBe("Open Spotify to see what's playing.")
+  expect(at(undefined)[1]).toBe("Open Spotify to see what's playing.")
+  expect(at({ status: 'unsupported', hint: 'needs busctl' })[1]).toBe('needs busctl')
+  expect(at({ ...playing, track: { ...track, album: '', durationMs: 0 } })[2]).toBe('Khary')
+})
+
+test('music tab: compact is one line and has no controls', async () => {
+  const p = tabParts(withMusic(playing), T, { tab: 'music' }, 50, true, 12000)
+  expect(text(p.rows)).toEqual(['  ♪ Fembrook Dr — Khary ▶'])
+  expect(p.controls).toBeUndefined()
+})
+
+test('music controls: buttons only while Spotify is open; a press reaches onMusic', async () => {
+  expect(tabParts(withMusic({ status: 'closed' }), T, { tab: 'music' }, 54, false, 0).controls).toBeUndefined()
+  expect(tabParts(withMusic(playing), T, { tab: 'music' }, 54, false, 0).controls).toEqual([
+    { cmd: 'previous', label: 'Prev', hotkey: 'r' }, { cmd: 'playpause', label: 'Pause', hotkey: 'p' }, { cmd: 'next', label: 'Next', hotkey: 'n' },
+  ])
+  const pressed: string[] = []
+  const tree = renderPane(els, withMusic(playing), T, { tab: 'music' }, 60, false, 0, () => {}, { onMusic: c => pressed.push(c) })
+  walk(tree).find(n => n.props?.key === 'music-playpause').onPress({})
+  expect(pressed).toEqual(['playpause'])
 })
 
 test('the Changes tab lists the most recently touched file first, ties in their given order', async () => {
@@ -572,6 +613,6 @@ test('the context warning follows meter.danger', () => {
 })
 
 test('tabs follow the setup and an open hidden tab falls to the first shown one', () => {
-  expect(visibleTabs(undefined, 'agents')).toEqual({ tabs: [['plan', 'Plan & context'], ['agents', 'Agents'], ['diff', 'Diff'], ['changes', 'Changes']], tab: 'agents' })
+  expect(visibleTabs(undefined, 'agents')).toEqual({ tabs: [['plan', 'Plan & context'], ['agents', 'Agents'], ['diff', 'Diff'], ['changes', 'Changes'], ['music', 'Music']], tab: 'agents' })
   expect(visibleTabs(['plan', 'changes'], 'agents')).toEqual({ tabs: [['plan', 'Plan & context'], ['changes', 'Changes']], tab: 'plan' })
 })

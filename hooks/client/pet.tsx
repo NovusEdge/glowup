@@ -1,6 +1,7 @@
 import type { ClientSurface } from 'claude-code'
-import { HOP_MS, KONAMI, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, CLAWD_SHEET, BUILTIN_SHEETS, CRITTER_ROW, composeFrame, halfBlock, isClawd, mainColor, mirrored, newPlayer, petPalette, petPose, playerFrame, stepPlayer, type PetId, type PetInput, type PetSheet, type PetTint, type Player } from '../pets.ts'
+import { HOP_MS, KONAMI, CLAWD_ROW, CLAWD_COLOR, SHINY_COLOR, CLAWD_SHEET, BUILTIN_SHEETS, CRITTER_ROW, composeFrame, frameAt, halfBlock, isClawd, mainColor, mirrored, newPlayer, petPalette, petPose, playerFrame, stepPlayer, type PetId, type PetInput, type PetSheet, type PetSpan, type PetTint, type Player } from '../pets.ts'
 import { renderSegs, type Seg } from '../layout.tsx'
+import { SPEAKER_SHEET } from '../sprites/speaker.ts'
 
 // sheet is present only for a user pet; a built-in is looked up by id.
 export type PetClientProps = { pet: PetId; input: PetInput; overlays: string[]; reduced: boolean; compact: boolean; width: number; tint?: PetTint; sheet?: PetSheet }
@@ -28,7 +29,23 @@ function resheet(st: PetState, sheet: PetSheet) {
   st.sig = sig
   st.player = newPlayer()
 }
-const maxXOf = (surface: ClientSurface<PetState | number>, p: PetClientProps) => Math.max(0, cols(surface, p) - sheetOf(p).w)
+// The prop follows the animation on screen, not the pose asked for, so it changes with the exit frame.
+const shownPose = (pl: Player) => (pl.seg && !pl.seg.clip ? pl.seg.pose : undefined)
+const SPEAKER_GAP = 1
+const speakerCols = SPEAKER_SHEET.w + SPEAKER_GAP
+const maxXOf = (surface: ClientSurface<PetState | number>, p: PetClientProps, pl?: Player) =>
+  Math.max(0, cols(surface, p) - sheetOf(p).w - (pl && shownPose(pl) === 'dance' ? speakerCols : 0))
+
+const pulse = SPEAKER_SHEET.animations.pulse!
+const speakerRows = (now: number) => halfBlock(pulse.frames[frameAt(pulse, now)]!.px, SPEAKER_SHEET.palette)
+// The speaker stands on the pet's floor: bottom-aligned, a gap to his right. halfBlock rows are as wide as the sheet.
+function beside(pet: PetSpan[][], spk: PetSpan[][]): PetSpan[][] {
+  const lift = Math.max(0, pet.length - spk.length)
+  return pet.map((r, i) => {
+    const s = spk[i - lift]
+    return s ? [...r, { text: ' '.repeat(SPEAKER_GAP), color: CLAWD_COLOR }, ...s] : r
+  })
+}
 
 // A sprite wider than the strip is cut at its right edge here: left to the layout, a too-wide row shrinks every segment and adds an ellipsis.
 // Every cell is one column wide (half blocks and spaces).
@@ -44,8 +61,8 @@ function cut(segs: Seg[], room: number): Seg[] {
   return out
 }
 
-// What the eye can tell apart: a new frame, a new clip, a step.
-const look = (pl: Player) => `${pl.seg?.name}:${pl.seg?.fi}:${pl.x}:${pl.dir}`
+// What the eye can tell apart: a new frame, a new clip, a step, a new speaker frame.
+const look = (pl: Player, now: number) => `${pl.seg?.name}:${pl.seg?.fi}:${pl.x}:${pl.dir}:${shownPose(pl) === 'dance' ? frameAt(pulse, now) : ''}`
 
 function startClock(surface: ClientSurface<PetState | number>, st: PetState) {
   st.stop = surface.every(TICK_MS, () => {
@@ -54,10 +71,10 @@ function startClock(surface: ClientSurface<PetState | number>, st: PetState) {
     if (quiet(cur.props)) { cur.stop?.(); cur.stop = undefined; return }
     const sheet = sheetOf(cur.props)
     resheet(cur, sheet)
-    const before = look(cur.player)
+    const before = look(cur.player, cur.now)
     cur.now = clock.now()
-    stepPlayer(cur.player, sheet, poseOf(cur, cur.props, cur.now), cur.now, maxXOf(surface, cur.props))
-    if (look(cur.player) !== before) surface.setState({ ...cur })
+    stepPlayer(cur.player, sheet, poseOf(cur, cur.props, cur.now), cur.now, maxXOf(surface, cur.props, cur.player))
+    if (look(cur.player, cur.now) !== before) surface.setState({ ...cur })
   })
 }
 
@@ -110,9 +127,12 @@ export default function PetClient(props: PetClientProps, surface: ClientSurface<
     }
   }
 
-  stepPlayer(player, sheet, poseOf(typeof st === 'object' ? st : undefined, props, now), now, maxXOf(surface, props))
-  const px = composeFrame(sheet, playerFrame(player, now), props.overlays, mirrored(player))
+  stepPlayer(player, sheet, poseOf(typeof st === 'object' ? st : undefined, props, now), now, maxXOf(surface, props, player))
+  const pose = shownPose(player)
+  const worn = pose === 'work-dance' ? [...props.overlays, 'headphones'] : props.overlays
+  const rows = halfBlock(composeFrame(sheet, playerFrame(player, now), worn, mirrored(player)), petPalette(sheet, props.pet, props.tint))
   const pad: Seg[] = player.x > 0 ? [{ text: ' '.repeat(player.x), color: CLAWD_COLOR }] : []
   const room = cols(surface, props)
-  return <Box flexDirection="column">{halfBlock(px, petPalette(sheet, props.pet, props.tint)).map((r, i) => renderSegs(surface.elements, cut([...pad, ...r], room), 'p' + i))}</Box>
+  const drawn = pose === 'dance' ? beside(rows, speakerRows(props.reduced ? 0 : now)) : rows
+  return <Box flexDirection="column">{drawn.map((r, i) => renderSegs(surface.elements, cut([...pad, ...r], room), 'p' + i))}</Box>
 }

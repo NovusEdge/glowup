@@ -4,7 +4,7 @@ import { localTime } from './eggs.ts'
 import { levelBar } from './levels.ts'
 import { DEFAULT_SETUP, toneFor, type Meter } from './setup.ts'
 
-export const FIELD_IDS = ['activity', 'ctx', '5h', 'week', 'cost', 'model', 'effort', 'agents', 'plan', 'branch', 'changes', 'cwd', 'level'] as const
+export const FIELD_IDS = ['activity', 'ctx', '5h', 'week', 'cost', 'model', 'effort', 'agents', 'plan', 'branch', 'changes', 'cwd', 'level', 'music'] as const
 export type FieldId = (typeof FIELD_IDS)[number]
 export const DEFAULT_FIELDS: readonly FieldId[] = ['activity', 'ctx', 'effort', '5h', 'week']
 export const isFieldId = (s: string): s is FieldId => (FIELD_IDS as readonly string[]).includes(s)
@@ -76,6 +76,11 @@ function field(id: FieldId, m: Model, now: number, tzOffset: number, meter: Mete
       return [{ text: `Lv ${level} `, color: 'accent' }, { text: '▰'.repeat(filled), color: 'accent' }, { text: '▱'.repeat(5 - filled), color: 'faint' }]
     }
     case 'cwd': return m.root ? [{ text: m.root.replace(/\/+$/, '').split('/').pop() || '/', color: 'text' }] : undefined
+    case 'music': {
+      const mu = m.music
+      if (mu?.status !== 'open' || !mu.playing || mu.ad || !mu.track) return undefined
+      return [{ text: `♪ ${mu.track.title}${mu.track.artist ? ` — ${mu.track.artist}` : ''}`, color: 'text' }]
+    }
   }
 }
 

@@ -324,3 +324,11 @@ test('the level event sets xp, and a model without a valid xp normalizes to unde
   expect(normalizeModel({ ...old, xp: 0 }).xp).toBe(0)
   expect(normalizeModel({ ...old, xp: 120 }).xp).toBe(120)
 })
+
+test('a music event lands on the model; junk music from old state is dropped', () => {
+  const m = applyEvent(initialModel(), { type: 'music', music: { status: 'closed' } })
+  expect(m.music).toEqual({ status: 'closed' })
+  expect(normalizeModel({ ...initialModel(), music: { status: 'nope' } }).music).toBeUndefined()
+  expect(normalizeModel({ ...initialModel(), music: 'x' }).music).toBeUndefined()
+  expect(normalizeModel({ ...initialModel(), music: { status: 'closed' } }).music).toEqual({ status: 'closed' })
+})

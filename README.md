@@ -27,12 +27,13 @@ glowup draws around Claude Code's transcript and prompt without moving them.
 
 ### The pane
 
-The pane has four tabs, opening on Plan & context, each drawn as a box in your pack's border style.
+The pane has five tabs, opening on Plan & context, each drawn as a box in your pack's border style.
 
 - **Changes** lists the files Claude edited or created, newest first, with added and removed line counts from git. A commit drops the committed files.
 - **Diff** shows those files' changes as hunks, with added and removed lines in your theme's colors.
 - **Agents** lists the subagents with their elapsed time, token count and the tool each one is running.
 - **Plan & context** shows Claude's task list, and below it a context bar split by what is filling the window, a chart of context use over the session, how many turns remain before auto-compact, and the heaviest sources you can trim.
+- **Music** shows the track playing in the Spotify desktop app, with a progress bar and Prev, Pause and Next buttons (`r`, `p` and `n` while the pane has the keyboard). It reads the app on your machine, so it needs no login: on Linux through `busctl` or `playerctl`, on macOS through `osascript`. Windows is not supported. While Spotify plays, your pet dances, and wears headphones while Claude works.
 
 Under the tabs, a status box shows the current action, the running subagents, and a row of hearts for the usage you have left on whichever of the 5-hour and weekly limits is tighter. On an API key the row shows what the session has spent instead.
 
@@ -95,7 +96,7 @@ A pack sets colors, transcript row styles, border shape and spinner under one na
 
 ### The status line
 
-While Claude or a subagent is working, glowup adds an entry under the prompt and clears it when the work is done. Its fields and their order are yours to pick, from activity, context, 5-hour and weekly usage, cost, branch and a few more. On first run glowup asks once whether it should draw your whole status line; if you say no, your existing one is left alone.
+While Claude or a subagent is working, glowup adds an entry under the prompt and clears it when the work is done. Its fields and their order are yours to pick, from activity, context, 5-hour and weekly usage, cost, branch, the track playing in Spotify and a few more. On first run glowup asks once whether it should draw your whole status line; if you say no, your existing one is left alone.
 
 </td>
 </tr>

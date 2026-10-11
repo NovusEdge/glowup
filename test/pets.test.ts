@@ -13,6 +13,27 @@ const sheet = (): PetSheet => ({
 const draw =(pet: 'clawd' | 'clawd-shiny', pose: string, f: number, ov: string[] = []) =>
   halfBlock(composeFrame(CLAWD_SHEET, animFor(CLAWD_SHEET, pose).frames[f]!, ov, false), petPalette(CLAWD_SHEET, pet))
 
+test('music: working poses become work-dance, resting poses become dance, events still win', async () => {
+  const base = { working: false, needsYou: false, music: true }
+  expect(petPose(base, 0)).toBe('dance')
+  expect(petPose({ ...base, ctx: 95 }, 0)).toBe('dance')
+  expect(petPose({ ...base, actAt: 1, sleepMs: 10 }, 1000)).toBe('dance')
+  expect(petPose({ ...base, working: true, kind: 'edit' }, 0)).toBe('work-dance')
+  expect(petPose({ ...base, working: true, kind: 'read' }, 0)).toBe('work-dance')
+  expect(petPose({ ...base, working: true, kind: 'read', ctx: 95 }, 0)).toBe('work-dance')
+  expect(petPose({ ...base, needsYou: true }, 0)).toBe('alert')
+  expect(petPose({ ...base, lastTest: { passed: true, at: 0 } }, 100)).toBe('hop')
+  expect(petPose({ ...base, doneAt: 0, doneOk: true }, 100)).toBe('done')
+  expect(petPose({ ...base, agents: 3 }, 0)).toBe('juggle')
+  expect(petPose({ ...base, music: false }, 0)).toBe('idle')
+})
+
+test('a sheet without dance art keeps its poses', async () => {
+  const s = sheet()
+  expect(animFor(s, 'work-dance')).toBe(s.animations.working)
+  expect(animFor(s, 'dance')).toBe(s.animations.idle)
+})
+
 test('poses follow the table', async () => {
   const base = { working: false, needsYou: false }
   expect(petPose(base, 0)).toBe('idle')
@@ -304,11 +325,11 @@ test('the built-in sheets are clawd and the robot, all playable', () => {
   for (const s of Object.values(BUILTIN_SHEETS)) expect(() => validateSheet(s)).not.toThrow()
 })
 
-test('the robot follows the user-pet rules: the spec animations only, mirrored walks, no outfits', () => {
+test('the robot follows the user-pet rules: the spec animations plus the dances, mirrored walks, only headphones', () => {
   const s = BUILTIN_SHEETS.robot!
   expect([s.w, s.h]).toEqual([32, 16])
-  expect(Object.keys(s.animations).sort()).toEqual([...PET_ANIMS].sort())
-  expect(s.outfits ?? {}).toEqual({})
+  expect(Object.keys(s.animations).sort()).toEqual([...PET_ANIMS, 'dance', 'work-dance'].sort())
+  expect(Object.keys(s.outfits ?? {})).toEqual(['headphones'])
   expect(s.transitions ?? {}).toEqual({})
   for (const f of s.animations.walk!.frames) expect(f.dx).toBe(1)
 })

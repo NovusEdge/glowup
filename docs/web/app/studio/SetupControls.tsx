@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BAND_ITEMS, SETUP_MOODS, TAB_IDS } from '../landing/data.ts'
+import { BAND_ITEMS, SETUP_MOODS, TAB_IDS, type TabId } from '../landing/data.ts'
 import { editSetup, toggle, type StudioSetup } from './model.ts'
 import { Order } from './ui'
 
@@ -25,7 +25,7 @@ function NumField({ label, value, min, max, step = 1, onCommit }: { label: strin
 }
 
 const BAND_LABEL = { combo: 'Combo', agents: 'Agents', meter: 'Meter', plan: 'Plan' }
-const TAB_LABEL = { changes: 'Changes', diff: 'Diff', agents: 'Agents', plan: 'Plan' }
+const TAB_LABEL: Record<TabId, string> = { changes: 'Changes', diff: 'Diff', agents: 'Agents', plan: 'Plan', music: 'Music' }
 
 export function SetupControls({ setup, onSetup, onTier }: { setup: StudioSetup; onSetup(s: StudioSetup): void; onTier(w: 'narrow' | 'wide'): void }) {
   const [notice, setNotice] = useState<string>()

@@ -47,7 +47,7 @@ Pick which parts show and in what order with /glowup setup band (see [setup](com
 
 ## The tabs
 
-The pane has four tabs, selected with their number key or by clicking. They open on Plan & context, then Agents, Diff and Changes. In the docked pane each tab is a box in the pack's border style, with the section name and its counts in the top edge; the compact drawer draws no boxes.
+The pane has five tabs, selected with their number key or by clicking. They open on Plan & context, then Agents, Diff, Changes and Music. In the docked pane each tab is a box in the pack's border style, with the section name and its counts in the top edge; the compact drawer draws no boxes.
 
 Under the tabs in the wide pane, a status box shows the current action, the running subagents and a row of hearts. These hearts show account usage: whichever of the 5-hour and weekly limits has less left, for example `♥♥♡♡♡  weekly limit 38% left`. On an API key, which has no such limits, the row shows the session's spend instead, such as `$4.20 spent this session`. Until the first usage reading arrives, the hearts show context.
 
@@ -105,5 +105,16 @@ The tab has two boxes, `PLAN` and `CONTEXT`, one blank row apart.
 - Without a task list, `PLAN` says `No task list yet.`
 
 A mod cannot hide Claude Code's own task list, so the plan shows in both places.
+
+### Music
+
+The track playing in the Spotify desktop app, in a `NOW PLAYING` box. The tab stays in the strip when Spotify is closed, so the number keys do not shift; hide it with /glowup setup tabs.
+
+- The title in bold, `artist · album` under it, then `▶` or `‖`, the elapsed time, a progress bar and the track length.
+- Below the box, three buttons: `r: Prev`, `p: Pause` (`Play` while paused) and `n: Next`. Click them, or press the key while the pane has the keyboard. They act on the Spotify on this machine.
+- An ad shows `Ad` in place of the track. With Spotify closed the tab says `Open Spotify to see what's playing.`
+- glowup reads the player locally, every second while the tab is open and playing, otherwise every 2 to 10 seconds. On Linux it uses `busctl` (systemd) and falls back to `playerctl`; when neither is installed the tab says what to install. On macOS it uses `osascript`, and only asks when Spotify is already running, so glowup never launches it. Windows is not supported.
+- While Spotify plays, the pet dances with a speaker beside it, and wears headphones and dances while Claude works. Custom pets without a dance use their idle and working poses.
+- The compact form is one line: `♪ title — artist ▶`.
 
 The tabs do not respond to selection yet; opening a subagent's tool calls is on the [roadmap](roadmap.md).
