@@ -16,14 +16,14 @@ const PLAY_PAUSE = `busctl --user call ${DEST} PlayPause`
 const PLAYING = ['{"type":"s","data":"Playing"}', '{"type":"a{sv}","data":{"mpris:trackid":{"type":"s","data":"/com/spotify/track/t"},"xesam:title":{"type":"s","data":"Song"},"mpris:length":{"type":"t","data":9000000}}}', '{"type":"x","data":1000000}'].join('\n')
 const ok = (stdout = '') => ({ exitCode: 0, stdout })
 
-function boot(on: any, files: Record<string, string>, answers: Record<string, { exitCode: number; stdout: string }>) {
+function boot(on: any, files: Record<string, string>, answers: Record<string, { exitCode: number; stdout: string }>, paneShown = true) {
   const ran: string[] = []
   const fs = fakeFs(on, files, argv => { const k = argv.join(' '); ran.push(k); return answers[k] })
   mock.store(on)
   on('command.register', async () => ({ value: undefined }) as never)
   on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
   on('ui.render', async () => ENGINE_ROW)
-  on('ui.panes', async () => ({ value: [{ id: 'glowup', isShown: true, isPlaced: true }] }))
+  on('ui.panes', async () => ({ value: [{ id: 'glowup', isShown: paneShown, isPlaced: true }] }))
   on('ui.status', async () => ({ value: undefined }) as never)
   on('ui.toast', async () => ({ value: undefined }) as never)
   on('session.id', async () => ({ value: 's1' }))
@@ -34,7 +34,7 @@ function boot(on: any, files: Record<string, string>, answers: Record<string, { 
 }
 const reads = (ran: string[]) => ran.filter(a => a === BUS).length
 
-const LINUX_BUS = { 'uname -s': ok('Linux\n'), 'busctl --version': ok('systemd 258') }
+const LINUX_BUS = { 'uname -s': ok('Linux\n'), 'busctl --json=short --version': ok('systemd 258') }
 
 test('Spotify playing: the Music tab shows the track, the pet dances, a press runs PlayPause', { timeoutMs: 20000 }, async ($, on) => {
   const { ran } = boot(on, {}, { ...LINUX_BUS, [BUS]: ok(PLAYING), [PLAY_PAUSE]: ok() })
@@ -84,6 +84,22 @@ test('a press during a read leaves one poll loop', { timeoutMs: 20000 }, async (
   const before = reads(ran)
   for (let i = 0; i < 20; i++) await clock.advance(1000)
   // one loop at 2 s is 10 reads in 20 s; two loops would be 20 or more
+  expect(reads(ran) - before).toBeLessThanOrEqual(11)
+  expect(reads(ran) - before).toBeGreaterThanOrEqual(9)
+  await p.unmount()
+})
+
+test('the Music tab selected but the pane closed polls at the 2 s cadence', { timeoutMs: 20000 }, async ($, on) => {
+  const { ran } = boot(on, {}, { ...LINUX_BUS, [BUS]: ok(PLAYING) }, false)
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  await clock.advance(50)
+  const p = await mountPane($)
+  await p.press({ key: 'tab-music' })
+  await clock.advance(50)
+  const before = reads(ran)
+  for (let i = 0; i < 20; i++) await clock.advance(1000)
+  // 1 s cadence would be 20 reads in 20 s; 2 s is 10
   expect(reads(ran) - before).toBeLessThanOrEqual(11)
   expect(reads(ran) - before).toBeGreaterThanOrEqual(9)
   await p.unmount()

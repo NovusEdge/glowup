@@ -345,7 +345,12 @@ async function musicPlatform($: Engine): Promise<Platform> {
   return r?.stdout.trim() === 'Darwin' ? 'mac' : 'linux'
 }
 const musicPlaying = () => model.music?.status === 'open' && model.music.playing
-const musicDelay = () => (musicPlaying() ? (view.tab === 'music' ? 1000 : 2000) : 10_000)
+const musicDelay = (tabOpen: boolean) => (musicPlaying() ? (tabOpen ? 1000 : 2000) : 10_000)
+// view.tab keeps the last selected tab after the pane closes, so the tab alone does not mean it is on screen.
+async function musicTabOpen($: Engine) {
+  if (view.tab !== 'music') return false
+  try { return (await $.ui.panes()).some(p => p.id === 'glowup' && p.isShown) } catch { return false }
+}
 async function pollMusic($: Engine) {
   const mine = ++musicSeq
   musicTimer?.cancel(); musicTimer = undefined
@@ -353,9 +358,11 @@ async function pollMusic($: Engine) {
   const now = Date.now()
   const next = await musicReader.read(hostOf($), now)
   if (off || mine !== musicSeq) return
+  const tabOpen = await musicTabOpen($)
+  if (off || mine !== musicSeq) return
   // the open Music tab redraws on every read so its bar moves
-  if (!sameMusic(model.music, next, now) || (view.tab === 'music' && next.status === 'open' && next.playing)) feed($, { type: 'music', music: next })
-  musicTimer = $.clock.after(musicDelay(), () => void pollMusic($))
+  if (!sameMusic(model.music, next, now) || (tabOpen && next.status === 'open' && next.playing)) feed($, { type: 'music', music: next })
+  musicTimer = $.clock.after(musicDelay(tabOpen), () => void pollMusic($))
 }
 async function startMusic($: Engine) {
   const platform = await musicPlatform($)
@@ -794,8 +801,8 @@ function schedulePlan($: Engine) {
 // A new session id means a new conversation: nothing from the old one carries over.
 async function adoptSession($: Engine, endedId: string) {
   const id = await $.session.id()
-  const { limits, xp } = model
-  model = { ...initialModel(), limits, xp }
+  const { limits, xp, music } = model
+  model = { ...initialModel(), limits, xp, music }
   turnGain = { green: 0, commits: 0 }
   pendingLevelUp = undefined
   view = { tab: setup.tabs[0]! }
