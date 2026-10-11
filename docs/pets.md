@@ -66,7 +66,7 @@ A bubble is about one moment. There are eight, and all are on by default.
 | `compact` | The context is compacted. |
 | `level-up` | A turn takes you to a new [level](#levels). It replaces that turn's `done` or `long-done` line and names what you unlocked. |
 
-Clawd, the robot and the egg each have their own lines, about six per moment: Clawd is dry and warm, the robot reports in capitals, and the egg mostly makes small sounds. `clawd-shiny` uses Clawd's. A pet you draw yourself speaks a neutral default line unless its file carries [its own lines](pet-sprites.md#lines-and-voice).
+Clawd, the robot, the ghost and the egg each have their own lines, about six per moment: Clawd is dry and warm, the robot reports in capitals, the ghost is shy and fond of haunted-house puns, and the egg mostly makes small sounds. `clawd-shiny` uses Clawd's. A pet you draw yourself speaks a neutral default line unless its file carries [its own lines](pet-sprites.md#lines-and-voice).
 
 Lines also change with the clock. Mornings, afternoons, evenings and nights add their own lines to the pool, and so do Fridays and the holiday outfits (Christmas, Halloween and your install anniversary).
 
@@ -86,7 +86,7 @@ With `/glowup bubbles haiku`, glowup sometimes asks Claude Haiku for the line. T
 
 **Cost.** Each line is a small Haiku call billed to your account, made with your session's credentials.
 
-`hello`, `compact` and `level-up` lines never use Haiku. Haiku speaks as the pet, using the pet's voice: built in for Clawd, the robot and the egg, and the `voice` key in a [custom pet file](pet-sprites.md#lines-and-voice).
+`hello`, `compact` and `level-up` lines never use Haiku. Haiku speaks as the pet, using the pet's voice: built in for Clawd, the robot, the ghost and the egg, and the `voice` key in a [custom pet file](pet-sprites.md#lines-and-voice).
 
 What it sends: the moment, the pose, the short label glowup already shows for the current tool, a test summary such as `failed 3`, and the time of day. It never sends your prompts, file contents, code or secrets. The reply is cleaned to one plain line of at most 40 characters; an empty reply falls back to the template.
 

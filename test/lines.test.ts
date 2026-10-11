@@ -60,6 +60,7 @@ test('a moment with no base lines falls back to the neutral set, never to Clawd'
 
 test('linesFor picks the pet\'s table; shiny uses Clawd\'s; a custom pet uses its own or none', async () => {
   expect(linesFor('robot')).toBe(BUILTIN_LINES.robot)
+  expect(linesFor('ghost')).toBe(BUILTIN_LINES.ghost)
   expect(linesFor('clawd-shiny')).toBe(BUILTIN_LINES.clawd)
   expect(linesFor('egg')).toBe(BUILTIN_LINES.egg)
   const mine = { done: ['mine'] }
