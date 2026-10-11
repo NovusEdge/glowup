@@ -47,6 +47,23 @@ test('the pane hosts the pet Client with raw inputs; the band never does', { tim
   await pane.unmount(); await band.unmount()
 })
 
+test('/clear scrunches the pet like a compaction; a resume does not', { timeoutMs: 20000 }, async ($, on) => {
+  base(on); const clock = mock.clock(on)
+  on('session.end', async (_$: unknown, e: any) => ({ sessionId: e.sessionId }))
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  const pane = await mountPane($)
+  expect(petClient(await pane.drawn()).props.props.input.compactAt).toBeUndefined()
+  await $.session.end({ reason: 'resume', sessionId: 's1' } as never)
+  await clock.advance(10)
+  expect(petClient(await pane.drawn()).props.props.input.compactAt).toBeUndefined()
+  await $.session.end({ reason: 'clear', sessionId: 's1' } as never)
+  await clock.advance(10)
+  const at = petClient(await pane.drawn()).props.props.input.compactAt
+  expect(typeof at).toBe('number')
+  expect(Math.abs(Date.now() - at)).toBeLessThan(5000)
+  await pane.unmount()
+})
+
 test('the pet region is sized to the strip so he has room to walk; the compact row stays unsized', { timeoutMs: 20000 }, async ($, on) => {
   base(on); mock.clock(on)
   const pane = await mountPane($)
