@@ -1,6 +1,7 @@
 import { expect, mock } from 'claude-code/testing'
 import type { RenderElement } from 'claude-code'
 import { fakeFs, test } from './kit.ts'
+import { toBase64Url } from '../hooks/link.ts'
 
 const ENGINE_ROW = { type: 'Text', props: {}, children: ['engine row'] } as RenderElement
 const scroll = { offset: 0, bodyRows: 40 }
@@ -16,21 +17,21 @@ const PLAY_PAUSE = `busctl --user call ${DEST} PlayPause`
 const PLAYING = ['{"type":"s","data":"Playing"}', '{"type":"a{sv}","data":{"mpris:trackid":{"type":"s","data":"/com/spotify/track/t"},"xesam:title":{"type":"s","data":"Song"},"mpris:length":{"type":"t","data":9000000}}}', '{"type":"x","data":1000000}'].join('\n')
 const ok = (stdout = '') => ({ exitCode: 0, stdout })
 
-function boot(on: any, files: Record<string, string>, answers: Record<string, { exitCode: number; stdout: string }>, paneShown = true) {
-  const ran: string[] = []
-  const fs = fakeFs(on, files, argv => { const k = argv.join(' '); ran.push(k); return answers[k] })
-  mock.store(on)
+function boot(on: any, files: Record<string, string>, answers: Record<string, { exitCode: number; stdout: string }>, paneShown = true, env: Record<string, string> = {}, store?: Record<string, unknown>) {
+  const ran: string[] = [], toasts: string[] = []
+  const fs = fakeFs(on, files, argv => { const k = argv.join(' '); ran.push(k); return answers[k] }, env)
+  mock.store(on, store)
   on('command.register', async () => ({ value: undefined }) as never)
   on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
   on('ui.render', async () => ENGINE_ROW)
   on('ui.panes', async () => ({ value: [{ id: 'glowup', isShown: paneShown, isPlaced: true }] }))
   on('ui.status', async () => ({ value: undefined }) as never)
-  on('ui.toast', async () => ({ value: undefined }) as never)
+  on('ui.toast', async (_$: unknown, e: any) => { toasts.push(e.text); return { value: undefined } as never })
   on('session.id', async () => ({ value: 's1' }))
   on('session.usage', async () => ({ value: { context: { window: 1000, percent: 10 } } as never }))
   on('turn.start', async (_$: unknown, e: any) => ({ turnId: e.turnId }))
   on('tool.call', async () => ({ result: {}, text: '' }) as never)
-  return { ...fs, ran }
+  return { ...fs, ran, toasts }
 }
 const reads = (ran: string[]) => ran.filter(a => a === BUS).length
 
@@ -118,4 +119,121 @@ test('a copy that is off never polls Spotify', { timeoutMs: 20000 }, async ($, o
   await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
   await clock.advance(20_000)
   expect(ran.filter(a => a.startsWith('busctl'))).toEqual([])
+})
+
+// Each test names its own cover, so no two tests share a cache key even if module state outlived a test.
+const playingArt = (track: string, art: string) => ['{"type":"s","data":"Playing"}', `{"type":"a{sv}","data":{"mpris:trackid":{"type":"s","data":"/com/spotify/track/${track}"},"xesam:title":{"type":"s","data":"Song ${track}"},"mpris:length":{"type":"t","data":9000000},"mpris:artUrl":{"type":"s","data":"https://i.scdn.co/image/ab67616d0000b273${art}"}}}`, '{"type":"x","data":1000000}'].join('\n')
+const artCmd = (art: string) => `/gi spotify-art --size 8 https://i.scdn.co/image/ab67616d00004851${art}`
+const ART_OUT = JSON.stringify({ w: 8, h: 8, rgb: toBase64Url(Uint8Array.from({ length: 192 }, (_, i) => [16, 32, 48][i % 3]!)) })
+const artRuns = (ran: string[]) => ran.filter(a => a.includes(' spotify-art ')).length
+const seekClient = (tree: any) => walk(tree).find(n => n?.type === 'Client' && String(n.props?.module).endsWith('client/seekbar.tsx'))
+
+test('the bar is the seek Client; its post seeks Spotify at the track it is in', async ($, on) => {
+  const SEEK = `busctl --user call ${DEST} SetPosition ox /com/spotify/track/t 4000000`
+  const { ran } = boot(on, {}, { ...LINUX_BUS, [BUS]: ok(PLAYING), [SEEK]: ok() })
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  await clock.advance(50)
+  const pane = await mountPane($)
+  await pane.press({ key: 'tab-music' })
+  await clock.advance(50)
+  const seek = seekClient(await pane.drawn())
+  expect(seek.props.key).toBe('glowup-seek')
+  expect(seek.props.props).toMatchObject({ kind: 'progress', durationMs: 9000, playing: true })
+  await pane.post({ kind: 'seek', ms: 4000 }, { in: 'glowup-seek' })
+  await clock.advance(50)
+  expect(ran).toContain(SEEK)
+  await pane.unmount()
+})
+
+test('a cover is fetched once through the helper and drawn as half-blocks', async ($, on) => {
+  const { ran } = boot(on, { '/gi': '' }, { ...LINUX_BUS, [BUS]: ok(playingArt('t1', 'a1')), [artCmd('a1')]: ok(ART_OUT) }, true, { GLOWUP_BIN: '/gi' })
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  await clock.advance(50)
+  const pane = await mountPane($)
+  await pane.press({ key: 'tab-music' })
+  for (let i = 0; i < 5; i++) await clock.advance(1000)
+  expect(text(await pane.drawn())).toContain('▀▀▀▀▀▀▀▀')
+  expect(ran.filter(a => a === artCmd('a1'))).toHaveLength(1)
+  await pane.unmount()
+})
+
+test('a cover that fails is fetched once', async ($, on) => {
+  const { ran } = boot(on, { '/gi': '' }, { ...LINUX_BUS, [BUS]: ok(playingArt('t2', 'a2')), [artCmd('a2')]: { exitCode: 1, stdout: '' } }, true, { GLOWUP_BIN: '/gi' })
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  await clock.advance(50)
+  const pane = await mountPane($)
+  await pane.press({ key: 'tab-music' })
+  for (let i = 0; i < 10; i++) await clock.advance(1000)
+  expect(ran.filter(a => a === artCmd('a2'))).toHaveLength(1)
+  expect(text(await pane.drawn())).toContain('♪')
+  await pane.unmount()
+})
+
+test('no helper binary: two tracks, no helper run and no toast', async ($, on) => {
+  // no GLOWUP_BIN and no installer/ in the plugin root; plugin.json is unreadable here, so the version is dev and ensureBinary gives up without downloading
+  const answers = { ...LINUX_BUS, [BUS]: ok(playingArt('t3', 'a3')) }
+  const { ran, toasts } = boot(on, {}, answers)
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  await clock.advance(50)
+  const pane = await mountPane($)
+  await pane.press({ key: 'tab-music' })
+  for (let i = 0; i < 4; i++) await clock.advance(1000)
+  answers[BUS] = ok(playingArt('t4', 'a4'))
+  for (let i = 0; i < 4; i++) await clock.advance(1000)
+  expect(text(await pane.drawn())).toContain('Song t4')
+  expect(artRuns(ran)).toBe(0)
+  expect(toasts.filter(t => t.includes('glowup-installer'))).toEqual([])
+  await pane.unmount()
+})
+
+test('an old helper without spotify-art is given up on', async ($, on) => {
+  // a build from before spotify-art hands it to cli.Parse, which refuses positional arguments and exits 2
+  const answers = { ...LINUX_BUS, [BUS]: ok(playingArt('t5', 'a5')), [artCmd('a5')]: { exitCode: 2, stdout: '' }, [artCmd('a6')]: ok(ART_OUT) }
+  const { ran } = boot(on, { '/gi': '' }, answers, true, { GLOWUP_BIN: '/gi' })
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  await clock.advance(50)
+  const pane = await mountPane($)
+  await pane.press({ key: 'tab-music' })
+  for (let i = 0; i < 4; i++) await clock.advance(1000)
+  answers[BUS] = ok(playingArt('t6', 'a6'))
+  for (let i = 0; i < 4; i++) await clock.advance(1000)
+  expect(artRuns(ran)).toBe(1)
+  await pane.unmount()
+})
+
+test('the cover waits for the Music tab', async ($, on) => {
+  const { ran } = boot(on, { '/gi': '' }, { ...LINUX_BUS, [BUS]: ok(playingArt('t7', 'a7')), [artCmd('a7')]: ok(ART_OUT) }, true, { GLOWUP_BIN: '/gi' })
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  await clock.advance(50)
+  const pane = await mountPane($)
+  // the pane opens on Plan: Spotify is read, but no cover is fetched
+  for (let i = 0; i < 12; i++) await clock.advance(1000)
+  expect(ran).toContain(BUS)
+  expect(artRuns(ran)).toBe(0)
+  await pane.press({ key: 'tab-music' })
+  for (let i = 0; i < 3; i++) await clock.advance(1000)
+  expect(artRuns(ran)).toBe(1)
+  await pane.unmount()
+})
+
+test('the shuffle button sets Shuffle from the extras read', async ($, on) => {
+  const EXTRAS = `busctl --user --json=short get-property ${DEST} Shuffle LoopStatus Volume`
+  const SET = `busctl --user set-property ${DEST} Shuffle b false`
+  const { ran } = boot(on, {}, { ...LINUX_BUS, [BUS]: ok(PLAYING), [EXTRAS]: ok('{"type":"b","data":true}\n{"type":"s","data":"None"}\n{"type":"d","data":1}'), [SET]: ok() })
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  await clock.advance(50)
+  const pane = await mountPane($)
+  await pane.press({ key: 'tab-music' })
+  await clock.advance(50)
+  await pane.press({ key: 'music-shuffle' })
+  await clock.advance(50)
+  expect(ran).toContain(SET)
+  await pane.unmount()
 })

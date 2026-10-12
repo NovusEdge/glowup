@@ -110,11 +110,12 @@ A mod cannot hide Claude Code's own task list, so the plan shows in both places.
 
 The track playing in the Spotify desktop app, in a `NOW PLAYING` box. The tab stays in the strip when Spotify is closed, so the number keys do not shift; hide it with /glowup setup tabs.
 
-- The title in bold, `artist · album` under it, then `▶` or `‖`, the elapsed time, a progress bar and the track length.
-- Below the box, three buttons: `r: Prev`, `p: Pause` (`Play` while paused) and `n: Next`. Click them, or press the key while the pane has the keyboard. They act on the Spotify on this machine.
+- The box shows the cover beside the title, the artist and album, and a progress bar. Below 40 columns the cover is left out. The cover is Spotify's 64 px image, drawn in half-block pixels by glowup's helper binary, which glowup downloads the first time it needs one (the same binary `/glowup config` uses). Until it arrives, or if it cannot, the box shows a `♪`.
+- Click the progress bar to jump to that point, or drag along it and let go.
+- Below the box: `r: Prev`, `p: Pause` (`Play` while paused), `n: Next`, `s: ⇄` (shuffle) and `e: ↻` (repeat: off, the playlist or album, then `↻1` for the track; on macOS only off and on). Shuffle and repeat are bright when on and dim when off, and are left out when the player does not report them. Click a button, or press its key while the pane has the keyboard. They act on the Spotify on this machine.
 - An ad shows `Ad` in place of the track. With Spotify closed the tab says `Open Spotify to see what's playing.`
-- glowup reads the player locally, every second while the tab is open and playing, otherwise every 2 to 10 seconds. On Linux it uses `busctl` (systemd) and falls back to `playerctl`; when neither is installed the tab says what to install. On macOS it uses `osascript`, and only asks when Spotify is already running, so glowup never launches it. Windows is not supported.
-- While Spotify plays, the pet dances with a speaker beside it, and wears headphones and dances while Claude works. Custom pets without a dance use their idle and working poses.
+- glowup reads the player locally, every second while the tab is open and playing, otherwise every 2 to 10 seconds; the bar moves on its own between reads. On Linux it uses `busctl` (systemd) and falls back to `playerctl`; when neither is installed the tab says what to install. On macOS it uses `osascript`, and only asks when Spotify is already running, so glowup never launches it. Windows is not supported.
+- While Spotify plays, the pet dances with a speaker beside it, and wears headphones and dances while Claude works. Custom pets without a dance use their idle and working poses. `/glowup setup pet.dance off` turns this off.
 - The compact form is one line: `♪ title — artist ▶`.
 
 The tabs do not respond to selection yet; opening a subagent's tool calls is on the [roadmap](roadmap.md).
