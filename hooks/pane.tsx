@@ -13,13 +13,16 @@ import { comboSegs, fit, hearts, hpBar, levelSegs, renderSegs, toneColor, visibl
 import { liveLimit } from './fields.ts'
 import { DEFAULT_SETUP, type Meter, type TabId } from './setup.ts'
 import type { DiffLine, Diffs } from './diff.ts'
-import { progressAt, type MusicCmd } from './music/parse.ts'
+import { progressAt, type MusicCmd, type OpenMusic } from './music/parse.ts'
+import { barRow, type SeekBarProps } from './music/seek.ts'
+import { coverPlaceholder } from './music/art.ts'
+import type { MusicCaps } from './music/reader.ts'
 
 export type { TabId }
 // ctx comes from the context breakdown: threshold is the auto-compact point in tokens (absent when it is off),
 // window the model's window that m.ctxPercent and m.ctxHistory are measured against.
 export type CtxDetail = { autoCompact: boolean; threshold?: number; window?: number; heavy: Heavy[]; cacheHit?: number }
-export type PaneView = { tab: TabId; offset?: number; categories?: { name: string; tokens: number; kind: ContextCategoryKind }[]; maxTokens?: number; ctx?: CtxDetail; reduced?: boolean; meter?: Meter; diff?: Diffs }
+export type PaneView = { tab: TabId; offset?: number; categories?: { name: string; tokens: number; kind: ContextCategoryKind }[]; maxTokens?: number; ctx?: CtxDetail; reduced?: boolean; meter?: Meter; diff?: Diffs; cover?: Seg[][]; musicCaps?: MusicCaps }
 export const TABS: [TabId, string][] = [['plan', 'Plan & context'], ['agents', 'Agents'], ['diff', 'Diff'], ['changes', 'Changes'], ['music', 'Music']]
 export function visibleTabs(order: readonly TabId[] | undefined, open: TabId): { tabs: [TabId, string][]; tab: TabId } {
   const tabs = order ? order.map(id => TABS.find(([t]) => t === id)!).filter(Boolean) : TABS
@@ -78,39 +81,69 @@ export function section(title: string, right: string, body: Seg[][], w: number, 
   return [top, ...body.map(row), [edge(b.bl + b.h.repeat(w - 2) + b.br)]]
 }
 
-export type MusicButton = { cmd: MusicCmd; label: string; hotkey: string }
-type Part = { rows: Seg[][]; n: number; controls?: MusicButton[] }
+export type MusicButton = { key: string; cmd: MusicCmd; label: string; hotkey: string; on?: boolean }
+// The row the seek bar Client replaces: the same array tabParts returns, with what is drawn either side of it.
+export type SeekSlot = { row: Seg[]; left: Seg[]; right: Seg[]; props: SeekBarProps }
+type Part = { rows: Seg[][]; n: number; controls?: MusicButton[]; seek?: SeekSlot }
 
-const mmss = (ms: number) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
+export const COVER_COLS = 8, COVER_ROWS = 4, COVER_MIN = 40
+const ALL_REPEAT = ['off', 'context', 'track'] as const
 
 // Letters, not digits: the tab strip owns 1-n. Not b or a, which the pet Client's Konami code takes after a click.
-function music(m: Model, t: Theme, w: number, compact: boolean, now: number, border: Border): Part {
+function musicControls(s: OpenMusic, caps?: MusicCaps): MusicButton[] {
+  const out: MusicButton[] = [
+    { key: 'previous', cmd: { cmd: 'previous' }, label: 'Prev', hotkey: 'r' },
+    { key: 'playpause', cmd: { cmd: 'playpause' }, label: s.playing ? 'Pause' : 'Play', hotkey: 'p' },
+    { key: 'next', cmd: { cmd: 'next' }, label: 'Next', hotkey: 'n' },
+  ]
+  if (s.shuffle !== undefined) out.push({ key: 'shuffle', cmd: { cmd: 'shuffle', on: !s.shuffle }, label: '⇄', hotkey: 's', on: s.shuffle })
+  if (s.repeat !== undefined) {
+    // a mode the player cannot set (track, on macOS) is not in the cycle, so the next press turns repeat off
+    const modes = caps?.repeat ?? ALL_REPEAT
+    const next = modes[(modes.indexOf(s.repeat) + 1) % modes.length] ?? 'off'
+    out.push({ key: 'repeat', cmd: { cmd: 'repeat', mode: next }, label: s.repeat === 'track' ? '↻1' : '↻', hotkey: 'e', on: s.repeat !== 'off' })
+  }
+  return out
+}
+
+function music(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, now: number, border: Border): Part {
   const c = t.colors, s = m.music ?? { status: 'closed' as const }
   const lead = compact ? '  ' : '', iw = compact ? w : boxInner(w)
   const note = (text: string): Seg[][] => [[{ text: lead + text, color: c.dim }]]
-  let body: Seg[][]
+  let body: Seg[][], bar: { index: number; prefix: Seg[]; props: SeekBarProps } | undefined
   if (s.status === 'unsupported') body = note(s.hint)
   else if (s.status === 'closed') body = note("Open Spotify to see what's playing.")
   else if (s.ad) body = note('Ad')
   else if (!s.track) body = note('Nothing playing.')
   else if (compact) body = [fit([{ text: `${lead}♪ `, color: c.accent }, { text: s.track.title, color: c.text, bold: true }, { text: `${s.track.artist ? ` — ${s.track.artist}` : ''} ${s.playing ? '▶' : '‖'}`, color: c.dim }], w)]
   else {
-    const at = progressAt(s, now), dur = s.track.durationMs
-    // ⏸ has emoji presentation in some terminals and fonts, which draws two cells and pushes the box border out
-    const left = `${s.playing ? '▶' : '‖'} ${mmss(at)} `, right = dur > 0 ? ` ${mmss(dur)}` : ''
-    const bar = Math.max(4, iw - left.length - right.length)
-    const done = dur > 0 ? Math.round(bar * Math.min(1, at / dur)) : 0
-    body = [
-      fit([{ text: s.track.title, color: c.text, bold: true }], iw),
-      fit([{ text: [s.track.artist, s.track.album].filter(Boolean).join(' · '), color: c.dim }], iw),
-      fit([{ text: left, color: c.text }, { text: '━'.repeat(done), color: c.accent }, { text: '─'.repeat(bar - done), color: c.faint }, { text: right, color: c.dim }], iw),
-    ]
+    const cover = iw >= COVER_MIN ? (v.cover ?? coverPlaceholder(COVER_COLS, COVER_ROWS, c.accent)) : undefined
+    const textW = cover ? iw - COVER_COLS - 2 : iw
+    const props: SeekBarProps = { kind: 'progress', cols: textW, progressMs: s.progressMs, readAt: s.readAt, durationMs: s.track.durationMs, playing: s.playing,
+      colors: { text: c.text, accent: c.accent, faint: c.faint, dim: c.dim } }
+    const title = fit([{ text: s.track.title, color: c.text, bold: true }], textW)
+    const by = fit([{ text: [s.track.artist, s.track.album].filter(Boolean).join(' · '), color: c.dim }], textW)
+    const row = barRow(props, textW, progressAt(s, now))
+    if (cover) {
+      // the cover spans all four rows; the third line is empty until the queue or device is known
+      const prefix = (i: number): Seg[] => [...cover[i]!, { text: '  ', color: c.text }]
+      body = [[...prefix(0), ...title], [...prefix(1), ...by], prefix(2), [...prefix(3), ...row]]
+      bar = { index: 3, prefix: prefix(3), props }
+    } else {
+      body = [title, by, row]
+      bar = { index: 2, prefix: [], props }
+    }
   }
   if (compact) return { rows: body.map(r => fit(r, w)), n: -1 }
-  const controls: MusicButton[] | undefined = s.status === 'open'
-    ? [{ cmd: { cmd: 'previous' }, label: 'Prev', hotkey: 'r' }, { cmd: { cmd: 'playpause' }, label: s.playing ? 'Pause' : 'Play', hotkey: 'p' }, { cmd: { cmd: 'next' }, label: 'Next', hotkey: 'n' }]
-    : undefined
-  return { rows: section('NOW PLAYING', 'Spotify', body, w, t, border), n: body.length, ...(controls && { controls }) }
+  const rows = section('NOW PLAYING', 'Spotify', body, w, t, border)
+  const controls = s.status === 'open' ? musicControls(s, v.musicCaps) : undefined
+  let seek: SeekSlot | undefined
+  if (bar) {
+    // section() draws a boxed row as [edge, ...content, pad, edge]; the bar fills the content, so pad is one space
+    const r = rows[1 + bar.index]!, boxed = w >= MIN_BOX
+    seek = { row: r, left: boxed ? [r[0]!, ...bar.prefix] : bar.prefix, right: boxed ? r.slice(-2) : [], props: bar.props }
+  }
+  return { rows, n: body.length, ...(controls && { controls }), ...(seek && { seek }) }
 }
 
 function fileRow(f: Model['files'][number], t: Theme, iw: number, lead: string): Seg[] {
@@ -268,14 +301,14 @@ function plan(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, limi
 }
 
 // body is the half-open row range of the first section's body: row 0 is its top edge (or the unboxed header).
-export function tabParts(model: Model, t: Theme, v: PaneView, width: number, compact: boolean, now: number, limit = COMPACT_ROWS, border: Border = 'round'): { rows: Seg[][]; body: [number, number]; controls?: MusicButton[] } {
+export function tabParts(model: Model, t: Theme, v: PaneView, width: number, compact: boolean, now: number, limit = COMPACT_ROWS, border: Border = 'round'): { rows: Seg[][]; body: [number, number]; controls?: MusicButton[]; seek?: SeekSlot } {
   const m = normalizeModel(model)
-  const { rows, n, controls } = v.tab === 'changes' ? changes(m, t, width, compact, limit, border)
+  const { rows, n, controls, seek } = v.tab === 'changes' ? changes(m, t, width, compact, limit, border)
     : v.tab === 'diff' ? diff(m, t, v, width, compact, limit, border)
     : v.tab === 'agents' ? agents(m, t, v, width, compact, now, limit, border)
-    : v.tab === 'music' ? music(m, t, width, compact, now, border)
+    : v.tab === 'music' ? music(m, t, v, width, compact, now, border)
     : plan(m, t, v, width, compact, limit, border)
-  return { rows, body: n < 0 ? [0, rows.length] : [1, 1 + n], ...(controls && { controls }) }
+  return { rows, body: n < 0 ? [0, rows.length] : [1, 1 + n], ...(controls && { controls }), ...(seek && { seek }) }
 }
 
 export const tabRows = (...a: Parameters<typeof tabParts>): Seg[][] => tabParts(...a).rows
@@ -314,7 +347,7 @@ export function statusRows(model: Model, base: Theme, width: number, now: number
 // rows is the strip height, from stripRows: the sheet's height, plus headroom while an outfit is worn.
 // meter and field come from a renderer plugin: rows for the status box, and a builder for the
 // field's player given the rows left open between the tab and the status box.
-export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Moment }; friday?: boolean; minRows?: number; bodyRows?: number; onRange?: (last: number, win: number) => void; meter?: Seg[][]; field?: (rows: number) => unknown; tabs?: readonly TabId[]; onMusic?: (cmd: MusicCmd) => void }
+export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Moment }; friday?: boolean; minRows?: number; bodyRows?: number; onRange?: (last: number, win: number) => void; meter?: Seg[][]; field?: (rows: number) => unknown; tabs?: readonly TabId[]; onMusic?: (cmd: MusicCmd) => void; seek?: (props: SeekBarProps) => unknown }
 export const PET_STRIP_COLS = 46
 const BUBBLE_ROOM = 16
 
@@ -396,7 +429,7 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
   // the drawer shows a tab strip, the tab content and one pet row, all within COMPACT_ROWS
   let rowsLeft = compact && extra?.pet ? COMPACT_ROWS - 2 : COMPACT_ROWS
   if (compact && extra?.bodyRows) rowsLeft = Math.max(1, Math.min(rowsLeft, extra.bodyRows - 1 - (extra.pet ? 1 : 0)))
-  let { rows, body, controls } = tabParts(m, t, v, inner, compact, now, rowsLeft, look?.border ?? 'round')
+  let { rows, body, controls, seek } = tabParts(m, t, v, inner, compact, now, rowsLeft, look?.border ?? 'round')
   let hint: any = null, open = 0, last = 0, win = 0
   if (!compact && extra?.bodyRows) {
     // tab strip and its margin sit above, the footer below; the tab gets the rest and scrolls on its own
@@ -427,11 +460,13 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
         {shown.tabs.map(([id, label], i) => <Button key={'tab-' + id} label={label} hotkey={String(i + 1)} variant={v.tab === id ? 'primary' : undefined} dimColor={v.tab !== id} onPress={() => onTab(id)} />)}
       </Box>
       <Box flexDirection="column" flexGrow={1} marginTop={compact ? 0 : 1}>
-        {rows.map((r, i) => renderSegs(els, r, 'r' + i))}
+        {rows.map((r, i) => seek && extra?.seek && r === seek.row
+          ? <Box key={'r' + i} flexDirection="row">{seek.left.length ? renderSegs(els, seek.left, 'sl') : null}{extra.seek(seek.props) as any}{seek.right.length ? renderSegs(els, seek.right, 'sr') : null}</Box>
+          : renderSegs(els, r, 'r' + i))}
         {hint}
         {controls && (
           <Box key="music-controls" flexDirection="row" gap={2} marginTop={1}>
-            {controls.map(b => <Button key={'music-' + b.cmd.cmd} label={b.label} hotkey={b.hotkey} plain onPress={() => extra?.onMusic?.(b.cmd)} />)}
+            {controls.map(b => <Button key={'music-' + b.key} label={b.label} hotkey={b.hotkey} plain dimColor={b.on === false} onPress={() => extra?.onMusic?.(b.cmd)} />)}
           </Box>
         )}
         {open > 0 && extra?.field?.(open)}
