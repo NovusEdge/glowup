@@ -59,10 +59,11 @@ test('the status line rides in the setup part only when edited away from the def
   const part = (cmd: string) => decodeLink(cmd.slice('/glowup pack '.length)).parts.setup as Record<string, unknown>
   const d = startDraft('crt')
   assert.ok(!('statusline' in part(sendCommand(d, DEFAULT_STUDIO_SETUP))))
-  assert.equal(stateHash(d, DEFAULT_STUDIO_SETUP), hashOf(encodeLink({ pack: d, setup: DEFAULT_SETUP })))
+  assert.equal(stateHash(d, DEFAULT_STUDIO_SETUP), hashOf(encodeLink({ pack: d, setup: { ...DEFAULT_SETUP, pet: { sleepMs: DEFAULT_SETUP.pet.sleepMs } } })))
   assert.deepEqual(fromHash(stateHash(d, DEFAULT_STUDIO_SETUP)).setup!.statusline, DEFAULT_STUDIO_SETUP.statusline)
   const edited = editSetup(DEFAULT_STUDIO_SETUP, { statusline: ['model', 'ctx'] }).setup
   assert.deepEqual(part(sendCommand(d, edited)).statusline, ['model', 'ctx'])
+  assert.deepEqual(part(sendCommand(d, { ...edited, pet: { ...edited.pet, dance: false } })).pet, { sleepMs: edited.pet.sleepMs })
   assert.deepEqual(fromHash(stateHash(d, edited)).setup!.statusline, ['model', 'ctx'])
 })
 

@@ -1326,7 +1326,7 @@ export const register: Register = (on, options) => {
     // the engine scrolls the whole body, which would carry the pet off with a long tab: budget the tab to bodyRows instead
     extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onRange: (last, win) => { scroll = { last, win } }, onMusic: (cmd: MusicCmd) => pressMusic($, cmd) }
     paneSeekless = e.surface !== 'terminal' && e.surface !== 'desktop'
-    if (!paneSeekless) {
+    if (e.surface === 'terminal' || e.surface === 'desktop') {
       const { Client } = $.ui.resolve(e)
       // Through JSON because Client props refuse undefined fields.
       extra = { ...extra, seek: (props: SeekBarProps) => <Client key="glowup-seek" module="./client/seekbar.tsx" props={JSON.parse(JSON.stringify(props))} width={props.cols} /> }

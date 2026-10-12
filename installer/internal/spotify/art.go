@@ -44,6 +44,7 @@ type Fetcher struct {
 	Allowed func(*url.URL) bool
 }
 
+// Fetch downloads a cover, checks its size and shrinks it to size pixels square; Client and Allowed must both be set.
 func (f Fetcher) Fetch(ctx context.Context, raw string, size int) (Art, error) {
 	u, err := url.Parse(raw)
 	if err != nil || !f.Allowed(u) {

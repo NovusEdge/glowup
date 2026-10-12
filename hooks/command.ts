@@ -181,7 +181,10 @@ async function packFromLink(host: Host, ctl: Ctl, link: string, force: boolean):
     }
   }
   if (parts.setup !== undefined) {
-    const { setup, notices } = parseSetup(parts.setup)
+    const parsed = parseSetup(parts.setup), notices = parsed.notices
+    // parseSetup reads a missing dance as on; a link that never mentions it must not undo the receiver's choice
+    const sentDance = (parts.setup as { pet?: { dance?: unknown } } | null)?.pet?.dance !== undefined
+    const setup: Setup = sentDance ? parsed.setup : { ...parsed.setup, pet: { ...parsed.setup.pet, dance: ctl.setup().pet.dance } }
     if (typeof parts.setup !== 'object' || parts.setup === null || Array.isArray(parts.setup)) out.push(`Setup not applied: ${notices[0]}`)
     else if (setupIsNewer(await host.storeGet('setup'))) out.push(`Setup not applied: ${SETUP_NEWER}`)
     else if (await ctl.confirm(`This link also carries a layout setup (band, tabs, meter, bubbles, pet sleep${'statusline' in parts.setup ? ', status line' : ''}). Apply it?`)) {

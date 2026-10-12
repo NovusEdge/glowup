@@ -26,6 +26,7 @@ function shown(st: SeekState, now: number): number {
 // The bar moves on the surface's own clock, so the hooks redraw the pane only when the track or its state changes.
 export default function SeekBarClient(props: SeekBarProps, surface: ClientSurface<SeekState>) {
   const cur = surface.state
+  // In place: setState during render would schedule another render, and the pointer and tick handlers need the latest props.
   if (cur) cur.props = props
   else {
     surface.setState({ props, now: clock.now() })
