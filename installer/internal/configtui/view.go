@@ -128,7 +128,7 @@ func (m Model) rowLines(c packs.Colors) (lines []string, cursor int) {
 			if focus {
 				box, label = c.Accent, c.Accent
 			}
-			body = i.fg(box, focus, value(r, m.snap)) + i.fg(label, focus, " "+r.label)
+			body = i.fg(box, focus, value(r, m.snap)) + i.fg(label, focus, " "+display(r))
 		}
 		line := ansi.Truncate(mark+body, rowsW, "…")
 		lines = append(lines, line+i.fg(c.Text, false, strings.Repeat(" ", max(0, rowsW-ansi.StringWidth(line)))))

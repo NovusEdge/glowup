@@ -108,6 +108,36 @@ func TestChecklistOrderIsCheckedThenTheRest(t *testing.T) {
 	}
 }
 
+func TestLineBreakItem(t *testing.T) {
+	s := snap()
+	s.Options.Fields = append(s.Options.Fields, lineBreak)
+	br := rowByID(t, s, 4, "fields:/")
+	if got := display(br); got != "── line 2 ──" {
+		t.Fatal(got)
+	}
+	if cmd, msg := toggle(br, s); cmd != "statusline fields ctx / cost" || msg != "" {
+		t.Fatal("ticking puts the break before the last field:", cmd, msg)
+	}
+	s.State.Fields = []string{"ctx", "/", "cost"}
+	if cmd := move(rowByID(t, s, 4, "fields:/"), s, -1); cmd != "statusline fields / ctx cost" {
+		t.Fatal(cmd)
+	}
+	if cmd, _ := toggle(rowByID(t, s, 4, "fields:/"), s); cmd != "statusline fields ctx cost" {
+		t.Fatal("unticking removes it:", cmd)
+	}
+	s.State.Fields = []string{"ctx", "/"}
+	if cmd, msg := toggle(rowByID(t, s, 4, "fields:ctx"), s); cmd != "" || msg != "Keep at least one." {
+		t.Fatal("the break does not count as a field:", cmd, msg)
+	}
+	s.State.Fields = []string{"ctx"}
+	if cmd, msg := toggle(rowByID(t, s, 4, "fields:/"), s); cmd != "" || msg != "Two lines need two fields." {
+		t.Fatal(cmd, msg)
+	}
+	if got := display(rowByID(t, s, 4, "fields:ctx")); got != "ctx" {
+		t.Fatal(got)
+	}
+}
+
 func TestValues(t *testing.T) {
 	s := snap()
 	s.State.Mix.Overrides = map[string]string{"accent": "#ff8800"}

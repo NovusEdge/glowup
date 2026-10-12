@@ -45,6 +45,28 @@ func joinOrNone(v []string) string {
 	return strings.Join(v, ",")
 }
 
+// lineBreak is the fields item that starts the status line's second line.
+const lineBreak = "/"
+
+// display is the text an item row shows; the break reads as a divider, not an id.
+func display(r row) string {
+	if r.group == "fields" && r.label == lineBreak {
+		return "── line 2 ──"
+	}
+	return r.label
+}
+
+// fieldsOnly counts the checked items other than the line break.
+func fieldsOnly(on []string) int {
+	n := 0
+	for _, x := range on {
+		if x != lineBreak {
+			n++
+		}
+	}
+	return n
+}
+
 var checklists = map[string]checklist{
 	"band": {func(s Snapshot) []string { return s.State.Setup.Band }, func(s Snapshot) []string { return s.Options.Band },
 		func(v []string) string { return "setup band " + joinOrNone(v) }, false},
@@ -222,16 +244,23 @@ func cycleCmds(r row, s Snapshot, dir int) []string {
 	return nil
 }
 
-// toggle checks or unchecks an item; a newly checked one goes last. msg is set when the
+// toggle checks or unchecks an item; a newly checked one goes last, except the line break,
+// which goes before the last field (last, it would draw one line). msg is set when the
 // TUI refuses the change itself.
 func toggle(r row, s Snapshot) (cmd, msg string) {
 	c := checklists[r.group]
 	on := c.on(s)
 	if i := slices.Index(on, r.label); i >= 0 {
-		if c.keepOne && len(on) == 1 {
+		if c.keepOne && r.label != lineBreak && fieldsOnly(on) == 1 {
 			return "", "Keep at least one."
 		}
 		return c.cmd(slices.Delete(slices.Clone(on), i, i+1)), ""
+	}
+	if r.label == lineBreak {
+		if fieldsOnly(on) < 2 {
+			return "", "Two lines need two fields."
+		}
+		return c.cmd(slices.Insert(slices.Clone(on), len(on)-1, lineBreak)), ""
 	}
 	return c.cmd(append(slices.Clone(on), r.label)), ""
 }
