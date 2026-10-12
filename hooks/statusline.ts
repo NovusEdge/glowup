@@ -1,6 +1,6 @@
 import type { Host } from './host.ts'
 import { safeId } from './instances.ts'
-import { renderFields, DEFAULT_FIELDS, type ColorMode, type FieldId } from './fields.ts'
+import { renderFields, renderLines, DEFAULT_FIELDS, type ColorMode, type FieldToken } from './fields.ts'
 import type { Model } from './model.ts'
 import type { Theme } from './themes.ts'
 import type { Meter } from './setup.ts'
@@ -14,8 +14,11 @@ const NONE = '__none__'
 // last event (after /clear, at launch, after a reload) stays unseen until the next message.
 const REFRESH_SECONDS = 30
 
-export function statusText(m: Model, t: Theme, o: { fields?: readonly FieldId[]; now?: number; tzOffset?: number; color?: ColorMode; meter?: Meter } = {}): string {
-  return renderFields(m, t, o.fields ?? DEFAULT_FIELDS, { now: o.now ?? Date.now(), tzOffset: o.tzOffset ?? 0, color: o.color ?? 'plain', meter: o.meter })
+// split: the takeover file, where a / starts a second row; the entry under the prompt is one line.
+export function statusText(m: Model, t: Theme, o: { fields?: readonly FieldToken[]; now?: number; tzOffset?: number; color?: ColorMode; meter?: Meter; split?: boolean } = {}): string {
+  const opts = { now: o.now ?? Date.now(), tzOffset: o.tzOffset ?? 0, color: o.color ?? 'plain', meter: o.meter }
+  const fields = o.fields ?? DEFAULT_FIELDS
+  return o.split ? renderLines(m, t, fields, opts).join('\n') : renderFields(m, t, fields, opts)
 }
 
 // The script prints the line glowup wrote for this session; when that file is

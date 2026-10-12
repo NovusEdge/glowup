@@ -15,7 +15,7 @@ import { readLocal } from './readlocal.ts'
 import type { BubbleSetting } from './bubbles.ts'
 import { eggUnlocked, type EggStore } from './eggs.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
-import { FIELD_IDS, isFieldId, type FieldId } from './fields.ts'
+import { FIELD_CHOICES, TWO_BREAKS, BREAK, isFieldId, isFieldToken, parseFields, type FieldToken } from './fields.ts'
 import { levelOf, parseLevelStore, levelStoreIsNewer, outfitStoreIsNewer, groupDigits, UNLOCKS, ART_READY, OUTFIT_LEVELS, outfitsOf, resolveOutfit, parseOutfitStore, outfitStore } from './levels.ts'
 import { parseSetup, setupIsNewer, setupRecord, SETUP_NEWER, setSetupField, describeSetup, DEFAULT_SETUP, type Setup } from './setup.ts'
 
@@ -45,9 +45,9 @@ export type Ctl = {
   openConfigTui(): Promise<string>
   // a -p run: nobody is attached to any surface
   headless(): Promise<boolean>
-  fields(): readonly FieldId[]
+  fields(): readonly FieldToken[]
   // undefined goes back to the installer's (userConfig) list
-  setFields(f: readonly FieldId[] | undefined): void
+  setFields(f: readonly FieldToken[] | undefined): void
   setup(): Setup
   setSetup(s: Setup): void
 }
@@ -190,13 +190,13 @@ async function packFromLink(host: Host, ctl: Ctl, link: string, force: boolean):
       out.push('Setup: applied', ...notices.map(n => `  dropped: ${n}`))
       const sl = (parts.setup as { statusline?: unknown }).statusline
       if (Array.isArray(sl)) {
-        const ids = [...new Set(sl.filter((s): s is FieldId => typeof s === 'string' && isFieldId(s)))]
-        if (ids.length) {
+        const ids = parseFields(sl)
+        if (ids) {
           await host.storeSet('statusline', ids)
           ctl.setFields(ids)
           out.push(`Status line: ${ids.join(' ')}`)
         }
-        for (const s of sl) if (typeof s !== 'string' || !isFieldId(s)) out.push(`  dropped: unknown status line field "${shown(String(s))}"`)
+        for (const s of sl) if (typeof s !== 'string' || !isFieldToken(s.trim())) out.push(`  dropped: unknown status line field "${shown(String(s))}"`)
       }
     } else out.push('Setup: kept yours')
   }
@@ -351,9 +351,11 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
       ctl.setFields(undefined)
       return show()
     }
-    const bad = rest.filter(s => !isFieldId(s))
-    if (bad.length) return `Unknown field${bad.length > 1 ? 's' : ''}: ${bad.join(', ')}. Choose from: ${FIELD_IDS.join(', ')}.`
-    const ids = [...new Set(rest)] as FieldId[]
+    const bad = rest.filter(s => !isFieldToken(s))
+    if (bad.length) return `Unknown field${bad.length > 1 ? 's' : ''}: ${bad.join(', ')}. Choose from: ${FIELD_CHOICES}.`
+    if (rest.filter(s => s === BREAK).length > 1) return TWO_BREAKS
+    if (!rest.some(isFieldId)) return 'List at least one field.'
+    const ids = [...new Set(rest)] as FieldToken[]
     await host.storeSet('statusline', ids)
     ctl.setFields(ids)
     return show()

@@ -175,6 +175,27 @@ test('the status file uses the stored fields; the entry without a takeover is pl
   expect(line).not.toContain('◆')
 })
 
+test('a / in the stored fields puts the takeover file on two lines', async ($, on) => {
+  const { files } = fakeFs(on, {}, undefined, { COLORTERM: 'truecolor' })
+  const clock = mock.clock(on)
+  mock.store(on, { 'statusline-backup': '__none__', statusline: ['activity', '/', 'ctx'] })
+  on('ui.status', async () => ({ value: undefined }) as never)
+  on('ui.panes', async () => ({ value: [] }))
+  on('session.id', async () => ({ value: 's1' }))
+  on('turn.start', async (_$, e) => ({ turnId: e.turnId }))
+  on('session.usage', async () => ({ value: { context: { window: 1000, percent: 10 }, rateLimits: [] } as never }))
+  on('turn.complete', async () => ({ text: '' }))
+  on('session.start', async (_$, e) => ({ cwd: e.cwd }) as never)
+  on('command.register', async () => ({ value: undefined }) as never)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await $.turn.complete({ reason: 'answer', answer: 'done', durationMs: 10, isAborted: false, turnId: 't1' })
+  await clock.advance(10)
+  const rows = files['/fake/.claude/glowup/status/s1']!.split('\n')
+  expect(rows.length).toBe(2)
+  expect(rows.at(-1)).toContain('ctx ')
+})
+
 test('without a takeover the entry under the prompt uses the fields and has no escapes', async ($, on) => {
   fakeFs(on, {}, undefined, { COLORTERM: 'truecolor' })
   mock.clock(on)
@@ -191,6 +212,26 @@ test('without a takeover the entry under the prompt uses the fields and has no e
   const shown = statuses.filter((s): s is string => s !== undefined)
   expect(shown.length).toBeGreaterThan(0)
   expect(shown.every(s => !s.includes('\x1b'))).toBe(true)
+})
+
+test('without a takeover a / in the fields joins both halves on one line in the entry', async ($, on) => {
+  fakeFs(on)
+  const clock = mock.clock(on)
+  mock.store(on, { statusline: ['activity', '/', 'ctx'] })
+  const statuses: (string | undefined)[] = []
+  on('ui.status', async (_$, e) => { statuses.push(e.text); return { value: undefined } as never })
+  on('ui.panes', async () => ({ value: [] }))
+  on('session.id', async () => ({ value: 's1' }))
+  on('turn.start', async (_$, e) => ({ turnId: e.turnId }))
+  on('session.usage', async () => ({ value: { context: { window: 1000, percent: 10 }, rateLimits: [] } as never }))
+  on('session.start', async (_$, e) => ({ cwd: e.cwd }) as never)
+  on('command.register', async () => ({ value: undefined }) as never)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await clock.advance(10)
+  const joined = statuses.filter((s): s is string => s !== undefined && s.includes(' · '))
+  expect(joined.length).toBeGreaterThan(0)
+  expect(joined.every(s => !s.includes('\n'))).toBe(true)
 })
 
 test('session.measure puts usage limits in the status file', async ($, on) => {
