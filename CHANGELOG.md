@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-12
+
 ### Added
 
 - The status line can span two lines: a `/` in the field list starts the second one (`/glowup statusline fields activity ctx / 5h week`). The `/plugin` setting takes it as an item, and `/glowup config` shows it as a movable "line 2" item. The entry under the prompt stays one line and joins both halves.
