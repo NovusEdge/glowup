@@ -427,6 +427,17 @@ test('music controls: transport always, shuffle and repeat only when reported; r
   expect(walk(tree).find(n => n.props?.key === 'music-repeat').props.dimColor).toBe(false)
 })
 
+test('the Player button follows the music controls only when the pane is given onPlayer', () => {
+  const keysOf = (tree: unknown) => walk(tree).map((n: any) => n?.props?.key).filter(Boolean)
+  const pressed: string[] = []
+  const withIt = renderPane(els, withMusic(playing), T, { tab: 'music' }, 60, false, 0, () => {}, { onPlayer: () => pressed.push('player') })
+  const btn = walk(withIt).find((n: any) => n?.props?.key === 'music-player')
+  expect(btn.props.hotkey).toBe('o')
+  btn.onPress({})
+  expect(pressed).toEqual(['player'])
+  expect(keysOf(renderPane(els, withMusic(playing), T, { tab: 'music' }, 60, false, 0, () => {}, {}))).not.toContain('music-player')
+})
+
 test('the Changes tab lists the most recently touched file first, ties in their given order', async () => {
   const file = (name: string, at: number): Model['files'][number] => ({ path: `/r/${name}`, add: 1, del: 0, how: 'edit', at })
   const m: Model = { ...M, files: [file('old.ts', 1), file('new.ts', 5), file('tie1.ts', 3), file('tie2.ts', 3)] }

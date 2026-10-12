@@ -159,10 +159,19 @@ const ctl = (answer = true, current = 'classic') => {
     setSetup: s => { setup = s; calls.push('setup') },
     openConfig: async () => 'glowup config open (Esc closes it)',
     openConfigTui: async () => 'glowup config is opening',
+    openPlayer: async () => { calls.push('player'); return 'Music player open (Esc closes it)' },
     headless: async () => true,
   }
   return { calls, questions, ctl: c }
 }
+
+test('/glowup music opens the player, and prints the usage in a -p run', async () => {
+  const { calls, ctl: c } = ctl()
+  expect(await runCommand(fakeHost().host, 'music', { ...c, headless: async () => false })).toBe('Music player open (Esc closes it)')
+  expect(calls).toEqual(['player'])
+  expect(await runCommand(fakeHost().host, 'music', c)).toBe(USAGE)
+  expect(calls).toEqual(['player'])
+})
 
 test('theme switch persists the name and applies it', async () => {
   const { host, store } = fakeHost()
