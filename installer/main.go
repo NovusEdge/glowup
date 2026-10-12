@@ -1,7 +1,7 @@
 // Command glowup-installer installs the glowup mod into Claude Code.
 // install.sh (docs/web/public) downloads and runs it; it is not installed on PATH.
 // It also runs glowup's config screen as `glowup-installer config`, which
-// /glowup config launches.
+// /glowup config launches, and `spotify-art`, which the Music tab runs for a cover.
 package main
 
 import (
@@ -18,6 +18,7 @@ import (
 	"github.com/novusedge/glowup/installer/internal/claude"
 	"github.com/novusedge/glowup/installer/internal/cli"
 	"github.com/novusedge/glowup/installer/internal/configtui"
+	"github.com/novusedge/glowup/installer/internal/spotify"
 	"github.com/novusedge/glowup/installer/internal/tui"
 )
 
@@ -30,6 +31,9 @@ func run() int {
 	// a subcommand: cli.Parse refuses positional arguments
 	if len(os.Args) > 1 && os.Args[1] == "config" {
 		return configtui.Main(os.Args[2:], os.Stdout, os.Stderr)
+	}
+	if len(os.Args) > 1 && os.Args[1] == "spotify-art" {
+		return spotify.ArtMain(os.Args[2:], os.Stdout, os.Stderr)
 	}
 	o, err := cli.Parse(os.Args[1:], os.Stderr)
 	if errors.Is(err, flag.ErrHelp) {
