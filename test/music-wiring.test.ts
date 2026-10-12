@@ -9,7 +9,7 @@ const PANE = { title: 'glowup', isFocused: false, bodyColumns: 60, placement: 'd
 const walk = (n: any, out: any[] = []): any[] => { if (typeof n === 'string') out.push(n); else if (n && typeof n === 'object') { out.push(n); for (const c of n.children ?? []) walk(c, out) } return out }
 const petClient = (tree: any) => walk(tree).find(n => n?.type === 'Client' && String(n.props?.module).endsWith('client/pet.tsx'))
 const text = (tree: any) => walk(tree).filter(n => typeof n === 'string').join(' ')
-const mountPane = ($: any) => $.ui.mount({ plugin: 'glowup', surface: 'terminal', component: 'Pane', requestId: 'glowup', props: PANE })
+const mountPane = ($: any, surface = 'terminal') => $.ui.mount({ plugin: 'glowup', surface, component: 'Pane', requestId: 'glowup', props: PANE })
 
 const DEST = 'org.mpris.MediaPlayer2.spotify /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player'
 const BUS = `busctl --user --json=short get-property ${DEST} PlaybackStatus Metadata Position`
@@ -222,20 +222,41 @@ test('the cover waits for the Music tab', async ($, on) => {
   await pane.unmount()
 })
 
-test('the shuffle button sets Shuffle from the extras read', async ($, on) => {
+test('on Linux the extras read is shown but there is no shuffle button', async ($, on) => {
   const EXTRAS = `busctl --user --json=short get-property ${DEST} Shuffle LoopStatus Volume`
-  const SET = `busctl --user set-property ${DEST} Shuffle b false`
-  const { ran } = boot(on, {}, { ...LINUX_BUS, [BUS]: ok(PLAYING), [EXTRAS]: ok('{"type":"b","data":true}\n{"type":"s","data":"None"}\n{"type":"d","data":1}'), [SET]: ok() })
+  const { ran } = boot(on, {}, { ...LINUX_BUS, [BUS]: ok(PLAYING), [EXTRAS]: ok('{"type":"b","data":true}\n{"type":"s","data":"None"}\n{"type":"d","data":1}') })
   const clock = mock.clock(on)
   await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
   await clock.advance(50)
   const pane = await mountPane($)
   await pane.press({ key: 'tab-music' })
   await clock.advance(50)
-  await pane.press({ key: 'music-shuffle' })
-  await clock.advance(50)
-  expect(ran).toContain(SET)
+  expect(ran).toContain(EXTRAS)
+  expect(walk(await pane.drawn()).some(n => n?.props?.key === 'music-shuffle')).toBe(false)
   await pane.unmount()
+})
+
+// With no seek Client (VS Code, mobile) the static bar only moves when the pane redraws, so each read must.
+test('surfaces without a seek Client redraw on every read; the terminal does not', async ($, on) => {
+  const { ran } = boot(on, {}, { ...LINUX_BUS, [BUS]: ok(PLAYING) })
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  await clock.advance(50)
+  const redrawn = async (surface: string) => {
+    const pane = await mountPane($, surface)
+    await pane.press({ key: 'tab-music' })
+    await clock.advance(50)
+    const before = JSON.stringify(await pane.drawn()), r0 = reads(ran)
+    for (let i = 0; i < 4; i++) await clock.advance(1000)
+    const out = { reads: reads(ran) - r0, changed: JSON.stringify(await pane.drawn()) !== before }
+    await pane.unmount()
+    return out
+  }
+  const vscode = await redrawn('vscode'), term = await redrawn('terminal')
+  expect(vscode.reads).toBeGreaterThan(0)
+  expect(vscode.changed).toBe(true)
+  expect(term.reads).toBeGreaterThan(0)
+  expect(term.changed).toBe(false)
 })
 
 test('pet.dance off: Spotify playing does not make the pet dance', async ($, on) => {

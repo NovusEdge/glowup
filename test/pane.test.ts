@@ -411,10 +411,12 @@ test('music controls: transport always, shuffle and repeat only when reported; r
     { key: 'shuffle', cmd: { cmd: 'shuffle', on: false }, label: '⇄', hotkey: 's', on: true },
     { key: 'repeat', cmd: { cmd: 'repeat', mode: 'track' }, label: '↻', hotkey: 'e', on: true },
   ])
-  const mac = tabParts(withMusic(full), T, { tab: 'music', musicCaps: { repeat: ['off', 'context'], raise: true } }, 54, false, 0).controls!
+  const mac = tabParts(withMusic(full), T, { tab: 'music', musicCaps: { repeat: ['off', 'context'], shuffle: true, raise: true } }, 54, false, 0).controls!
   expect(mac[4]!.cmd).toEqual({ cmd: 'repeat', mode: 'off' })
-  const none = tabParts(withMusic(full), T, { tab: 'music', musicCaps: { repeat: [], raise: true } }, 54, false, 0).controls!
+  const none = tabParts(withMusic(full), T, { tab: 'music', musicCaps: { repeat: [], shuffle: true, raise: true } }, 54, false, 0).controls!
   expect(none.map(b => b.key)).toEqual(['previous', 'playpause', 'next', 'shuffle'])
+  const mpris = tabParts(withMusic(full), T, { tab: 'music', musicCaps: { repeat: [], shuffle: false, raise: true } }, 54, false, 0).controls!
+  expect(mpris.map(b => b.key)).toEqual(['previous', 'playpause', 'next'])
   const one = tabParts(withMusic({ ...full, repeat: 'track' }), T, { tab: 'music' }, 54, false, 0).controls!
   expect([one[4]!.label, one[4]!.cmd]).toEqual(['↻1', { cmd: 'repeat', mode: 'off' }])
   const pressed: unknown[] = []

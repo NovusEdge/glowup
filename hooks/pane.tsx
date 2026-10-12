@@ -96,7 +96,7 @@ function musicControls(s: OpenMusic, caps?: MusicCaps): MusicButton[] {
     { key: 'playpause', cmd: { cmd: 'playpause' }, label: s.playing ? 'Pause' : 'Play', hotkey: 'p' },
     { key: 'next', cmd: { cmd: 'next' }, label: 'Next', hotkey: 'n' },
   ]
-  if (s.shuffle !== undefined) out.push({ key: 'shuffle', cmd: { cmd: 'shuffle', on: !s.shuffle }, label: '⇄', hotkey: 's', on: s.shuffle })
+  if (s.shuffle !== undefined && caps?.shuffle !== false) out.push({ key: 'shuffle', cmd: { cmd: 'shuffle', on: !s.shuffle }, label: '⇄', hotkey: 's', on: s.shuffle })
   const modes = caps?.repeat ?? ALL_REPEAT
   if (s.repeat !== undefined && modes.length > 0) {
     // a mode the player cannot set (track, on macOS) is not in the cycle, so the next press turns repeat off

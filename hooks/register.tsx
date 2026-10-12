@@ -86,6 +86,8 @@ let reducedMotion = false
 let docked = false
 // Where the surface seated the pane, learned from its last render: panes() does not say.
 let panePlacement: 'dock' | 'inline' | undefined
+// The surface of the last pane render has no Client to move the seek bar.
+let paneSeekless = false
 // Calls between tool.call and its result: a permission dialog names its tool and input but not its id.
 const flying = new Map<string, { tool: string; input: unknown }>()
 let ticker: Timer | undefined
@@ -371,8 +373,9 @@ async function pollMusic($: Engine) {
   if (off || mine !== musicSeq) return
   const tabOpen = await musicTabOpen($)
   if (off || mine !== musicSeq) return
-  if (!sameMusic(model.music, next, now)) feed($, { type: 'music', music: next })
-  // the seek bar Client moves itself; a cover is fetched only once someone looks at the tab
+  // The seek bar Client moves itself; where there is none (VS Code, mobile) the static bar needs a redraw per read.
+  if (!sameMusic(model.music, next, now) || (tabOpen && paneSeekless && next.status === 'open' && next.playing)) feed($, { type: 'music', music: next })
+  // a cover is fetched only once someone looks at the tab
   if (tabOpen && next.status === 'open' && next.track?.artUrl) fetchCover($, next.track.artUrl, COVER_COLS)
   musicTimer = $.clock.after(musicDelay(tabOpen), () => void pollMusic($))
 }
@@ -1322,7 +1325,8 @@ export const register: Register = (on, options) => {
     }
     // the engine scrolls the whole body, which would carry the pet off with a long tab: budget the tab to bodyRows instead
     extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onRange: (last, win) => { scroll = { last, win } }, onMusic: (cmd: MusicCmd) => pressMusic($, cmd) }
-    if (e.surface === 'terminal' || e.surface === 'desktop') {
+    paneSeekless = e.surface !== 'terminal' && e.surface !== 'desktop'
+    if (!paneSeekless) {
       const { Client } = $.ui.resolve(e)
       // Through JSON because Client props refuse undefined fields.
       extra = { ...extra, seek: (props: SeekBarProps) => <Client key="glowup-seek" module="./client/seekbar.tsx" props={JSON.parse(JSON.stringify(props))} width={props.cols} /> }
