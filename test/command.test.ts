@@ -636,6 +636,17 @@ test('a studio link with a setup asks before applying it', async () => {
   expect(s2.setup).toBeUndefined()
 })
 
+test('a studio link without pet.dance keeps the receiver\'s dance setting', async () => {
+  const { host, store } = fakeHost()
+  const c = ctl(true)
+  c.ctl.setSetup({ ...DEFAULT_SETUP, pet: { ...DEFAULT_SETUP.pet, dance: false } })
+  await runCommand(host, `pack ${encodeLink({ setup: { pet: { sleepMs: 90000 } } })}`, c.ctl)
+  expect(c.ctl.setup().pet).toEqual({ sleepMs: 90000, dance: false })
+  expect((store.setup as Setup).pet).toEqual({ sleepMs: 90000, dance: false })
+  await runCommand(host, `pack ${encodeLink({ setup: { pet: { sleepMs: 90000, dance: true } } })}`, c.ctl)
+  expect(c.ctl.setup().pet.dance).toBe(true)
+})
+
 test('a studio link setup with unknown ids applies like a stored one and names what it dropped', async () => {
   const { host, store } = fakeHost()
   const out = await runCommand(host, `pack ${encodeLink({ setup: { band: ['plan', 'weather'] } })}`, ctl(true).ctl)

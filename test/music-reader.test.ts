@@ -45,9 +45,9 @@ test('one failed read keeps the last state, two clear it, a good read resets the
 
 test('controls run the backend command with the 2 s timeout', async () => {
   const f = fakeHost()
-  await new MusicReader('busctl', 'linux').control(f.host, 'playpause')
-  await new MusicReader('playerctl', 'linux').control(f.host, 'next')
-  await new MusicReader('osascript', 'mac').control(f.host, 'previous')
+  await new MusicReader('busctl', 'linux').control(f.host, { cmd: 'playpause' })
+  await new MusicReader('playerctl', 'linux').control(f.host, { cmd: 'next' })
+  await new MusicReader('osascript', 'mac').control(f.host, { cmd: 'previous' })
   expect(f.ran).toEqual([
     'busctl --user call org.mpris.MediaPlayer2.spotify /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player PlayPause',
     'playerctl --player=spotify next',
@@ -59,7 +59,7 @@ test('controls run the backend command with the 2 s timeout', async () => {
 test('osascript control argv for each command runs the tell only inside the guarded run script', async () => {
   for (const [cmd, verb] of [['playpause', 'playpause'], ['next', 'next track'], ['previous', 'previous track']] as const) {
     const f = fakeHost()
-    await new MusicReader('osascript', 'mac').control(f.host, cmd)
+    await new MusicReader('osascript', 'mac').control(f.host, { cmd })
     expect(f.ran).toEqual([`osascript -e if application "Spotify" is running then run script "tell application \\"Spotify\\" to ${verb}"`])
   }
 })
@@ -86,4 +86,70 @@ test('osascript: a non-zero exit is a failed read, not closed', async () => {
   expect(first.status).toBe('open')
   expect(await r.read(bad, 1)).toEqual(first)
   expect(await r.read(bad, 2)).toEqual({ status: 'closed' })
+})
+
+const DEST = 'org.mpris.MediaPlayer2.spotify /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player'
+const EXTRAS = `busctl --user --json=short get-property ${DEST} Shuffle LoopStatus Volume`
+const EXTRAS_OUT = ['{"type":"b","data":true}', '{"type":"s","data":"Playlist"}', '{"type":"d","data":0.5}'].join('\n')
+
+test('busctl: shuffle, repeat and volume come from a second read', async () => {
+  const f = fakeHost({ runs: { [BUS]: { exitCode: 0, stdout: PLAYING }, [EXTRAS]: { exitCode: 0, stdout: EXTRAS_OUT } } })
+  const m = await new MusicReader('busctl', 'linux').read(f.host, 0)
+  expect(m).toMatchObject({ status: 'open', shuffle: true, repeat: 'context', volume: 0.5 })
+  expect(f.ran).toEqual([BUS, EXTRAS])
+})
+
+test('busctl: a failing extras call keeps the track and hides the extras', async () => {
+  // a Spotify without one of the properties prints what it has and exits 1
+  const f = fakeHost({ runs: { [BUS]: { exitCode: 0, stdout: PLAYING }, [EXTRAS]: { exitCode: 1, stdout: '{"type":"b","data":true}' } } })
+  const m = await new MusicReader('busctl', 'linux').read(f.host, 0)
+  expect(m.status).toBe('open')
+  expect(m).not.toHaveProperty('shuffle')
+  const r = new MusicReader('busctl', 'linux')
+  const hang = { ...f.host, run: async (argv: readonly string[]) => { if (argv.join(' ') === EXTRAS) throw new Error('timed out'); return { exitCode: 0, stdout: PLAYING, stderr: '' } } }
+  expect((await r.read(hang, 1)).status).toBe('open')
+})
+
+test('playerctl: the extras read is its own call', async () => {
+  const META = 'playerctl --player=spotify metadata --format {{status}}\t{{mpris:trackid}}\t{{xesam:title}}\t{{xesam:artist}}\t{{xesam:album}}\t{{mpris:length}}\t{{position}}\t{{mpris:artUrl}}\t{{xesam:url}}'
+  const PX = 'playerctl --player=spotify metadata --format {{shuffle}}\t{{loop}}\t{{volume}}'
+  const f = fakeHost({ runs: { [META]: { exitCode: 0, stdout: ['Playing', '/com/spotify/track/x', 'S', 'A', 'B', '9000000', '0', '', ''].join('\t') }, [PX]: { exitCode: 0, stdout: 'false\tTrack\t0.25' } } })
+  expect(await new MusicReader('playerctl', 'linux').read(f.host, 0)).toMatchObject({ status: 'open', shuffle: false, repeat: 'track', volume: 0.25 })
+})
+
+test('command argv on each backend', async () => {
+  const bus = new MusicReader('busctl', 'linux')
+  await bus.read(fakeHost({ runs: { [BUS]: { exitCode: 0, stdout: PLAYING } } }).host, 0)
+  expect(bus.argvFor({ cmd: 'seek', ms: 4000 })).toEqual(['busctl', '--user', 'call', ...DEST.split(' '), 'SetPosition', 'ox', '/com/spotify/track/t', '4000000'])
+  expect(bus.argvFor({ cmd: 'shuffle', on: false })).toEqual(['busctl', '--user', 'set-property', ...DEST.split(' '), 'Shuffle', 'b', 'false'])
+  expect(bus.argvFor({ cmd: 'repeat', mode: 'track' })).toEqual(['busctl', '--user', 'set-property', ...DEST.split(' '), 'LoopStatus', 's', 'Track'])
+  expect(bus.argvFor({ cmd: 'volume', level: 1.4 })).toEqual(['busctl', '--user', 'set-property', ...DEST.split(' '), 'Volume', 'd', '1.00'])
+  expect(bus.argvFor({ cmd: 'raise' })).toEqual(['busctl', '--user', 'call', 'org.mpris.MediaPlayer2.spotify', '/org/mpris/MediaPlayer2', 'org.mpris.MediaPlayer2', 'Raise'])
+
+  const pc = new MusicReader('playerctl', 'linux')
+  expect(pc.argvFor({ cmd: 'seek', ms: 73800 })).toEqual(['playerctl', '--player=spotify', 'position', '73.800'])
+  expect(pc.argvFor({ cmd: 'shuffle', on: true })).toEqual(['playerctl', '--player=spotify', 'shuffle', 'On'])
+  expect(pc.argvFor({ cmd: 'repeat', mode: 'context' })).toEqual(['playerctl', '--player=spotify', 'loop', 'Playlist'])
+  expect(pc.argvFor({ cmd: 'volume', level: 0.3 })).toEqual(['playerctl', '--player=spotify', 'volume', '0.30'])
+  expect(pc.argvFor({ cmd: 'raise' })).toBeUndefined()
+
+  const osa = new MusicReader('osascript', 'mac')
+  const tell = (s: string) => ['osascript', '-e', `if application "Spotify" is running then run script "tell application \\"Spotify\\" to ${s}"`]
+  expect(osa.argvFor({ cmd: 'seek', ms: 73800 })).toEqual(tell('set player position to 73.800'))
+  expect(osa.argvFor({ cmd: 'shuffle', on: true })).toEqual(tell('set shuffling to true'))
+  expect(osa.argvFor({ cmd: 'repeat', mode: 'off' })).toEqual(tell('set repeating to false'))
+  expect(osa.argvFor({ cmd: 'volume', level: 0.42 })).toEqual(tell('set sound volume to 42'))
+  expect(osa.argvFor({ cmd: 'raise' })).toEqual(tell('activate'))
+})
+
+test('busctl seek before any read has no track to name and runs nothing', async () => {
+  const f = fakeHost()
+  await new MusicReader('busctl', 'linux').control(f.host, { cmd: 'seek', ms: 1000 })
+  expect(f.ran).toEqual([])
+})
+
+test('caps: no repeat or shuffle over MPRIS; AppleScript has both; playerctl cannot raise', () => {
+  expect(new MusicReader('busctl', 'linux').caps()).toEqual({ repeat: [], shuffle: false, raise: true })
+  expect(new MusicReader('playerctl', 'linux').caps()).toEqual({ repeat: [], shuffle: false, raise: false })
+  expect(new MusicReader('osascript', 'mac').caps()).toEqual({ repeat: ['off', 'context'], shuffle: true, raise: true })
 })

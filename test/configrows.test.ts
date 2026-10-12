@@ -106,3 +106,11 @@ test('unknown list ids are refused before anything runs', () => {
   expect(inputCommand('fields', '/', s)).toEqual({ error: 'List at least one field.' })
   expect(inputValue('fields', s)).toBe(DEFAULT_FIELDS.join(' '))
 })
+
+test('dance shows on or off and flips', () => {
+  expect(cycleValue('dance', base())).toBe('on')
+  expect(cycleCommands('dance', base())).toEqual(['setup pet.dance off'])
+  const off = base({ setup: { ...DEFAULT_SETUP, pet: { sleepMs: 60000, dance: false } } })
+  expect(cycleValue('dance', off)).toBe('off')
+  expect(cycleCommands('dance', off)).toEqual(['setup pet.dance on'])
+})

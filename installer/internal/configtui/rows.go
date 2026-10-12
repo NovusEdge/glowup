@@ -112,7 +112,7 @@ func rowsOf(section int, s Snapshot) []row {
 		out := append(items("band", s), items("tabs", s)...)
 		return append(out, row{kind: cycle, id: "meter.warn", label: "Warn at", group: "meter"}, row{kind: cycle, id: "meter.danger", label: "Danger at", group: "meter"})
 	case 3:
-		out := []row{{kind: cycle, id: "pet", label: "Pet"}, {kind: cycle, id: "sleep", label: "Sleeps after"}, {kind: cycle, id: "bubbles", label: "Bubbles"}, {kind: cycle, id: "bubbleMs", label: "Bubble time"}}
+		out := []row{{kind: cycle, id: "pet", label: "Pet"}, {kind: cycle, id: "sleep", label: "Sleeps after"}, {kind: cycle, id: "dance", label: "Dances to music"}, {kind: cycle, id: "bubbles", label: "Bubbles"}, {kind: cycle, id: "bubbleMs", label: "Bubble time"}}
 		return append(out, items("moods", s)...)
 	default:
 		return items("fields", s)
@@ -176,6 +176,11 @@ func value(r row, s Snapshot) string {
 		return st.Bubbles
 	case "sleep":
 		return duration(st.Setup.Pet.SleepMs)
+	case "dance":
+		if d := st.Setup.Pet.Dance; d != nil && !*d {
+			return "off"
+		}
+		return "on"
 	case "bubbleMs":
 		return duration(st.Setup.Bubbles.Ms)
 	case "meter.warn":
@@ -228,6 +233,11 @@ func cycleCmds(r row, s Snapshot, dir int) []string {
 		return []string{"bubbles " + step(s.Options.Bubbles, st.Bubbles, dir)}
 	case "sleep":
 		return []string{fmt.Sprintf("setup pet.sleepMs %d", step(sleepSteps, st.Setup.Pet.SleepMs, dir))}
+	case "dance":
+		if d := st.Setup.Pet.Dance; d != nil && !*d {
+			return []string{"setup pet.dance on"}
+		}
+		return []string{"setup pet.dance off"}
 	case "bubbleMs":
 		return []string{fmt.Sprintf("setup bubbles.ms %d", step(bubbleSteps, st.Setup.Bubbles.Ms, dir))}
 	case "meter.warn", "meter.danger":

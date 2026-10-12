@@ -56,7 +56,7 @@ export function SetupControls({ setup, onSetup, onTier }: { setup: StudioSetup; 
         </div>
         <NumField label="Bubble time (s)" value={setup.bubbles.ms / 1000} min={1.5} max={10} step={0.5} onCommit={s => apply({ bubbles: { ...setup.bubbles, ms: Math.round(s * 1000) } })} />
       </div>
-      <NumField label="Pet sleeps after (s)" value={setup.pet.sleepMs / 1000} min={15} max={600} onCommit={s => apply({ pet: { sleepMs: Math.round(s * 1000) } })} />
+      <NumField label="Pet sleeps after (s)" value={setup.pet.sleepMs / 1000} min={15} max={600} onCommit={s => apply({ pet: { ...setup.pet, sleepMs: Math.round(s * 1000) } })} />
     </>
   )
 }

@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - The status line can span two lines: a `/` in the field list starts the second one (`/glowup statusline fields activity ctx / 5h week`). The `/plugin` setting takes it as an item, and `/glowup config` shows it as a movable "line 2" item. The entry under the prompt stays one line and joins both halves.
+- `/glowup setup pet.dance off` stops the pet dancing while Spotify plays. The config TUI and the in-pane config have a matching row.
+- The Music tab shows the album cover beside the track, drawn in half-block pixels by glowup's helper binary, which downloads on first use.
+- Click the Music tab's progress bar to jump to that point in the track, or drag along it.
+- Shuffle (`s`) and repeat (`e`) buttons on the Music tab, for the local Spotify app on macOS. On Linux the card shows the state, but Spotify ignores those writes over MPRIS, so the buttons are left out.
 
 ## [1.0.1] - 2026-10-12
 

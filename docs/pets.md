@@ -39,7 +39,7 @@ It reacts to the same moments as Clawd, without his outfits.
 
 ## The ghost
 
-The ghost is a small white ghost with a pink blush, drawn at 24 × 12 pixels like Clawd. Pick it with `/glowup pet ghost`. It reacts to the same moments as Clawd, dances while Spotify plays, and wears headphones while Claude works.
+The ghost is a small white ghost with a pink blush, drawn at 24 × 12 pixels like Clawd. Pick it with `/glowup pet ghost`. It reacts to the same moments as Clawd, dances while Spotify plays, and wears headphones while Claude works. `/glowup setup pet.dance off` stops the dancing for every pet.
 
 ## Speech bubbles
 

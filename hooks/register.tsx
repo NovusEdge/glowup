@@ -19,7 +19,7 @@ import { loadTasks, taskListId } from './tasks.ts'
 import { cacheHit, heaviest } from './ctxchart.ts'
 import { tierFor } from './layout.tsx'
 import { renderBand } from './band.tsx'
-import { renderPane, bubbleBox, petStripCols, visibleTabs, type PaneExtra, type PaneView, type TabId } from './pane.tsx'
+import { renderPane, bubbleBox, petStripCols, visibleTabs, COVER_COLS, type PaneExtra, type PaneView, type TabId } from './pane.tsx'
 import { spinnerWord, newTurnWord } from './restyle.ts'
 import { styleRow } from './rows.tsx'
 import { makeTurns } from './turns.ts'
@@ -47,6 +47,8 @@ import type { Seg } from './layout.tsx'
 import { allowed, createRun, isLive, isUndo, newLines, restoreUndo, runTimes, scanRuns, snapshotOf, type Cursor } from './remote.ts'
 import { sameMusic, type MusicCmd } from './music/parse.ts'
 import { MusicReader, pickBackend, type Platform } from './music/reader.ts'
+import { ArtCache, coverRows, parseArt, smallArtUrl } from './music/art.ts'
+import type { SeekBarProps } from './music/seek.ts'
 import { detached, ensureBinary, pickTerminal, platformOf, releaseTarget, removeTree, shellLine, type TermEnv } from './launch.ts'
 
 type Engine = EngineInterface
@@ -84,6 +86,8 @@ let reducedMotion = false
 let docked = false
 // Where the surface seated the pane, learned from its last render: panes() does not say.
 let panePlacement: 'dock' | 'inline' | undefined
+// The surface of the last pane render has no Client to move the seek bar.
+let paneSeekless = false
 // Calls between tool.call and its result: a permission dialog names its tool and input but not its id.
 const flying = new Map<string, { tool: string; input: unknown }>()
 let ticker: Timer | undefined
@@ -151,6 +155,11 @@ let remotePolling = false
 let musicReader: MusicReader | undefined
 let musicTimer: Timer | undefined
 let musicSeq = 0
+// Covers by "size:url". The helper binary is looked up once per session for art: a missing one stays missing
+// until startMusic resets these for the next session.
+let covers = new ArtCache(20)
+let coversInFlight = new Set<string>()
+let artBin: Promise<string | undefined> | undefined
 let modVersion: string | undefined
 // the plugin's userConfig, kept for loadSettings: an undo reloads settings outside register()
 let pluginOptions: Readonly<Record<string, unknown>> = {}
@@ -311,7 +320,7 @@ const petInput = (): PetInput => ({
   compactAt: model.compactAt,
   ctx: model.ctxPercent,
   juggleAt: eggJuggleAt,
-  music: model.music?.status === 'open' && model.music.playing && !model.music.ad,
+  music: setup.pet.dance && model.music?.status === 'open' && model.music.playing && !model.music.ad,
 })
 // Through JSON because Client props refuse undefined fields.
 function petSnap(): PetSnap {
@@ -364,16 +373,40 @@ async function pollMusic($: Engine) {
   if (off || mine !== musicSeq) return
   const tabOpen = await musicTabOpen($)
   if (off || mine !== musicSeq) return
-  // the open Music tab redraws on every read so its bar moves
-  if (!sameMusic(model.music, next, now) || (tabOpen && next.status === 'open' && next.playing)) feed($, { type: 'music', music: next })
+  // The seek bar Client moves itself; where there is none (VS Code, mobile) the static bar needs a redraw per read.
+  if (!sameMusic(model.music, next, now) || (tabOpen && paneSeekless && next.status === 'open' && next.playing)) feed($, { type: 'music', music: next })
+  // a cover is fetched only once someone looks at the tab
+  if (tabOpen && next.status === 'open' && next.track?.artUrl) fetchCover($, next.track.artUrl, COVER_COLS)
   musicTimer = $.clock.after(musicDelay(tabOpen), () => void pollMusic($))
 }
 async function startMusic($: Engine) {
+  covers = new ArtCache(20); coversInFlight = new Set(); artBin = undefined
   const platform = await musicPlatform($)
   musicReader = new MusicReader(await pickBackend(hostOf($), platform), platform)
   void pollMusic($)
 }
 function stopMusic() { musicSeq++; musicTimer?.cancel(); musicTimer = undefined; musicReader = undefined }
+// size is the cover's side in pixels: COVER_COLS for the tab, 20 for A2's dialog.
+function fetchCover($: Engine, url: string, size: number) {
+  const key = `${size}:${url}`
+  if (off || covers.has(key) || coversInFlight.has(key)) return
+  coversInFlight.add(key)
+  void (async () => {
+    try {
+      artBin ??= installerTarget($).then(t => installerBinary($, t)).then(b => ('path' in b ? b.path : undefined), () => undefined)
+      const bin = await artBin
+      if (!bin) { covers.set(key, null); return }
+      const r = await hostOf($).run([bin, 'spotify-art', '--size', String(size), smallArtUrl(url)], undefined, 15_000)
+      // exit 2 is a usage error: a helper from before spotify-art, which will refuse every cover
+      if (r.exitCode === 2) artBin = Promise.resolve(undefined)
+      // parseArt has already checked rgb holds w*h*3 bytes
+      const art = r.exitCode === 0 ? parseArt(r.stdout) : undefined
+      covers.set(key, art && art.w === size && art.h === size ? coverRows(art) : null)
+      if (!off) publish($)
+    } catch { covers.set(key, null) } finally { coversInFlight.delete(key) }
+  })()
+}
+const coverFor = (m: Model, size = COVER_COLS) => { const u = m.music?.status === 'open' ? m.music.track?.artUrl : undefined; return u ? covers.get(`${size}:${u}`) ?? undefined : undefined }
 function pressMusic($: Engine, cmd: MusicCmd) {
   const r = musicReader
   if (r) void r.control(hostOf($), cmd).then(() => pollMusic($))
@@ -695,6 +728,16 @@ async function termEnv($: Engine): Promise<TermEnv> {
   }
 }
 
+// No uname on native Windows; WSL reports Linux and takes the Unix path.
+async function installerTarget($: Engine) {
+  const host = hostOf($), windows = await onWindows($)
+  const unameS = windows ? 'Windows_NT' : (await host.run(['uname', '-s']).catch(() => undefined))?.stdout ?? ''
+  const unameM = windows ? (await $.env.get('PROCESSOR_ARCHITECTURE')) ?? '' : (await host.run(['uname', '-m']).catch(() => undefined))?.stdout ?? ''
+  return { windows, platform: platformOf(unameS), target: releaseTarget(unameS, unameM) }
+}
+const installerBinary = async ($: Engine, t: Awaited<ReturnType<typeof installerTarget>>) =>
+  ensureBinary(hostOf($), { glowupBin: (await $.env.get('GLOWUP_BIN')) || undefined, pluginRoot: $.plugin.root, version: await versionOf($), target: t.target, windows: t.windows, onDownload: () => $.ui.toast('Downloading glowup-installer…') })
+
 async function openConfigTui($: Engine): Promise<string> {
   const surfaces = await $.session.surfaces().catch(() => ['terminal'])
   if (!surfaces.includes('terminal')) return openConfig($)
@@ -704,12 +747,8 @@ async function openConfigTui($: Engine): Promise<string> {
     const t = await runTimes(host, remote.dir)
     if (t.open !== undefined && isLive(t.open, undefined, Date.now())) return 'glowup config is already open.'
   }
-  const windows = await onWindows($)
-  // no uname on native Windows; WSL reports Linux and takes the Unix path
-  const unameS = windows ? 'Windows_NT' : (await host.run(['uname', '-s']).catch(() => undefined))?.stdout ?? ''
-  const unameM = windows ? (await $.env.get('PROCESSOR_ARCHITECTURE')) ?? '' : (await host.run(['uname', '-m']).catch(() => undefined))?.stdout ?? ''
-  const platform = platformOf(unameS)
-  const bin = await ensureBinary(host, { glowupBin: (await $.env.get('GLOWUP_BIN')) || undefined, pluginRoot: $.plugin.root, version: await versionOf($), target: releaseTarget(unameS, unameM), windows, onDownload: () => $.ui.toast('Downloading glowup-installer…') })
+  const t = await installerTarget($), platform = t.platform
+  const bin = await installerBinary($, t)
   if ('error' in bin) return `glowup config needs its installer binary: ${bin.error}`
   await readConfigLists($)
   configNote = undefined
@@ -1286,6 +1325,12 @@ export const register: Register = (on, options) => {
     }
     // the engine scrolls the whole body, which would carry the pet off with a long tab: budget the tab to bodyRows instead
     extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onRange: (last, win) => { scroll = { last, win } }, onMusic: (cmd: MusicCmd) => pressMusic($, cmd) }
+    paneSeekless = e.surface !== 'terminal' && e.surface !== 'desktop'
+    if (e.surface === 'terminal' || e.surface === 'desktop') {
+      const { Client } = $.ui.resolve(e)
+      // Through JSON because Client props refuse undefined fields.
+      extra = { ...extra, seek: (props: SeekBarProps) => <Client key="glowup-seek" module="./client/seekbar.tsx" props={JSON.parse(JSON.stringify(props))} width={props.cols} /> }
+    }
     if (e.props.placement === 'dock') extra = { ...extra, minRows: e.props.scroll.bodyRows }
     const m = live ? normalizeModel(live.model) : model, pack = mix.colors, colors = palette(), picked = lookKey()
     if (!compact) {
@@ -1312,7 +1357,7 @@ export const register: Register = (on, options) => {
         } }
       }
     }
-    return renderPane(els, m, theme, { ...v, meter: setup.meter }, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
+    return renderPane(els, m, theme, { ...v, meter: setup.meter, cover: coverFor(m), ...(musicReader && { musicCaps: musicReader.caps() }) }, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
       view = { ...view, tab: id, offset: 0 }
       publish($)
       if (id === 'plan') void feedContext($)
@@ -1453,9 +1498,16 @@ export const register: Register = (on, options) => {
   })
 
   on('ui.message', async ($, e, next) => {
+    if (off) return next(e)
+    if (e.element === 'glowup-seek' || e.element === 'glowup-volume') {
+      const d = e.data as { kind?: unknown; ms?: unknown; level?: unknown } | null
+      if (d?.kind === 'seek' && typeof d.ms === 'number' && Number.isFinite(d.ms)) pressMusic($, { cmd: 'seek', ms: d.ms })
+      else if (d?.kind === 'volume' && typeof d.level === 'number' && Number.isFinite(d.level)) pressMusic($, { cmd: 'volume', level: d.level })
+      return {}
+    }
     // e.module is the path under the plugin folder (hooks/client/pet.tsx), not the string the pane passes as module
     const data = e.data as { konami?: unknown; click?: unknown } | null
-    if (off || e.element !== 'glowup-pet' || (data?.konami !== true && data?.click !== true)) return next(e)
+    if (e.element !== 'glowup-pet' || (data?.konami !== true && data?.click !== true)) return next(e)
     if (data.click === true) {
       if (!clickToasted) { clickToasted = true; $.ui.toast('The pet has the keyboard now. Esc gives it back.') }
       return {}

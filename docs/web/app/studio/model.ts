@@ -129,9 +129,11 @@ const hashOf = (link: string) => link.slice(STUDIO_URL.length)
 export const shareLink = (d: Draft) => encodeLink({ pack: d })
 // The default status line stays out of the link: accepting a setup replaces the receiver's status line fields,
 // so only a deliberate edit should carry them. fromHash restores the default when the part is absent.
+// pet.dance has no studio control, so it never rides: the receiver keeps its own.
 const setupPart = (s: StudioSetup) => {
-  const { statusline, ...rest } = s
-  return statusline.length === DEFAULT_FIELDS.length && statusline.every((f, i) => f === DEFAULT_FIELDS[i]) ? rest : s
+  const { statusline, pet: { dance: _, ...pet }, ...rest } = s
+  const out = { ...rest, pet }
+  return statusline.length === DEFAULT_FIELDS.length && statusline.every((f, i) => f === DEFAULT_FIELDS[i]) ? out : { ...out, statusline }
 }
 const linkParts = (d: Draft, s: StudioSetup, pet?: PetFile) => ({ pack: d, setup: setupPart(s), ...(pet && petRides(pet) && { pet }) })
 export const sendCommand = (d: Draft, s: StudioSetup, pet?: PetFile) => `/glowup pack ${encodeLink(linkParts(d, s, pet))}`

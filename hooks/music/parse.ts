@@ -1,21 +1,50 @@
 // JSX-free and engine-free: parsers only, so they test on recorded output.
-export type Track = { id: string; title: string; artist: string; album: string; durationMs: number }
-export type OpenMusic = { status: 'open'; track?: Track; playing: boolean; ad: boolean; progressMs: number; readAt: number }
+export type Repeat = 'off' | 'context' | 'track'
+export type Track = { id: string; title: string; artist: string; album: string; durationMs: number; artUrl?: string; url?: string; uri?: string }
+// shuffle, repeat and volume (0..1) are absent when the player did not report them, and their controls hide
+export type OpenMusic = { status: 'open'; track?: Track; playing: boolean; ad: boolean; progressMs: number; readAt: number; shuffle?: boolean; repeat?: Repeat; volume?: number }
 export type Music = { status: 'closed' } | { status: 'unsupported'; hint: string } | OpenMusic
-export type MusicCmd = 'playpause' | 'next' | 'previous'
+export type MusicCmd =
+  | { cmd: 'playpause' | 'next' | 'previous' | 'raise' }
+  | { cmd: 'seek'; ms: number }
+  | { cmd: 'shuffle'; on: boolean }
+  | { cmd: 'repeat'; mode: Repeat }
+  | { cmd: 'volume'; level: number }
+export type Extras = Pick<OpenMusic, 'shuffle' | 'repeat' | 'volume'>
 
 const isAd = (id: string) => id.startsWith('/com/spotify/ad/') || id.startsWith('spotify:ad:')
 // A seek shows up as a read that disagrees with the extrapolated position by more than this.
-const SEEK_MS = 1500
-
-function open(status: string, id: string, title: string, artist: string, album: string, durationMs: number, progressMs: number, readAt: number): OpenMusic {
-  const base: OpenMusic = { status: 'open', playing: status.toLowerCase() === 'playing', ad: isAd(id), progressMs: Math.max(0, Math.round(progressMs)), readAt }
-  return id || title ? { ...base, track: { id, title, artist, album, durationMs: Math.max(0, Math.round(durationMs)) } } : base
+export const SEEK_MS = 1500
+// MPRIS names a track by object path; the Web API and AppleScript by spotify: URI
+const uriOf = (id: string) => {
+  const m = /^\/com\/spotify\/(track|episode|ad)\/([A-Za-z0-9]+)$/.exec(id)
+  return m ? `spotify:${m[1]}:${m[2]}` : /^spotify:[a-z]+:[A-Za-z0-9]+$/.test(id) ? id : undefined
 }
+// MPRIS LoopStatus; context is Spotify's word for repeating the playlist or album
+const LOOP: Record<string, Repeat> = { None: 'off', Playlist: 'context', Track: 'track' }
+export const LOOP_STATUS: Record<Repeat, string> = { off: 'None', context: 'Playlist', track: 'Track' }
+const unit = (v: number) => Math.min(1, Math.max(0, v))
+
+function open(status: string, id: string, title: string, artist: string, album: string, durationMs: number, progressMs: number, readAt: number, links: { artUrl?: string; url?: string } = {}): OpenMusic {
+  const base: OpenMusic = { status: 'open', playing: status.toLowerCase() === 'playing', ad: isAd(id), progressMs: Math.max(0, Math.round(progressMs)), readAt }
+  if (!id && !title) return base
+  const uri = uriOf(id)
+  return { ...base, track: { id, title, artist, album, durationMs: Math.max(0, Math.round(durationMs)), ...(links.artUrl && { artUrl: links.artUrl }), ...(links.url && { url: links.url }), ...(uri && { uri }) } }
+}
+
+// Each value the player left out stays absent, so one unsupported property hides one control.
+function extrasOf(shuffle: unknown, loop: unknown, volume: unknown): Extras {
+  const sh = shuffle === true || shuffle === 'true' ? true : shuffle === false || shuffle === 'false' ? false : undefined
+  const rp = typeof loop === 'string' && Object.hasOwn(LOOP, loop) ? LOOP[loop] : undefined
+  const vo = typeof volume === 'number' ? volume : typeof volume === 'string' && volume.trim() !== '' ? Number(volume) : NaN
+  return { ...(sh !== undefined && { shuffle: sh }), ...(rp && { repeat: rp }), ...(Number.isFinite(vo) && { volume: unit(vo) }) }
+}
+
+const jsonLines = (stdout: string) => stdout.trim().split('\n').map(l => { try { return JSON.parse(l) as { data?: unknown } } catch { return undefined } })
 
 // busctl get-property with PlaybackStatus Metadata Position prints one JSON value per line; MPRIS times are µs.
 export function parseBusctl(stdout: string, readAt: number): OpenMusic | undefined {
-  const vals = stdout.trim().split('\n').map(l => { try { return JSON.parse(l) as { data?: unknown } } catch { return undefined } })
+  const vals = jsonLines(stdout)
   if (vals.length !== 3 || vals.some(v => !v || typeof v !== 'object')) return undefined
   const [status, meta, pos] = vals as { data?: unknown }[]
   if (typeof status!.data !== 'string' || !meta!.data || typeof meta!.data !== 'object') return undefined
@@ -23,15 +52,30 @@ export function parseBusctl(stdout: string, readAt: number): OpenMusic | undefin
   const str = (k: string) => (typeof md[k]?.data === 'string' ? md[k]!.data as string : '')
   const list = (k: string) => (Array.isArray(md[k]?.data) ? (md[k]!.data as unknown[]).filter(x => typeof x === 'string').join(', ') : str(k))
   const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
-  return open(status!.data, str('mpris:trackid'), str('xesam:title'), list('xesam:artist'), str('xesam:album'), num(md['mpris:length']?.data) / 1000, num(pos!.data) / 1000, readAt)
+  return open(status!.data, str('mpris:trackid'), str('xesam:title'), list('xesam:artist'), str('xesam:album'), num(md['mpris:length']?.data) / 1000, num(pos!.data) / 1000, readAt,
+    { artUrl: str('mpris:artUrl'), url: str('xesam:url') })
 }
 
-export const PLAYERCTL_FORMAT = ['{{status}}', '{{mpris:trackid}}', '{{xesam:title}}', '{{xesam:artist}}', '{{xesam:album}}', '{{mpris:length}}', '{{position}}'].join('\t')
+// The second read, of Shuffle LoopStatus Volume: undefined unless it printed all three lines.
+export function parseBusctlExtras(stdout: string): Extras | undefined {
+  const vals = jsonLines(stdout)
+  if (vals.length !== 3) return undefined
+  return extrasOf(vals[0]?.data, vals[1]?.data, vals[2]?.data)
+}
+
+export const PLAYERCTL_FORMAT = ['{{status}}', '{{mpris:trackid}}', '{{xesam:title}}', '{{xesam:artist}}', '{{xesam:album}}', '{{mpris:length}}', '{{position}}', '{{mpris:artUrl}}', '{{xesam:url}}'].join('\t')
+// Its own call: a playerctl that does not know one of these must not fail the metadata read.
+export const PLAYERCTL_EXTRAS_FORMAT = '{{shuffle}}\t{{loop}}\t{{volume}}'
 
 export function parsePlayerctl(stdout: string, readAt: number): OpenMusic | undefined {
   const f = stdout.replace(/\n$/, '').split('\t')
-  if (f.length !== 7) return undefined
-  return open(f[0]!, f[1]!, f[2]!, f[3]!, f[4]!, (Number(f[5]) || 0) / 1000, (Number(f[6]) || 0) / 1000, readAt)
+  if (f.length !== 7 && f.length !== 9) return undefined
+  return open(f[0]!, f[1]!, f[2]!, f[3]!, f[4]!, (Number(f[5]) || 0) / 1000, (Number(f[6]) || 0) / 1000, readAt, { artUrl: f[7], url: f[8] })
+}
+
+export function parsePlayerctlExtras(stdout: string): Extras | undefined {
+  const f = stdout.replace(/\n$/, '').split('\t')
+  return f.length === 3 ? extrasOf(f[0], f[1], f[2]) : undefined
 }
 
 // AppleScript compiles every `tell application "Spotify"` in a script before it runs, which launches
@@ -40,6 +84,7 @@ export function parsePlayerctl(stdout: string, readAt: number): OpenMusic | unde
 export const osaGuarded = (inner: string) => `"${inner.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`
 
 // Spotify's duration is ms, its player position seconds; a comma-decimal locale prints "73,8".
+// The last four fields sit in try blocks: a Spotify without one of them leaves it empty, not the read failed.
 export const OSA_READ = [
   'if application "Spotify" is running then',
   `  return run script ${osaGuarded([
@@ -49,27 +94,50 @@ export const OSA_READ = [
     '  on error',
     '    return "open"',
     '  end try',
-    '  return (player state as string) & tab & (id of t) & tab & (name of t) & tab & (artist of t) & tab & (album of t) & tab & (duration of t) & tab & (player position as string)',
+    '  set sh to ""',
+    '  set rp to ""',
+    '  set vo to ""',
+    '  set au to ""',
+    '  try',
+    '    set sh to (shuffling as string)',
+    '  end try',
+    '  try',
+    '    set rp to (repeating as string)',
+    '  end try',
+    '  try',
+    '    set vo to (sound volume as string)',
+    '  end try',
+    '  try',
+    '    set au to (artwork url of t)',
+    '  end try',
+    '  return (player state as string) & tab & (id of t) & tab & (name of t) & tab & (artist of t) & tab & (album of t) & tab & (duration of t) & tab & (player position as string) & tab & sh & tab & rp & tab & vo & tab & au',
     'end tell',
   ].join('\n'))}`,
   'end if',
   'return "closed"',
 ].join('\n')
 
+const trackUrl = (id: string) => { const m = /^spotify:track:([A-Za-z0-9]+)$/.exec(id); return m ? `https://open.spotify.com/track/${m[1]}` : undefined }
+
 export function parseOsascript(stdout: string, readAt: number): Music | undefined {
   const s = stdout.replace(/\n$/, '')
   if (s === 'closed') return { status: 'closed' }
   if (s === 'open') return { status: 'open', playing: false, ad: false, progressMs: 0, readAt }
   const f = s.split('\t')
-  if (f.length !== 7) return undefined
-  return open(f[0]!, f[1]!, f[2]!, f[3]!, f[4]!, Number(f[5]) || 0, (Number(f[6]!.replace(',', '.')) || 0) * 1000, readAt)
+  if (f.length !== 7 && f.length !== 11) return undefined
+  const m = open(f[0]!, f[1]!, f[2]!, f[3]!, f[4]!, Number(f[5]) || 0, (Number(f[6]!.replace(',', '.')) || 0) * 1000, readAt, { artUrl: f[10], url: trackUrl(f[1]!) })
+  if (f.length === 7) return m
+  // AppleScript repeat is on or off; on repeats the context
+  const rp = f[8] === 'true' ? 'context' : f[8] === 'false' ? 'off' : undefined
+  return { ...m, ...extrasOf(f[7], undefined, f[9] === '' ? '' : String(Number(f[9]) / 100)), ...(rp && { repeat: rp }) }
 }
 
-export function progressAt(m: OpenMusic, now: number): number {
-  const at = m.playing ? m.progressMs + Math.max(0, now - m.readAt) : m.progressMs
-  const end = m.track?.durationMs ?? 0
-  return end > 0 ? Math.min(at, end) : at
+export function extrapolate(progressMs: number, readAt: number, durationMs: number, playing: boolean, now: number): number {
+  const at = playing ? progressMs + Math.max(0, now - readAt) : progressMs
+  return durationMs > 0 ? Math.min(at, durationMs) : at
 }
+
+export const progressAt = (m: OpenMusic, now: number): number => extrapolate(m.progressMs, m.readAt, m.track?.durationMs ?? 0, m.playing, now)
 
 // True when a redraw would show nothing new: same state and track, and progress where the clock put it.
 export function sameMusic(a: Music | undefined, b: Music, now: number): boolean {
@@ -77,5 +145,6 @@ export function sameMusic(a: Music | undefined, b: Music, now: number): boolean 
   if (a.status === 'unsupported') return b.status === 'unsupported' && a.hint === b.hint
   if (a.status === 'closed' || b.status !== 'open') return true
   const o = a as OpenMusic
-  return o.playing === b.playing && o.ad === b.ad && JSON.stringify(o.track) === JSON.stringify(b.track) && Math.abs(progressAt(o, now) - progressAt(b, now)) <= SEEK_MS
+  return o.playing === b.playing && o.ad === b.ad && o.shuffle === b.shuffle && o.repeat === b.repeat && o.volume === b.volume
+    && JSON.stringify(o.track) === JSON.stringify(b.track) && Math.abs(progressAt(o, now) - progressAt(b, now)) <= SEEK_MS
 }

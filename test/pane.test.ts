@@ -348,17 +348,27 @@ const track = { id: 'x', title: 'Fembrook Dr', artist: 'Khary', album: 'uhhh 3',
 const withMusic = (music?: Music): Model => ({ ...initialModel(), music })
 const playing: Music = { status: 'open', playing: true, ad: false, progressMs: 73827, readAt: 10000, track }
 
-test('music tab: now playing box with title, artist · album and a moving bar', async () => {
+test('music tab: the cover sits beside title, artist · album and the bar; ♪ until the art arrives', async () => {
   const rows = text(tabRows(withMusic(playing), T, { tab: 'music' }, 54, false, 12000))
+  expect(rows).toHaveLength(6)
   expect(rows[0]).toMatch(/^╭─ NOW PLAYING ─+ Spotify ─╮$/)
-  expect(inside(rows[1]!)).toBe('Fembrook Dr')
-  expect(inside(rows[2]!)).toBe('Khary · uhhh 3')
-  expect(inside(rows[3]!)).toMatch(/^▶ 1:15 ━+─+ 2:56$/)
-  expect(cellsOf(rows[3]!)).toBe(54)
+  expect(inside(rows[1]!)).toBe('          Fembrook Dr')
+  expect(inside(rows[2]!)).toBe('   ♪      Khary · uhhh 3')
+  expect(inside(rows[3]!)).toBe('')
+  expect(inside(rows[4]!).slice(10)).toMatch(/^▶ 1:15 ━+─+ 2:56$/)
+  expect(rows.every(r => cellsOf(r) === 54)).toBe(true)
+  const cover = Array.from({ length: 4 }, () => [{ text: '▀▀▀▀▀▀▀▀', color: '#111111', bg: '#222222' }])
+  const art = tabRows(withMusic(playing), T, { tab: 'music', cover }, 54, false, 12000)
+  expect(art[1]![1]).toEqual({ text: '▀▀▀▀▀▀▀▀', color: '#111111', bg: '#222222' })
+})
+
+test('music tab: under 40 inner columns there is no cover', async () => {
+  const rows = text(tabRows(withMusic(playing), T, { tab: 'music' }, 40, false, 12000)).map(inside)
+  expect(rows.slice(1, 4)).toEqual(['Fembrook Dr', 'Khary · uhhh 3', expect.stringMatching(/^▶ 1:15 ━+─+ 2:56$/)])
 })
 
 test('music tab: paused, ad, closed, unsupported and an empty album', async () => {
-  const at = (m?: Music) => text(tabRows(withMusic(m), T, { tab: 'music' }, 54, false, 12000)).map(inside)
+  const at = (m?: Music) => text(tabRows(withMusic(m), T, { tab: 'music' }, 40, false, 12000)).map(inside)
   expect(at({ ...playing, playing: false })[3]).toMatch(/^‖ 1:13 /)
   expect(at({ ...playing, ad: true })[1]).toBe('Ad')
   expect(at({ status: 'closed' })[1]).toBe("Open Spotify to see what's playing.")
@@ -367,21 +377,54 @@ test('music tab: paused, ad, closed, unsupported and an empty album', async () =
   expect(at({ ...playing, track: { ...track, album: '', durationMs: 0 } })[2]).toBe('Khary')
 })
 
-test('music tab: compact is one line and has no controls', async () => {
+test('music tab: compact is one line and has no controls or seek slot', async () => {
   const p = tabParts(withMusic(playing), T, { tab: 'music' }, 50, true, 12000)
   expect(text(p.rows)).toEqual(['  ♪ Fembrook Dr — Khary ▶'])
   expect(p.controls).toBeUndefined()
+  expect(p.seek).toBeUndefined()
 })
 
-test('music controls: buttons only while Spotify is open; a press reaches onMusic', async () => {
+test('the bar row is a seek slot: the same row object, its border and cover beside it, and the bar props', async () => {
+  const p = tabParts(withMusic(playing), T, { tab: 'music' }, 54, false, 12000)
+  expect(p.seek!.row).toBe(p.rows[4])
+  // the box edge, then the cover's last row (8) and the 2-cell gap
+  expect(p.seek!.left.map(s => s.text).join('')).toBe('│ ' + ' '.repeat(10))
+  expect(p.seek!.right.map(s => s.text).join('')).toBe(' │')
+  expect(p.seek!.props).toEqual({ kind: 'progress', cols: 40, progressMs: 73827, readAt: 10000, durationMs: 176959, playing: true,
+    colors: { text: T.colors.text, accent: T.colors.accent, faint: T.colors.faint, dim: T.colors.dim } })
+  const seen: unknown[] = []
+  const tree = renderPane(els, withMusic(playing), T, { tab: 'music' }, 60, false, 12000, () => {}, { seek: props => { seen.push(props); return { type: 'SeekProbe', props: {}, children: [] } } })
+  expect(walk(tree).some(n => n?.type === 'SeekProbe')).toBe(true)
+  expect(seen).toHaveLength(1)
+})
+
+test('music controls: transport always, shuffle and repeat only when reported; repeat cycles the modes the player has', async () => {
   expect(tabParts(withMusic({ status: 'closed' }), T, { tab: 'music' }, 54, false, 0).controls).toBeUndefined()
   expect(tabParts(withMusic(playing), T, { tab: 'music' }, 54, false, 0).controls).toEqual([
-    { cmd: 'previous', label: 'Prev', hotkey: 'r' }, { cmd: 'playpause', label: 'Pause', hotkey: 'p' }, { cmd: 'next', label: 'Next', hotkey: 'n' },
+    { key: 'previous', cmd: { cmd: 'previous' }, label: 'Prev', hotkey: 'r' },
+    { key: 'playpause', cmd: { cmd: 'playpause' }, label: 'Pause', hotkey: 'p' },
+    { key: 'next', cmd: { cmd: 'next' }, label: 'Next', hotkey: 'n' },
   ])
-  const pressed: string[] = []
-  const tree = renderPane(els, withMusic(playing), T, { tab: 'music' }, 60, false, 0, () => {}, { onMusic: c => pressed.push(c) })
+  const full: Music = { ...playing, shuffle: true, repeat: 'context' }
+  const c = tabParts(withMusic(full), T, { tab: 'music' }, 54, false, 0).controls!
+  expect(c.slice(3)).toEqual([
+    { key: 'shuffle', cmd: { cmd: 'shuffle', on: false }, label: '⇄', hotkey: 's', on: true },
+    { key: 'repeat', cmd: { cmd: 'repeat', mode: 'track' }, label: '↻', hotkey: 'e', on: true },
+  ])
+  const mac = tabParts(withMusic(full), T, { tab: 'music', musicCaps: { repeat: ['off', 'context'], shuffle: true, raise: true } }, 54, false, 0).controls!
+  expect(mac[4]!.cmd).toEqual({ cmd: 'repeat', mode: 'off' })
+  const none = tabParts(withMusic(full), T, { tab: 'music', musicCaps: { repeat: [], shuffle: true, raise: true } }, 54, false, 0).controls!
+  expect(none.map(b => b.key)).toEqual(['previous', 'playpause', 'next', 'shuffle'])
+  const mpris = tabParts(withMusic(full), T, { tab: 'music', musicCaps: { repeat: [], shuffle: false, raise: true } }, 54, false, 0).controls!
+  expect(mpris.map(b => b.key)).toEqual(['previous', 'playpause', 'next'])
+  const one = tabParts(withMusic({ ...full, repeat: 'track' }), T, { tab: 'music' }, 54, false, 0).controls!
+  expect([one[4]!.label, one[4]!.cmd]).toEqual(['↻1', { cmd: 'repeat', mode: 'off' }])
+  const pressed: unknown[] = []
+  const tree = renderPane(els, withMusic(full), T, { tab: 'music' }, 60, false, 0, () => {}, { onMusic: c => pressed.push(c) })
+  walk(tree).find(n => n.props?.key === 'music-shuffle').onPress({})
   walk(tree).find(n => n.props?.key === 'music-playpause').onPress({})
-  expect(pressed).toEqual(['playpause'])
+  expect(pressed).toEqual([{ cmd: 'shuffle', on: false }, { cmd: 'playpause' }])
+  expect(walk(tree).find(n => n.props?.key === 'music-repeat').props.dimColor).toBe(false)
 })
 
 test('the Changes tab lists the most recently touched file first, ties in their given order', async () => {
