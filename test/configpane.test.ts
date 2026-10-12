@@ -24,7 +24,7 @@ const byKey = (tree: unknown, k: string) => walk(tree).find(n => keyOf(n) === k)
 test('every cycle and every role has its element, and Pack takes the first focus', () => {
   const tree = renderConfig(EL, s, look, 90, noop, {})
   const k = keys(tree)
-  for (const id of ['pack', 'spinner', 'pet', 'bubbles', 'motion', 'meter', 'bubbleMs', 'sleep']) expect(k).toContain(`cycle-${id}`)
+  for (const id of ['pack', 'spinner', 'pet', 'bubbles', 'motion', 'meter', 'bubbleMs', 'sleep', 'dance']) expect(k).toContain(`cycle-${id}`)
   for (const r of COLOR_KEYS) expect(k).toContain(`input-color:${r}`)
   for (const id of ['band', 'tabs', 'moods', 'fields']) expect(k).toContain(`input-${id}`)
   expect(byKey(tree, 'cycle-pack').props.autoFocus).toBe(true)

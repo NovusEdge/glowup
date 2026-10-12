@@ -40,6 +40,8 @@ type Setup struct {
 	} `json:"bubbles"`
 	Pet struct {
 		SleepMs int `json:"sleepMs"`
+		// nil from a mod older than pet.dance, which danced always
+		Dance *bool `json:"dance,omitempty"`
 	} `json:"pet"`
 }
 

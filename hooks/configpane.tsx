@@ -66,6 +66,7 @@ export function renderConfig(els: Els, s: ConfigState, look: Look, width: number
       {cycle('meter', 'Meter')}
       {cycle('pet', 'Pet')}
       {cycle('sleep', 'Sleeps')}
+      {cycle('dance', 'Dances')}
       {cycle('bubbles', 'Bubbles')}
       {cycle('bubbleMs', 'Bubble')}
       {field('moods', 'Moods')}

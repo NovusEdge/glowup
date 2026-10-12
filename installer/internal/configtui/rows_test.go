@@ -1,6 +1,7 @@
 package configtui
 
 import (
+	"encoding/json"
 	"slices"
 	"testing"
 
@@ -122,5 +123,28 @@ func TestValues(t *testing.T) {
 	}
 	if v := value(rowByID(t, s, 0, "spinner"), s); v != "pack default" {
 		t.Fatal(v)
+	}
+}
+
+func TestDanceRow(t *testing.T) {
+	s := snap()
+	r := rowByID(t, s, 3, "dance")
+	if v := value(r, s); v != "on" {
+		t.Fatalf("a snapshot without dance reads %q", v)
+	}
+	if got := cycleCmds(r, s, 1); !slices.Equal(got, []string{"setup pet.dance off"}) {
+		t.Fatalf("got %v", got)
+	}
+	off := false
+	s.State.Setup.Pet.Dance = &off
+	if v := value(r, s); v != "off" {
+		t.Fatalf("got %q", v)
+	}
+	if got := cycleCmds(r, s, -1); !slices.Equal(got, []string{"setup pet.dance on"}) {
+		t.Fatalf("got %v", got)
+	}
+	var st State
+	if err := json.Unmarshal([]byte(`{"setup":{"pet":{"sleepMs":60000,"dance":false}}}`), &st); err != nil || st.Setup.Pet.Dance == nil || *st.Setup.Pet.Dance {
+		t.Fatalf("decode: %v %v", err, st.Setup.Pet.Dance)
 	}
 }

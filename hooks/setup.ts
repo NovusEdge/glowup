@@ -8,7 +8,7 @@ export const TAB_IDS = ['plan', 'agents', 'diff', 'changes', 'music'] as const
 export type TabId = (typeof TAB_IDS)[number]
 export const SETUP_MOODS: readonly Moment[] = ['needs-you', 'fail', 'done', 'green', 'hello', 'long-done', 'compact', 'level-up']
 export type Meter = { warn: number; danger: number }
-export type Setup = { format: 4; band: BandItem[]; tabs: TabId[]; meter: Meter; bubbles: { moods: Moment[]; ms: number }; pet: { sleepMs: number } }
+export type Setup = { format: 4; band: BandItem[]; tabs: TabId[]; meter: Meter; bubbles: { moods: Moment[]; ms: number }; pet: { sleepMs: number; dance: boolean } }
 
 export const DEFAULT_SETUP: Setup = {
   format: 4,
@@ -16,10 +16,10 @@ export const DEFAULT_SETUP: Setup = {
   tabs: ['plan', 'agents', 'diff', 'changes', 'music'],
   meter: { warn: 50, danger: 80 },
   bubbles: { moods: [...SETUP_MOODS], ms: 3000 },
-  pet: { sleepMs: 60_000 },
+  pet: { sleepMs: 60_000, dance: true },
 }
 
-export const SETUP_KEYS = ['band', 'tabs', 'meter.warn', 'meter.danger', 'bubbles.moods', 'bubbles.ms', 'pet.sleepMs'] as const
+export const SETUP_KEYS = ['band', 'tabs', 'meter.warn', 'meter.danger', 'bubbles.moods', 'bubbles.ms', 'pet.sleepMs', 'pet.dance'] as const
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 const whole = (v: unknown, lo: number, hi: number): v is number => typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi
@@ -117,8 +117,14 @@ export function parseSetup(raw: unknown): { setup: Setup; notices: string[] } {
     if (whole(p.sleepMs, 15_000, 600_000)) sleepMs = p.sleepMs
     else notices.push('pet.sleepMs must be a whole number from 15000 to 600000')
   }
+  // A setup saved before 1.1 has no dance key: that reads as on.
+  let dance = d.pet.dance
+  if (p.dance !== undefined) {
+    if (typeof p.dance === 'boolean') dance = p.dance
+    else notices.push('pet.dance must be true or false')
+  }
 
-  return { setup: { format: 4, band, tabs, meter, bubbles: { moods, ms }, pet: { sleepMs } }, notices }
+  return { setup: { format: 4, band, tabs, meter, bubbles: { moods, ms }, pet: { sleepMs, dance } }, notices }
 }
 
 const list = (v: string) => (v === 'none' ? [] : v.split(',').map(s => s.trim()).filter(Boolean))
@@ -136,6 +142,10 @@ export function setSetupField(s: Setup, key: string, value: string): { setup: Se
     case 'bubbles.moods': bubbles.moods = list(value); break
     case 'bubbles.ms': bubbles.ms = num; break
     case 'pet.sleepMs': pet.sleepMs = num; break
+    case 'pet.dance':
+      if (value !== 'on' && value !== 'off') return { error: 'pet.dance takes on or off' }
+      pet.dance = value === 'on'
+      break
     default: return { error: `Unknown setup key "${shown(key)}". Keys: ${SETUP_KEYS.join(', ')}.` }
   }
   const r = parseSetup(next)
@@ -153,6 +163,7 @@ export function describeSetup(s: Setup): string {
     ['bubbles.moods', shownList(s.bubbles.moods)],
     ['bubbles.ms', String(s.bubbles.ms)],
     ['pet.sleepMs', String(s.pet.sleepMs)],
+    ['pet.dance', s.pet.dance ? 'on' : 'off'],
   ]
   return rows.map(([k, v]) => `${k.padEnd(15)}${v}`).join('\n')
 }

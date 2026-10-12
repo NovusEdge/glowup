@@ -318,7 +318,7 @@ const petInput = (): PetInput => ({
   compactAt: model.compactAt,
   ctx: model.ctxPercent,
   juggleAt: eggJuggleAt,
-  music: model.music?.status === 'open' && model.music.playing && !model.music.ad,
+  music: setup.pet.dance && model.music?.status === 'open' && model.music.playing && !model.music.ad,
 })
 // Through JSON because Client props refuse undefined fields.
 function petSnap(): PetSnap {

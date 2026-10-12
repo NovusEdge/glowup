@@ -6,7 +6,7 @@ test('no stored setup is the default with no notices', () => {
 })
 
 test('a full valid setup round-trips', () => {
-  const s: Setup = { format: 4, band: ['plan', 'meter'], tabs: ['plan', 'changes'], meter: { warn: 40, danger: 90 }, bubbles: { moods: ['done'], ms: 5000 }, pet: { sleepMs: 120000 } }
+  const s: Setup = { format: 4, band: ['plan', 'meter'], tabs: ['plan', 'changes'], meter: { warn: 40, danger: 90 }, bubbles: { moods: ['done'], ms: 5000 }, pet: { sleepMs: 120000, dance: false } }
   expect(parseSetup(JSON.parse(JSON.stringify(s)))).toEqual({ setup: s, notices: [] })
 })
 
@@ -66,7 +66,7 @@ test('setSetupField refuses what parseSetup would only warn about', () => {
   expect(setSetupField(DEFAULT_SETUP, 'band', 'plan,weather')).toEqual({ error: 'unknown band item "weather"' })
   expect(setSetupField(DEFAULT_SETUP, 'meter.warn', '85')).toEqual({ error: 'meter.warn must be below meter.danger' })
   expect(setSetupField(DEFAULT_SETUP, 'meter.danger', '1.5')).toEqual({ error: 'meter.danger must be a whole number from 1 to 99' })
-  expect(setSetupField(DEFAULT_SETUP, 'colour', 'x')).toEqual({ error: 'Unknown setup key "colour". Keys: band, tabs, meter.warn, meter.danger, bubbles.moods, bubbles.ms, pet.sleepMs.' })
+  expect(setSetupField(DEFAULT_SETUP, 'colour', 'x')).toEqual({ error: 'Unknown setup key "colour". Keys: band, tabs, meter.warn, meter.danger, bubbles.moods, bubbles.ms, pet.sleepMs, pet.dance.' })
 })
 
 test('a format 1 setup holding the old mood default reads as the new default; any other list is kept', async () => {
@@ -124,6 +124,7 @@ test('describeSetup lists every key with its value', () => {
     'bubbles.moods  needs-you, fail, done, green, hello, long-done, compact, level-up',
     'bubbles.ms     3000',
     'pet.sleepMs    60000',
+    'pet.dance      on',
   ].join('\n'))
   expect(describeSetup({ ...DEFAULT_SETUP, band: [] })).toContain('band           none')
 })
@@ -139,4 +140,17 @@ test('music is a tab, last by default; a stored 0.11 default order gains it', ()
   expect(parseSetup({ tabs: ['plan', 'agents', 'diff', 'changes'] }).setup.tabs).toEqual(DEFAULT_SETUP.tabs)
   expect(parseSetup({ tabs: ['changes', 'plan'] }).setup.tabs).toEqual(['changes', 'plan'])
   expect(parseSetup({ tabs: ['music'] }).setup.tabs).toEqual(['music'])
+})
+
+test('pet.dance: default on, a stored false is off, a missing key is on, a non-boolean is a notice', () => {
+  expect(DEFAULT_SETUP.pet.dance).toBe(true)
+  expect(parseSetup({ format: 4, pet: { sleepMs: 60000, dance: false } }).setup.pet.dance).toBe(false)
+  expect(parseSetup({ format: 4, pet: { sleepMs: 60000 } }).setup.pet.dance).toBe(true)
+  expect(parseSetup({ format: 4, pet: { dance: 'nope' } }).notices).toEqual(['pet.dance must be true or false'])
+})
+
+test('setup pet.dance takes on or off', () => {
+  expect(setSetupField(DEFAULT_SETUP, 'pet.dance', 'off')).toEqual({ setup: { ...DEFAULT_SETUP, pet: { sleepMs: 60000, dance: false } } })
+  expect(setSetupField(DEFAULT_SETUP, 'pet.dance', 'yes')).toEqual({ error: 'pet.dance takes on or off' })
+  expect(describeSetup({ ...DEFAULT_SETUP, pet: { sleepMs: 60000, dance: false } })).toContain('pet.dance      off')
 })

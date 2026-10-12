@@ -135,6 +135,7 @@ Your layout and behavior settings. They are yours alone: installing someone's pa
 | `bubbles.moods` | Comma list of `needs-you`, `fail`, `done`, `green`, `hello`, `long-done`, `compact`, `level-up`, or `none`. | all eight |
 | `bubbles.ms` | How long a bubble stays, 1500 to 10000. | `3000` |
 | `pet.sleepMs` | Idle time before the pet sleeps, 15000 to 600000. | `60000` |
+| `pet.dance` | `on` or `off`. Off keeps the pet from dancing, and from wearing headphones to dance while Claude works, when Spotify plays. | `on` |
 
 ## config
 

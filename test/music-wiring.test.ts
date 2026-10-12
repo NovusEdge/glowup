@@ -237,3 +237,17 @@ test('the shuffle button sets Shuffle from the extras read', async ($, on) => {
   expect(ran).toContain(SET)
   await pane.unmount()
 })
+
+test('pet.dance off: Spotify playing does not make the pet dance', async ($, on) => {
+  boot(on, {}, { ...LINUX_BUS, [BUS]: ok(PLAYING) }, true, {}, { setup: { format: 4, pet: { sleepMs: 60000, dance: false } } })
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: true })
+  await clock.advance(50)
+  const pane = await mountPane($)
+  await pane.press({ key: 'tab-music' })
+  await clock.advance(50)
+  const tree = await pane.drawn()
+  expect(text(tree)).toContain('Song')
+  expect(petClient(tree).props.props.input.music).toBe(false)
+  await pane.unmount()
+})

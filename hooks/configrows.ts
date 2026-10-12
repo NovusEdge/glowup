@@ -21,7 +21,7 @@ export type ConfigState = {
   setup: Setup
   fields: readonly FieldId[]
 }
-export const CYCLES = ['pack', 'spinner', 'pet', 'bubbles', 'motion', 'meter', 'bubbleMs', 'sleep'] as const
+export const CYCLES = ['pack', 'spinner', 'pet', 'bubbles', 'motion', 'meter', 'bubbleMs', 'sleep', 'dance'] as const
 export type CycleId = (typeof CYCLES)[number]
 export type InputId = `color:${Role}` | 'band' | 'tabs' | 'moods' | 'fields'
 
@@ -46,6 +46,7 @@ export function cycleValue(id: CycleId, s: ConfigState): string {
     case 'meter': return `warn ${s.setup.meter.warn}%  danger ${s.setup.meter.danger}%`
     case 'bubbleMs': return duration(s.setup.bubbles.ms)
     case 'sleep': return duration(s.setup.pet.sleepMs)
+    case 'dance': return s.setup.pet.dance ? 'on' : 'off'
   }
 }
 
@@ -65,6 +66,7 @@ export function cycleCommands(id: CycleId, s: ConfigState): string[] {
     }
     case 'bubbleMs': return [`setup bubbles.ms ${after(BUBBLE_MS, s.setup.bubbles.ms)}`]
     case 'sleep': return [`setup pet.sleepMs ${after(SLEEP_MS, s.setup.pet.sleepMs)}`]
+    case 'dance': return [`setup pet.dance ${s.setup.pet.dance ? 'off' : 'on'}`]
   }
 }
 
