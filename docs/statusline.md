@@ -53,6 +53,16 @@ List the fields you want in order, or go back to the default:
 
 An unknown id rejects the whole command and lists the valid ones. The Status row in `/glowup config` takes the same list, and the `statusline` setting in the `/plugin` menu accepts them comma-separated. The `/plugin` setting is more lenient: it drops an unknown id without a message and keeps the rest, and a list with no known id gives the default fields. That is how an id added in a later 1.x passes through an earlier one without breaking the setting.
 
+### Two lines
+
+Put a `/` in the list where the second line should start:
+
+```text title="claude code"
+/glowup statusline fields activity ctx effort / 5h week music
+```
+
+The takeover line then draws two lines. The entry under the prompt is always one line, so it shows both halves joined with ` · `. Only one `/` is allowed, and the command refuses a second. A `/` at the start or end, or a half whose fields have nothing to show, leaves a single line. In the `/plugin` setting, write it as its own item: `activity,ctx,effort,/,5h,week`. In `/glowup config`, tick **── line 2 ──** in the Status list and move it to where the break should fall.
+
 A field with nothing to show is left out; `5h` and `week` only appear on a subscription that reports those limits. The usage numbers are the latest Claude Code gave this session, so usage from another session on the same account shows up here after your next response.
 
 In the takeover line, percentages are drawn in your theme's pass color, switching to its edit color from `meter.warn` and its fail color from `meter.danger` (50 and 80 unless you change them with [`/glowup setup`](commands.md#setup)). It uses 24-bit color when `COLORTERM` is `truecolor` or `24bit` and 256 colors otherwise. The entry under the prompt is plain text.
