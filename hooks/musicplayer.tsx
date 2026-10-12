@@ -9,9 +9,11 @@ import type { MusicCaps } from './music/reader.ts'
 import { musicControls } from './pane.tsx'
 
 export const PLAYER_ID = 'glowup-music'
-// The dock grants about 88 columns and inline 13 to 20 rows (ledger c23), so these fit the grants seen, not the 110x24 asked for.
+// The dock grants about 88 columns and inline 13 to 20 rows, so these fit the grants seen, not the 110x24 asked for.
 const LEFT_COLS = 30, SIDE_MIN = 80, GAP = 2
-export const playerCoverSize = (bodyRows: number): 0 | 8 | 20 => (bodyRows >= 18 ? 20 : bodyRows >= 10 ? 8 : 0)
+// On macOS the left column under a 20x10 cover needs about 20 rows: cover, gap, three track rows, the seek and
+// volume bars, the controls margin and up to three wrapped button rows.
+export const playerCoverSize = (bodyRows: number): 0 | 8 | 20 => (bodyRows >= 20 ? 20 : bodyRows >= 10 ? 8 : 0)
 export const CONNECT_PITCH = ['Connect Spotify to see your queue, recent tracks, playlists and devices.', 'Needs Spotify Premium and a free developer app.'] as const
 
 export type PlayerNote = { text: string; tone: 'ok' | 'error' }

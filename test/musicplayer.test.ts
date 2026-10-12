@@ -33,8 +33,9 @@ const extra = { onMusic: () => {}, onCopy: () => {} }
 
 test('the cover follows the rows granted', () => {
   expect(playerCoverSize(24)).toBe(20)
-  expect(playerCoverSize(18)).toBe(20)
-  expect(playerCoverSize(17)).toBe(8)
+  expect(playerCoverSize(20)).toBe(20)
+  expect(playerCoverSize(19)).toBe(8)
+  expect(playerCoverSize(18)).toBe(8)
   expect(playerCoverSize(10)).toBe(8)
   expect(playerCoverSize(9)).toBe(0)
 })
@@ -85,6 +86,7 @@ test('each non-playing state draws one line and no controls', () => {
   for (const [music, line] of states) {
     const tree = renderPlayer(els, { ...initialModel(), music }, T, view(), 0, extra)
     expect(text(tree)).toContain(line)
+    expect(walk(tree).find(n => n?.type === 'Text' && n.children?.[0] === line).props.wrap).toBe('wrap')
     expect(keys(tree).filter(k => String(k).startsWith('music-'))).toEqual([])
     expect(text(tree)).toContain(CONNECT_PITCH[0]!)
   }
@@ -129,4 +131,5 @@ test('a note shows under the player in its tone', () => {
   const tree = renderPlayer(els, playing(), T, view({ note: { text: 'Could not copy the link: no clipboard', tone: 'error' } }), 0, extra)
   const n = walk(tree).find(x => x?.type === 'Text' && x.children?.[0] === 'Could not copy the link: no clipboard')
   expect(n.props.color).toBe(T.colors.fail)
+  expect(n.props.wrap).toBe('wrap')
 })
