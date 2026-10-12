@@ -4,7 +4,7 @@ import { runCommand, pastedGlowup, USAGE, type Ctl } from '../hooks/command.ts'
 import { SHORT_TEXT, FULL_TEXT, SECTIONS, DOCS_URL } from '../hooks/help.ts'
 import { resolveLook, cleanOverrides, type Mix } from '../hooks/packs.ts'
 import type { PetSetting } from '../hooks/pets.ts'
-import { DEFAULT_FIELDS, type FieldId } from '../hooks/fields.ts'
+import { DEFAULT_FIELDS, type FieldToken } from '../hooks/fields.ts'
 import { DEFAULT_SETUP, type Setup } from '../hooks/setup.ts'
 import { encodeLink } from '../hooks/link.ts'
 import { ROLE_LABELS } from '../hooks/themes.ts'
@@ -137,7 +137,7 @@ const ctl = (answer = true, current = 'classic') => {
   const questions: string[] = []
   let mix: Mix = { colors: 'classic', motion: 'classic' }
   let pet: PetSetting = 'clawd'
-  let fields: readonly FieldId[] = DEFAULT_FIELDS
+  let fields: readonly FieldToken[] = DEFAULT_FIELDS
   let setup: Setup = DEFAULT_SETUP
   const c: Ctl = {
     current: () => current,
@@ -344,6 +344,17 @@ test('statusline fields: set, show, default, unknown, repeats', async () => {
   expect(store.statusline).toEqual(['5h', 'week', 'branch'])
   expect(await runCommand(host, 'statusline fields default', c)).toBe('Status line fields: activity ctx effort 5h week')
   expect('statusline' in store).toBe(false)
+})
+
+test('statusline fields: one / splits the line, two are refused, a / alone is refused', async () => {
+  const { host, store } = fakeHost()
+  const { ctl: c } = ctl()
+  expect(await runCommand(host, 'statusline fields activity ctx / 5h week', c)).toBe('Status line fields: activity ctx / 5h week')
+  expect(store.statusline).toEqual(['activity', 'ctx', '/', '5h', 'week'])
+  expect(await runCommand(host, 'statusline fields ctx / 5h / week', c)).toBe('Use one / to start the second line.')
+  expect(await runCommand(host, 'statusline fields /', c)).toBe('List at least one field.')
+  expect(store.statusline).toEqual(['activity', 'ctx', '/', '5h', 'week'])
+  expect(await runCommand(host, 'statusline fields ctx nope', c)).toContain('and / to start a second line')
 })
 
 test('bare statusline names the fields subcommand', async () => {
@@ -649,6 +660,15 @@ test('a studio link status line keeps the field ids glowup knows and names the r
   const out = await runCommand(host, `pack ${encodeLink({ setup: { statusline: ['model', 'nope', 'ctx'] } })}`, ctl(true).ctl)
   expect(store.statusline).toEqual(['model', 'ctx'])
   expect(out).toContain('  dropped: unknown status line field "nope"')
+})
+
+test('a link status line keeps its first / and does not call it unknown', async () => {
+  const { host, store } = fakeHost()
+  const out = await runCommand(host, `pack ${encodeLink({ setup: { statusline: ['ctx', '/', '/', 'cost', 'nope'] } })}`, ctl(true).ctl)
+  expect(out).toContain('Status line: ctx / cost')
+  expect(out).toContain('  dropped: unknown status line field "nope"')
+  expect(out).not.toContain('field "/"')
+  expect(store.statusline).toEqual(['ctx', '/', 'cost'])
 })
 
 test('the setup prompt names the status line only when the link carries one', async () => {

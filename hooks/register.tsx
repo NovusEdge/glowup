@@ -27,7 +27,7 @@ import { orbStateOf, usesOwnSpinner, checkedSpinnerProps } from './spinner.ts'
 import type { PetClientProps } from './client/pet.tsx'
 import type { OrbState } from './motion.ts'
 import { statusText, writeStatusFile, drawsStatusLine, ensureRefresh, BACKUP_KEY, STATUS_DIR } from './statusline.ts'
-import { parseFields, DEFAULT_FIELDS, type ColorMode, type FieldId } from './fields.ts'
+import { parseFields, DEFAULT_FIELDS, type ColorMode, type FieldToken } from './fields.ts'
 import { DEFAULT_SETUP, parseSetup, setupIsNewer, type Setup } from './setup.ts'
 import { runCommand, pastedGlowup, type Ctl } from './command.ts'
 import { SHORT_TEXT, FULL_TEXT } from './help.ts'
@@ -98,10 +98,10 @@ let sessionId = ''
 let off = false
 let guardSid = '', guardRoot = ''
 let takenOver = false
-let fields: readonly FieldId[] = DEFAULT_FIELDS
+let fields: readonly FieldToken[] = DEFAULT_FIELDS
 let setup: Setup = DEFAULT_SETUP
 // the installer's value; `statusline fields default` returns to it
-let configFields: readonly FieldId[] = DEFAULT_FIELDS
+let configFields: readonly FieldToken[] = DEFAULT_FIELDS
 let colorMode: ColorMode = '256'
 // The one 60 s clock: refreshes this copy's guard entry and rewrites the status file.
 let beatTimer: Timer | undefined
@@ -199,7 +199,7 @@ function hostOf($: Engine): Host {
 // The takeover script falls back to the person's own command once this file is
 // 10 minutes old, so a quiet session still rewrites it every minute.
 function writeStatus($: Engine, force: boolean) {
-  const line = statusText(model, theme, { fields, now: Date.now(), tzOffset, color: colorMode, meter: setup.meter })
+  const line = statusText(model, theme, { fields, now: Date.now(), tzOffset, color: colorMode, meter: setup.meter, split: true })
   if (!takenOver || !sessionId || (!force && line === lastStatusLine)) return
   lastStatusLine = line
   void writeStatusFile(hostOf($), sessionId, line).catch(() => {})

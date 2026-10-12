@@ -102,4 +102,5 @@ test('the snapshot carries state, look fields and the option lists', () => {
   expect(s.look.border).toBe(look.border)
   expect(s.state.colors.accent).toBe(look.theme.colors.accent)
   expect(s.note).toEqual({ text: 'Pack: crt', tone: 'ok' })
+  expect(s.options.fields.at(-1)).toBe('/')
 })

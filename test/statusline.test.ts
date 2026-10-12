@@ -1,5 +1,6 @@
 import { test, expect } from 'claude-code/testing'
 import { takeOver, restore, ensureRefresh, statusText, writeStatusFile, script } from '../hooks/statusline.ts'
+import { BREAK } from '../hooks/fields.ts'
 import { initialModel } from '../hooks/model.ts'
 import { resolveTheme } from '../hooks/themes.ts'
 import { fakeHost } from './kit.ts'
@@ -231,4 +232,12 @@ test('ensureRefresh leaves a command that only reads glowup status files alone',
   const { host, files } = fakeHost({ files: { [SETTINGS]: reader } })
   await ensureRefresh(host)
   expect(files[SETTINGS]).toBe(reader)
+})
+
+test('statusText: split puts the lines on two rows; without it they join', () => {
+  const T = resolveTheme('classic', {}).theme
+  const m = { ...initialModel(), ctxPercent: 48 }
+  expect(statusText(m, T, { fields: ['activity', BREAK, 'ctx'], split: true })).toBe('◆ idle\nctx 48%')
+  expect(statusText(m, T, { fields: ['activity', BREAK, 'ctx'] })).toBe('◆ idle · ctx 48%')
+  expect(statusText(m, T, { fields: ['activity', BREAK, '5h'], split: true })).toBe('◆ idle')
 })

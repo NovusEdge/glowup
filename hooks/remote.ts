@@ -1,7 +1,7 @@
 import type { Host } from './host.ts'
 import { SAFE_NAME, SPINNER_IDS, type Look, type Mix } from './packs.ts'
 import { BUBBLE_SETTINGS } from './bubbles.ts'
-import { FIELD_IDS } from './fields.ts'
+import { BREAK, FIELD_IDS } from './fields.ts'
 import { BAND_ITEMS, TAB_IDS, SETUP_MOODS } from './setup.ts'
 import { builtinPets } from './petfile.ts'
 import type { ConfigState } from './configrows.ts'
@@ -115,6 +115,6 @@ export function snapshotOf(s: ConfigState, look: Look, o: { cursor: Cursor; vers
     format: 1, seq: o.cursor.seq, lines: o.cursor.lines, version: o.version, cwd: o.cwd, ...(o.note && { note: o.note }),
     state: { mix: s.mix, colors: s.colors, pet: s.pet, bubbles: s.bubbles, reduced: s.reduced, setup: s.setup, fields: s.fields },
     look: { name: look.colorsFrom, bg: look.bg, border: look.border, borderColor: look.borderColor, spinner: look.motion.spinner, spinColor: look.motion.color, word: look.theme.spinnerWords[0] ?? 'Working' },
-    options: { packs: s.packs, spinners: SPINNER_IDS, pets: [...builtinPets(s.shiny, s.egg), ...s.userPets, 'off'], fields: FIELD_IDS, band: BAND_ITEMS, tabs: TAB_IDS, moods: SETUP_MOODS, bubbles: BUBBLE_SETTINGS },
+    options: { packs: s.packs, spinners: SPINNER_IDS, pets: [...builtinPets(s.shiny, s.egg), ...s.userPets, 'off'], fields: [...FIELD_IDS, BREAK], band: BAND_ITEMS, tabs: TAB_IDS, moods: SETUP_MOODS, bubbles: BUBBLE_SETTINGS },
   }
 }

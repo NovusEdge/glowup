@@ -57,6 +57,16 @@ A field with nothing to show is left out; `5h` and `week` only appear on a subsc
 
 In the takeover line, percentages are drawn in your theme's pass color, switching to its edit color from `meter.warn` and its fail color from `meter.danger` (50 and 80 unless you change them with [`/glowup setup`](commands.md#setup)). It uses 24-bit color when `COLORTERM` is `truecolor` or `24bit` and 256 colors otherwise. The entry under the prompt is plain text.
 
+### Two lines
+
+Put a `/` in the list where the second line should start:
+
+```text title="claude code"
+/glowup statusline fields activity ctx effort / 5h week music
+```
+
+The takeover line then draws two lines. The entry under the prompt is always one line, so it shows both halves joined with ` · `. Only one `/` is allowed, and the command refuses a second. A `/` at the start or end, or a half whose fields have nothing to show, leaves a single line. In the `/plugin` setting, write it as its own item: `activity,ctx,effort,/,5h,week`. In `/glowup config`, tick **── line 2 ──** in the Status list and move it to where the break should fall.
+
 ## The takeover
 
 `/glowup statusline on` asks for confirmation first. If you say Yes, glowup:

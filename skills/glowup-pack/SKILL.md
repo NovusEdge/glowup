@@ -48,7 +48,7 @@ The status line fields are a personal setting, not part of a pack. They are an o
 | `changes` | lines added and removed: `+42 −7` |
 | `cwd` | the project folder name |
 
-When the person describes what they want on the line, tell them to run `/glowup statusline fields <ids>` with the ids they describe, in the order they name them. "Show my usage limits and branch" becomes `/glowup statusline fields activity 5h week branch`. `/glowup statusline fields default` goes back to the default. An unknown id refuses the whole command and lists the valid ids.
+When the person describes what they want on the line, tell them to run `/glowup statusline fields <ids>` with the ids they describe, in the order they name them. "Show my usage limits and branch" becomes `/glowup statusline fields activity 5h week branch`. `/glowup statusline fields default` goes back to the default. An unknown id refuses the whole command and lists the valid ids. To put fields on a second line, tell them to add a `/` where it should start: "usage on its own line" becomes `/glowup statusline fields activity ctx / 5h week`. Only one `/` is allowed.
 
 glowup draws the whole line only after `/glowup statusline on`. Without it, the fields show in the entry under the prompt while Claude works.
 

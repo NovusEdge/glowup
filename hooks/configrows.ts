@@ -2,7 +2,7 @@
 import { normalizeHex, SPINNER_IDS, type Mix } from './packs.ts'
 import { COLOR_KEYS, shown } from './themes.ts'
 import { setSetupField, type Setup } from './setup.ts'
-import { FIELD_IDS, isFieldId, type FieldId } from './fields.ts'
+import { FIELD_CHOICES, TWO_BREAKS, BREAK, isFieldId, isFieldToken, type FieldToken } from './fields.ts'
 import { builtinPets } from './petfile.ts'
 import type { PetSetting } from './pets.ts'
 import type { BubbleSetting } from './bubbles.ts'
@@ -19,7 +19,7 @@ export type ConfigState = {
   bubbles: BubbleSetting
   reduced: boolean
   setup: Setup
-  fields: readonly FieldId[]
+  fields: readonly FieldToken[]
 }
 export const CYCLES = ['pack', 'spinner', 'pet', 'bubbles', 'motion', 'meter', 'bubbleMs', 'sleep', 'dance'] as const
 export type CycleId = (typeof CYCLES)[number]
@@ -91,8 +91,10 @@ export function inputCommand(id: InputId, text: string, s: ConfigState): { cmd: 
   if (id === 'fields') {
     const ids = words(text)
     if (!ids.length || (ids.length === 1 && ids[0] === 'default')) return { cmd: 'statusline fields default' }
-    const bad = ids.filter(x => !isFieldId(x))
-    if (bad.length) return { error: `Unknown field${bad.length > 1 ? 's' : ''}: ${bad.map(shown).join(', ')}. Choose from: ${FIELD_IDS.join(', ')}.` }
+    const bad = ids.filter(x => !isFieldToken(x))
+    if (bad.length) return { error: `Unknown field${bad.length > 1 ? 's' : ''}: ${bad.map(shown).join(', ')}. Choose from: ${FIELD_CHOICES}.` }
+    if (ids.filter(x => x === BREAK).length > 1) return { error: TWO_BREAKS }
+    if (!ids.some(isFieldId)) return { error: 'List at least one field.' }
     return { cmd: `statusline fields ${ids.join(' ')}` }
   }
   const key = SETUP_KEY[id as keyof typeof SETUP_KEY]

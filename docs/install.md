@@ -108,6 +108,8 @@ These settings and the `/glowup` commands change the same saved choices, and whi
 
 In practice, a pack, theme or pet file made for a later 1.x still loads in an earlier one. What the earlier release does not know is skipped, and a notice names each key it skipped. See the [pack](pack-reference.md#keys-and-values-from-a-later-release), [theme](theme-reference.md) and [pet file](pet-sprites.md#files-from-a-later-release) references. After you go back to an earlier release, it leaves a setup, level or outfit saved by the newer one as it was: `/glowup setup`, `/glowup outfit` and earning XP refuse to rewrite them.
 
+One exception: glowup 1.0 does not know the status line's `/` line break and drops it without a notice, so it draws every field on one line. Editing the status line in 1.0's `/glowup config` saves the list without the `/`.
+
 ## Run from a clone
 
 To work on the mod, run it from a checkout:
