@@ -1,11 +1,11 @@
 import { test, expect } from 'claude-code/testing'
-import { renderFields, parseFields, DEFAULT_FIELDS, FIELD_IDS } from '../hooks/fields.ts'
+import { renderFields, renderLines, parseFields, DEFAULT_FIELDS, FIELD_IDS, BREAK, FIELD_CHOICES, type FieldToken } from '../hooks/fields.ts'
 import { initialModel, type Model } from '../hooks/model.ts'
 import { resolveTheme } from '../hooks/themes.ts'
 
 const T = resolveTheme('classic', {}).theme
 const NOW = Date.parse('2026-10-07T12:00:00Z') // a Wednesday
-const plain = (m: Model, fields = DEFAULT_FIELDS, now = NOW, tzOffset = 0) => renderFields(m, T, fields, { now, tzOffset, color: 'plain' })
+const plain = (m: Model, fields: readonly FieldToken[] = DEFAULT_FIELDS, now = NOW, tzOffset = 0) => renderFields(m, T, fields, { now, tzOffset, color: 'plain' })
 const at = (mins: number) => new Date(NOW + mins * 60_000).toISOString()
 const lim = (kind: string, percentUsed: number, resetsAt?: string) => ({ kind, percentUsed, resetsAt })
 
@@ -108,4 +108,43 @@ test('music field shows the playing track only', () => {
   expect(plain(m({ status: 'open', playing: false, ad: false, progressMs: 0, readAt: 0, track }), ['music'])).toBe('')
   expect(plain(m({ status: 'open', playing: true, ad: true, progressMs: 0, readAt: 0, track }), ['music'])).toBe('')
   expect(plain(m({ status: 'closed' }), ['music'])).toBe('')
+})
+
+test('parseFields keeps the first / and drops later ones; a list with no field is undefined', () => {
+  expect(parseFields(['activity', '/', 'ctx', '/', '5h'])).toEqual(['activity', '/', 'ctx', '5h'])
+  expect(parseFields('activity, / ,ctx')).toEqual(['activity', '/', 'ctx'])
+  expect(parseFields('activity,/,ctx,/')).toEqual(['activity', '/', 'ctx'])
+  expect(parseFields(['/'])).toBeUndefined()
+  expect(parseFields('/,nope')).toBeUndefined()
+  expect(parseFields(['/', 'ctx'])).toEqual(['/', 'ctx'])
+})
+
+test('renderLines: none, middle, start, end, and an empty side', () => {
+  const m: Model = { ...initialModel(), ctxPercent: 48, effort: 'high' }
+  const lines = (fields: Parameters<typeof renderLines>[2]) => renderLines(m, T, fields, { now: NOW, tzOffset: 0, color: 'plain' })
+  expect(lines(['activity', 'ctx'])).toEqual(['◆ idle · ctx 48%'])
+  expect(lines(['activity', BREAK, 'ctx', 'effort'])).toEqual(['◆ idle', 'ctx 48% · ◐ high'])
+  expect(lines([BREAK, 'ctx'])).toEqual(['ctx 48%'])
+  expect(lines(['ctx', BREAK])).toEqual(['ctx 48%'])
+  expect(lines(['ctx', BREAK, '5h', 'music'])).toEqual(['ctx 48%'])
+  expect(lines(['5h', BREAK, 'music'])).toEqual([])
+})
+
+test('renderFields joins the two lines into one with the separator', () => {
+  const m: Model = { ...initialModel(), ctxPercent: 48 }
+  expect(plain(m, ['activity', BREAK, 'ctx'])).toBe('◆ idle · ctx 48%')
+  expect(plain(m, ['5h', BREAK, 'music'])).toBe('')
+})
+
+test('each line is painted on its own: line 2 opens with its own color, not a reset carried over', () => {
+  const m: Model = { ...initialModel(), ctxPercent: 90, limits: [lim('five_hour', 60)] }
+  const [one, two] = renderLines(m, T, ['ctx', BREAK, '5h'], { now: NOW, tzOffset: 0, color: 'truecolor' })
+  expect(one!.endsWith('\x1b[39m')).toBe(true)
+  expect(two!.startsWith('\x1b[38;2;')).toBe(true)
+  expect(two).not.toContain(' · ')
+  expect(one).not.toContain(' · ')
+})
+
+test('the field choices name / last', () => {
+  expect(FIELD_CHOICES).toBe(`${FIELD_IDS.join(', ')}, and / to start a second line`)
 })

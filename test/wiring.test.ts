@@ -175,6 +175,29 @@ test('the status file uses the stored fields; the entry without a takeover is pl
   expect(line).not.toContain('◆')
 })
 
+const PROBE_LINES = 2
+
+test('a / in the stored fields puts the takeover on two lines and keeps the entry on one', async ($, on) => {
+  const { files } = fakeFs(on, {}, undefined, { COLORTERM: 'truecolor' })
+  const clock = mock.clock(on)
+  mock.store(on, { 'statusline-backup': '__none__', statusline: ['activity', '/', 'ctx'] })
+  on('ui.status', async () => ({ value: undefined }) as never)
+  on('ui.panes', async () => ({ value: [] }))
+  on('session.id', async () => ({ value: 's1' }))
+  on('turn.start', async (_$, e) => ({ turnId: e.turnId }))
+  on('session.usage', async () => ({ value: { context: { window: 1000, percent: 10 }, rateLimits: [] } as never }))
+  on('turn.complete', async () => ({ text: '' }))
+  on('session.start', async (_$, e) => ({ cwd: e.cwd }) as never)
+  on('command.register', async () => ({ value: undefined }) as never)
+  await $.session.start({ cwd: '/r', surface: 'terminal', isInteractive: false })
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await $.turn.complete({ reason: 'answer', answer: 'done', durationMs: 10, isAborted: false, turnId: 't1' })
+  await clock.advance(10)
+  const rows = files['/fake/.claude/glowup/status/s1']!.split('\n')
+  expect(rows.length).toBe(PROBE_LINES)
+  expect(rows.at(-1)).toContain('ctx ')
+})
+
 test('without a takeover the entry under the prompt uses the fields and has no escapes', async ($, on) => {
   fakeFs(on, {}, undefined, { COLORTERM: 'truecolor' })
   mock.clock(on)

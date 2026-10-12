@@ -8,11 +8,20 @@ export const FIELD_IDS = ['activity', 'ctx', '5h', 'week', 'cost', 'model', 'eff
 export type FieldId = (typeof FIELD_IDS)[number]
 export const DEFAULT_FIELDS: readonly FieldId[] = ['activity', 'ctx', 'effort', '5h', 'week']
 export const isFieldId = (s: string): s is FieldId => (FIELD_IDS as readonly string[]).includes(s)
+// Ends line 1 of the status line. A 1.0.x reader drops it as an unknown id and draws one line.
+export const BREAK = '/'
+export type FieldToken = FieldId | typeof BREAK
+export const isFieldToken = (s: string): s is FieldToken => s === BREAK || isFieldId(s)
+export const FIELD_CHOICES = `${FIELD_IDS.join(', ')}, and ${BREAK} to start a second line`
+export const TWO_BREAKS = `Use one ${BREAK} to start the second line.`
 
-export function parseFields(v: unknown): FieldId[] | undefined {
+// Lenient: the store, the /plugin setting and links drop unknown ids and every / after the first.
+export function parseFields(v: unknown): FieldToken[] | undefined {
   const raw = Array.isArray(v) ? v : typeof v === 'string' ? v.split(',') : []
-  const ids = [...new Set(raw.filter((s): s is string => typeof s === 'string').map(s => s.trim()).filter(isFieldId))]
-  return ids.length ? ids : undefined
+  const words = raw.filter((s): s is string => typeof s === 'string').map(s => s.trim())
+  const first = words.indexOf(BREAK)
+  const ids = [...new Set(words.filter((s, i) => isFieldId(s) || i === first))] as FieldToken[]
+  return ids.some(s => s !== BREAK) ? ids : undefined
 }
 
 export type ColorMode = 'plain' | 'truecolor' | '256'
@@ -93,7 +102,21 @@ function escape(hex: string, mode: Exclude<ColorMode, 'plain'>): string {
 const paint = (spans: Span[], t: Theme, mode: ColorMode) =>
   spans.map(s => mode === 'plain' || !s.color || !s.text ? s.text : `${escape(t.colors[s.color], mode)}${s.text}\x1b[39m`).join('')
 
-export function renderFields(m: Model, t: Theme, fields: readonly FieldId[], o: { now: number; tzOffset: number; color: ColorMode; meter?: Meter }): string {
-  const parts = fields.map(id => field(id, m, o.now, o.tzOffset, o.meter ?? DEFAULT_SETUP.meter)).filter((s): s is Span[] => s !== undefined)
-  return parts.map(s => paint(s, t, o.color)).join(paint([{ text: ' · ', color: 'dim' }], t, o.color))
+type RenderOpts = { now: number; tzOffset: number; color: ColorMode; meter?: Meter }
+const SEP: Span[] = [{ text: ' · ', color: 'dim' }]
+
+function renderLine(m: Model, t: Theme, fields: readonly FieldToken[], o: RenderOpts): string {
+  const parts = fields.filter(isFieldId).map(id => field(id, m, o.now, o.tzOffset, o.meter ?? DEFAULT_SETUP.meter)).filter((s): s is Span[] => s !== undefined)
+  return parts.map(s => paint(s, t, o.color)).join(paint(SEP, t, o.color))
+}
+
+// One line, or two when a / splits the list; a side that renders nothing is left out.
+export function renderLines(m: Model, t: Theme, fields: readonly FieldToken[], o: RenderOpts): string[] {
+  const at = fields.indexOf(BREAK)
+  const sides = at < 0 ? [fields] : [fields.slice(0, at), fields.slice(at + 1)]
+  return sides.map(s => renderLine(m, t, s, o)).filter(Boolean)
+}
+
+export function renderFields(m: Model, t: Theme, fields: readonly FieldToken[], o: RenderOpts): string {
+  return renderLines(m, t, fields, o).join(paint(SEP, t, o.color))
 }
