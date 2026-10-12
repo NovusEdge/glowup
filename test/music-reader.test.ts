@@ -148,8 +148,8 @@ test('busctl seek before any read has no track to name and runs nothing', async 
   expect(f.ran).toEqual([])
 })
 
-test('caps: AppleScript repeats on or off; playerctl cannot raise', () => {
-  expect(new MusicReader('busctl', 'linux').caps()).toEqual({ repeat: ['off', 'context', 'track'], raise: true })
-  expect(new MusicReader('playerctl', 'linux').caps()).toEqual({ repeat: ['off', 'context', 'track'], raise: false })
+test('caps: no repeat over MPRIS; AppleScript repeats on or off; playerctl cannot raise', () => {
+  expect(new MusicReader('busctl', 'linux').caps()).toEqual({ repeat: [], raise: true })
+  expect(new MusicReader('playerctl', 'linux').caps()).toEqual({ repeat: [], raise: false })
   expect(new MusicReader('osascript', 'mac').caps()).toEqual({ repeat: ['off', 'context'], raise: true })
 })

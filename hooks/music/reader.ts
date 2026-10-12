@@ -70,7 +70,8 @@ export class MusicReader {
   }
 
   caps(): MusicCaps {
-    return { repeat: this.backend === 'osascript' ? ['off', 'context'] : ['off', 'context', 'track'], raise: this.backend === 'busctl' || this.backend === 'osascript' }
+    // Spotify's Linux client ignores LoopStatus writes over MPRIS, so busctl and playerctl offer no repeat.
+    return { repeat: this.backend === 'osascript' ? ['off', 'context'] : [], raise: this.backend === 'busctl' || this.backend === 'osascript' }
   }
 
   // MPRIS SetPosition names the track it seeks in; it is the one the last read saw.
