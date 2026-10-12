@@ -191,7 +191,7 @@ See [Accessibility](accessibility.md) for what reduced motion changes.
 | `/glowup statusline on` | Ask for confirmation, then let glowup draw your status line. |
 | `/glowup statusline restore` | Put your own status line back. |
 | `/glowup statusline fields` | Show the status line fields. |
-| `/glowup statusline fields <id> <id> …` | Set the fields in the order typed. An unknown id refuses the whole command and lists the valid ids. |
+| `/glowup statusline fields <id> <id> …` | Set the fields in the order typed. An unknown id refuses the whole command and lists the valid ids. A `/` between fields starts a second line (one at most). |
 | `/glowup statusline fields default` | Go back to the `statusline` setting's value, `activity ctx effort 5h week` unless you changed it. |
 
 The fields are `activity`, `ctx`, `5h`, `week`, `cost`, `model`, `effort`, `agents`, `plan`, `branch`, `changes`, `cwd` and `level`. See [Choosing the fields](statusline.md#choosing-the-fields).
