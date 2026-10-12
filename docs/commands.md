@@ -178,7 +178,7 @@ Setting `theme` back to `classic`, `spinner` to `pack` or `statusline` to its de
 
 ## music
 
-`/glowup music` opens the music player, a pane that takes the keyboard; Esc closes it, and running the command again while the player is open closes it too, as `/glowup pane` does. See [Layout](layout.md#music-player). Opening it from the Music tab's `o: Player` closes the glowup pane while the player is up and brings it back when the player closes. In a `-p` run it prints the help.
+`/glowup music` opens the music player, a pane that takes the keyboard; Esc closes it, and running the command again while the player is open closes it too, as `/glowup pane` does. When there is no room for the player, the command prints `Music player waits: <reason>`. See [Layout](layout.md#music-player). Opening it from the Music tab's `o: Player` closes the glowup pane while the player is up and brings it back when the player closes. In a `-p` run it prints the help.
 
 ## motion
 
