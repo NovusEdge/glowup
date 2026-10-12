@@ -90,7 +90,7 @@ export const COVER_COLS = 8, COVER_ROWS = 4, COVER_MIN = 40
 const ALL_REPEAT = ['off', 'context', 'track'] as const
 
 // Letters, not digits: the tab strip owns 1-n. Not b or a, which the pet Client's Konami code takes after a click.
-function musicControls(s: OpenMusic, caps?: MusicCaps): MusicButton[] {
+export function musicControls(s: OpenMusic, caps?: MusicCaps): MusicButton[] {
   const out: MusicButton[] = [
     { key: 'previous', cmd: { cmd: 'previous' }, label: 'Prev', hotkey: 'r' },
     { key: 'playpause', cmd: { cmd: 'playpause' }, label: s.playing ? 'Pause' : 'Play', hotkey: 'p' },
