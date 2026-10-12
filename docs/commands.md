@@ -176,6 +176,10 @@ Setting `theme` back to `classic`, `spinner` to `pack` or `statusline` to its de
 
 `/glowup pane` toggles the pane, or prints why it cannot open when there is no room. Esc also closes a pane opened this way. Where it opens depends on terminal width; see [Layout](layout.md).
 
+## music
+
+`/glowup music` opens the music player, a pane that takes the keyboard; Esc closes it, and running the command again while the player is open closes it too, as `/glowup pane` does. See [Layout](layout.md#music-player). Opening it from the Music tab's `o: Player` closes the glowup pane while the player is up and brings it back when the player closes. In a `-p` run it prints the help.
+
 ## motion
 
 | Command | What it does |

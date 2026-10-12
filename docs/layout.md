@@ -112,10 +112,19 @@ The track playing in the Spotify desktop app, in a `NOW PLAYING` box. The tab st
 
 - The box shows the cover beside the title, the artist and album, and a progress bar. Below 40 columns the cover is left out. The cover is Spotify's 64 px image, drawn in half-block pixels by glowup's helper binary, which glowup downloads the first time it needs one (the same binary `/glowup config` uses). Until it arrives, or if it cannot, the box shows a `♪`.
 - Click the progress bar to jump to that point, or drag along it and let go.
-- Below the box: `r: Prev`, `p: Pause` (`Play` while paused), `n: Next`, `s: ⇄` (shuffle) and `e: ↻` (repeat, off and on). Both are macOS only: Spotify's Linux client ignores repeat and shuffle-on changes over MPRIS, so the buttons are left out there. Shuffle and repeat are bright when on and dim when off, and are left out when the player does not report them. Click a button, or press its key while the pane has the keyboard. They act on the Spotify on this machine.
+- Below the box: `r: Prev`, `p: Pause` (`Play` while paused), `n: Next`, `s: ⇄` (shuffle) and `e: ↻` (repeat, off and on) and `o: Player`. Both are macOS only: Spotify's Linux client ignores repeat and shuffle-on changes over MPRIS, so the buttons are left out there. Shuffle and repeat are bright when on and dim when off, and are left out when the player does not report them. Click a button, or press its key while the pane has the keyboard. They act on the Spotify on this machine.
+- `o: Player` opens the music player, a focused pane with a bigger cover. Esc closes it and gives the keys back to the glowup pane.
 - An ad shows `Ad` in place of the track. With Spotify closed the tab says `Open Spotify to see what's playing.`
 - glowup reads the player locally, every second while the tab is open and playing, otherwise every 2 to 10 seconds; the bar moves on its own between reads. On Linux it uses `busctl` (systemd) and falls back to `playerctl`; when neither is installed the tab says what to install. On macOS it uses `osascript`, and only asks when Spotify is already running, so glowup never launches it. Windows is not supported.
 - While Spotify plays, the pet dances with a speaker beside it, and wears headphones and dances while Claude works. Custom pets without a dance use their idle and working poses. `/glowup setup pet.dance off` turns this off.
 - The compact form is one line: `♪ title — artist ▶`.
+
+### Music player
+
+`/glowup music`, or `o` on the Music tab, opens the player. It shows the cover at 20 by 10 cells when the pane has 20 body rows or more, 8 by 4 from 10 rows, and none below 10. It also shows the title, artist and album, and the seek bar, which you click or drag as on the tab. Below it are the same Prev, Play, Next, shuffle and repeat keys, `o: Open Spotify` to bring Spotify's window forward (busctl and macOS), and `c: Copy link` to copy the track's `open.spotify.com` link.
+
+On macOS a volume bar sits under the seek bar: click or drag it, or click it and use the left and right arrows. Spotify's Linux client ignores volume changes over MPRIS, so Linux has no volume bar.
+
+From 80 columns the player sits beside a second column, which will hold your queue, recent tracks, playlists and devices once you connect Spotify. Narrower, the two stack. While the player is open, toasts wait until it closes; anything the player has to tell you, such as a copied link, shows inside it.
 
 The tabs do not respond to selection yet; opening a subagent's tool calls is on the [roadmap](roadmap.md).
