@@ -45,9 +45,9 @@ test('one failed read keeps the last state, two clear it, a good read resets the
 
 test('controls run the backend command with the 2 s timeout', async () => {
   const f = fakeHost()
-  await new MusicReader('busctl', 'linux').control(f.host, 'playpause')
-  await new MusicReader('playerctl', 'linux').control(f.host, 'next')
-  await new MusicReader('osascript', 'mac').control(f.host, 'previous')
+  await new MusicReader('busctl', 'linux').control(f.host, { cmd: 'playpause' })
+  await new MusicReader('playerctl', 'linux').control(f.host, { cmd: 'next' })
+  await new MusicReader('osascript', 'mac').control(f.host, { cmd: 'previous' })
   expect(f.ran).toEqual([
     'busctl --user call org.mpris.MediaPlayer2.spotify /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player PlayPause',
     'playerctl --player=spotify next',
@@ -59,7 +59,7 @@ test('controls run the backend command with the 2 s timeout', async () => {
 test('osascript control argv for each command runs the tell only inside the guarded run script', async () => {
   for (const [cmd, verb] of [['playpause', 'playpause'], ['next', 'next track'], ['previous', 'previous track']] as const) {
     const f = fakeHost()
-    await new MusicReader('osascript', 'mac').control(f.host, cmd)
+    await new MusicReader('osascript', 'mac').control(f.host, { cmd })
     expect(f.ran).toEqual([`osascript -e if application "Spotify" is running then run script "tell application \\"Spotify\\" to ${verb}"`])
   }
 })

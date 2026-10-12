@@ -376,12 +376,12 @@ test('music tab: compact is one line and has no controls', async () => {
 test('music controls: buttons only while Spotify is open; a press reaches onMusic', async () => {
   expect(tabParts(withMusic({ status: 'closed' }), T, { tab: 'music' }, 54, false, 0).controls).toBeUndefined()
   expect(tabParts(withMusic(playing), T, { tab: 'music' }, 54, false, 0).controls).toEqual([
-    { cmd: 'previous', label: 'Prev', hotkey: 'r' }, { cmd: 'playpause', label: 'Pause', hotkey: 'p' }, { cmd: 'next', label: 'Next', hotkey: 'n' },
+    { cmd: { cmd: 'previous' }, label: 'Prev', hotkey: 'r' }, { cmd: { cmd: 'playpause' }, label: 'Pause', hotkey: 'p' }, { cmd: { cmd: 'next' }, label: 'Next', hotkey: 'n' },
   ])
-  const pressed: string[] = []
+  const pressed: unknown[] = []
   const tree = renderPane(els, withMusic(playing), T, { tab: 'music' }, 60, false, 0, () => {}, { onMusic: c => pressed.push(c) })
   walk(tree).find(n => n.props?.key === 'music-playpause').onPress({})
-  expect(pressed).toEqual(['playpause'])
+  expect(pressed).toEqual([{ cmd: 'playpause' }])
 })
 
 test('the Changes tab lists the most recently touched file first, ties in their given order', async () => {

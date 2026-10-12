@@ -9,9 +9,10 @@ const RUN_MS = 2000
 
 const DEST = ['org.mpris.MediaPlayer2.spotify', '/org/mpris/MediaPlayer2', 'org.mpris.MediaPlayer2.Player']
 const BUS_READ = ['busctl', '--user', '--json=short', 'get-property', ...DEST, 'PlaybackStatus', 'Metadata', 'Position']
-const BUS_CMD: Record<MusicCmd, string> = { playpause: 'PlayPause', next: 'Next', previous: 'Previous' }
-const PCTL_CMD: Record<MusicCmd, string> = { playpause: 'play-pause', next: 'next', previous: 'previous' }
-const OSA_CMD: Record<MusicCmd, string> = { playpause: 'playpause', next: 'next track', previous: 'previous track' }
+type Basic = 'playpause' | 'next' | 'previous'
+const BUS_CMD: Record<Basic, string> = { playpause: 'PlayPause', next: 'Next', previous: 'Previous' }
+const PCTL_CMD: Record<Basic, string> = { playpause: 'play-pause', next: 'next', previous: 'previous' }
+const OSA_CMD: Record<Basic, string> = { playpause: 'playpause', next: 'next track', previous: 'previous track' }
 
 const works = (host: Host, argv: string[]) => host.run(argv, undefined, RUN_MS).then(r => r.exitCode === 0, () => false)
 
@@ -53,7 +54,9 @@ export class MusicReader {
     return r.exitCode !== 0 ? undefined : parseOsascript(r.stdout, now)
   }
 
-  async control(host: Host, cmd: MusicCmd): Promise<void> {
+  async control(host: Host, c: MusicCmd): Promise<void> {
+    if (c.cmd !== 'playpause' && c.cmd !== 'next' && c.cmd !== 'previous') return
+    const cmd = c.cmd
     const argv = this.backend === 'busctl' ? ['busctl', '--user', 'call', ...DEST, BUS_CMD[cmd]]
       : this.backend === 'playerctl' ? ['playerctl', '--player=spotify', PCTL_CMD[cmd]]
       : this.backend === 'osascript' ? ['osascript', '-e', `if application "Spotify" is running then run script ${osaGuarded(`tell application "Spotify" to ${OSA_CMD[cmd]}`)}`]

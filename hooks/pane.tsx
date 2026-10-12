@@ -108,7 +108,7 @@ function music(m: Model, t: Theme, w: number, compact: boolean, now: number, bor
   }
   if (compact) return { rows: body.map(r => fit(r, w)), n: -1 }
   const controls: MusicButton[] | undefined = s.status === 'open'
-    ? [{ cmd: 'previous', label: 'Prev', hotkey: 'r' }, { cmd: 'playpause', label: s.playing ? 'Pause' : 'Play', hotkey: 'p' }, { cmd: 'next', label: 'Next', hotkey: 'n' }]
+    ? [{ cmd: { cmd: 'previous' }, label: 'Prev', hotkey: 'r' }, { cmd: { cmd: 'playpause' }, label: s.playing ? 'Pause' : 'Play', hotkey: 'p' }, { cmd: { cmd: 'next' }, label: 'Next', hotkey: 'n' }]
     : undefined
   return { rows: section('NOW PLAYING', 'Spotify', body, w, t, border), n: body.length, ...(controls && { controls }) }
 }
@@ -431,7 +431,7 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
         {hint}
         {controls && (
           <Box key="music-controls" flexDirection="row" gap={2} marginTop={1}>
-            {controls.map(b => <Button key={'music-' + b.cmd} label={b.label} hotkey={b.hotkey} plain onPress={() => extra?.onMusic?.(b.cmd)} />)}
+            {controls.map(b => <Button key={'music-' + b.cmd.cmd} label={b.label} hotkey={b.hotkey} plain onPress={() => extra?.onMusic?.(b.cmd)} />)}
           </Box>
         )}
         {open > 0 && extra?.field?.(open)}
