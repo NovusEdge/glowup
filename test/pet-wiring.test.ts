@@ -259,9 +259,12 @@ test('the robot gets an 8-row strip; Clawd keeps 6', async ($, on) => {
     return box.props.height
   }
   await runGlowup($, 'pet clawd')
-  expect(await strip()).toBe(6)
+  const clawd = await strip()
   await runGlowup($, 'pet robot')
-  expect(await strip()).toBe(8)
+  const robot = await strip()
+  // The nightcap (23:00 to 04:59 local, read from the real Date.now() that mock.clock leaves alone) pads Clawd by two rows; the robot has no hat.
+  const hour = new Date().getHours()
+  expect([clawd, robot]).toEqual([hour >= 23 || hour <= 4 ? 8 : 6, 8])
 })
 
 test('the pack look reaches the band and the pane, pet on or off', async ($, on) => {
