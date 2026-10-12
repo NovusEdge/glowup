@@ -106,7 +106,9 @@ export class MusicReader {
         : c.cmd === 'seek' ? `set player position to ${secs(c.ms)}`
         : c.cmd === 'shuffle' ? `set shuffling to ${c.on}`
         : c.cmd === 'repeat' ? `set repeating to ${c.mode !== 'off'}`
-        : `set sound volume to ${Math.round(unit(c.level) * 100)}`
+        : c.cmd === 'volume' ? `set sound volume to ${Math.round(unit(c.level) * 100)}`
+        : undefined
+      if (!verb) return undefined
       return ['osascript', '-e', `if application "Spotify" is running then run script ${osaGuarded(`tell application "Spotify" to ${verb}`)}`]
     }
     return undefined
