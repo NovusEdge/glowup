@@ -98,6 +98,16 @@ test('the routing table', () => {
   expect([routeOf(next, there, false), routeOf({ cmd: 'seek', ms: 1 }, there, false), routeOf(like, there, false)]).toEqual(['local', 'local', 'api'])
 })
 
+test('the list commands go to the API whenever it answers, active device or not', () => {
+  const there = mergeMusic(local(), { last: { at: 1000, music: api({ device: phone }) } }, undefined, 1000, I)
+  const none = mergeMusic({ status: 'closed' }, { last: { at: 1000 } }, undefined, 1000, I)
+  const failing = mergeMusic(local(), { last: { at: 1000, music: api() } }, undefined, 99_000, I)
+  const cmds = [{ cmd: 'skipTo', uri: 'spotify:track:x' }, { cmd: 'play', uri: 'spotify:track:x' }, { cmd: 'playContext', uri: 'spotify:playlist:p' }, { cmd: 'transfer', deviceId: 'dk' }] as const
+  for (const c of cmds) {
+    expect([routeOf(c, there, true), routeOf(c, none, true), routeOf(c, failing, true), routeOf(c, local(), true), routeOf(c, there, false)]).toEqual(['api', 'api', 'none', 'none', 'api'])
+  }
+})
+
 test('the API widens the controls while it runs the player', () => {
   const linux: MusicCaps = { repeat: [], shuffle: false, raise: true, volume: false }
   const there = mergeMusic(local(), { last: { at: 1000, music: api({ device: phone }) } }, undefined, 1000, I)

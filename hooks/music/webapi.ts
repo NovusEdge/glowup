@@ -2,7 +2,8 @@
 import type { Device, MusicCmd, OpenMusic, QueueItem, Repeat, Track } from './parse.ts'
 
 export const API = 'https://api.spotify.com/v1'
-export type ApiRequest = { method: 'GET' | 'PUT' | 'POST' | 'DELETE'; url: string }
+// body is JSON; SpotifyClient sends it with its content type
+export type ApiRequest = { method: 'GET' | 'PUT' | 'POST' | 'DELETE'; url: string; body?: string }
 
 // Without additional_types=episode, a podcast episode comes back as item: null.
 export const playerRequest = (): ApiRequest => ({ method: 'GET', url: `${API}/me/player?additional_types=episode` })
@@ -11,10 +12,14 @@ export const meRequest = (): ApiRequest => ({ method: 'GET', url: `${API}/me` })
 // /me/tracks was removed in February 2026; /me/library takes spotify: URIs
 export const likedRequest = (uri: string): ApiRequest => ({ method: 'GET', url: `${API}/me/library/contains?uris=${encodeURIComponent(uri)}` })
 export const likeRequest = (uri: string, on: boolean): ApiRequest => ({ method: on ? 'PUT' : 'DELETE', url: `${API}/me/library?uris=${encodeURIComponent(uri)}` })
+export const recentRequest = (): ApiRequest => ({ method: 'GET', url: `${API}/me/player/recently-played?limit=20` })
+// next is the URL a page names for the one after it, already checked by parsePlaylists
+export const playlistsRequest = (next?: string): ApiRequest => ({ method: 'GET', url: next ?? `${API}/me/playlists?limit=50` })
+export const devicesRequest = (): ApiRequest => ({ method: 'GET', url: `${API}/me/player/devices` })
 
 const unit = (v: number) => Math.min(1, Math.max(0, v))
 
-// The write a transport command makes; playing picks pause or play. like goes through likeRequest, and raise is local only.
+// The write a transport command makes; playing picks pause or play. like goes through likeRequest, skipTo through spotify.ts's skipTo, and raise is local only.
 export function commandRequest(c: MusicCmd, playing: boolean): ApiRequest | undefined {
   switch (c.cmd) {
     case 'playpause': return { method: 'PUT', url: `${API}/me/player/${playing ? 'pause' : 'play'}` }
@@ -24,6 +29,10 @@ export function commandRequest(c: MusicCmd, playing: boolean): ApiRequest | unde
     case 'shuffle': return { method: 'PUT', url: `${API}/me/player/shuffle?state=${c.on}` }
     case 'repeat': return { method: 'PUT', url: `${API}/me/player/repeat?state=${c.mode}` }
     case 'volume': return { method: 'PUT', url: `${API}/me/player/volume?volume_percent=${Math.round(unit(c.level) * 100)}` }
+    case 'play': return { method: 'PUT', url: `${API}/me/player/play`, body: JSON.stringify({ uris: [c.uri] }) }
+    case 'playContext': return { method: 'PUT', url: `${API}/me/player/play`, body: JSON.stringify({ context_uri: c.uri, ...(c.offset && { offset: { uri: c.offset } }) }) }
+    // play: true starts it there; without it Spotify moves playback paused
+    case 'transfer': return { method: 'PUT', url: `${API}/me/player`, body: JSON.stringify({ device_ids: [c.deviceId], play: true }) }
     default: return undefined
   }
 }
@@ -91,6 +100,46 @@ export function parseMe(text: string): string | undefined {
   return str(o?.display_name) || str(o?.id) || undefined
 }
 
+export type RecentItem = QueueItem & { contextUri?: string }
+export function parseRecent(text: string): RecentItem[] | undefined {
+  const items = obj(json(text))?.items
+  if (!Array.isArray(items)) return undefined
+  return items.flatMap((v): RecentItem[] => {
+    const o = obj(v), t = trackOf(o?.track)
+    // a local file has no Web API representation: play and the queue cannot address it
+    if (!t || t.uri!.startsWith('spotify:local:')) return []
+    const ctx = str(obj(o?.context)?.uri)
+    return [{ uri: t.uri!, title: t.title, artist: t.artist, durationMs: t.durationMs, ...(ctx && { contextUri: ctx }) }]
+  })
+}
+
+export type PlaylistItem = { uri: string; name: string; owner: string; tracks: number }
+// next is kept only on Spotify's own API host over https: the bearer token goes wherever it points.
+export function parsePlaylists(text: string): { items: PlaylistItem[]; next?: string } | undefined {
+  const o = obj(json(text))
+  if (!o || !Array.isArray(o.items)) return undefined
+  const items = o.items.flatMap((v): PlaylistItem[] => {
+    const p = obj(v), uri = str(p?.uri)
+    if (!p || !uri) return []
+    const owner = obj(p.owner)
+    // Spotify renamed the playlist's tracks field to items in 2026; either may come back
+    return [{ uri, name: str(p.name), owner: str(owner?.display_name) || str(owner?.id), tracks: num(obj(p.items)?.total ?? obj(p.tracks)?.total) }]
+  })
+  const next = str(o.next)
+  return { items, ...(next.startsWith(`${API}/`) && { next }) }
+}
+
+export type DeviceItem = { id: string; name: string; type: string; active: boolean }
+// A restricted device has no id and cannot take playback, so it is left out.
+export function parseDevices(text: string): DeviceItem[] | undefined {
+  const d = obj(json(text))?.devices
+  if (!Array.isArray(d)) return undefined
+  return d.flatMap((v): DeviceItem[] => {
+    const o = obj(v), id = str(o?.id)
+    return o && id ? [{ id, name: str(o.name), type: str(o.type), active: o.is_active === true }] : []
+  })
+}
+
 export type ApiError =
   // a network error, or no answer within the 5 s timeout
   | { kind: 'offline' }
@@ -102,7 +151,7 @@ export type ApiError =
   | { kind: 'reconnect' }
   | { kind: 'premium' }
   | { kind: 'noDevice' }
-  | { kind: 'refused'; reason: string }
+  | { kind: 'refused'; reason: string; status: number }
   | { kind: 'server'; status: number }
 
 // Spotify's error.reason tells PREMIUM_REQUIRED and NO_ACTIVE_DEVICE from other 403s and 404s.
@@ -116,5 +165,5 @@ export function apiError(status: number, text: string, headers: Record<string, s
   const reason = str(obj(obj(json(text))?.error)?.reason)
   if (status === 403 && reason === 'PREMIUM_REQUIRED') return { kind: 'premium' }
   if (status === 404 && reason === 'NO_ACTIVE_DEVICE') return { kind: 'noDevice' }
-  return { kind: 'refused', reason: reason || String(status) }
+  return { kind: 'refused', reason: reason || String(status), status }
 }

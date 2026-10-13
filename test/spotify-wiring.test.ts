@@ -1,6 +1,6 @@
 import { expect } from 'claude-code/testing'
 import { runGlowup, test } from './kit.ts'
-import { AUTH, BUS, CLIENT, DEST, LINUX_BUS, LOGIN, PHONE, TOKENS, boot, item, method, mountPane, mountPlayer, ok, path, pasteOf, start, text, tokens, type Req } from './spotify-kit.ts'
+import { AUTH, BUS, CLIENT, DEST, LINUX_BUS, LOGIN, PHONE, TOKENS, boot, item, method, mountPane, mountPlayer, ok, path, pasteOf, start, text, tokens, walk, type Req } from './spotify-kit.ts'
 import { hostOf } from '../hooks/register.tsx'
 
 const NEXT = `busctl --user call ${DEST} Next`
@@ -178,7 +178,8 @@ test('/glowup spotify connect: the Client ID starts the helper, its address show
   files[TOKENS] = tokens()
   exit(0)
   await clock.advance(200)
-  expect(text(await ui.drawn())).toContain('Connected as Ada.')
+  // connected: the right column is the lists now
+  expect(walk(await ui.drawn()).some(n => n?.props?.key === 'list-queue')).toBe(true)
   expect(s.toasts).toEqual([])
   await ui.unmount()
 })

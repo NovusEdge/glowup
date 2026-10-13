@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { renderPlayer, playerCoverSize, CONNECT_PITCH, type PlayerView } from '../hooks/musicplayer.tsx'
+import { renderPlayer, playerCoverSize, listLabel, CONNECT_PITCH, type PlayerView } from '../hooks/musicplayer.tsx'
 import { initialModel, type Model } from '../hooks/model.ts'
 import { resolveTheme } from '../hooks/themes.ts'
 import { visibleLength } from '../hooks/layout.tsx'
@@ -204,5 +204,97 @@ test('every account line wraps, so none runs past the right column', () => {
       expect(texts.length).toBeGreaterThan(0)
       for (const n of texts) expect(n.props.wrap).toBe('wrap')
     }
+  }
+})
+
+const elsS = { ...els, Select: 'Select' }
+const lrow = (i: number, over: object = {}) => ({ value: `${i}:spotify:track:t${i}`, title: `Track ${i}`, detail: 'Artist', right: '3:12', cmd: { cmd: 'skipTo', uri: `spotify:track:t${i}` }, ...over }) as const
+const listed = (shown: 'queue' | 'recent' | 'playlists' | 'devices', state: any) => view({ account: { step: 'connected', name: 'Ada', lists: { shown, state } } })
+
+test('connected with lists: four list buttons on 1-4, the shown one primary, the rows as one Select', () => {
+  const picked: string[] = [], lists: string[] = []
+  const ex = { ...extra, onPick: (v: string) => picked.push(v), onList: (id: string) => lists.push(id) }
+  const tree = renderPlayer(elsS, playing({ source: 'api', device: { id: 'd', name: 'Desktop', type: 'Computer', isThisComputer: true } }), T, listed('queue', { status: 'ready', rows: [lrow(0), lrow(1)], at: 0 }), 0, ex)
+  const tabs = ['list-queue', 'list-recent', 'list-playlists', 'list-devices'].map(k => find(tree, k))
+  expect(tabs.map(b => [b.props.label, b.props.hotkey, b.props.variant])).toEqual([['Up next', '1', 'primary'], ['Recent', '2', undefined], ['Playlists', '3', undefined], ['Devices', '4', undefined]])
+  const sel = find(tree, 'music-list')
+  expect(sel.type).toBe('Select')
+  expect(sel.props.options.map((o: any) => o.value)).toEqual(['0:spotify:track:t0', '1:spotify:track:t1'])
+  expect(sel.props.autoFocus).toBeUndefined()
+  // drawing and focusing dispatch nothing; only a pick does
+  expect(picked).toEqual([])
+  sel.onEvent({ value: '1:spotify:track:t1' })
+  tabs[3].onPress({})
+  expect([picked, lists]).toEqual([['1:spotify:track:t1'], ['devices']])
+  expect(text(tree)).toContain('on: Desktop (this computer)')
+})
+
+test('Loading…, an empty list, and an error line', () => {
+  const t = (shown: any, state: any) => text(renderPlayer(elsS, playing({ source: 'api' }), T, listed(shown, state), 0, extra))
+  expect(t('queue', { status: 'idle' })).toContain('Loading…')
+  expect(t('queue', { status: 'loading', rows: [] })).toContain('Loading…')
+  expect(t('queue', { status: 'ready', rows: [], at: 0 })).toContain('Nothing queued.')
+  expect(t('devices', { status: 'error', rows: [], reason: 'Spotify had a problem (503). glowup tries again shortly.', at: 0 })).toContain('Spotify had a problem (503)')
+  // a reload in flight keeps the rows; a failed one keeps them and adds the reason
+  const reloading = renderPlayer(elsS, playing({ source: 'api' }), T, listed('queue', { status: 'loading', rows: [lrow(0)] }), 0, extra)
+  expect(text(reloading)).not.toContain('Loading…')
+  expect(find(reloading, 'music-list')).toBeDefined()
+  const failed = renderPlayer(elsS, playing({ source: 'api' }), T, listed('queue', { status: 'error', rows: [lrow(0)], reason: 'Spotify did not answer. glowup tries again shortly.', at: 0 }), 0, extra)
+  expect(find(failed, 'music-list')).toBeDefined()
+  const reason = walk(failed).find(n => n?.type === 'Text' && n.children?.[0] === 'Spotify did not answer. glowup tries again shortly.')
+  // wraps rather than clipping its tail at 80-87 columns
+  expect([reason.props.color, reason.props.wrap]).toEqual([T.colors.dim, 'wrap'])
+})
+
+test('Devices marks the active one on its row and gives the Select no value', () => {
+  const rows = [lrow(0, { value: 'ph', right: 'active', active: true, cmd: { cmd: 'transfer', deviceId: 'ph' } }), lrow(1, { value: 'dk', right: '', cmd: { cmd: 'transfer', deviceId: 'dk' } })]
+  const sel = find(renderPlayer(elsS, playing({ source: 'api' }), T, listed('devices', { status: 'ready', rows, at: 0 }), 0, extra), 'music-list')
+  expect('value' in sel.props).toBe(false)
+  expect(JSON.stringify(sel.props.options)).toContain('active')
+})
+
+test('each list mounts its own Select, so a tab switch keeps no cursor', () => {
+  const st = { status: 'ready', rows: [lrow(0)], at: 0 }
+  const wrapperKey = (shown: any) => {
+    const tree = renderPlayer(elsS, playing({ source: 'api' }), T, listed(shown, st), 0, extra)
+    expect(find(tree, 'music-list')).toBeDefined()
+    return walk(tree).find(n => String(n?.props?.key).startsWith('list-box-'))?.props.key
+  }
+  expect([wrapperKey('queue'), wrapperKey('recent')]).toEqual(['list-box-queue', 'list-box-recent'])
+})
+
+test('without a Select the rows draw as text', () => {
+  const tree = renderPlayer(els, playing({ source: 'api' }), T, listed('queue', { status: 'ready', rows: [lrow(0)], at: 0 }), 0, extra)
+  expect(find(tree, 'music-list')).toBeUndefined()
+  expect(text(tree)).toContain('Track 0')
+})
+
+test('a row label fits its width: the title gives way first, the right column stays', () => {
+  for (const w of [12, 30, 56]) expect(cells(listLabel(lrow(0, { title: 'A title far longer than any column', detail: 'An artist with a long name' }), w))).toBe(w)
+  expect(listLabel(lrow(0), 40)).toMatch(/^Track 0 +Artist +3:12$/)
+  expect(listLabel(lrow(0, { right: 'active' }), 40).endsWith(' active')).toBe(true)
+})
+
+test('no list row is wider than the grant', () => {
+  for (const width of [30, 60, 79, 88, 120]) {
+    for (const state of [{ status: 'idle' }, { status: 'ready', rows: [lrow(0, { title: 'x'.repeat(200) })], at: 0 }, { status: 'error', rows: [], reason: 'y'.repeat(200), at: 0 }]) {
+      const tree = renderPlayer(elsS, playing({ source: 'api' }), T, { ...listed('queue', state), width }, 0, extra)
+      for (const l of rows(tree)) expect(cells(l)).toBeLessThanOrEqual(width)
+      // the Select's rows are its option labels, which rows() cannot see
+      const rw = width >= 80 ? width - 32 : width
+      for (const o of find(tree, 'music-list')?.props.options ?? []) expect(cells(o.label)).toBeLessThanOrEqual(rw - 2)
+    }
+  }
+})
+
+test('no two buttons in the dialog share a hotkey', () => {
+  const ex = { ...extra, onConnect: () => {} }
+  const accounts = [{ step: 'pitch' }, { step: 'steps' }, { step: 'waiting', authUrl: 'https://accounts.spotify.com/authorize?x=1' }, { step: 'reconnect' }, { step: 'connected', name: 'Ada', lists: { shown: 'queue', state: { status: 'ready', rows: [lrow(0)], at: 0 } } }] as PlayerView['account'][]
+  for (const account of accounts) {
+    const tree = renderPlayer({ ...elsI, Select: 'Select' }, playing({ source: 'api' }), T, view({ account }), 0, ex)
+    const hot = walk(tree).filter(n => n?.type === 'Button' && n.props.hotkey).map(n => n.props.hotkey)
+    expect(new Set(hot).size).toBe(hot.length)
+    // MAC caps (raise) and a track with a url put o and c in the left column
+    expect(hot).toEqual(expect.arrayContaining(['o', 'c']))
   }
 })
