@@ -1,6 +1,6 @@
 import { mock, test as baseTest, type Engine } from 'claude-code/testing'
 import type { On } from 'claude-code'
-import type { Host } from '../hooks/host.ts'
+import type { FetchResult, Host } from '../hooks/host.ts'
 import type { PetLines } from '../hooks/lines.ts'
 
 // Every line a moment can draw, any flavour, with its slots filled as the bubble would.
@@ -17,14 +17,22 @@ export const test = ((name: string, ...rest: unknown[]) => {
 export const runGlowup = ($: Engine, args = '', columns = 120, isFullscreen = false) =>
   $.command.run({ command: 'glowup', args, origin: { kind: 'composer' }, presentation: { isFullscreen, columns } })
 
+export type FakeRequest = { method: string; url: string; headers: Record<string, string>; body?: string }
+
 // An in-memory Host: files is a path -> text map, runs answers argv strings.
-export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<string, { exitCode: number; stdout: string }>; fetches?: Record<string, string>; projectStatusLine?: boolean; mtimes?: Record<string, number> } = {}) {
+export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<string, { exitCode: number; stdout: string }>; fetches?: Record<string, string>; projectStatusLine?: boolean; mtimes?: Record<string, number>; http?: (req: FakeRequest) => FetchResult | Promise<FetchResult>; spawns?: (argv: string[], emit: (stream: 'stdout' | 'stderr', line: string) => void) => Promise<number | null> } = {}) {
   const files = { ...(opts.files ?? {}) }
   const mtimes = { ...(opts.mtimes ?? {}) }
   const store: Record<string, unknown> = {}
   const ran: string[] = []
   const envs: (Record<string, string> | undefined)[] = []
   const timeouts: (number | undefined)[] = []
+  const requests: FakeRequest[] = []
+  const spawned: string[] = []
+  const killed: string[] = []
+  const expiries = new Set<() => void>()
+  // the 5 s timeout of every fetch still out: its promise rejects, its http handler keeps running
+  const expire = () => { for (const f of expiries) f(); expiries.clear() }
   const host: Host = {
     run: async (argv, env, timeoutMs) => {
       ran.push(argv.join(' '))
@@ -41,6 +49,22 @@ export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<s
     listDir: async p => [...new Set(Object.keys(files).filter(f => f.startsWith(p + '/')).map(f => f.slice(p.length + 1).split('/')[0]!))],
     listFiles: async p => Object.keys(files).filter(f => f.startsWith(p + '/')).map(f => ({ name: f.slice(p.length + 1), size: files[f]!.length })).filter(e => !e.name.includes('/')),
     fetchText: async url => url in (opts.fetches ?? {}) ? { ok: true, status: 200, text: opts.fetches![url]! } : { ok: false, status: 404, text: '' },
+    fetch: (url, init) => {
+      const req: FakeRequest = { method: init.method ?? 'GET', url, headers: init.headers ?? {}, ...(init.body !== undefined && { body: init.body }) }
+      requests.push(req)
+      return new Promise((resolve, reject) => {
+        expiries.add(() => reject(new Error('timed out')))
+        ;(async () => { if (!opts.http) throw new Error('offline'); return opts.http(req) })()
+          .then(r => { init.onSettled?.(); resolve(r) }, e => { init.onSettled?.(); reject(e) })
+      })
+    },
+    spawn: (argv, onLine) => {
+      const key = argv.join(' ')
+      spawned.push(key)
+      let kill = () => {}
+      const stopped = new Promise<null>(r => { kill = () => { killed.push(key); r(null) } })
+      return { done: Promise.race([opts.spawns ? opts.spawns([...argv], onLine).catch(() => null) : Promise.resolve(127), stopped]), kill: () => kill() }
+    },
     storeGet: async k => store[k],
     storeSet: async (k, v) => { store[k] = v },
     storeDelete: async k => { delete store[k] },
@@ -49,12 +73,12 @@ export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<s
     dataHome: '/home/u/.local/share',
     home: '/home/u',
   }
-  return { host, files, store, ran, envs, timeouts, mtimes }
+  return { host, files, store, ran, envs, timeouts, mtimes, requests, spawned, killed, expire }
 }
 
 // Answers $.env, $.fs and $.process from memory, so a wiring test can never reach
 // the real config directory. Call it first in any test that loads the mod's hooks.
-export function fakeFs(on: On, files: Record<string, string> = {}, ran?: (argv: string[]) => { exitCode: number; stdout: string } | void, env: Record<string, string> = {}, beforeWrite?: (path: string) => Promise<void> | void) {
+export function fakeFs(on: On, files: Record<string, string> = {}, ran?: (argv: string[]) => { exitCode: number; stdout: string } | void | Promise<{ exitCode: number; stdout: string } | void>, env: Record<string, string> = {}, beforeWrite?: (path: string) => Promise<void> | void) {
   mock.env(on, { HOME: '/fake', CLAUDE_CONFIG_DIR: '/fake/.claude', ...env })
   const writes: string[] = []
   const mtimes: Record<string, number> = {}
@@ -71,6 +95,6 @@ export function fakeFs(on: On, files: Record<string, string> = {}, ran?: (argv: 
     return { value: { kind: 'file', size: files[e.path]!.length, mtimeMs: mtimes[e.path] ?? Date.now(), isLink: false } } as never
   })
   on('settings.read', async () => ({ value: {} }) as never)
-  on('process.run', async (_$, e) => ({ value: { exitCode: 1, stdout: '', stderr: '', ...ran?.((e as { argv: string[] }).argv) } }) as never)
+  on('process.run', async (_$, e) => ({ value: { exitCode: 1, stdout: '', stderr: '', ...(await ran?.((e as { argv: string[] }).argv)) } }) as never)
   return { files, writes, mtimes }
 }

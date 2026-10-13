@@ -427,6 +427,30 @@ test('music controls: transport always, shuffle and repeat only when reported; r
   expect(walk(tree).find(n => n.props?.key === 'music-repeat').props.dimColor).toBe(false)
 })
 
+const conn: Music = { ...playing, source: 'api', liked: true, upNext: { uri: 'spotify:track:n', title: 'Next One', artist: 'Someone', durationMs: 1 }, device: { id: 'd', name: 'Desktop', type: 'Computer', isThisComputer: true } }
+
+test('music tab connected: the heart ends the title row, Up next takes the third line, and l likes', async () => {
+  const rows = text(tabRows(withMusic(conn), T, { tab: 'music' }, 54, false, 12000))
+  expect(rows[0]).toMatch(/ Spotify ─╮$/)
+  expect(inside(rows[1]!)).toMatch(/^ {10}Fembrook Dr +♥$/)
+  expect(inside(rows[3]!)).toBe('          Up next: Next One — Someone')
+  expect(rows.every(r => cellsOf(r) === 54)).toBe(true)
+  expect(tabParts(withMusic(conn), T, { tab: 'music' }, 54, false, 0).controls!.at(-1)).toEqual({ key: 'like', cmd: { cmd: 'like', on: false }, label: '♥', hotkey: 'l', on: true })
+  expect(tabParts(withMusic({ ...conn, liked: false }), T, { tab: 'music' }, 54, false, 0).controls!.at(-1)).toMatchObject({ cmd: { cmd: 'like', on: true }, label: '♡', on: false })
+  expect(tabParts(withMusic(playing), T, { tab: 'music' }, 54, false, 0).controls!.map(b => b.key)).not.toContain('like')
+})
+
+test('music tab: another device on the third line, (local) while falling back, and no third row without a cover unless it has words', async () => {
+  const phone: Music = { ...playing, source: 'api', device: { id: 'p', name: 'Pixel 9', type: 'Smartphone', isThisComputer: false } }
+  expect(inside(text(tabRows(withMusic(phone), T, { tab: 'music' }, 54, false, 12000))[3]!)).toBe('          on: Pixel 9')
+  expect(text(tabRows(withMusic({ ...playing, source: 'local' }), T, { tab: 'music' }, 54, false, 12000))[0]).toMatch(/ Spotify \(local\) ─╮$/)
+  const narrow = text(tabRows(withMusic(conn), T, { tab: 'music' }, 40, false, 12000)).map(inside)
+  expect(narrow.slice(1, 5)).toEqual([expect.stringMatching(/^Fembrook Dr +♥$/), 'Khary · uhhh 3', 'Up next: Next One — Someone', expect.stringMatching(/^▶ 1:15 /)])
+  const p = tabParts(withMusic(conn), T, { tab: 'music' }, 40, false, 12000)
+  expect(p.seek!.row).toBe(p.rows[4])
+  expect(text(tabRows(withMusic(playing), T, { tab: 'music' }, 40, false, 12000))).toHaveLength(5)
+})
+
 test('the Player button follows the music controls only when the pane is given onPlayer', () => {
   const keysOf = (tree: unknown) => walk(tree).map((n: any) => n?.props?.key).filter(Boolean)
   const pressed: string[] = []

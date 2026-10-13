@@ -5,7 +5,7 @@ export type Platform = 'linux' | 'mac' | 'windows'
 export type Backend = 'busctl' | 'playerctl' | 'osascript'
 export type MusicCaps = { repeat: Repeat[]; shuffle: boolean; raise: boolean; volume: boolean }
 export const LINUX_HINT = 'Spotify needs busctl (systemd) or playerctl to show here.'
-export const WINDOWS_HINT = 'Spotify shows here on Linux and macOS.'
+export const WINDOWS_HINT = 'Connect Spotify to use the player on Windows.'
 const RUN_MS = 2000
 
 const BUS_NAME = 'org.mpris.MediaPlayer2.spotify', BUS_PATH = '/org/mpris/MediaPlayer2'

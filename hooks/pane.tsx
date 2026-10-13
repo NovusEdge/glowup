@@ -13,7 +13,7 @@ import { comboSegs, fit, hearts, hpBar, levelSegs, renderSegs, toneColor, visibl
 import { liveLimit } from './fields.ts'
 import { DEFAULT_SETUP, type Meter, type TabId } from './setup.ts'
 import type { DiffLine, Diffs } from './diff.ts'
-import { progressAt, type MusicCmd, type OpenMusic } from './music/parse.ts'
+import { progressAt, type MusicCmd, type OpenMusic, type QueueItem } from './music/parse.ts'
 import { barRow, type SeekBarProps } from './music/seek.ts'
 import { coverPlaceholder } from './music/art.ts'
 import type { MusicCaps } from './music/reader.ts'
@@ -90,7 +90,7 @@ export const COVER_COLS = 8, COVER_ROWS = 4, COVER_MIN = 40
 const ALL_REPEAT = ['off', 'context', 'track'] as const
 
 // Letters, not digits: the tab strip owns 1-n. Not b or a, which the pet Client's Konami code takes after a click.
-// The tab also reserves o for its Player button.
+// The tab also reserves o for its Player button. l likes.
 export function musicControls(s: OpenMusic, caps?: MusicCaps): MusicButton[] {
   const out: MusicButton[] = [
     { key: 'previous', cmd: { cmd: 'previous' }, label: 'Prev', hotkey: 'r' },
@@ -104,8 +104,19 @@ export function musicControls(s: OpenMusic, caps?: MusicCaps): MusicButton[] {
     const next = modes[(modes.indexOf(s.repeat) + 1) % modes.length] ?? 'off'
     out.push({ key: 'repeat', cmd: { cmd: 'repeat', mode: next }, label: s.repeat === 'track' ? '↻1' : '↻', hotkey: 'e', on: s.repeat !== 'off' })
   }
+  // the like state is read only while Spotify is connected, so the heart shows only then
+  if (s.liked !== undefined) out.push({ key: 'like', cmd: { cmd: 'like', on: !s.liked }, label: s.liked ? '♥' : '♡', hotkey: 'l', on: s.liked })
   return out
 }
+
+// The tab's third line and the dialog's connected column both name the next track this way.
+export const upNextLine = (q: QueueItem) => `Up next: ${q.title}${q.artist ? ` — ${q.artist}` : ''}`
+
+// Up next while connected and the queue has a track; else the device playing, when it is not this computer.
+const thirdLine = (s: OpenMusic) =>
+  s.upNext ? upNextLine(s.upNext)
+  : s.device && !s.device.isThisComputer ? `on: ${s.device.name}`
+  : ''
 
 function music(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, now: number, border: Border): Part {
   const c = t.colors, s = m.music ?? { status: 'closed' as const }
@@ -122,21 +133,25 @@ function music(m: Model, t: Theme, v: PaneView, w: number, compact: boolean, now
     const textW = cover ? iw - COVER_COLS - 2 : iw
     const props: SeekBarProps = { kind: 'progress', cols: textW, progressMs: s.progressMs, readAt: s.readAt, durationMs: s.track.durationMs, playing: s.playing,
       colors: { text: c.text, accent: c.accent, faint: c.faint, dim: c.dim } }
-    const title = fit([{ text: s.track.title, color: c.text, bold: true }], textW)
+    const name: Seg = { text: s.track.title, color: c.text, bold: true }
+    const title = s.liked === undefined ? fit([name], textW) : spread([name], [{ text: s.liked ? '♥' : '♡', color: s.liked ? c.accent : c.dim }], textW, t)
     const by = fit([{ text: [s.track.artist, s.track.album].filter(Boolean).join(' · '), color: c.dim }], textW)
+    const third = thirdLine(s)
+    const next = third ? fit([{ text: third, color: c.dim }], textW) : undefined
     const row = barRow(props, textW, progressAt(s, now))
     if (cover) {
-      // the cover spans all four rows; the third line is empty until the queue or device is known
+      // the cover spans all four rows; the third line stays, empty, until the queue or another device is known
       const prefix = (i: number): Seg[] => [...cover[i]!, { text: '  ', color: c.text }]
-      body = [[...prefix(0), ...title], [...prefix(1), ...by], prefix(2), [...prefix(3), ...row]]
+      body = [[...prefix(0), ...title], [...prefix(1), ...by], [...prefix(2), ...(next ?? [])], [...prefix(3), ...row]]
       bar = { index: 3, prefix: prefix(3), props }
     } else {
-      body = [title, by, row]
-      bar = { index: 2, prefix: [], props }
+      body = next ? [title, by, next, row] : [title, by, row]
+      bar = { index: body.length - 1, prefix: [], props }
     }
   }
   if (compact) return { rows: body.map(r => fit(r, w)), n: -1 }
-  const rows = section('NOW PLAYING', 'Spotify', body, w, t, border)
+  // local: connected, but the Web API is not answering, so this is the app on this computer
+  const rows = section('NOW PLAYING', s.status === 'open' && s.source === 'local' ? 'Spotify (local)' : 'Spotify', body, w, t, border)
   const controls = s.status === 'open' ? musicControls(s, v.musicCaps) : undefined
   let seek: SeekSlot | undefined
   if (bar) {

@@ -1,7 +1,9 @@
 // Command glowup-installer installs the glowup mod into Claude Code.
 // install.sh (docs/web/public) downloads and runs it; it is not installed on PATH.
 // It also runs glowup's config screen as `glowup-installer config`, which
-// /glowup config launches, and `spotify-art`, which the Music tab runs for a cover.
+// /glowup config launches, `spotify-art`, which the Music tab runs for a cover, and
+// `spotify-login`, `spotify-refresh` and `spotify-logout`, which connect the music player to a
+// Spotify account and keep that login fresh.
 package main
 
 import (
@@ -9,6 +11,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 
@@ -29,11 +32,17 @@ func main() { os.Exit(run()) }
 
 func run() int {
 	// a subcommand: cli.Parse refuses positional arguments
-	if len(os.Args) > 1 && os.Args[1] == "config" {
-		return configtui.Main(os.Args[2:], os.Stdout, os.Stderr)
+	subs := map[string]func([]string, io.Writer, io.Writer) int{
+		"config":          configtui.Main,
+		"spotify-art":     spotify.ArtMain,
+		"spotify-login":   spotify.LoginMain,
+		"spotify-refresh": spotify.RefreshMain,
+		"spotify-logout":  spotify.LogoutMain,
 	}
-	if len(os.Args) > 1 && os.Args[1] == "spotify-art" {
-		return spotify.ArtMain(os.Args[2:], os.Stdout, os.Stderr)
+	if len(os.Args) > 1 {
+		if sub, ok := subs[os.Args[1]]; ok {
+			return sub(os.Args[2:], os.Stdout, os.Stderr)
+		}
 	}
 	o, err := cli.Parse(os.Args[1:], os.Stderr)
 	if errors.Is(err, flag.ErrHelp) {

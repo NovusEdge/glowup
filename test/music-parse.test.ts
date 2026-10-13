@@ -140,3 +140,12 @@ test('sameMusic notices shuffle, repeat and volume', () => {
   expect(sameMusic(a, { ...a, repeat: 'track' }, 0)).toBe(false)
   expect(sameMusic(a, { ...a, volume: 0.6 }, 0)).toBe(false)
 })
+
+test('sameMusic sees the connected fields change', () => {
+  const a: OpenMusic = { status: 'open', playing: true, ad: false, progressMs: 0, readAt: 0, track: { id: 't', title: 'T', artist: 'A', album: '', durationMs: 9000, uri: 'spotify:track:t' }, source: 'api' }
+  expect(sameMusic(a, { ...a }, 0)).toBe(true)
+  expect(sameMusic(a, { ...a, source: 'local' }, 0)).toBe(false)
+  expect(sameMusic(a, { ...a, liked: true }, 0)).toBe(false)
+  expect(sameMusic(a, { ...a, device: { id: 'd', name: 'Pixel 9', type: 'Smartphone', isThisComputer: false } }, 0)).toBe(false)
+  expect(sameMusic(a, { ...a, upNext: { uri: 'spotify:track:n', title: 'N', artist: 'B', durationMs: 1 } }, 0)).toBe(false)
+})

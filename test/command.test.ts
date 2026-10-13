@@ -160,6 +160,7 @@ const ctl = (answer = true, current = 'classic') => {
     openConfig: async () => 'glowup config open (Esc closes it)',
     openConfigTui: async () => 'glowup config is opening',
     openPlayer: async () => { calls.push('player'); return 'Music player open (Esc closes it)' },
+    spotify: async a => 'spotify ' + a,
     headless: async () => true,
   }
   return { calls, questions, ctl: c }
@@ -171,6 +172,17 @@ test('/glowup music opens the player, and prints the usage in a -p run', async (
   expect(calls).toEqual(['player'])
   expect(await runCommand(fakeHost().host, 'music', c)).toBe(USAGE)
   expect(calls).toEqual(['player'])
+})
+
+test('/glowup spotify routes to the connection; connect needs an interactive session', async () => {
+  const asked: string[] = []
+  const c: Ctl = { ...ctl().ctl, headless: async () => false, spotify: async a => { asked.push(a); return 'ok ' + a } }
+  expect(await runCommand(fakeHost().host, 'spotify', c)).toBe('ok status')
+  expect(await runCommand(fakeHost().host, 'spotify connect', c)).toBe('ok connect')
+  expect(await runCommand(fakeHost().host, 'spotify disconnect', c)).toBe('ok disconnect')
+  expect(await runCommand(fakeHost().host, 'spotify nope', c)).toBe('Use /glowup spotify, /glowup spotify connect or /glowup spotify disconnect.')
+  expect(await runCommand(fakeHost().host, 'spotify connect', { ...c, headless: async () => true })).toContain('interactive session')
+  expect(asked).toEqual(['status', 'connect', 'disconnect'])
 })
 
 test('theme switch persists the name and applies it', async () => {

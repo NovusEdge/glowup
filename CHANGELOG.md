@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `/glowup music`, or `o: Player` on the Music tab, opens a music player: a pane with a bigger cover, the seek bar, the controls, Open Spotify (`o`) and Copy link (`c`), and on macOS a volume bar.
+- `/glowup spotify connect` connects your own Spotify developer app (Premium needed). The Music tab and player then follow playback on any device, show a heart to like the track (`l`) and the next track in your queue, and fall back to the local app while the Web API is not answering. Windows gets the player this way. See docs/spotify.md.
 
 ## [1.1.0] - 2026-10-12
 

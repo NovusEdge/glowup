@@ -20,6 +20,7 @@ export const SECTIONS: readonly (readonly [title: string, rows: HelpRow[]])[] = 
     ['/glowup config pane', 'the same settings in a pane inside Claude'],
     ['/glowup pane', 'open or close the side pane (plan, agents, diff, changes and Spotify tabs)'],
     ['/glowup music', 'the Spotify player: cover, seek, shuffle, repeat'],
+    ['/glowup spotify [connect|disconnect]', 'your Spotify account: queue, likes, other devices'],
   ]],
   ['Look', [
     ['/glowup pack <name>', 'switch the whole look'],

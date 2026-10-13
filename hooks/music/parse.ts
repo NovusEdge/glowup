@@ -1,8 +1,17 @@
 // JSX-free and engine-free: parsers only, so they test on recorded output.
 export type Repeat = 'off' | 'context' | 'track'
 export type Track = { id: string; title: string; artist: string; album: string; durationMs: number; artUrl?: string; url?: string; uri?: string }
-// shuffle, repeat and volume (0..1) are absent when the player did not report them, and their controls hide
-export type OpenMusic = { status: 'open'; track?: Track; playing: boolean; ad: boolean; progressMs: number; readAt: number; shuffle?: boolean; repeat?: Repeat; volume?: number }
+export type Device = { id: string; name: string; type: string; isThisComputer: boolean }
+export type QueueItem = { uri: string; title: string; artist: string; durationMs: number }
+// shuffle, repeat and volume (0..1) are absent when the player did not report them, and their controls hide.
+// source, device, liked and upNext are set only while Spotify is connected: source is api while the Web API
+// answered within two polls, local while glowup falls back to the app on this computer.
+export type OpenMusic = {
+  status: 'open'; track?: Track; playing: boolean; ad: boolean; progressMs: number; readAt: number; shuffle?: boolean; repeat?: Repeat; volume?: number
+  source?: 'api' | 'local'; device?: Device; liked?: boolean; upNext?: QueueItem
+  // set with source local when progressMs was raised above the local read's own position: that raw position
+  held?: number
+}
 export type Music = { status: 'closed' } | { status: 'unsupported'; hint: string } | OpenMusic
 export type MusicCmd =
   | { cmd: 'playpause' | 'next' | 'previous' | 'raise' }
@@ -10,6 +19,7 @@ export type MusicCmd =
   | { cmd: 'shuffle'; on: boolean }
   | { cmd: 'repeat'; mode: Repeat }
   | { cmd: 'volume'; level: number }
+  | { cmd: 'like'; on: boolean }
 export type Extras = Pick<OpenMusic, 'shuffle' | 'repeat' | 'volume'>
 
 const isAd = (id: string) => id.startsWith('/com/spotify/ad/') || id.startsWith('spotify:ad:')
@@ -146,5 +156,6 @@ export function sameMusic(a: Music | undefined, b: Music, now: number): boolean 
   if (a.status === 'closed' || b.status !== 'open') return true
   const o = a as OpenMusic
   return o.playing === b.playing && o.ad === b.ad && o.shuffle === b.shuffle && o.repeat === b.repeat && o.volume === b.volume
+    && o.source === b.source && o.liked === b.liked && o.upNext?.uri === b.upNext?.uri && JSON.stringify(o.device) === JSON.stringify(b.device)
     && JSON.stringify(o.track) === JSON.stringify(b.track) && Math.abs(progressAt(o, now) - progressAt(b, now)) <= SEEK_MS
 }

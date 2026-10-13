@@ -180,6 +180,10 @@ Setting `theme` back to `classic`, `spinner` to `pack` or `statusline` to its de
 
 `/glowup music` opens the music player, a pane that takes the keyboard; Esc closes it, and running the command again while the player is open closes it too, as `/glowup pane` does. When there is no room for the player, the command prints `Music player waits: <reason>`. See [Layout](layout.md#music-player). Opening it from the Music tab's `o: Player` closes the glowup pane while the player is up and brings it back when the player closes. In a `-p` run it prints the help.
 
+## spotify
+
+`/glowup spotify` says whether glowup reads the Spotify app on this computer or your account through the Web API. `/glowup spotify connect` opens the music player at the connect steps (in a `-p` run it says it needs an interactive session); `/glowup spotify disconnect` deletes the saved login. See [Connect Spotify](spotify.md).
+
 ## motion
 
 | Command | What it does |
