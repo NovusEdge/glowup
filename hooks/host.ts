@@ -1,7 +1,9 @@
 // The engine as the other modules see it. The loader refuses $ passed across an
 // import, so register.tsx builds this from $ in hostOf.
 export type RunResult = { exitCode: number; stdout: string; stderr: string }
-export type FetchInit = { method?: string; headers?: Record<string, string>; body?: string; timeoutMs: number }
+export type FetchInit = { method?: string; headers?: Record<string, string>; body?: string; timeoutMs: number
+  // called once when the engine's request ends, answered or failed: after timeoutMs the promise has rejected but the request, which cannot be aborted, may still be out
+  onSettled?: () => void }
 export type FetchResult = { status: number; headers: Record<string, string>; text: string }
 export type Spawned = { done: Promise<number | null>; kill(): void }
 export type Host = {

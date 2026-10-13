@@ -196,7 +196,7 @@ function hostOf($: Engine): Host {
     fetch: (url, init) => new Promise((resolve, reject) => {
       const timer = $.clock.after(init.timeoutMs, () => reject(new Error(`timed out after ${init.timeoutMs / 1000} s`)))
       $.http.fetch(url, { method: init.method ?? 'GET', ...(init.headers && { headers: init.headers }), ...(init.body !== undefined && { body: init.body }) })
-        .then(r => { timer.cancel(); resolve({ status: r.status, headers: r.headers, text: r.text }) }, err => { timer.cancel(); reject(err) })
+        .then(r => { timer.cancel(); init.onSettled?.(); resolve({ status: r.status, headers: r.headers, text: r.text }) }, err => { timer.cancel(); init.onSettled?.(); reject(err) })
     }),
     spawn: (argv, onLine) => {
       const child = $.process.spawn({ argv })

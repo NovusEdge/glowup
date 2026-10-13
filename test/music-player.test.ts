@@ -34,7 +34,14 @@ test('the API lagging a local track change: a newer local read wins until the ne
   const changed = local({ track: T2, readAt: 2000, progressMs: 0 })
   expect((mergeMusic(changed, { last: { at: 1000, music: api() } }, undefined, 2000, I) as OpenMusic).track?.title).toBe('Two')
   // the next API read still names another track on a Computer: another computer plays it
-  expect((mergeMusic(changed, { last: { at: 2500, music: api() } }, undefined, 2500, I) as OpenMusic).track?.title).toBe('One')
+  expect((mergeMusic(changed, { last: { at: 2500, localUri: T2.uri, music: api() } }, undefined, 2500, I) as OpenMusic).track?.title).toBe('One')
+})
+
+test('another computer plays X while this app shows Y: the API state stays, however new the local read', () => {
+  const x = { ...apiT1, id: 'spotify:track:x', uri: 'spotify:track:x', title: 'X' }
+  const link: Link = { last: { at: 1000, localUri: T1.uri, music: api({ track: x }) } }
+  const m = mergeMusic(local({ readAt: 1400 }), link, undefined, 1500, I) as OpenMusic
+  expect([m.track?.title, m.device?.isThisComputer]).toEqual(['X', false])
 })
 
 test('204: local when it is open, else Nothing playing', () => {
@@ -50,6 +57,13 @@ test('an API read counts for two poll intervals', () => {
   expect(mergeMusic({ status: 'closed' }, link, undefined, 7001, I)).toEqual({ status: 'closed' })
 })
 
+test('staleness is measured against the slower of the intervals then and now', () => {
+  // read while polling every 15 s; the pane then opened and the interval shrank to 3 s
+  const link: Link = { last: { at: 1000, intervalMs: 15_000, music: api({ device: phone }) } }
+  expect((mergeMusic(local(), link, undefined, 9000, I) as OpenMusic).source).toBe('api')
+  expect((mergeMusic(local(), link, undefined, 31_001, I) as OpenMusic).source).toBe('local')
+})
+
 test('a failing API falls back to local without moving the bar back, and recovers', () => {
   // the phone played this track at 60 s; then the API went quiet for more than two polls
   const onPhone: Link = { last: { at: 1000, music: api({ device: phone, progressMs: 60_000 }) } }
@@ -58,7 +72,10 @@ test('a failing API falls back to local without moving the bar back, and recover
   expect(fallen.source).toBe('local')
   expect(fallen.progressMs).toBe(67_000)
   expect(fallen.liked).toBeUndefined()
-  const back = mergeMusic(local({ playing: false, readAt: 9000 }), { last: { at: 9000, music: api({ device: phone, progressMs: 68_000, readAt: 9000 }) } }, fallen, 9000, I) as OpenMusic
+  // the floor holds for as long as the fallback lasts
+  const still = mergeMusic(local({ playing: false, readAt: 8500 }), onPhone, fallen, 8500, I) as OpenMusic
+  expect([still.source, still.progressMs]).toEqual(['local', 67_000])
+  const back = mergeMusic(local({ playing: false, readAt: 9000 }), { last: { at: 9000, music: api({ device: phone, progressMs: 68_000, readAt: 9000 }) } }, still, 9000, I) as OpenMusic
   expect([back.source, back.progressMs]).toEqual(['api', 68_000])
 })
 

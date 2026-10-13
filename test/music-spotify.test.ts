@@ -16,7 +16,8 @@ async function rig(reply: (req: FakeRequest) => Reply | Promise<Reply>, refresh:
   await keeper.load()
   return { ...kit, keeper, client: new SpotifyClient(kit.host, keeper, () => now), at: (t: number) => { now = t } }
 }
-const auth = (reqs: FakeRequest[]) => reqs.map(r => r.headers.Authorization)
+const tick = () => new Promise<void>(res => { setTimeout(res, 0) })
+const auth =(reqs: FakeRequest[]) => reqs.map(r => r.headers.Authorization)
 
 test('a read carries the bearer token and is dated when the answer arrived', async () => {
   const r = await rig(() => ({ status: 200, text: PLAYER }))
@@ -62,9 +63,27 @@ test('a request still out blocks a second one to the same endpoint, not to anoth
   expect((await readPlayer(r.client)).ok).toBe(true)
 })
 
-test('a network error is offline', async () => {
+test('a network error is offline, and the next read goes out', async () => {
   const r = await rig(() => { throw new Error('ECONNRESET') })
   expect(await readPlayer(r.client)).toEqual({ ok: false, error: { kind: 'offline' } })
+  expect(await readPlayer(r.client)).toEqual({ ok: false, error: { kind: 'offline' } })
+  expect(r.requests).toHaveLength(2)
+})
+
+test('an endpoint stays busy after the 5 s offline until the engine request settles', async () => {
+  let open = () => {}
+  const gate = new Promise<void>(res => { open = res })
+  const r = await rig(async () => { await gate; return { status: 200, text: PLAYER } })
+  const first = readPlayer(r.client)
+  await tick()
+  r.expire()
+  expect(await first).toEqual({ ok: false, error: { kind: 'offline' } })
+  expect(await readPlayer(r.client)).toEqual({ ok: false, error: { kind: 'busy' } })
+  expect(r.requests).toHaveLength(1)
+  open()
+  await tick()
+  expect((await readPlayer(r.client)).ok).toBe(true)
+  expect(r.requests).toHaveLength(2)
 })
 
 test('PREMIUM_REQUIRED turns premium off; another 403 does not', async () => {

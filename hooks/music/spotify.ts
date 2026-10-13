@@ -16,21 +16,24 @@ export class SpotifyClient {
 
   async send(r: ApiRequest): Promise<ApiAnswer> {
     if (this.now() < this.until) return { ok: false, error: { kind: 'rate', untilMs: this.until } }
-    // keyed without the query: the engine request cannot be aborted, so a hung one blocks the next poll of its endpoint instead of piling another on
     const key = `${r.method} ${r.url.split('?')[0]}`
     if (this.inFlight.has(key)) return { ok: false, error: { kind: 'busy' } }
     this.inFlight.add(key)
-    try { return await this.authorized(r) } finally { this.inFlight.delete(key) }
+    // The key is held until the engine's request ends, not until the answer: Host.fetch rejects at the timeout but
+    // cannot abort it, and a dead endpoint would otherwise get a new request every 5 s without bound.
+    let open = 1
+    const hold = () => { open++; let done = false; return () => { if (!done && !--open) this.inFlight.delete(key); done = true } }
+    try { return await this.authorized(r, hold) } finally { if (!--open) this.inFlight.delete(key) }
   }
 
-  private async authorized(r: ApiRequest): Promise<ApiAnswer> {
+  private async authorized(r: ApiRequest, hold: () => () => void): Promise<ApiAnswer> {
     const first = await this.keeper.access(this.now())
     if ('error' in first) return { ok: false, error: first.error === 'failed' ? { kind: 'offline' } : { kind: 'reconnect' } }
-    let res = await this.fetch(r, first.token)
+    let res = await this.fetch(r, first.token, hold())
     if (res?.status === 401) {
       const again = await this.keeper.access(this.now(), first.token)
       if ('error' in again) return { ok: false, error: again.error === 'failed' ? { kind: 'offline' } : { kind: 'reconnect' } }
-      res = await this.fetch(r, again.token)
+      res = await this.fetch(r, again.token, hold())
     }
     if (!res) return { ok: false, error: { kind: 'offline' } }
     if (res.status >= 200 && res.status < 300) return { ok: true, status: res.status, text: res.text, at: this.now() }
@@ -41,8 +44,8 @@ export class SpotifyClient {
     return { ok: false, error }
   }
 
-  private fetch(r: ApiRequest, token: string) {
-    return this.host.fetch(r.url, { method: r.method, headers: { Authorization: `Bearer ${token}` }, timeoutMs: API_TIMEOUT_MS }).catch(() => undefined)
+  private fetch(r: ApiRequest, token: string, onSettled: () => void) {
+    return this.host.fetch(r.url, { method: r.method, headers: { Authorization: `Bearer ${token}` }, timeoutMs: API_TIMEOUT_MS, onSettled }).catch(() => undefined)
   }
 }
 

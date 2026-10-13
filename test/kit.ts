@@ -30,6 +30,9 @@ export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<s
   const requests: FakeRequest[] = []
   const spawned: string[] = []
   const killed: string[] = []
+  const expiries = new Set<() => void>()
+  // the 5 s timeout of every fetch still out: its promise rejects, its http handler keeps running
+  const expire = () => { for (const f of expiries) f(); expiries.clear() }
   const host: Host = {
     run: async (argv, env, timeoutMs) => {
       ran.push(argv.join(' '))
@@ -46,11 +49,14 @@ export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<s
     listDir: async p => [...new Set(Object.keys(files).filter(f => f.startsWith(p + '/')).map(f => f.slice(p.length + 1).split('/')[0]!))],
     listFiles: async p => Object.keys(files).filter(f => f.startsWith(p + '/')).map(f => ({ name: f.slice(p.length + 1), size: files[f]!.length })).filter(e => !e.name.includes('/')),
     fetchText: async url => url in (opts.fetches ?? {}) ? { ok: true, status: 200, text: opts.fetches![url]! } : { ok: false, status: 404, text: '' },
-    fetch: async (url, init) => {
+    fetch: (url, init) => {
       const req: FakeRequest = { method: init.method ?? 'GET', url, headers: init.headers ?? {}, ...(init.body !== undefined && { body: init.body }) }
       requests.push(req)
-      if (!opts.http) throw new Error('offline')
-      return opts.http(req)
+      return new Promise((resolve, reject) => {
+        expiries.add(() => reject(new Error('timed out')))
+        ;(async () => { if (!opts.http) throw new Error('offline'); return opts.http(req) })()
+          .then(r => { init.onSettled?.(); resolve(r) }, e => { init.onSettled?.(); reject(e) })
+      })
     },
     spawn: (argv, onLine) => {
       const key = argv.join(' ')
@@ -67,7 +73,7 @@ export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<s
     dataHome: '/home/u/.local/share',
     home: '/home/u',
   }
-  return { host, files, store, ran, envs, timeouts, mtimes, requests, spawned, killed }
+  return { host, files, store, ran, envs, timeouts, mtimes, requests, spawned, killed, expire }
 }
 
 // Answers $.env, $.fs and $.process from memory, so a wiring test can never reach
