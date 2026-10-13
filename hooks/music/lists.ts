@@ -75,6 +75,8 @@ export function listError(e: ApiError): string {
     case 'server': return `Spotify had a problem (${e.status}). glowup tries again shortly.`
     case 'refused': return `Spotify refused the list (${e.reason}).`
     case 'rate': return 'Spotify asked glowup to slow down. glowup tries again shortly.'
+    case 'reconnect': return 'Spotify needs you to connect again. Run /glowup spotify connect.'
+    case 'noDevice': return 'No device is playing. Pick one in the Devices list.'
     case 'premium': return 'Spotify needs Premium for this list.'
     default: return 'Spotify did not answer. glowup tries again shortly.'
   }

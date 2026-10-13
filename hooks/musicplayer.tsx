@@ -1,8 +1,9 @@
 // The Music dialog's body. Engine-free: register.tsx resolves the elements and builds the Clients.
 import type { Model } from './model.ts'
 import type { Theme } from './themes.ts'
-import { fit, renderSegs, type Seg } from './layout.tsx'
+import { fit, renderSegs, visibleLength, type Seg } from './layout.tsx'
 import { progressAt, type Music, type MusicCmd } from './music/parse.ts'
+import { EMPTY, LISTS, rowsOf, type ListId, type ListRow, type ListState } from './music/lists.ts'
 import { barRow, type SeekBarProps } from './music/seek.ts'
 import { coverPlaceholder } from './music/art.ts'
 import type { MusicCaps } from './music/reader.ts'
@@ -26,16 +27,17 @@ export type AccountView =
   | { step: 'pitch' }
   | { step: 'steps'; error?: string }
   | { step: 'waiting'; authUrl?: string; notice?: string }
-  | { step: 'connected'; name?: string }
+  | { step: 'connected'; name?: string; lists?: { shown: ListId; state: ListState } }
   | { step: 'reconnect' }
   | { step: 'refused'; text: string }
-type Els = { Box: any; Text: any; Button: any; Input?: any }
+type Els = { Box: any; Text: any; Button: any; Input?: any; Select?: any }
 
 export type PlayerNote = { text: string; tone: 'ok' | 'error' }
 export type PlayerView = { width: number; bodyRows: number; cover?: Seg[][]; caps?: MusicCaps; note?: PlayerNote; account?: AccountView }
 export type PlayerExtra = {
   onMusic: (cmd: MusicCmd) => void; onCopy: (url: string) => void; seek?: (props: SeekBarProps) => unknown; volume?: (props: SeekBarProps) => unknown
   onConnect?: () => void; onClientId?: (id: string) => void; onPaste?: (text: string) => void; onCancel?: () => void
+  onList?: (id: ListId) => void; onPick?: (value: string) => void
 }
 
 // State, note and account lines wrap, since a 30-column left column truncates "Open Spotify to see what's playing."
@@ -79,7 +81,7 @@ export function renderPlayer(els: Els, m: Model, t: Theme, v: PlayerView, now: n
   const rw = side ? Math.max(1, v.width - LEFT_COLS - GAP) : v.width
   const right = (
     <Box key="right" flexDirection="column" width={rw} marginTop={side ? 0 : 1}>
-      {accountRows(els, t, v.account ?? { step: 'pitch' }, s, extra) as any}
+      {accountRows(els, t, v.account ?? { step: 'pitch' }, s, extra, rw) as any}
     </Box>
   )
   return (
@@ -90,7 +92,7 @@ export function renderPlayer(els: Els, m: Model, t: Theme, v: PlayerView, now: n
   )
 }
 
-function accountRows(els: Els, t: Theme, a: AccountView, s: Music, extra: PlayerExtra): unknown[] {
+function accountRows(els: Els, t: Theme, a: AccountView, s: Music, extra: PlayerExtra, w: number): unknown[] {
   const { Box, Text, Button, Input } = els, c = t.colors
   // keyed wrap-* so the row-width tests leave it out, as they do the pitch
   const line = (text: string, key: string, color: string = c.dim) => wrapped(els, text, color, 'wrap-' + key)
@@ -127,10 +129,12 @@ function accountRows(els: Els, t: Theme, a: AccountView, s: Music, extra: Player
     }
     case 'connected': {
       const o = s.status === 'open' ? s : undefined
+      const device = o?.device ? [line(`on: ${o.device.name}${o.device.isThisComputer ? ' (this computer)' : ''}`, 'device')] : []
+      if (a.lists) return [...listRows(els, t, a.lists, w, extra), ...device]
       return [
         line(a.name ? `Connected as ${a.name}.` : 'Connected.', 'name', c.text),
         ...(o?.upNext ? [line(upNextLine(o.upNext), 'next')] : []),
-        ...(o?.device ? [line(`on: ${o.device.name}${o.device.isThisComputer ? ' (this computer)' : ''}`, 'device')] : []),
+        ...device,
         line('/glowup spotify disconnect stops it.', 'disconnect'),
       ]
     }
@@ -139,4 +143,44 @@ function accountRows(els: Els, t: Theme, a: AccountView, s: Music, extra: Player
     case 'refused':
       return [line(a.text, 'refused', c.fail)]
   }
+}
+
+// One row as a fixed-width label, since a Select option is one string: the title gives way first,
+// the detail takes at most 40%, and the right column (a length, a count, "active") is dropped only when nothing else fits.
+export function listLabel(r: ListRow, w: number): string {
+  const len = (s: string) => visibleLength([{ text: s, color: '' }])
+  const pad = (s: string, n: number) => {
+    const f = fit([{ text: s, color: '' }], n)
+    return f.map(x => x.text).join('') + ' '.repeat(Math.max(0, n - visibleLength(f)))
+  }
+  const right = r.right && w >= len(r.right) + 8 ? ' ' + r.right : ''
+  const room = w - len(right)
+  const detailW = r.detail ? Math.min(len(r.detail), Math.floor(room * 0.4)) : 0
+  const titleW = room - (detailW > 0 ? detailW + 2 : 0)
+  return pad(r.title, titleW) + (detailW > 0 ? '  ' + pad(r.detail, detailW) : '') + right
+}
+
+function listRows(els: Els, t: Theme, v: { shown: ListId; state: ListState }, w: number, extra: PlayerExtra): unknown[] {
+  const { Box, Button, Select } = els, c = t.colors
+  // Loading…, empty and error lines wrap like the state and note lines, keyed wrap-* so the row-width tests skip them;
+  // only the Select-less rows are fixed-width labels
+  const say = (text: string, key: string) => wrapped(els, text, c.dim, 'wrap-' + key)
+  const tabs = (
+    <Box key="list-tabs" flexDirection="row" flexWrap="wrap" columnGap={2}>
+      {LISTS.map(([id, label], i) => <Button key={'list-' + id} label={label} hotkey={String(i + 1)} {...(id === v.shown && { variant: 'primary' })} onPress={() => extra.onList?.(id)} />)}
+    </Box>
+  )
+  const st = v.state, rows = rowsOf(st)
+  const body: unknown[] = []
+  // Loading… only before the first rows: a reload keeps what is on screen
+  if (st.status === 'idle' || (st.status === 'loading' && rows.length === 0)) body.push(say('Loading…', 'list-loading'))
+  else if (rows.length === 0) body.push(say(st.status === 'error' ? st.reason : EMPTY[v.shown], st.status === 'error' ? 'list-error' : 'list-empty'))
+  else if (!Select) rows.forEach((r, i) => body.push(renderSegs(els, fit([{ text: listLabel(r, w), color: c.dim }], w), 'list-row' + i)))
+  else {
+    const active = rows.find(r => r.active)
+    // no autoFocus: an Enter pressed on opening would start playback
+    body.push(<Select key="music-list" options={rows.map(r => ({ value: r.value, label: listLabel(r, Math.max(1, w - 2)) }))} {...(active && { value: active.value })} onSelect={(value: string) => extra.onPick?.(value)} />)
+  }
+  if (st.status === 'error' && rows.length > 0) body.push(say(st.reason, 'list-error'))
+  return [tabs, renderSegs(els, [{ text: '─'.repeat(Math.max(0, w)), color: c.faint }], 'list-rule'), ...body]
 }

@@ -84,6 +84,9 @@ test('what an empty or failed list says', () => {
   expect(listError({ kind: 'server', status: 503 })).toBe('Spotify had a problem (503). glowup tries again shortly.')
   expect(listError({ kind: 'refused', reason: 'UNKNOWN' })).toBe('Spotify refused the list (UNKNOWN).')
   expect(listError({ kind: 'rate', untilMs: 1 })).toBe('Spotify asked glowup to slow down. glowup tries again shortly.')
+  expect(listError({ kind: 'reconnect' })).toBe('Spotify needs you to connect again. Run /glowup spotify connect.')
+  expect(listError({ kind: 'noDevice' })).toBe('No device is playing. Pick one in the Devices list.')
+  expect(listError({ kind: 'busy' })).toBe('Spotify did not answer. glowup tries again shortly.')
 })
 
 test('what a skip that did not land says', () => {
