@@ -45,7 +45,7 @@ import { ditherMeters, turnDivider } from './effects.ts'
 import type { FieldClientProps } from './client/field.tsx'
 import type { Seg } from './layout.tsx'
 import { allowed, createRun, isLive, isUndo, newLines, restoreUndo, runTimes, scanRuns, snapshotOf, type Cursor } from './remote.ts'
-import { renderPlayer, playerCoverSize, PLAYER_ID, type AccountView, type PlayerNote } from './musicplayer.tsx'
+import { renderPlayer, playerCoverSize, PLAYER_ID, PASTE_INPUT, type AccountView, type PlayerNote } from './musicplayer.tsx'
 import { sameMusic, type Music, type MusicCmd } from './music/parse.ts'
 import { MusicReader, pickBackend, type Platform } from './music/reader.ts'
 import { ArtCache, coverRows, parseArt, smallArtUrl } from './music/art.ts'
@@ -681,6 +681,10 @@ async function startLogin($: Engine, raw: string) {
   let lastErr = ''
   connectFlow = { step: 'waiting' }
   publish($)
+  // The engine's ring keeps its place in the order of the dialog's elements, not the element, and autoFocus applies
+  // only as a site takes the keys, which the dialog already holds. Left alone, the ring stays at the Client ID
+  // field's old place, on a button or on nothing, and the next letter typed hands the keys to the composer.
+  void $.ui.focus({ requestId: PLAYER_ID, key: PASTE_INPUT }).catch(() => {})
   const child = host.spawn([bin.path, 'spotify-login', '--client-id', id, '--out', out, '--paste-file', me.paste], (stream, line) => {
     const l = line.trim()
     if (login !== me || !l) return

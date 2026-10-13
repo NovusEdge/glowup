@@ -9,6 +9,7 @@ import type { MusicCaps } from './music/reader.ts'
 import { musicControls, upNextLine } from './pane.tsx'
 
 export const PLAYER_ID = 'glowup-music'
+export const PASTE_INPUT = 'input-paste'
 // The dock grants about 88 columns and inline 13 to 20 rows, so these fit the grants seen, not the 110x24 asked for.
 const LEFT_COLS = 30, SIDE_MIN = 80, GAP = 2
 // On macOS the left column under a 20x10 cover needs about 20 rows: cover, gap, three track rows, the seek and
@@ -115,8 +116,11 @@ function accountRows(els: Els, t: Theme, a: AccountView, s: Music, extra: Player
       const url = a.authUrl
       return [
         line('Waiting for the browser…', 'title', c.text),
-        ...(url ? [line(url, 'auth'), <Box key="copy-auth-row">{button('copy-auth', 'Copy address', 'w', () => extra.onCopy(url))}</Box>] : []),
-        ...(Input ? [<Input key="input-paste" autoFocus label="Or paste the address the browser ended on" value="" submitLabel="send" onSubmit={(v: string) => extra.onPaste?.(v)} />] : []),
+        ...(url ? [line(url, 'auth')] : []),
+        // The engine's ring holds a place in element order, so the address's button arriving later goes below the
+        // field: above it, the ring would slide off the field onto the button.
+        ...(Input ? [<Input key={PASTE_INPUT} autoFocus label="Or paste the address the browser ended on" value="" submitLabel="send" onSubmit={(v: string) => extra.onPaste?.(v)} />] : []),
+        ...(url ? [<Box key="copy-auth-row">{button('copy-auth', 'Copy address', 'w', () => extra.onCopy(url))}</Box>] : []),
         ...(a.notice ? [line(a.notice, 'notice', c.fail)] : []),
         <Box key="cancel-row">{button('connect-cancel', 'Cancel', 'x', () => extra.onCancel?.())}</Box>,
       ]

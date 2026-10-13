@@ -169,6 +169,10 @@ test('the right column walks the connect steps', () => {
     expect(find(t, 'input-client-id')).toBeUndefined()
     expect(find(t, 'input-paste')).toBeUndefined()
   }
+  // the engine's ring holds a place in element order: the address's button, drawn once the helper prints it, comes
+  // after the field, so the field keeps the ring
+  const order = walk(waiting).map(n => n?.props?.key).filter(k => ['input-paste', 'copy-auth', 'connect-cancel'].includes(k))
+  expect(order).toEqual(['input-paste', 'copy-auth', 'connect-cancel'])
   find(waiting, 'copy-auth').onPress({})
   find(waiting, 'input-paste').onEvent({ kind: 'submit', value: 'http://127.0.0.1:5/callback?code=c&state=s' })
   find(waiting, 'connect-cancel').onPress({})
