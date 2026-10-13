@@ -411,11 +411,11 @@ test('music controls: transport always, shuffle and repeat only when reported; r
     { key: 'shuffle', cmd: { cmd: 'shuffle', on: false }, label: '⇄', hotkey: 's', on: true },
     { key: 'repeat', cmd: { cmd: 'repeat', mode: 'track' }, label: '↻', hotkey: 'e', on: true },
   ])
-  const mac = tabParts(withMusic(full), T, { tab: 'music', musicCaps: { repeat: ['off', 'context'], shuffle: true, raise: true } }, 54, false, 0).controls!
+  const mac = tabParts(withMusic(full), T, { tab: 'music', musicCaps: { repeat: ['off', 'context'], shuffle: true, raise: true, volume: false } }, 54, false, 0).controls!
   expect(mac[4]!.cmd).toEqual({ cmd: 'repeat', mode: 'off' })
-  const none = tabParts(withMusic(full), T, { tab: 'music', musicCaps: { repeat: [], shuffle: true, raise: true } }, 54, false, 0).controls!
+  const none = tabParts(withMusic(full), T, { tab: 'music', musicCaps: { repeat: [], shuffle: true, raise: true, volume: false } }, 54, false, 0).controls!
   expect(none.map(b => b.key)).toEqual(['previous', 'playpause', 'next', 'shuffle'])
-  const mpris = tabParts(withMusic(full), T, { tab: 'music', musicCaps: { repeat: [], shuffle: false, raise: true } }, 54, false, 0).controls!
+  const mpris = tabParts(withMusic(full), T, { tab: 'music', musicCaps: { repeat: [], shuffle: false, raise: true, volume: false } }, 54, false, 0).controls!
   expect(mpris.map(b => b.key)).toEqual(['previous', 'playpause', 'next'])
   const one = tabParts(withMusic({ ...full, repeat: 'track' }), T, { tab: 'music' }, 54, false, 0).controls!
   expect([one[4]!.label, one[4]!.cmd]).toEqual(['↻1', { cmd: 'repeat', mode: 'off' }])
@@ -425,6 +425,17 @@ test('music controls: transport always, shuffle and repeat only when reported; r
   walk(tree).find(n => n.props?.key === 'music-playpause').onPress({})
   expect(pressed).toEqual([{ cmd: 'shuffle', on: false }, { cmd: 'playpause' }])
   expect(walk(tree).find(n => n.props?.key === 'music-repeat').props.dimColor).toBe(false)
+})
+
+test('the Player button follows the music controls only when the pane is given onPlayer', () => {
+  const keysOf = (tree: unknown) => walk(tree).map((n: any) => n?.props?.key).filter(Boolean)
+  const pressed: string[] = []
+  const withIt = renderPane(els, withMusic(playing), T, { tab: 'music' }, 60, false, 0, () => {}, { onPlayer: () => pressed.push('player') })
+  const btn = walk(withIt).find((n: any) => n?.props?.key === 'music-player')
+  expect(btn.props.hotkey).toBe('o')
+  btn.onPress({})
+  expect(pressed).toEqual(['player'])
+  expect(keysOf(renderPane(els, withMusic(playing), T, { tab: 'music' }, 60, false, 0, () => {}, {}))).not.toContain('music-player')
 })
 
 test('the Changes tab lists the most recently touched file first, ties in their given order', async () => {

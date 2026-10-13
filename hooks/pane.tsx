@@ -90,7 +90,8 @@ export const COVER_COLS = 8, COVER_ROWS = 4, COVER_MIN = 40
 const ALL_REPEAT = ['off', 'context', 'track'] as const
 
 // Letters, not digits: the tab strip owns 1-n. Not b or a, which the pet Client's Konami code takes after a click.
-function musicControls(s: OpenMusic, caps?: MusicCaps): MusicButton[] {
+// The tab also reserves o for its Player button.
+export function musicControls(s: OpenMusic, caps?: MusicCaps): MusicButton[] {
   const out: MusicButton[] = [
     { key: 'previous', cmd: { cmd: 'previous' }, label: 'Prev', hotkey: 'r' },
     { key: 'playpause', cmd: { cmd: 'playpause' }, label: s.playing ? 'Pause' : 'Play', hotkey: 'p' },
@@ -347,7 +348,7 @@ export function statusRows(model: Model, base: Theme, width: number, now: number
 // rows is the strip height, from stripRows: the sheet's height, plus headroom while an outfit is worn.
 // meter and field come from a renderer plugin: rows for the status box, and a builder for the
 // field's player given the rows left open between the tab and the status box.
-export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Moment }; friday?: boolean; minRows?: number; bodyRows?: number; onRange?: (last: number, win: number) => void; meter?: Seg[][]; field?: (rows: number) => unknown; tabs?: readonly TabId[]; onMusic?: (cmd: MusicCmd) => void; seek?: (props: SeekBarProps) => unknown }
+export type PaneExtra = { look?: Look; pet?: { id: PetId; node: unknown; rows?: number }; bubble?: { text: string; mood: Moment }; friday?: boolean; minRows?: number; bodyRows?: number; onRange?: (last: number, win: number) => void; meter?: Seg[][]; field?: (rows: number) => unknown; tabs?: readonly TabId[]; onMusic?: (cmd: MusicCmd) => void; onPlayer?: () => void; seek?: (props: SeekBarProps) => unknown }
 export const PET_STRIP_COLS = 46
 const BUBBLE_ROOM = 16
 
@@ -467,6 +468,7 @@ export function renderPane(els: { Box: any; Text: any; Button: any }, m: Model, 
         {controls && (
           <Box key="music-controls" flexDirection="row" gap={2} marginTop={1}>
             {controls.map(b => <Button key={'music-' + b.key} label={b.label} hotkey={b.hotkey} plain dimColor={b.on === false} onPress={() => extra?.onMusic?.(b.cmd)} />)}
+            {extra?.onPlayer && <Button key="music-player" label="Player" hotkey="o" plain onPress={() => extra.onPlayer!()} />}
           </Box>
         )}
         {open > 0 && extra?.field?.(open)}

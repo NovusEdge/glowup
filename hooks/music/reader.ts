@@ -3,7 +3,7 @@ import { LOOP_STATUS, OSA_READ, PLAYERCTL_EXTRAS_FORMAT, PLAYERCTL_FORMAT, osaGu
 
 export type Platform = 'linux' | 'mac' | 'windows'
 export type Backend = 'busctl' | 'playerctl' | 'osascript'
-export type MusicCaps = { repeat: Repeat[]; shuffle: boolean; raise: boolean }
+export type MusicCaps = { repeat: Repeat[]; shuffle: boolean; raise: boolean; volume: boolean }
 export const LINUX_HINT = 'Spotify needs busctl (systemd) or playerctl to show here.'
 export const WINDOWS_HINT = 'Spotify shows here on Linux and macOS.'
 const RUN_MS = 2000
@@ -70,9 +70,9 @@ export class MusicReader {
   }
 
   caps(): MusicCaps {
-    // Spotify's Linux client ignores LoopStatus and Shuffle-on writes over MPRIS, so busctl and playerctl offer neither.
+    // Spotify's Linux client ignores LoopStatus and Shuffle-on writes over MPRIS, and 1.2.74 ignored a Volume write (seen while paused), so busctl and playerctl offer none of them.
     const mac = this.backend === 'osascript'
-    return { repeat: mac ? ['off', 'context'] : [], shuffle: mac, raise: this.backend === 'busctl' || this.backend === 'osascript' }
+    return { repeat: mac ? ['off', 'context'] : [], shuffle: mac, raise: this.backend === 'busctl' || this.backend === 'osascript', volume: mac }
   }
 
   // MPRIS SetPosition names the track it seeks in; it is the one the last read saw.

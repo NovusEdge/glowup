@@ -45,6 +45,7 @@ import { ditherMeters, turnDivider } from './effects.ts'
 import type { FieldClientProps } from './client/field.tsx'
 import type { Seg } from './layout.tsx'
 import { allowed, createRun, isLive, isUndo, newLines, restoreUndo, runTimes, scanRuns, snapshotOf, type Cursor } from './remote.ts'
+import { renderPlayer, playerCoverSize, PLAYER_ID, type PlayerNote } from './musicplayer.tsx'
 import { sameMusic, type MusicCmd } from './music/parse.ts'
 import { MusicReader, pickBackend, type Platform } from './music/reader.ts'
 import { ArtCache, coverRows, parseArt, smallArtUrl } from './music/art.ts'
@@ -164,6 +165,14 @@ let modVersion: string | undefined
 // the plugin's userConfig, kept for loadSettings: an undo reloads settings outside register()
 let pluginOptions: Readonly<Record<string, unknown>> = {}
 const DOCK_OPEN: PaneOpenArgs = { id: 'glowup', title: 'glowup' }
+const PLAYER_OPEN: PaneOpenArgs = { id: PLAYER_ID, title: 'Music', focus: true, closeOnEscape: true, holdToasts: true, rows: 24, columns: 110 }
+// open({ focus }) is refused while the glowup pane holds the keys, so a press there closes the pane first;
+// the dialog's close then reopens it with the keys.
+let reopenPane = false
+let playerNote: PlayerNote | undefined
+// From the dialog's last draw: the cover side it shows (0 for none) and whether its surface lacks Clients.
+let playerCover = 0
+let playerSeekless = false
 
 function hostOf($: Engine): Host {
   return {
@@ -358,11 +367,13 @@ async function musicPlatform($: Engine): Promise<Platform> {
   return r?.stdout.trim() === 'Darwin' ? 'mac' : 'linux'
 }
 const musicPlaying = () => model.music?.status === 'open' && model.music.playing
-const musicDelay = (tabOpen: boolean) => (musicPlaying() ? (tabOpen ? 1000 : 2000) : 10_000)
+const musicDelay = (shown: boolean) => (musicPlaying() ? (shown ? 1000 : 2000) : 10_000)
 // view.tab keeps the last selected tab after the pane closes, so the tab alone does not mean it is on screen.
-async function musicTabOpen($: Engine) {
-  if (view.tab !== 'music') return false
-  try { return (await $.ui.panes()).some(p => p.id === 'glowup' && p.isShown) } catch { return false }
+async function musicShown($: Engine): Promise<{ tab: boolean; player: boolean }> {
+  try {
+    const panes = await $.ui.panes()
+    return { tab: view.tab === 'music' && panes.some(p => p.id === 'glowup' && p.isShown), player: panes.some(p => p.id === PLAYER_ID && p.isShown) }
+  } catch { return { tab: false, player: false } }
 }
 async function pollMusic($: Engine) {
   const mine = ++musicSeq
@@ -371,13 +382,16 @@ async function pollMusic($: Engine) {
   const now = Date.now()
   const next = await musicReader.read(hostOf($), now)
   if (off || mine !== musicSeq) return
-  const tabOpen = await musicTabOpen($)
+  const shown = await musicShown($)
   if (off || mine !== musicSeq) return
   // The seek bar Client moves itself; where there is none (VS Code, mobile) the static bar needs a redraw per read.
-  if (!sameMusic(model.music, next, now) || (tabOpen && paneSeekless && next.status === 'open' && next.playing)) feed($, { type: 'music', music: next })
-  // a cover is fetched only once someone looks at the tab
-  if (tabOpen && next.status === 'open' && next.track?.artUrl) fetchCover($, next.track.artUrl, COVER_COLS)
-  musicTimer = $.clock.after(musicDelay(tabOpen), () => void pollMusic($))
+  const seekless = (shown.tab && paneSeekless) || (shown.player && playerSeekless)
+  if (!sameMusic(model.music, next, now) || (seekless && next.status === 'open' && next.playing)) feed($, { type: 'music', music: next })
+  // a cover is fetched only once someone looks at it, at the size they look at
+  const art = next.status === 'open' ? next.track?.artUrl : undefined
+  if (art && shown.tab) fetchCover($, art, COVER_COLS)
+  if (art && shown.player && playerCover > 0) fetchCover($, art, playerCover)
+  musicTimer = $.clock.after(musicDelay(shown.tab || shown.player), () => void pollMusic($))
 }
 async function startMusic($: Engine) {
   covers = new ArtCache(20); coversInFlight = new Set(); artBin = undefined
@@ -386,7 +400,7 @@ async function startMusic($: Engine) {
   void pollMusic($)
 }
 function stopMusic() { musicSeq++; musicTimer?.cancel(); musicTimer = undefined; musicReader = undefined }
-// size is the cover's side in pixels: COVER_COLS for the tab, 20 for A2's dialog.
+// size is the cover's side in pixels: COVER_COLS for the tab, playerCover for the dialog.
 function fetchCover($: Engine, url: string, size: number) {
   const key = `${size}:${url}`
   if (off || covers.has(key) || coversInFlight.has(key)) return
@@ -578,6 +592,37 @@ async function togglePane($: Engine): Promise<string> {
   if (open?.isShown) { await $.ui.close({ id: 'glowup' }); return 'glowup pane closed' }
   const r = await $.ui.open(PANE_OPEN)
   return r.isPlaced ? 'glowup pane open (Esc closes it)' : `glowup pane waits: ${r.reason}`
+}
+
+// A command is the one close the engine lets a plugin raise on this pane, so it toggles like /glowup pane.
+async function openPlayer($: Engine, fromPane: boolean): Promise<string> {
+  const panes = await $.ui.panes()
+  if (!fromPane && panes.some(p => p.id === PLAYER_ID && p.isShown)) { await $.ui.close({ id: PLAYER_ID }); return 'Music player closed' }
+  if (fromPane && panes.some(p => p.id === 'glowup' && p.isShown)) {
+    await $.ui.close({ id: 'glowup' })
+    reopenPane = true
+  }
+  playerNote = undefined
+  const r = await $.ui.open(PLAYER_OPEN).catch((err: unknown) => {
+    const reason = err instanceof Error ? err.message : String(err)
+    $.ui.log(`music player open failed: ${reason}`, { to: 'debug' })
+    return { isPlaced: false as const, reason }
+  })
+  if (!r.isPlaced) {
+    if (reopenPane) {
+      reopenPane = false
+      await $.ui.open(PANE_OPEN).catch((err: unknown) => { $.ui.log(`glowup pane reopen failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' }) })
+    }
+    return `Music player waits: ${r.reason}`
+  }
+  void pollMusic($)
+  return 'Music player open (Esc closes it)'
+}
+
+async function copyTrackLink($: Engine, url: string, surface: RenderSurface) {
+  const r = await $.ui.copy({ text: url, surface }).catch((err: unknown) => ({ isCopied: false as const, reason: err instanceof Error ? err.message : String(err) }))
+  playerNote = r.isCopied ? { text: 'Link copied.', tone: 'ok' } : { text: `Could not copy the link: ${r.reason}`, tone: 'error' }
+  publish($)
 }
 
 async function readConfigLists($: Engine) {
@@ -969,6 +1014,7 @@ function ctlOf($: Engine): Ctl {
     setSetup: s => { setup = s; relook($); writeStatus($, true); publishPet($) },
     openConfig: () => openConfig($),
     openConfigTui: () => openConfigTui($),
+    openPlayer: () => openPlayer($, false),
     // surfaces() is empty only in a plain -p run
     headless: async () => (await $.session.surfaces().catch(() => ['terminal'])).length === 0,
   }
@@ -1058,7 +1104,7 @@ export const register: Register = (on, options) => {
     }
     startBeat($)
     void checkStale($)
-    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|motion|statusline on|fields|setup|level|outfit|restore' })
+    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|music|motion|statusline on|fields|setup|level|outfit|restore' })
     await loadSettings($, host)
     if (e.isInteractive) void startMusic($)
     sessionId = await $.session.id()
@@ -1324,7 +1370,7 @@ export const register: Register = (on, options) => {
       extra = { ...extra, pet: { id: pid, node, rows: stripRows(sheet, withLevelOutfit(sheet, snap.overlays, snap.outfit)) }, bubble: bubbleNow, friday: snap.friday }
     }
     // the engine scrolls the whole body, which would carry the pet off with a long tab: budget the tab to bodyRows instead
-    extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onRange: (last, win) => { scroll = { last, win } }, onMusic: (cmd: MusicCmd) => pressMusic($, cmd) }
+    extra = { ...extra, bodyRows: e.props.scroll.bodyRows, onRange: (last, win) => { scroll = { last, win } }, onMusic: (cmd: MusicCmd) => pressMusic($, cmd), onPlayer: () => void openPlayer($, true) }
     paneSeekless = e.surface !== 'terminal' && e.surface !== 'desktop'
     if (e.surface === 'terminal' || e.surface === 'desktop') {
       const { Client } = $.ui.resolve(e)
@@ -1376,6 +1422,44 @@ export const register: Register = (on, options) => {
     const offset = Math.max(0, Math.min(Math.min(view.offset ?? 0, scroll.last) + by, scroll.last))
     if (offset !== view.offset) { view = { ...view, offset }; publish($) }
     return {}
+  })
+
+  on('ui.render', { component: 'Pane', requestId: PLAYER_ID }, async ($, e, next) => {
+    if (off) return next(e)
+    // read through the PANE key so every publish redraws the dialog too
+    const live = (await $.state.get(PANE)).value as { model: Model } | undefined
+    const m = live ? normalizeModel(live.model) : model
+    const els = $.ui.resolve(e) as any
+    const clients = e.surface === 'terminal' || e.surface === 'desktop'
+    playerSeekless = !clients
+    playerCover = playerCoverSize(e.props.scroll.bodyRows)
+    const cover = playerCover > 0 ? coverFor(m, playerCover) : undefined
+    // A paused track polls every 10 s, and the poll that opened the dialog may have run before playerCover was set.
+    const art = m.music?.status === 'open' ? m.music.track?.artUrl : undefined
+    if (art && playerCover > 0 && !cover) fetchCover($, art, playerCover)
+    // Through JSON because Client props refuse undefined fields.
+    const client = (key: string) => (props: SeekBarProps) => <els.Client key={key} module="./client/seekbar.tsx" props={JSON.parse(JSON.stringify(props))} width={props.cols} />
+    return renderPlayer(els, m, theme, {
+      width: e.props.bodyColumns,
+      bodyRows: e.props.scroll.bodyRows,
+      ...(cover && { cover }),
+      ...(musicReader && { caps: musicReader.caps() }),
+      ...(playerNote && { note: playerNote }),
+    }, Date.now(), {
+      onMusic: cmd => pressMusic($, cmd),
+      onCopy: url => void copyTrackLink($, url, e.surface),
+      ...(clients && { seek: client('glowup-seek'), volume: client('glowup-volume') }),
+    })
+  })
+
+  on('ui.close', async ($, e, next) => {
+    if (off || e.id !== PLAYER_ID) return next(e)
+    const r = await next(e)
+    playerNote = undefined
+    // an unload is the mod going away, and a hot-reloaded module has nothing to reopen
+    if (reopenPane && e.origin.kind !== 'unload') await $.ui.open(PANE_OPEN).catch(() => {})
+    reopenPane = false
+    return r
   })
 
   on('ui.render', { component: 'Pane', requestId: CONFIG_ID }, async ($, e, next) => {

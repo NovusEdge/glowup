@@ -43,6 +43,8 @@ export type Ctl = {
   openConfig(): Promise<string>
   // opens the config TUI in a terminal, or the pane where there is none; returns what to print
   openConfigTui(): Promise<string>
+  // opens the Music dialog; returns what to print
+  openPlayer(): Promise<string>
   // a -p run: nobody is attached to any surface
   headless(): Promise<boolean>
   fields(): readonly FieldToken[]
@@ -339,6 +341,7 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   }
   if (sub === 'pane') return ctl.togglePane()
   if (sub === 'config') return (await ctl.headless()) ? USAGE : a1 === 'pane' ? ctl.openConfig() : ctl.openConfigTui()
+  if (sub === 'music') return (await ctl.headless()) ? USAGE : ctl.openPlayer()
   if (sub === 'motion' && (a1 === 'reduced' || a1 === 'full')) {
     await host.storeSet('reducedMotion', a1 === 'reduced')
     ctl.setMotion(a1 === 'reduced')
