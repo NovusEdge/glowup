@@ -82,7 +82,8 @@ test('what an empty or failed list says', () => {
   expect(EMPTY).toEqual({ queue: 'Nothing queued.', recent: 'Nothing played yet.', playlists: 'No playlists yet.', devices: 'No devices. Open Spotify on one.' })
   expect(listError({ kind: 'offline' })).toBe('Spotify did not answer. glowup tries again shortly.')
   expect(listError({ kind: 'server', status: 503 })).toBe('Spotify had a problem (503). glowup tries again shortly.')
-  expect(listError({ kind: 'refused', reason: 'UNKNOWN' })).toBe('Spotify refused the list (UNKNOWN).')
+  expect(listError({ kind: 'refused', reason: 'UNKNOWN', status: 403 })).toBe('Spotify refused the list (UNKNOWN).')
+  expect(listError({ kind: 'refused', reason: 'Bearer at-1 was rejected', status: 400 })).toBe('Spotify refused the list (400).')
   expect(listError({ kind: 'rate', untilMs: 1 })).toBe('Spotify asked glowup to slow down. glowup tries again shortly.')
   expect(listError({ kind: 'reconnect' })).toBe('Spotify needs you to connect again. Run /glowup spotify connect.')
   expect(listError({ kind: 'noDevice' })).toBe('No device is playing. Pick one in the Devices list.')
@@ -95,7 +96,7 @@ test('a failed row press asks for another press, not a retry', () => {
     expect(pressError(e)).toBe(again)
     expect(listError(e)).toContain('tries again shortly')
   }
-  expect(pressError({ kind: 'refused', reason: 'UNKNOWN' })).toBe(listError({ kind: 'refused', reason: 'UNKNOWN' }))
+  expect(pressError({ kind: 'refused', reason: 'UNKNOWN', status: 403 })).toBe(listError({ kind: 'refused', reason: 'UNKNOWN', status: 403 }))
   expect(pressError({ kind: 'premium' })).toBe(listError({ kind: 'premium' }))
 })
 

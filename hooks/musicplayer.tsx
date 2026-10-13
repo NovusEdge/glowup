@@ -177,10 +177,10 @@ function listRows(els: Els, t: Theme, v: { shown: ListId; state: ListState }, w:
   else if (rows.length === 0) body.push(say(st.status === 'error' ? st.reason : EMPTY[v.shown], st.status === 'error' ? 'list-error' : 'list-empty'))
   else if (!Select) rows.forEach((r, i) => body.push(renderSegs(els, fit([{ text: listLabel(r, w), color: c.dim }], w), 'list-row' + i)))
   else {
-    const active = rows.find(r => r.active)
     // no autoFocus: an Enter pressed on opening would start playback
+    // no value either: the engine may treat a controlled value as a selection, and on Devices that would transfer with play: true
     // keyed by list: a tab switch mounts a fresh Select, so the old cursor index does not carry over
-    body.push(<Box key={'list-box-' + v.shown}><Select key="music-list" options={rows.map(r => ({ value: r.value, label: listLabel(r, Math.max(1, w - 2)) }))} {...(active && { value: active.value })} onSelect={(value: string) => extra.onPick?.(value)} /></Box>)
+    body.push(<Box key={'list-box-' + v.shown}><Select key="music-list" options={rows.map(r => ({ value: r.value, label: listLabel(r, Math.max(1, w - 2)) }))} onSelect={(value: string) => extra.onPick?.(value)} /></Box>)
   }
   if (st.status === 'error' && rows.length > 0) body.push(say(st.reason, 'list-error'))
   return [tabs, renderSegs(els, [{ text: '─'.repeat(Math.max(0, w)), color: c.faint }], 'list-rule'), ...body]

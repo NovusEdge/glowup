@@ -73,7 +73,8 @@ export const deviceRows = (d: DeviceItem[]): ListRow[] => d.map(x => ({ value: x
 export function listError(e: ApiError): string {
   switch (e.kind) {
     case 'server': return `Spotify had a problem (${e.status}). glowup tries again shortly.`
-    case 'refused': return `Spotify refused the list (${e.reason}).`
+    // reason is Spotify's own text; only a bare code like NO_ACTIVE_DEVICE is shown
+    case 'refused': return `Spotify refused the list (${/^[A-Z_]{1,40}$/.test(e.reason) ? e.reason : e.status}).`
     case 'rate': return 'Spotify asked glowup to slow down. glowup tries again shortly.'
     case 'reconnect': return 'Spotify needs you to connect again. Run /glowup spotify connect.'
     case 'noDevice': return 'No device is playing. Pick one in the Devices list.'

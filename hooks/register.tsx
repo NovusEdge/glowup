@@ -738,7 +738,7 @@ function pressMusic($: Engine, cmd: MusicCmd) {
 async function refused($: Engine, e: ApiError, runLocal?: () => Promise<void>): Promise<boolean> {
   if (e.kind === 'reconnect') { lose($); return true }
   if (e.kind === 'premium') {
-    await musicNote($, 'Spotify playback control needs Premium, so glowup uses the Spotify app on this computer for it.', 'error', !premiumToasted)
+    await musicNote($, runLocal ? 'Spotify playback control needs Premium, so glowup uses the Spotify app on this computer for it.' : 'Spotify needs Premium for this.', 'error', !premiumToasted)
     premiumToasted = true
     await runLocal?.()
     return true

@@ -77,8 +77,8 @@ test('errors by status and Spotify reason', () => {
   expect(apiError(503, '', {}, 0)).toEqual({ kind: 'server', status: 503 })
   expect(apiError(401, '', {}, 0)).toEqual({ kind: 'reconnect' })
   expect(apiError(403, body('PREMIUM_REQUIRED'), {}, 0)).toEqual({ kind: 'premium' })
-  expect(apiError(403, body('UNKNOWN'), {}, 0)).toEqual({ kind: 'refused', reason: 'UNKNOWN' })
-  expect(apiError(403, '', {}, 0)).toEqual({ kind: 'refused', reason: '403' })
+  expect(apiError(403, body('UNKNOWN'), {}, 0)).toEqual({ kind: 'refused', reason: 'UNKNOWN', status: 403 })
+  expect(apiError(403, '', {}, 0)).toEqual({ kind: 'refused', reason: '403', status: 403 })
   expect(apiError(404, JSON.stringify({ error: { status: 404, reason: 'NO_ACTIVE_DEVICE' } }), {}, 0)).toEqual({ kind: 'noDevice' })
 })
 

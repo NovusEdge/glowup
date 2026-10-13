@@ -151,7 +151,7 @@ export type ApiError =
   | { kind: 'reconnect' }
   | { kind: 'premium' }
   | { kind: 'noDevice' }
-  | { kind: 'refused'; reason: string }
+  | { kind: 'refused'; reason: string; status: number }
   | { kind: 'server'; status: number }
 
 // Spotify's error.reason tells PREMIUM_REQUIRED and NO_ACTIVE_DEVICE from other 403s and 404s.
@@ -165,5 +165,5 @@ export function apiError(status: number, text: string, headers: Record<string, s
   const reason = str(obj(obj(json(text))?.error)?.reason)
   if (status === 403 && reason === 'PREMIUM_REQUIRED') return { kind: 'premium' }
   if (status === 404 && reason === 'NO_ACTIVE_DEVICE') return { kind: 'noDevice' }
-  return { kind: 'refused', reason: reason || String(status) }
+  return { kind: 'refused', reason: reason || String(status), status }
 }

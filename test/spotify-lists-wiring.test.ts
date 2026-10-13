@@ -153,7 +153,7 @@ test('Devices marks the active one; Enter moves playback there and reloads them'
   await ui.press({ key: 'list-devices' })
   await clock.advance(200)
   const sel = select(await ui.drawn())
-  expect(sel.props.value).toBe('ph')
+  expect('value' in sel.props).toBe(false)
   expect(sel.props.options[0].label).toMatch(/active$/)
   const before = count(s.reqs, '/me/player/devices')
   await ui.select({ key: 'music-list', value: 'dk' })
@@ -163,7 +163,22 @@ test('Devices marks the active one; Enter moves playback there and reloads them'
   await ui.unmount()
 })
 
-test('NO_ACTIVE_DEVICE opens Devices with a note', async ($, on) => {
+test('a list press answered PREMIUM_REQUIRED says Premium is needed and runs nothing locally', async ($, on) => {
+  const premium = JSON.stringify({ error: { status: 403, message: 'Premium required', reason: 'PREMIUM_REQUIRED' } })
+  const { s, clock, ui } = await open($, on, lists(r => (path(r) === '/me/player/play' ? { status: 403, text: premium } : undefined)))
+  await ui.press({ key: 'list-recent' })
+  await clock.advance(200)
+  const ran = s.ran.length
+  await ui.select({ key: 'music-list', value: '1:spotify:track:r2' })
+  await clock.advance(200)
+  const t = text(await ui.drawn())
+  expect(t).toContain('Spotify needs Premium for this.')
+  expect(t).not.toContain('Spotify app on this computer')
+  expect(s.ran.slice(ran).filter(k => k.includes('busctl --user call'))).toEqual([])
+  await ui.unmount()
+})
+
+test('NO_ACTIVE_DEVICE opens Devices with a note',async ($, on) => {
   const { s, clock, ui } = await open($, on, lists(r => (path(r) === '/me/player/play' ? { status: 404, text: NO_DEVICE } : undefined)))
   await ui.press({ key: 'list-recent' })
   await clock.advance(200)

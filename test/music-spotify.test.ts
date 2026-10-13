@@ -89,7 +89,7 @@ test('an endpoint stays busy after the 5 s offline until the engine request sett
 test('PREMIUM_REQUIRED turns premium off; another 403 does not', async () => {
   const reason = (s: string) => JSON.stringify({ error: { status: 403, message: 'x', reason: s } })
   const r = await rig(req => ({ status: 403, text: reason(req.url.endsWith('/next') ? 'PREMIUM_REQUIRED' : 'UNKNOWN') }))
-  expect(await r.client.send(commandRequest({ cmd: 'seek', ms: 1 }, true)!)).toEqual({ ok: false, error: { kind: 'refused', reason: 'UNKNOWN' } })
+  expect(await r.client.send(commandRequest({ cmd: 'seek', ms: 1 }, true)!)).toEqual({ ok: false, error: { kind: 'refused', reason: 'UNKNOWN', status: 403 } })
   expect(r.client.premium).toBe(true)
   expect(await r.client.send(commandRequest({ cmd: 'next' }, true)!)).toEqual({ ok: false, error: { kind: 'premium' } })
   expect(r.client.premium).toBe(false)
@@ -135,7 +135,7 @@ test('a track that left the queue skips nothing', async () => {
 test('skipTo stops at the first refusal', async () => {
   let n = 0
   const r = await rig(req => (req.url.includes('/queue') ? { status: 200, text: QUEUE('a', 'b', 'c') } : ++n === 2 ? { status: 403, text: '{"error":{"status":403,"reason":"RESTRICTION_VIOLATED"}}' } : { status: 204 }))
-  expect(await skipTo(r.client, 'spotify:track:c')).toEqual({ kind: 'error', error: { kind: 'refused', reason: 'RESTRICTION_VIOLATED' } })
+  expect(await skipTo(r.client, 'spotify:track:c')).toEqual({ kind: 'error', error: { kind: 'refused', reason: 'RESTRICTION_VIOLATED', status: 403 } })
   expect(nexts(r.requests)).toBe(2)
 })
 

@@ -246,9 +246,11 @@ test('Loading…, an empty list, and an error line', () => {
   expect([reason.props.color, reason.props.wrap]).toEqual([T.colors.dim, 'wrap'])
 })
 
-test('Devices preselects the active one', () => {
+test('Devices marks the active one on its row and gives the Select no value', () => {
   const rows = [lrow(0, { value: 'ph', right: 'active', active: true, cmd: { cmd: 'transfer', deviceId: 'ph' } }), lrow(1, { value: 'dk', right: '', cmd: { cmd: 'transfer', deviceId: 'dk' } })]
-  expect(find(renderPlayer(elsS, playing({ source: 'api' }), T, listed('devices', { status: 'ready', rows, at: 0 }), 0, extra), 'music-list').props.value).toBe('ph')
+  const sel = find(renderPlayer(elsS, playing({ source: 'api' }), T, listed('devices', { status: 'ready', rows, at: 0 }), 0, extra), 'music-list')
+  expect('value' in sel.props).toBe(false)
+  expect(JSON.stringify(sel.props.options)).toContain('active')
 })
 
 test('each list mounts its own Select, so a tab switch keeps no cursor', () => {
