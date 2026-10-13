@@ -147,9 +147,32 @@ test('a queue read still out: skipTo says busy and skips nothing', async () => {
   expect(nexts(r.requests)).toBe(0)
 })
 
-test('skipTo sends at most 20 nexts', async () => {
+test('skipTo reaches the 20th track and sends nothing for the 21st', async () => {
   const ids = Array.from({ length: 30 }, (_, i) => 't' + i)
   const r = await rig(req => (req.url.includes('/queue') ? { status: 200, text: QUEUE(...ids) } : { status: 204 }))
-  await skipTo(r.client, 'spotify:track:t29')
+  expect(await skipTo(r.client, 'spotify:track:t19')).toEqual({ kind: 'done' })
   expect(nexts(r.requests)).toBe(20)
+  expect(await skipTo(r.client, 'spotify:track:t20')).toEqual({ kind: 'far' })
+  expect(nexts(r.requests)).toBe(20)
+})
+
+test('an unparseable queue is a server error, not a skip', async () => {
+  const r = await rig(() => ({ status: 200, text: '[]' }))
+  expect(await skipTo(r.client, 'spotify:track:a')).toEqual({ kind: 'error', error: { kind: 'server', status: 200 } })
+  expect(nexts(r.requests)).toBe(0)
+})
+
+test('a second skipTo during the first is busy and sends nothing', async () => {
+  let open = () => {}
+  const gate = new Promise<void>(res => { open = res })
+  const r = await rig(async req => (req.url.includes('/queue') ? { status: 200, text: QUEUE('a', 'b') } : (await gate, { status: 204 })))
+  const first = skipTo(r.client, 'spotify:track:b')
+  await tick()
+  expect(nexts(r.requests)).toBe(1)
+  expect(await skipTo(r.client, 'spotify:track:a')).toEqual({ kind: 'busy' })
+  expect(nexts(r.requests)).toBe(1)
+  open()
+  expect(await first).toEqual({ kind: 'done' })
+  expect(nexts(r.requests)).toBe(2)
+  expect(await skipTo(r.client, 'spotify:track:a')).toEqual({ kind: 'done' })
 })

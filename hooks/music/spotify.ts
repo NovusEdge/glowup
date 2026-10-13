@@ -12,6 +12,8 @@ export class SpotifyClient {
   private until = 0
   // false once a write answered PREMIUM_REQUIRED: transport then goes through the local app for the session
   premium = true
+  // set for the whole of a skipTo: a second one would read a queue the first is still consuming
+  skipping = false
   constructor(private host: Host, private keeper: TokenKeeper, private now: () => number) {}
 
   async send(r: ApiRequest): Promise<ApiAnswer> {
@@ -79,20 +81,28 @@ export async function allPlaylists(c: SpotifyClient): Promise<{ ok: true; items:
   return { ok: true, items }
 }
 
-// busy: another queue read was still out, so nothing was skipped
-export type SkipResult = { kind: 'done' } | { kind: 'gone' } | { kind: 'busy' } | { kind: 'error'; error: ApiError }
+// busy: another skipTo or queue read was still out, so nothing was skipped; far: the target is SKIP_MAX or more down
+export type SkipResult = { kind: 'done' } | { kind: 'gone' } | { kind: 'far' } | { kind: 'busy' } | { kind: 'error'; error: ApiError }
 // The Web API cannot jump within the queue, only skip: so skipTo carries the target's URI, not an index,
 // re-reads the queue (it may have moved since the list was drawn) and sends next until the target plays.
 export async function skipTo(c: SpotifyClient, uri: string): Promise<SkipResult> {
-  const q = await c.send(queueRequest())
-  if (!q.ok) return q.error.kind === 'busy' ? { kind: 'busy' } : { kind: 'error', error: q.error }
-  const at = (parseQueue(q.text) ?? []).findIndex(t => t.uri === uri)
-  if (at < 0) return { kind: 'gone' }
-  const next = commandRequest({ cmd: 'next' }, true)!
-  for (let i = 0; i < Math.min(at + 1, SKIP_MAX); i++) {
-    // awaited one by one: Spotify applies them in order, and a refusal (an ad, a restriction) stops the rest
-    const r = await c.send(next)
-    if (!r.ok) return { kind: 'error', error: r.error }
-  }
-  return { kind: 'done' }
+  if (c.skipping) return { kind: 'busy' }
+  c.skipping = true
+  try {
+    const q = await c.send(queueRequest())
+    if (!q.ok) return q.error.kind === 'busy' ? { kind: 'busy' } : { kind: 'error', error: q.error }
+    const queue = parseQueue(q.text)
+    if (!queue) return { kind: 'error', error: { kind: 'server', status: q.status } }
+    const at = queue.findIndex(t => t.uri === uri)
+    if (at < 0) return { kind: 'gone' }
+    // a capped run would stop on some other track
+    if (at >= SKIP_MAX) return { kind: 'far' }
+    const next = commandRequest({ cmd: 'next' }, true)!
+    for (let i = 0; i <= at; i++) {
+      // awaited one by one: Spotify applies them in order, and a refusal (an ad, a restriction) stops the rest
+      const r = await c.send(next)
+      if (!r.ok) return { kind: 'error', error: r.error }
+    }
+    return { kind: 'done' }
+  } finally { c.skipping = false }
 }
