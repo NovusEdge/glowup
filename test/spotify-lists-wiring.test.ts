@@ -1,6 +1,6 @@
 import { expect } from 'claude-code/testing'
 import { runGlowup, test } from './kit.ts'
-import { LINUX_BUS, PHONE, TOKENS, boot, item, method, mountPlayer, path, start, text, tokens, walk, type Ans, type Req } from './spotify-kit.ts'
+import { AUTH, CLIENT, LINUX_BUS, PHONE, TOKENS, boot, item, method, mountPlayer, ok, path, start, text, tokens, walk, type Ans, type Boot, type Req } from './spotify-kit.ts'
 
 const RECENT = JSON.stringify({ items: [
   { track: item('r1', 'Old One'), context: { type: 'playlist', uri: 'spotify:playlist:pl1' } },
@@ -29,8 +29,8 @@ const select = (tree: any) => walk(tree).find(n => n?.props?.key === 'music-list
 const values = (tree: any) => select(tree)?.props.options.map((o: any) => o.value)
 const body = (reqs: Req[], p: string) => reqs.filter(r => path(r) === p && method(r) === 'PUT').map(r => JSON.parse(r.init!.body!))
 // opens the dialog connected and waits for its first list
-async function open($: any, on: any, api = lists()) {
-  const s = boot(on, { files: { [TOKENS]: tokens() }, runs: LINUX_BUS, api })
+async function open($: any, on: any, api = lists(), more: Boot = {}) {
+  const s = boot(on, { files: { [TOKENS]: tokens() }, runs: LINUX_BUS, api, ...more })
   const clock = await start($, on)
   await runGlowup($, 'music')
   const ui = await mountPlayer($)
@@ -192,4 +192,87 @@ test('a list that fails says why in one dim line, without a toast', async ($, on
   expect(text(await ui.drawn())).toContain('Spotify had a problem (503). glowup tries again shortly.')
   expect(s.toasts).toEqual([])
   await ui.unmount()
+})
+
+test('Enter on Recent, Playlists or Devices failing on a 5xx, a 429 or no answer says why inline', async ($, on) => {
+  const { s, clock, ui } = await open($, on, lists(r => {
+    if (method(r) === 'GET') return undefined
+    if (path(r) === '/me/player') return 'hang'
+    return { status: path(r) === '/me/player/play' && r.init?.body?.includes('pl1') ? 503 : 429 }
+  }))
+  await ui.press({ key: 'list-recent' })
+  await clock.advance(200)
+  await ui.select({ key: 'music-list', value: '0:spotify:track:r1' })
+  await clock.advance(200)
+  expect(text(await ui.drawn())).toContain('Spotify had a problem (503).')
+  await ui.press({ key: 'list-devices' })
+  await clock.advance(200)
+  await ui.select({ key: 'music-list', value: 'dk' })
+  await clock.advance(200)
+  s.expire()
+  await clock.advance(200)
+  expect(text(await ui.drawn())).toContain('Spotify did not answer.')
+  // last: the client holds every request for 5 s of wall-clock time after a 429, which the mock clock does not move
+  await ui.press({ key: 'list-playlists' })
+  await clock.advance(200)
+  await ui.select({ key: 'music-list', value: 'spotify:playlist:p1' })
+  await clock.advance(200)
+  expect(text(await ui.drawn())).toContain('Spotify asked glowup to slow down.')
+  expect(s.toasts).toEqual([])
+  await ui.unmount()
+})
+
+test('disconnecting and connecting again while a list load is out drops its late answer', async ($, on) => {
+  const files: Record<string, string> = { [TOKENS]: tokens() }
+  let hangRecent = true
+  const s = boot(on, {
+    files,
+    runs: LINUX_BUS,
+    run: k => { if (k === `/gi spotify-logout --file ${TOKENS}`) { delete files[TOKENS]; return ok() } },
+    api: lists(r => (path(r) === '/me/player/recently-played' && hangRecent ? 'hang' : undefined)),
+    spawn: async function* () { yield { stream: 'stdout', text: AUTH + '\n' }; files[TOKENS] = tokens(); return { code: 0, signal: null } },
+  })
+  const clock = await start($, on)
+  await runGlowup($, 'music')
+  const ui = await mountPlayer($)
+  for (let i = 0; i < 6; i++) await clock.advance(1000)
+  await ui.press({ key: 'list-recent' })
+  await clock.advance(200)
+  expect(count(s.reqs, '/me/player/recently-played')).toBe(1)
+  hangRecent = false
+  await runGlowup($, 'spotify disconnect')
+  await runGlowup($, 'spotify connect')
+  await ui.input({ key: 'input-client-id', text: CLIENT, kind: 'submit' })
+  await clock.advance(200)
+  expect(walk(await ui.drawn()).find(n => n?.props?.key === 'list-queue').props.variant).toBe('primary')
+  // the first connection's Recent read fails now; kept, its error would show instead of the rows
+  s.expire()
+  await clock.advance(200)
+  await ui.press({ key: 'list-recent' })
+  await clock.advance(200)
+  const tree = await ui.drawn()
+  expect(text(tree)).not.toContain('Spotify did not answer.')
+  expect(values(tree)).toEqual(['0:spotify:track:r1', '1:spotify:track:r2'])
+  await ui.unmount()
+})
+
+test('a 401 the refresh cannot fix during a list load drops the connection', async ($, on) => {
+  const { clock, ui } = await open($, on, lists(r => (path(r) === '/me/player/recently-played' ? { status: 401 } : undefined)), {
+    run: k => (k === `/gi spotify-refresh --file ${TOKENS} --if-gen 1` ? { exitCode: 3, stdout: '' } : undefined),
+  })
+  await ui.press({ key: 'list-recent' })
+  await clock.advance(200)
+  const tree = await ui.drawn()
+  expect(text(tree)).toContain('Spotify needs you to connect again.')
+  expect(walk(tree).some(n => n?.props?.key === 'list-recent')).toBe(false)
+  await ui.unmount()
+})
+
+test('closing the dialog stops the list timer', async ($, on) => {
+  const { s, clock, ui } = await open($, on)
+  await ui.unmount()
+  expect((await runGlowup($, 'music')).text).toBe('Music player closed')
+  const before = count(s.reqs, '/me/player/queue')
+  for (let i = 0; i < 20; i++) await clock.advance(1000)
+  expect(count(s.reqs, '/me/player/queue')).toBe(before)
 })

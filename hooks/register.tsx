@@ -723,7 +723,9 @@ function pressMusic($: Engine, cmd: MusicCmd) {
     // Only a 429 proves Spotify did nothing. After a 5xx, a timeout or a busy endpoint the write may still land, and
     // the local app would apply it twice (next skips two tracks; MPRIS PlayPause toggles an API pause back to playing).
     if (e.kind === 'rate' && route === 'apiThenLocal' && cmd.cmd !== 'like') return runLocal()
-    if (await refused($, e, cmd.cmd === 'like' ? undefined : runLocal)) return
+    const fromList = cmd.cmd === 'play' || cmd.cmd === 'playContext' || cmd.cmd === 'transfer'
+    if (await refused($, e, cmd.cmd === 'like' || fromList ? undefined : runLocal)) return
+    if (fromList) return musicNote($, listError(e), 'error', false)
     if (e.kind === 'busy' || e.kind === 'rate' || e.kind === 'server' || e.kind === 'offline') {
       return musicNote($, 'Spotify is not answering right now. Try again.', 'error', true)
     }
