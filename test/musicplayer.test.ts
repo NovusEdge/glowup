@@ -13,8 +13,8 @@ const walk = (n: any, out: any[] = []): any[] => {
   else if (n && typeof n === 'object') { out.push(n); for (const c of n.children ?? []) walk(c, out) }
   return out
 }
-// each Seg row Box (children all Texts), as the text it shows; the pitch, state and note lines wrap, so their Boxes are left out
-const rows = (tree: any) => walk(tree).filter(n => n?.type === 'Box' && !/^(pitch|state|note)/.test(String(n.props?.key)) && (n.children ?? []).length > 0 && n.children.every((c: any) => c?.type === 'Text'))
+// each Seg row Box (children all Texts), as the text it shows; the pitch, state, note and account lines wrap, so their Boxes are left out
+const rows = (tree: any) => walk(tree).filter(n => n?.type === 'Box' && !/^(pitch|state|note|wrap-)/.test(String(n.props?.key)) && (n.children ?? []).length > 0 && n.children.every((c: any) => c?.type === 'Text'))
   .map(n => walk(n).filter(x => typeof x === 'string').join(''))
 const keys = (tree: any) => walk(tree).map(n => n?.props?.key).filter(Boolean)
 const text = (tree: any) => walk(tree).filter(n => typeof n === 'string').join(' ')
@@ -132,4 +132,65 @@ test('a note shows under the player in its tone', () => {
   const n = walk(tree).find(x => x?.type === 'Text' && x.children?.[0] === 'Could not copy the link: no clipboard')
   expect(n.props.color).toBe(T.colors.fail)
   expect(n.props.wrap).toBe('wrap')
+})
+
+const find = (tree: any, key: string) => walk(tree).find(n => n?.props?.key === key)
+const elsI = { ...els, Input: 'Input' }
+
+test('the heart sits after the title and l toggles it, only when the like state is known', () => {
+  const liked = renderPlayer(els, playing({ liked: true }), T, view(), 0, extra)
+  expect(rows(liked).find(l => l.startsWith('BACK 2 THE BASICS'))).toMatch(/ ♥$/)
+  expect(find(liked, 'music-like').props.hotkey).toBe('l')
+  const cmds: unknown[] = []
+  find(renderPlayer(els, playing({ liked: false }), T, view(), 0, { ...extra, onMusic: c => cmds.push(c) }), 'music-like').onPress({})
+  expect(cmds).toEqual([{ cmd: 'like', on: true }])
+  expect(find(renderPlayer(els, playing(), T, view(), 0, extra), 'music-like')).toBeUndefined()
+})
+
+test('the right column walks the connect steps', () => {
+  const seen: string[] = []
+  const ex = { ...extra, onConnect: () => seen.push('connect'), onClientId: (id: string) => seen.push('id:' + id), onPaste: (t: string) => seen.push('paste:' + t), onCancel: () => seen.push('cancel'), onCopy: (u: string) => seen.push('copy:' + u) }
+  find(renderPlayer(elsI, playing(), T, view(), 0, ex), 'connect').onPress({})
+  const steps = renderPlayer(elsI, playing(), T, view({ account: { step: 'steps', error: 'A Client ID is 32 hex characters.' } }), 0, ex)
+  expect(text(steps)).toContain('3. Add the redirect URI http://127.0.0.1/callback.')
+  expect(text(steps)).toContain('A Client ID is 32 hex characters.')
+  find(steps, 'copy-dashboard').onPress({})
+  find(steps, 'copy-redirect').onPress({})
+  find(steps, 'input-client-id').onEvent({ kind: 'submit', value: 'abc' })
+  const waiting = renderPlayer(elsI, playing(), T, view({ account: { step: 'waiting', authUrl: 'https://accounts.spotify.com/authorize?x=1', notice: 'That address is not from this login.' } }), 0, ex)
+  expect(text(waiting)).toContain('Waiting for the browser…')
+  expect(text(waiting)).toContain('That address is not from this login.')
+  expect(find(waiting, 'input-paste').props.label).toBe('Or paste the address the browser ended on')
+  find(waiting, 'copy-auth').onPress({})
+  find(waiting, 'input-paste').onEvent({ kind: 'submit', value: 'http://127.0.0.1:5/callback?code=c&state=s' })
+  find(waiting, 'connect-cancel').onPress({})
+  expect(seen).toEqual(['connect', 'copy:https://developer.spotify.com/dashboard', 'copy:http://127.0.0.1/callback', 'id:abc', 'copy:https://accounts.spotify.com/authorize?x=1', 'paste:http://127.0.0.1:5/callback?code=c&state=s', 'cancel'])
+  // a surface without Input says where to paste instead
+  expect(find(renderPlayer(els, playing(), T, view({ account: { step: 'steps' } }), 0, ex), 'input-client-id')).toBeUndefined()
+})
+
+test('connected shows the account, Up next and the device; Reconnect and a refused file say so', () => {
+  const m = playing({ source: 'api', upNext: { uri: 'spotify:track:n', title: 'Next One', artist: 'Someone', durationMs: 1 }, device: { id: 'd', name: 'Desktop', type: 'Computer', isThisComputer: true } })
+  const t = text(renderPlayer(els, m, T, view({ account: { step: 'connected', name: 'Ada' } }), 0, extra))
+  expect(t).toContain('Connected as Ada.')
+  expect(t).toContain('Up next: Next One — Someone')
+  expect(t).toContain('on: Desktop (this computer)')
+  const again: string[] = []
+  const re = renderPlayer(els, playing(), T, view({ account: { step: 'reconnect' } }), 0, { ...extra, onConnect: () => again.push('k') })
+  expect(text(re)).toContain('Spotify needs you to connect again.')
+  find(re, 'connect').onPress({})
+  expect(again).toEqual(['k'])
+  expect(text(renderPlayer(els, playing(), T, view({ account: { step: 'refused', text: 'spotify.json was saved by a newer glowup.' } }), 0, extra))).toContain('newer glowup')
+})
+
+test('every account line wraps, so none runs past the right column', () => {
+  const ex = { ...extra, onConnect: () => {} }
+  const accounts = [{ step: 'pitch' }, { step: 'steps', error: 'A Client ID is 32 hex characters.' }, { step: 'waiting', authUrl: 'https://accounts.spotify.com/authorize?' + 'x'.repeat(200), notice: 'n' }, { step: 'connected', name: 'Ada' }, { step: 'reconnect' }, { step: 'refused', text: 'r' }] as const
+  for (const width of [30, 60, 88]) {
+    for (const account of accounts) {
+      const texts = walk(find(renderPlayer(elsI, playing(), T, view({ width, account }), 0, ex), 'right')).filter(n => n?.type === 'Text')
+      expect(texts.length).toBeGreaterThan(0)
+      for (const n of texts) expect(n.props.wrap).toBe('wrap')
+    }
+  }
 })
