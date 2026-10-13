@@ -179,7 +179,8 @@ function listRows(els: Els, t: Theme, v: { shown: ListId; state: ListState }, w:
   else {
     const active = rows.find(r => r.active)
     // no autoFocus: an Enter pressed on opening would start playback
-    body.push(<Select key="music-list" options={rows.map(r => ({ value: r.value, label: listLabel(r, Math.max(1, w - 2)) }))} {...(active && { value: active.value })} onSelect={(value: string) => extra.onPick?.(value)} />)
+    // keyed by list: a tab switch mounts a fresh Select, so the old cursor index does not carry over
+    body.push(<Box key={'list-box-' + v.shown}><Select key="music-list" options={rows.map(r => ({ value: r.value, label: listLabel(r, Math.max(1, w - 2)) }))} {...(active && { value: active.value })} onSelect={(value: string) => extra.onPick?.(value)} /></Box>)
   }
   if (st.status === 'error' && rows.length > 0) body.push(say(st.reason, 'list-error'))
   return [tabs, renderSegs(els, [{ text: '─'.repeat(Math.max(0, w)), color: c.faint }], 'list-rule'), ...body]

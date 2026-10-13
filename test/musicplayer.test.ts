@@ -251,6 +251,16 @@ test('Devices preselects the active one', () => {
   expect(find(renderPlayer(elsS, playing({ source: 'api' }), T, listed('devices', { status: 'ready', rows, at: 0 }), 0, extra), 'music-list').props.value).toBe('ph')
 })
 
+test('each list mounts its own Select, so a tab switch keeps no cursor', () => {
+  const st = { status: 'ready', rows: [lrow(0)], at: 0 }
+  const wrapperKey = (shown: any) => {
+    const tree = renderPlayer(elsS, playing({ source: 'api' }), T, listed(shown, st), 0, extra)
+    expect(find(tree, 'music-list')).toBeDefined()
+    return walk(tree).find(n => String(n?.props?.key).startsWith('list-box-'))?.props.key
+  }
+  expect([wrapperKey('queue'), wrapperKey('recent')]).toEqual(['list-box-queue', 'list-box-recent'])
+})
+
 test('without a Select the rows draw as text', () => {
   const tree = renderPlayer(els, playing({ source: 'api' }), T, listed('queue', { status: 'ready', rows: [lrow(0)], at: 0 }), 0, extra)
   expect(find(tree, 'music-list')).toBeUndefined()
@@ -269,7 +279,8 @@ test('no list row is wider than the grant', () => {
       const tree = renderPlayer(elsS, playing({ source: 'api' }), T, { ...listed('queue', state), width }, 0, extra)
       for (const l of rows(tree)) expect(cells(l)).toBeLessThanOrEqual(width)
       // the Select's rows are its option labels, which rows() cannot see
-      for (const o of find(tree, 'music-list')?.props.options ?? []) expect(cells(o.label)).toBeLessThanOrEqual(width)
+      const rw = width >= 80 ? width - 32 : width
+      for (const o of find(tree, 'music-list')?.props.options ?? []) expect(cells(o.label)).toBeLessThanOrEqual(rw - 2)
     }
   }
 })
@@ -281,5 +292,7 @@ test('no two buttons in the dialog share a hotkey', () => {
     const tree = renderPlayer({ ...elsI, Select: 'Select' }, playing({ source: 'api' }), T, view({ account }), 0, ex)
     const hot = walk(tree).filter(n => n?.type === 'Button' && n.props.hotkey).map(n => n.props.hotkey)
     expect(new Set(hot).size).toBe(hot.length)
+    // MAC caps (raise) and a track with a url put o and c in the left column
+    expect(hot).toEqual(expect.arrayContaining(['o', 'c']))
   }
 })
