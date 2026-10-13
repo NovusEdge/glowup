@@ -11,8 +11,9 @@ export const walk = (n: any, out: any[] = []): any[] => { if (typeof n === 'stri
 export const text = (tree: any) => walk(tree).filter(n => typeof n === 'string').join(' ')
 export const PANE_PROPS = (bodyRows = 40) => ({ title: 'glowup', isFocused: true, bodyColumns: 88, placement: 'dock', scroll: { offset: 0, bodyRows }, view: {} }) as never
 export const TOKENS = '/fake/.claude/glowup/spotify.json'
-// the nth login of the session has its own paste file
-export const PASTE = (n = 1) => `/fake/.claude/glowup/spotify-paste-${n}`
+// Each login has its own paste file, named with a per-session random tag, so a test reads it off the helper's argv.
+export const pasteOf = (s: { spawned: string[] }, n = 1) => s.spawned[n - 1]?.match(/--paste-file (\S+)/)?.[1] ?? ''
+export const LOGIN = (n = 1) => new RegExp(`^/gi spotify-login --client-id ${CLIENT} --out ${TOKENS} --paste-file /fake/\\.claude/glowup/spotify-paste-\\w+-${n}$`)
 export const CLIENT = '0123456789abcdef0123456789abcdef'
 export const AUTH = 'https://accounts.spotify.com/authorize?client_id=0123&state=st'
 export const tokens = (over: Record<string, unknown> = {}) => JSON.stringify({ format: 1, clientId: CLIENT, accessToken: 'at-1', refreshToken: 'rt-1', expiresAt: Date.now() + 3_600_000, scope: '', connectedAt: 0, gen: 1, ...over })
@@ -67,7 +68,7 @@ export function boot(on: any, o: Boot = {}) {
     if (given) return given
     if (argv[0] === 'mv' && argv.length === 3 && argv[1]! in s.files) { s.files[argv[2]!] = s.files[argv[1]!]!; delete s.files[argv[1]!]; return ok() }
     if (argv[0] === 'rm' && argv[1] === '-rf' && argv.length === 3) { delete s.files[argv[2]!]; return ok() }
-  },{ GLOWUP_BIN: '/gi', ...o.env })
+  }, { GLOWUP_BIN: '/gi', ...o.env })
   mock.store(on)
   on('command.register', async () => ({ value: undefined }) as never)
   on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)

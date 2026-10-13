@@ -8,8 +8,9 @@ export type Tokens = { format: number; clientId: string; accessToken: string; re
 export type TokenRead = { ok: true; tokens: Tokens } | { ok: false; why: 'missing' | 'newer' | 'damaged' }
 export const tokenFile = (configDir: string) => `${configDir}/glowup/spotify.json`
 // spotify-login polls this for an address pasted into the dialog. One file per login: a cancelled login's helper
-// lives on for minutes and would otherwise consume the next login's address.
-export const pasteFile = (configDir: string, seq: number) => `${configDir}/glowup/spotify-paste-${seq}`
+// lives on for minutes and would otherwise consume the next login's address. session is random per glowup process,
+// since the engine exposes no pid and two sessions (or a crashed one's helper) must not share a name.
+export const pasteFile = (configDir: string, session: string, seq: number) => `${configDir}/glowup/spotify-paste-${session}-${seq}`
 
 export async function readTokens(host: Host, path: string): Promise<TokenRead> {
   let text: string

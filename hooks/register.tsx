@@ -185,6 +185,7 @@ let premiumToasted = false
 let connectFlow: Extract<AccountView, { step: 'steps' | 'waiting' }> | undefined
 let login: { kill(): void; paste: string } | undefined
 let loginSeq = 0
+const pasteSession = Math.random().toString(36).slice(2, 8)
 const CLIENT_ID = /^[0-9a-f]{32}$/
 let modVersion: string | undefined
 // the plugin's userConfig, kept for loadSettings: an undo reloads settings outside register()
@@ -649,9 +650,10 @@ function pressMusic($: Engine, cmd: MusicCmd) {
       premiumToasted = true
       return cmd.cmd === 'like' ? undefined : runLocal()
     }
-    if (e.kind === 'offline' && route === 'apiThenLocal') return runLocal()
+    // Only a 429 proves Spotify did nothing. After a 5xx, a timeout or a busy endpoint the write may still land, and
+    // the local app would apply it twice (next skips two tracks; MPRIS PlayPause toggles an API pause back to playing).
+    if (e.kind === 'rate' && route === 'apiThenLocal' && cmd.cmd !== 'like') return runLocal()
     if (e.kind === 'busy' || e.kind === 'rate' || e.kind === 'server' || e.kind === 'offline') {
-      if (route === 'apiThenLocal' && cmd.cmd !== 'like') return runLocal()
       return musicNote($, 'Spotify is not answering right now. Try again.', 'error', true)
     }
     if (e.kind === 'noDevice') return musicNote($, 'Nothing is playing. Pick a device.', 'error', true)
@@ -665,7 +667,7 @@ async function startLogin($: Engine, raw: string) {
   // Claimed before the awaits below (a helper download can take seconds), so a dialog close or a second submit in that
   // window cancels this one instead of finding nothing to cancel and spawning a login nobody waits for.
   endLogin($)
-  const me = { kill: () => {}, paste: pasteFile(configDir, ++loginSeq) }
+  const me = { kill: () => {}, paste: pasteFile(configDir, pasteSession, ++loginSeq) }
   login = me
   const refuse = (error: string) => { login = undefined; connectFlow = { step: 'steps', error }; publish($) }
   const host = hostOf($), out = tokenFile(configDir)
