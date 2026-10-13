@@ -16,7 +16,7 @@ export async function readTokens(host: Host, path: string): Promise<TokenRead> {
   let o: Record<string, unknown>
   try { o = JSON.parse(text) } catch { return { ok: false, why: 'damaged' } }
   if (!o || typeof o !== 'object') return { ok: false, why: 'damaged' }
-  // The helper overwrites whatever file is there, so this check is the only thing keeping a newer glowup's tokens from being refreshed into the old format.
+  // spotify-login writes over whatever file is there, so connect's refusal of a newer file lives here; spotify-refresh refuses one itself.
   if (typeof o.format === 'number' && o.format > TOKENS_FORMAT) return { ok: false, why: 'newer' }
   const s = (v: unknown): v is string => typeof v === 'string' && v !== ''
   const n = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
@@ -60,6 +60,8 @@ export class TokenKeeper {
     // The helper is the only writer, so the file is the truth, even after exit 3: a racing session may have refreshed first.
     const again = await readTokens(this.host, this.path)
     if (again.ok && again.tokens.gen !== t.gen) { this.tokens = again.tokens; return { token: again.tokens.accessToken } }
+    // replaced by a newer glowup's file, or damaged, while the helper ran: stop spawning it
+    if (!again.ok && again.why !== 'missing') { this.state = again.why; return { error: again.why } }
     if (code === 3) { this.state = 'reconnect'; return { error: 'reconnect' } }
     // offline, or the helper failed: the old token while it lasts, unless Spotify already refused it
     return !rejected && t.expiresAt > now ? { token: t.accessToken } : { error: 'failed' }

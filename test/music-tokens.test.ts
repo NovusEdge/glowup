@@ -63,12 +63,38 @@ test('exit 3 means Reconnect, unless another session already refreshed', async (
 
 test('a failed refresh keeps the old token until it expires, and is not Reconnect', async () => {
   const { host } = fakeHost({ files: { [PATH]: file({ expiresAt: 30_000 }) } })
-  const keeper = new TokenKeeper(host, PATH, async () => 1)
+  let calls = 0
+  const keeper = new TokenKeeper(host, PATH, async () => { calls++; return 1 })
   await keeper.load()
   expect(await keeper.access(0)).toEqual({ token: 'at-1' })
   expect(await keeper.access(40_000)).toEqual({ error: 'failed' })
   expect(await keeper.access(0, 'at-1')).toEqual({ error: 'failed' })
   expect(keeper.status()).toBe('ok')
+  expect(calls).toBe(3)
+})
+
+test('a refresher that rejects is a failed refresh, and the next run spawns the helper again', async () => {
+  const { host } = fakeHost({ files: { [PATH]: file({ expiresAt: 30_000 }) } })
+  let calls = 0
+  const keeper = new TokenKeeper(host, PATH, async () => { calls++; throw new Error('spawn failed') })
+  await keeper.load()
+  expect(await keeper.access(40_000)).toEqual({ error: 'failed' })
+  expect(await keeper.access(40_000)).toEqual({ error: 'failed' })
+  expect(calls).toBe(2)
+  expect(keeper.status()).toBe('ok')
+})
+
+test('a file that turns newer or damaged during a refresh is remembered, and the helper is not spawned again', async () => {
+  for (const why of ['newer', 'damaged'] as const) {
+    const { host, files } = fakeHost({ files: { [PATH]: file({ expiresAt: 0 }) } })
+    let calls = 0
+    const keeper = new TokenKeeper(host, PATH, async () => { calls++; files[PATH] = why === 'newer' ? file({ format: 2 }) : '{'; return 0 })
+    await keeper.load()
+    expect(await keeper.access(1000)).toEqual({ error: why })
+    expect(keeper.status()).toBe(why)
+    expect(await keeper.access(1000)).toEqual({ error: why })
+    expect(calls).toBe(1)
+  }
 })
 
 test('a newer token file is refused and never refreshed', async () => {
