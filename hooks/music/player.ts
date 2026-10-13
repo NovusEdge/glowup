@@ -58,6 +58,9 @@ function keepProgress(m: Music, prev: Music | undefined, now: number): Music {
 export function routeOf(cmd: MusicCmd, m: Music | undefined, premium: boolean): Route {
   const o = m?.status === 'open' && m.source === 'api' && m.device ? m : undefined
   if (cmd.cmd === 'like') return o?.track?.uri ? 'api' : 'none'
+  // The lists' commands are API-only. They run with nothing active too: Spotify's NO_ACTIVE_DEVICE answer is what
+  // sends the person to Devices, and transfer is the way out of that state.
+  if (cmd.cmd === 'skipTo' || cmd.cmd === 'play' || cmd.cmd === 'playContext' || cmd.cmd === 'transfer') return m?.status === 'open' && m.source === 'api' ? 'api' : 'none'
   if (cmd.cmd === 'raise' || !o || !premium) return 'local'
   // the API can fail where the app on this computer still answers
   return o.device!.isThisComputer ? 'apiThenLocal' : 'api'

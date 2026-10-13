@@ -2,7 +2,7 @@
 import type { Host } from '../host.ts'
 import type { OpenMusic } from './parse.ts'
 import type { TokenKeeper } from './tokens.ts'
-import { apiError, parsePlayer, playerRequest, type ApiError, type ApiRequest } from './webapi.ts'
+import { apiError, commandRequest, parsePlayer, parsePlaylists, parseQueue, playerRequest, playlistsRequest, queueRequest, type ApiError, type ApiRequest, type PlaylistItem } from './webapi.ts'
 
 export const API_TIMEOUT_MS = 5000
 export type ApiAnswer = { ok: true; status: number; text: string; at: number } | { ok: false; error: ApiError }
@@ -45,7 +45,8 @@ export class SpotifyClient {
   }
 
   private fetch(r: ApiRequest, token: string, onSettled: () => void) {
-    return this.host.fetch(r.url, { method: r.method, headers: { Authorization: `Bearer ${token}` }, timeoutMs: API_TIMEOUT_MS, onSettled }).catch(() => undefined)
+    const headers: Record<string, string> = { Authorization: `Bearer ${token}`, ...(r.body !== undefined && { 'Content-Type': 'application/json' }) }
+    return this.host.fetch(r.url, { method: r.method, headers, ...(r.body !== undefined && { body: r.body }), timeoutMs: API_TIMEOUT_MS, onSettled }).catch(() => undefined)
   }
 }
 
@@ -57,4 +58,41 @@ export async function readPlayer(c: SpotifyClient): Promise<PlayerRead> {
   if (a.status === 204 || !a.text.trim()) return { ok: true, at: a.at }
   const music = parsePlayer(a.text, a.at)
   return music ? { ok: true, at: a.at, music } : { ok: false, error: { kind: 'server', status: a.status } }
+}
+
+export const SKIP_MAX = 20
+// 20 pages of 50: past a thousand playlists the list stops rather than polling on
+export const PLAYLIST_PAGES = 20
+
+export async function allPlaylists(c: SpotifyClient): Promise<{ ok: true; items: PlaylistItem[] } | { ok: false; error: ApiError }> {
+  const items: PlaylistItem[] = []
+  let next: string | undefined
+  for (let page = 0; page < PLAYLIST_PAGES; page++) {
+    const a = await c.send(playlistsRequest(next))
+    if (!a.ok) return a
+    const p = parsePlaylists(a.text)
+    if (!p) return { ok: false, error: { kind: 'server', status: a.status } }
+    items.push(...p.items)
+    if (!p.next) break
+    next = p.next
+  }
+  return { ok: true, items }
+}
+
+// busy: another queue read was still out, so nothing was skipped
+export type SkipResult = { kind: 'done' } | { kind: 'gone' } | { kind: 'busy' } | { kind: 'error'; error: ApiError }
+// The Web API cannot jump within the queue, only skip: so skipTo carries the target's URI, not an index,
+// re-reads the queue (it may have moved since the list was drawn) and sends next until the target plays.
+export async function skipTo(c: SpotifyClient, uri: string): Promise<SkipResult> {
+  const q = await c.send(queueRequest())
+  if (!q.ok) return q.error.kind === 'busy' ? { kind: 'busy' } : { kind: 'error', error: q.error }
+  const at = (parseQueue(q.text) ?? []).findIndex(t => t.uri === uri)
+  if (at < 0) return { kind: 'gone' }
+  const next = commandRequest({ cmd: 'next' }, true)!
+  for (let i = 0; i < Math.min(at + 1, SKIP_MAX); i++) {
+    // awaited one by one: Spotify applies them in order, and a refusal (an ad, a restriction) stops the rest
+    const r = await c.send(next)
+    if (!r.ok) return { kind: 'error', error: r.error }
+  }
+  return { kind: 'done' }
 }
