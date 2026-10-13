@@ -1,0 +1,67 @@
+// The Spotify token file. Only glowup-installer writes it (spotify-login, -refresh and -logout), so its mode
+// stays 0600; this side reads it and asks the helper for a refresh.
+import type { Host } from '../host.ts'
+import { needsRefresh } from './webapi.ts'
+
+export const TOKENS_FORMAT = 1
+export type Tokens = { format: number; clientId: string; accessToken: string; refreshToken: string; expiresAt: number; scope: string; connectedAt: number; gen: number }
+export type TokenRead = { ok: true; tokens: Tokens } | { ok: false; why: 'missing' | 'newer' | 'damaged' }
+export const tokenFile = (configDir: string) => `${configDir}/glowup/spotify.json`
+// spotify-login polls this for an address pasted into the dialog
+export const pasteFile = (configDir: string) => `${configDir}/glowup/spotify-paste`
+
+export async function readTokens(host: Host, path: string): Promise<TokenRead> {
+  let text: string
+  try { text = await host.readFile(path) } catch { return { ok: false, why: 'missing' } }
+  let o: Record<string, unknown>
+  try { o = JSON.parse(text) } catch { return { ok: false, why: 'damaged' } }
+  if (!o || typeof o !== 'object') return { ok: false, why: 'damaged' }
+  // The helper overwrites whatever file is there, so this check is the only thing keeping a newer glowup's tokens from being refreshed into the old format.
+  if (typeof o.format === 'number' && o.format > TOKENS_FORMAT) return { ok: false, why: 'newer' }
+  const s = (v: unknown): v is string => typeof v === 'string' && v !== ''
+  const n = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+  if (o.format !== TOKENS_FORMAT || !s(o.clientId) || !s(o.accessToken) || !s(o.refreshToken) || !n(o.expiresAt)) return { ok: false, why: 'damaged' }
+  return { ok: true, tokens: { format: TOKENS_FORMAT, clientId: o.clientId, accessToken: o.accessToken, refreshToken: o.refreshToken, expiresAt: o.expiresAt, scope: typeof o.scope === 'string' ? o.scope : '', connectedAt: n(o.connectedAt) ? o.connectedAt : 0, gen: n(o.gen) ? o.gen : 0 } }
+}
+
+// Runs `spotify-refresh --if-gen gen` and resolves its exit code: 0 refreshed (by this run or a racing one), 3 refused.
+export type Refresher = (gen: number) => Promise<number>
+export type Access = { token: string } | { error: 'none' | 'newer' | 'damaged' | 'reconnect' | 'failed' }
+
+export class TokenKeeper {
+  private tokens: Tokens | undefined
+  private state: 'ok' | 'none' | 'newer' | 'damaged' | 'reconnect' = 'none'
+  private flight: Promise<Access> | undefined
+  constructor(private host: Host, readonly path: string, private refresher: Refresher) {}
+
+  async load(): Promise<TokenRead> {
+    const r = await readTokens(this.host, this.path)
+    this.tokens = r.ok ? r.tokens : undefined
+    this.state = r.ok ? 'ok' : r.why === 'missing' ? 'none' : r.why
+    return r
+  }
+  status() { return this.state }
+  // Spotify answered 401 to a token that was just refreshed
+  lost() { this.state = 'reconnect' }
+
+  // A token to send. It refreshes first in the token's last minute, or when rejected is the token Spotify just answered 401 to.
+  async access(now: number, rejected?: string): Promise<Access> {
+    const t = this.tokens
+    if (this.state !== 'ok' || !t) return { error: this.state === 'ok' ? 'none' : this.state }
+    const stale = rejected === undefined ? needsRefresh(t.expiresAt, now) : rejected === t.accessToken
+    if (!stale) return { token: t.accessToken }
+    // one refresh at a time in this session: callers that arrive meanwhile wait for the same one
+    this.flight ??= this.refresh(t, now, rejected !== undefined).finally(() => { this.flight = undefined })
+    return this.flight
+  }
+
+  private async refresh(t: Tokens, now: number, rejected: boolean): Promise<Access> {
+    const code = await this.refresher(t.gen).catch(() => 1)
+    // The helper is the only writer, so the file is the truth, even after exit 3: a racing session may have refreshed first.
+    const again = await readTokens(this.host, this.path)
+    if (again.ok && again.tokens.gen !== t.gen) { this.tokens = again.tokens; return { token: again.tokens.accessToken } }
+    if (code === 3) { this.state = 'reconnect'; return { error: 'reconnect' } }
+    // offline, or the helper failed: the old token while it lasts, unless Spotify already refused it
+    return !rejected && t.expiresAt > now ? { token: t.accessToken } : { error: 'failed' }
+  }
+}
