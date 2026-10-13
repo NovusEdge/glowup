@@ -161,6 +161,14 @@ test('the right column walks the connect steps', () => {
   expect(text(waiting)).toContain('Waiting for the browser…')
   expect(text(waiting)).toContain('That address is not from this login.')
   expect(find(waiting, 'input-paste').props.label).toBe('Or paste the address the browser ended on')
+  // the engine's Tab ring never reached these fields, so they take the keyboard when their step shows
+  expect(find(steps, 'input-client-id').props.autoFocus).toBe(true)
+  expect(find(waiting, 'input-paste').props.autoFocus).toBe(true)
+  for (const account of [{ step: 'pitch' }, { step: 'reconnect' }, { step: 'connected', name: 'Ada' }] as const) {
+    const t = renderPlayer(elsI, playing(), T, view({ account }), 0, ex)
+    expect(find(t, 'input-client-id')).toBeUndefined()
+    expect(find(t, 'input-paste')).toBeUndefined()
+  }
   find(waiting, 'copy-auth').onPress({})
   find(waiting, 'input-paste').onEvent({ kind: 'submit', value: 'http://127.0.0.1:5/callback?code=c&state=s' })
   find(waiting, 'connect-cancel').onPress({})

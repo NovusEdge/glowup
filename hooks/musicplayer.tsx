@@ -107,7 +107,7 @@ function accountRows(els: Els, t: Theme, a: AccountView, s: Music, extra: Player
           {button('copy-redirect', 'Copy redirect URI', 'u', () => extra.onCopy(REDIRECT_URI))}
         </Box>,
         Input
-          ? <Input key="input-client-id" label="Client ID" value="" submitLabel="connect" onSubmit={(v: string) => extra.onClientId?.(v)} />
+          ? <Input key="input-client-id" autoFocus label="Client ID" value="" submitLabel="connect" onSubmit={(v: string) => extra.onClientId?.(v)} />
           : line('Run /glowup spotify connect in a terminal to paste it.', 'no-input'),
         ...(a.error ? [line(a.error, 'error', c.fail)] : []),
       ]
@@ -116,7 +116,7 @@ function accountRows(els: Els, t: Theme, a: AccountView, s: Music, extra: Player
       return [
         line('Waiting for the browser…', 'title', c.text),
         ...(url ? [line(url, 'auth'), <Box key="copy-auth-row">{button('copy-auth', 'Copy address', 'w', () => extra.onCopy(url))}</Box>] : []),
-        ...(Input ? [<Input key="input-paste" label="Or paste the address the browser ended on" value="" submitLabel="send" onSubmit={(v: string) => extra.onPaste?.(v)} />] : []),
+        ...(Input ? [<Input key="input-paste" autoFocus label="Or paste the address the browser ended on" value="" submitLabel="send" onSubmit={(v: string) => extra.onPaste?.(v)} />] : []),
         ...(a.notice ? [line(a.notice, 'notice', c.fail)] : []),
         <Box key="cancel-row">{button('connect-cancel', 'Cancel', 'x', () => extra.onCancel?.())}</Box>,
       ]
