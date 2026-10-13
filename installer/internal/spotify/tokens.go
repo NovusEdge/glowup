@@ -70,11 +70,20 @@ func WriteTokens(path string, t Tokens) error {
 		os.Remove(f.Name())
 		return err
 	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		os.Remove(f.Name())
+		return err
+	}
 	if err := f.Close(); err != nil {
 		os.Remove(f.Name())
 		return err
 	}
-	return os.Rename(f.Name(), path)
+	if err := os.Rename(f.Name(), path); err != nil {
+		os.Remove(f.Name())
+		return err
+	}
+	return nil
 }
 
 // Auth talks to Spotify's token endpoint; TokenURL and Now are fields so tests can stand in.

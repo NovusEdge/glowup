@@ -193,7 +193,9 @@ func TestLoginPasteWrongState(t *testing.T) {
 		t.Fatalf("notice = %q", lines.Text())
 	}
 	addr := "http://127.0.0.1:" + itoa(port) + "/callback?code=ok&state=" + url.QueryEscape(auth.Query().Get("state"))
-	_ = os.WriteFile(paste, []byte(addr), 0o600)
+	if err := os.WriteFile(paste, []byte(addr), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	if err := <-done; err != nil {
 		t.Fatal(err)
 	}
@@ -239,6 +241,51 @@ func TestLoginTimesOut(t *testing.T) {
 	_, _, done, _ := startLogin(t, srv, t.TempDir(), 100*time.Millisecond)
 	if err := <-done; err == nil || !strings.Contains(err.Error(), "timed out") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestLoginSecondCallbackDoesNotHoldTheShutdown(t *testing.T) {
+	ts := &tokenServer{reply: func(url.Values) (int, string) {
+		time.Sleep(300 * time.Millisecond)
+		return 200, grant
+	}}
+	srv := ts.start(t)
+	auth, _, done, port := startLogin(t, srv, t.TempDir(), 10*time.Second)
+	cb := "http://127.0.0.1:" + itoa(port) + "/callback?code=c&state=" + url.QueryEscape(auth.Query().Get("state"))
+	start := time.Now()
+	go func() {
+		if resp, err := http.Get(cb); err == nil {
+			resp.Body.Close()
+		}
+	}()
+	time.Sleep(100 * time.Millisecond)
+	go func() {
+		if resp, err := http.Get(cb); err == nil {
+			resp.Body.Close()
+		}
+	}()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	// Shutdown waits up to 2s for a handler still blocked on the first run's channel
+	if d := time.Since(start); d > 1500*time.Millisecond {
+		t.Fatalf("Run took %v", d)
+	}
+}
+
+func TestWriteTokensLeavesNoTempFileOnFailure(t *testing.T) {
+	dir := t.TempDir()
+	// a non-empty directory at the target makes the rename fail
+	target := filepath.Join(dir, "spotify.json")
+	if err := os.MkdirAll(filepath.Join(target, "keep"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteTokens(target, Tokens{Format: TokensFormat, AccessToken: "x"}); err == nil {
+		t.Fatal("expected the rename to fail")
+	}
+	left, _ := filepath.Glob(filepath.Join(dir, ".spotify-*"))
+	if len(left) != 0 {
+		t.Fatalf("temp files left: %v", left)
 	}
 }
 

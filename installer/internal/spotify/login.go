@@ -84,6 +84,8 @@ func (l Login) Run(ctx context.Context) error {
 	_ = l.Open(auth)
 
 	got := make(chan callback)
+	// Run takes one callback; a later one would block on got until Shutdown gave up on it.
+	finished := make(chan struct{})
 	srv := &http.Server{ReadHeaderTimeout: 10 * time.Second, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/callback" {
 			http.NotFound(w, r)
@@ -102,6 +104,9 @@ func (l Login) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			http.Error(w, "glowup stopped waiting for this login.", http.StatusGone)
 			return
+		case <-finished:
+			http.Error(w, "This login already finished.", http.StatusGone)
+			return
 		}
 		if err := <-cb.done; err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -112,6 +117,7 @@ func (l Login) Run(ctx context.Context) error {
 	})}
 	go func() { _ = srv.Serve(l.Listener) }()
 	defer func() {
+		close(finished)
 		sctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(sctx)
@@ -120,15 +126,13 @@ func (l Login) Run(ctx context.Context) error {
 	if l.PasteFile != "" {
 		go l.watchPaste(ctx, state, got)
 	}
-	for {
-		select {
-		case <-ctx.Done():
-			return errors.New("timed out waiting for the browser")
-		case cb := <-got:
-			err := l.finish(ctx, cb.q, redirect, verifier)
-			cb.done <- err
-			return err
-		}
+	select {
+	case <-ctx.Done():
+		return errors.New("timed out waiting for the browser")
+	case cb := <-got:
+		err := l.finish(ctx, cb.q, redirect, verifier)
+		cb.done <- err
+		return err
 	}
 }
 
@@ -214,7 +218,7 @@ func LoginMain(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	if !clientIDPattern.MatchString(*id) || *out == "" || fs.NArg() != 0 {
-		fmt.Fprintln(stderr, "usage: glowup-installer spotify-login --client-id ID --out FILE [--paste-file FILE] (ID is 32 hex characters)")
+		fmt.Fprintln(stderr, "usage: glowup-installer spotify-login --client-id ID --out FILE [--paste-file FILE] [--timeout D] (ID is 32 hex characters)")
 		return 2
 	}
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
