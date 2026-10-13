@@ -1,6 +1,6 @@
 import { expect } from 'claude-code/testing'
 import { test } from './kit.ts'
-import { EMPTY, deviceRows, expire, initialLists, listError, loadingFrom, needsLoad, playlistRows, queueRows, recentRows, rowsOf, skipText, type ListRow, type ListState } from '../hooks/music/lists.ts'
+import { EMPTY, deviceRows, expire, initialLists, listError, loadingFrom, needsLoad, playlistRows, pressError, queueRows, recentRows, rowsOf, skipText, type ListRow, type ListState } from '../hooks/music/lists.ts'
 
 const row = (v: string): ListRow => ({ value: v, title: v, detail: '', right: '', cmd: { cmd: 'play', uri: v } })
 const ready = (at: number, forUri?: string): ListState => ({ status: 'ready', rows: [row('a')], at, ...(forUri && { forUri }) })
@@ -89,10 +89,21 @@ test('what an empty or failed list says', () => {
   expect(listError({ kind: 'busy' })).toBe('Spotify did not answer. glowup tries again shortly.')
 })
 
+test('a failed row press asks for another press, not a retry', () => {
+  const again = 'Spotify is not answering right now. Try again.'
+  for (const e of [{ kind: 'offline' }, { kind: 'server', status: 503 }, { kind: 'rate', untilMs: 1 }, { kind: 'busy' }] as const) {
+    expect(pressError(e)).toBe(again)
+    expect(listError(e)).toContain('tries again shortly')
+  }
+  expect(pressError({ kind: 'refused', reason: 'UNKNOWN' })).toBe(listError({ kind: 'refused', reason: 'UNKNOWN' }))
+  expect(pressError({ kind: 'premium' })).toBe(listError({ kind: 'premium' }))
+})
+
 test('what a skip that did not land says', () => {
   expect(skipText({ kind: 'far' })).toBe('That track is too far down the queue.')
   expect(skipText({ kind: 'busy' })).toBe('Still reading the queue, try again.')
   expect(skipText({ kind: 'gone' })).toBe('That track already left the queue.')
-  expect(skipText({ kind: 'error', error: { kind: 'server', status: 502 } })).toBe(listError({ kind: 'server', status: 502 }))
+  expect(skipText({ kind: 'error', error: { kind: 'server', status: 502 } })).toBe('Spotify is not answering right now. Try again.')
+  expect(skipText({ kind: 'error', error: { kind: 'noDevice' } })).toBe(listError({ kind: 'noDevice' }))
   expect(skipText({ kind: 'done' })).toBe('')
 })

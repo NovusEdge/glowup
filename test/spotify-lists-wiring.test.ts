@@ -194,7 +194,8 @@ test('a list that fails says why in one dim line, without a toast', async ($, on
   await ui.unmount()
 })
 
-test('Enter on Recent, Playlists or Devices failing on a 5xx, a 429 or no answer says why inline', async ($, on) => {
+test('Enter on Recent, Playlists or Devices failing on a 5xx, a 429 or no answer asks for another press inline', async ($, on) => {
+  const again = 'Spotify is not answering right now. Try again.'
   const { s, clock, ui } = await open($, on, lists(r => {
     if (method(r) === 'GET') return undefined
     if (path(r) === '/me/player') return 'hang'
@@ -204,20 +205,21 @@ test('Enter on Recent, Playlists or Devices failing on a 5xx, a 429 or no answer
   await clock.advance(200)
   await ui.select({ key: 'music-list', value: '0:spotify:track:r1' })
   await clock.advance(200)
-  expect(text(await ui.drawn())).toContain('Spotify had a problem (503).')
+  expect(text(await ui.drawn())).toContain(again)
+  expect(text(await ui.drawn())).not.toContain('tries again shortly')
   await ui.press({ key: 'list-devices' })
   await clock.advance(200)
   await ui.select({ key: 'music-list', value: 'dk' })
   await clock.advance(200)
   s.expire()
   await clock.advance(200)
-  expect(text(await ui.drawn())).toContain('Spotify did not answer.')
+  expect(text(await ui.drawn())).toContain(again)
   // last: the client holds every request for 5 s of wall-clock time after a 429, which the mock clock does not move
   await ui.press({ key: 'list-playlists' })
   await clock.advance(200)
   await ui.select({ key: 'music-list', value: 'spotify:playlist:p1' })
   await clock.advance(200)
-  expect(text(await ui.drawn())).toContain('Spotify asked glowup to slow down.')
+  expect(text(await ui.drawn())).toContain(again)
   expect(s.toasts).toEqual([])
   await ui.unmount()
 })

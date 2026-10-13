@@ -54,7 +54,7 @@ import { TokenKeeper, pasteFile, readTokens, tokenFile } from './music/tokens.ts
 import { SpotifyClient, allPlaylists, readPlayer, skipTo } from './music/spotify.ts'
 import { apiDelay, capsOf, mergeMusic, routeOf, type Link } from './music/player.ts'
 import { commandRequest, devicesRequest, likeRequest, likedRequest, meRequest, parseDevices, parseLiked, parseMe, parseQueue, parseRecent, queueRequest, recentRequest, type ApiError } from './music/webapi.ts'
-import { deviceRows, expire, initialLists, listError, loadingFrom, needsLoad, playlistRows, queueRows, recentRows, rowsOf, skipText, type ListId, type ListRow, type ListState, type Lists } from './music/lists.ts'
+import { deviceRows, expire, initialLists, listError, loadingFrom, needsLoad, playlistRows, pressError, queueRows, recentRows, rowsOf, skipText, type ListId, type ListRow, type ListState, type Lists } from './music/lists.ts'
 import { detached, ensureBinary, moveFile, pickTerminal, platformOf, releaseTarget, removeTree, shellLine, type TermEnv } from './launch.ts'
 
 type Engine = EngineInterface
@@ -725,7 +725,7 @@ function pressMusic($: Engine, cmd: MusicCmd) {
     if (e.kind === 'rate' && route === 'apiThenLocal' && cmd.cmd !== 'like') return runLocal()
     const fromList = cmd.cmd === 'play' || cmd.cmd === 'playContext' || cmd.cmd === 'transfer'
     if (await refused($, e, cmd.cmd === 'like' || fromList ? undefined : runLocal)) return
-    if (fromList) return musicNote($, listError(e), 'error', false)
+    if (fromList) return musicNote($, pressError(e), 'error', false)
     if (e.kind === 'busy' || e.kind === 'rate' || e.kind === 'server' || e.kind === 'offline') {
       return musicNote($, 'Spotify is not answering right now. Try again.', 'error', true)
     }

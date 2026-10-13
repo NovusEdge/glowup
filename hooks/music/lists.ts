@@ -82,12 +82,20 @@ export function listError(e: ApiError): string {
   }
 }
 
+// A pressed row is not retried, unlike a list load (15 s), so the transient failures ask the user to press again.
+export function pressError(e: ApiError): string {
+  switch (e.kind) {
+    case 'server': case 'rate': case 'busy': case 'offline': return 'Spotify is not answering right now. Try again.'
+    default: return listError(e)
+  }
+}
+
 export function skipText(r: SkipResult): string {
   switch (r.kind) {
     case 'done': return ''
     case 'gone': return 'That track already left the queue.'
     case 'far': return 'That track is too far down the queue.'
     case 'busy': return 'Still reading the queue, try again.'
-    case 'error': return listError(r.error)
+    case 'error': return pressError(r.error)
   }
 }
