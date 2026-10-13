@@ -50,6 +50,8 @@ Once connected, the player's right column has four lists. Press `1` to `4` to sw
 
 Recent plays a track alone when it came from anything but an album or a playlist, such as an artist page or Liked Songs.
 
+When the same track is queued twice, Up next skips to its first copy.
+
 Up next refreshes when the track changes and every 15 seconds while it is on screen, Recent when the track changes, Devices every 15 seconds and each time you open the list, and Playlists once each time the player opens. If a refresh fails, the rows stay and a line under them says why; glowup tries again after 15 seconds.
 
 Spotify cannot jump within the queue, so skipping to the fourth track skips four times. If the track has already left the queue, the player says so and reloads the list; a track more than 20 down the queue gets "That track is too far down the queue." Spotify also cannot remove or reorder queued tracks. If a queue read is still out when you press Enter, the player says "Still reading the queue, try again." and skips nothing.
