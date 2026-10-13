@@ -20,6 +20,11 @@ export type MusicCmd =
   | { cmd: 'repeat'; mode: Repeat }
   | { cmd: 'volume'; level: number }
   | { cmd: 'like'; on: boolean }
+  | { cmd: 'skipTo'; uri: string }
+  | { cmd: 'play'; uri: string }
+  // offset starts the context at that track, so what follows it is what followed it when it last played
+  | { cmd: 'playContext'; uri: string; offset?: string }
+  | { cmd: 'transfer'; deviceId: string }
 export type Extras = Pick<OpenMusic, 'shuffle' | 'repeat' | 'volume'>
 
 const isAd = (id: string) => id.startsWith('/com/spotify/ad/') || id.startsWith('spotify:ad:')

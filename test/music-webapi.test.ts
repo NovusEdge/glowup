@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { apiError, commandRequest, likedRequest, likeRequest, meRequest, needsRefresh, parseLiked, parseMe, parsePlayer, parseQueue, playerRequest, queueRequest } from '../hooks/music/webapi.ts'
+import { apiError, commandRequest, devicesRequest, likedRequest, likeRequest, meRequest, needsRefresh, parseDevices, parseLiked, parseMe, parsePlayer, parsePlaylists, parseQueue, parseRecent, playerRequest, playlistsRequest, queueRequest, recentRequest } from '../hooks/music/webapi.ts'
 
 // Recorded shapes of the Web API's answers, trimmed to the fields glowup reads.
 const ITEM = {
@@ -85,4 +85,62 @@ test('errors by status and Spotify reason', () => {
 test('a token is refreshed in its last minute', () => {
   expect(needsRefresh(100_000, 40_001)).toBe(true)
   expect(needsRefresh(100_000, 40_000)).toBe(false)
+})
+
+test('the list requests', () => {
+  expect(recentRequest()).toEqual({ method: 'GET', url: 'https://api.spotify.com/v1/me/player/recently-played?limit=20' })
+  expect(playlistsRequest()).toEqual({ method: 'GET', url: 'https://api.spotify.com/v1/me/playlists?limit=50' })
+  expect(playlistsRequest('https://api.spotify.com/v1/me/playlists?offset=50&limit=50').url).toBe('https://api.spotify.com/v1/me/playlists?offset=50&limit=50')
+  expect(devicesRequest()).toEqual({ method: 'GET', url: 'https://api.spotify.com/v1/me/player/devices' })
+})
+
+test('play, play in a context, and transfer carry JSON bodies', () => {
+  expect(commandRequest({ cmd: 'play', uri: 'spotify:track:a' }, false)).toEqual({ method: 'PUT', url: 'https://api.spotify.com/v1/me/player/play', body: '{"uris":["spotify:track:a"]}' })
+  expect(commandRequest({ cmd: 'playContext', uri: 'spotify:playlist:p', offset: 'spotify:track:a' }, false)!.body).toBe('{"context_uri":"spotify:playlist:p","offset":{"uri":"spotify:track:a"}}')
+  expect(commandRequest({ cmd: 'playContext', uri: 'spotify:playlist:p' }, false)!.body).toBe('{"context_uri":"spotify:playlist:p"}')
+  expect(commandRequest({ cmd: 'transfer', deviceId: 'dk' }, false)).toEqual({ method: 'PUT', url: 'https://api.spotify.com/v1/me/player', body: '{"device_ids":["dk"],"play":true}' })
+  expect(commandRequest({ cmd: 'skipTo', uri: 'spotify:track:a' }, true)).toBeUndefined()
+})
+
+test('recently played: the track and the context it played in', () => {
+  const RECENT = JSON.stringify({ items: [
+    { track: ITEM, played_at: '2026-10-12T10:00:00Z', context: { type: 'playlist', uri: 'spotify:playlist:pl1' } },
+    { track: { ...ITEM, uri: 'spotify:track:b', name: 'B' }, played_at: '2026-10-12T09:00:00Z', context: null },
+    { track: null },
+  ] })
+  expect(parseRecent(RECENT)).toEqual([
+    { uri: 'spotify:track:tid', title: 'BACK 2 THE BASICS', artist: 'Double A-Ron, Guest', durationMs: 174000, contextUri: 'spotify:playlist:pl1' },
+    { uri: 'spotify:track:b', title: 'B', artist: 'Double A-Ron, Guest', durationMs: 174000 },
+  ])
+  expect(parseRecent('{}')).toBeUndefined()
+})
+
+test('playlists: the page, its track count under either name, and the next page', () => {
+  const page = JSON.stringify({ items: [
+    { uri: 'spotify:playlist:p1', name: 'Focus', owner: { display_name: 'Ada', id: 'ada' }, items: { total: 12 } },
+    { uri: 'spotify:playlist:p2', name: 'Old', owner: { display_name: null, id: 'bob' }, tracks: { total: 1 } },
+  ], next: 'https://api.spotify.com/v1/me/playlists?offset=50&limit=50' })
+  expect(parsePlaylists(page)).toEqual({ items: [
+    { uri: 'spotify:playlist:p1', name: 'Focus', owner: 'Ada', tracks: 12 },
+    { uri: 'spotify:playlist:p2', name: 'Old', owner: 'bob', tracks: 1 },
+  ], next: 'https://api.spotify.com/v1/me/playlists?offset=50&limit=50' })
+  expect(parsePlaylists(JSON.stringify({ items: [], next: null }))).toEqual({ items: [] })
+  expect(parsePlaylists('[]')).toBeUndefined()
+})
+
+test('a next page off the API host is dropped', () => {
+  expect(parsePlaylists(JSON.stringify({ items: [], next: 'https://evil.example/v1/me/playlists?offset=50' }))).toEqual({ items: [] })
+  expect(parsePlaylists(JSON.stringify({ items: [], next: 'http://api.spotify.com/v1/me/playlists?offset=50' }))).toEqual({ items: [] })
+})
+
+test('devices: the active one, and none without an id', () => {
+  expect(parseDevices(JSON.stringify({ devices: [
+    { id: 'ph', is_active: true, name: 'Pixel 9', type: 'Smartphone' },
+    { id: 'dk', is_active: false, name: 'Desktop', type: 'Computer' },
+    { id: null, is_active: false, name: 'Restricted', type: 'Speaker' },
+  ] }))).toEqual([
+    { id: 'ph', name: 'Pixel 9', type: 'Smartphone', active: true },
+    { id: 'dk', name: 'Desktop', type: 'Computer', active: false },
+  ])
+  expect(parseDevices('{}')).toBeUndefined()
 })
