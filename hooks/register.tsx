@@ -609,7 +609,10 @@ async function openPlayer($: Engine, fromPane: boolean): Promise<string> {
     return { isPlaced: false as const, reason }
   })
   if (!r.isPlaced) {
-    if (reopenPane) { reopenPane = false; await $.ui.open(PANE_OPEN) }
+    if (reopenPane) {
+      reopenPane = false
+      await $.ui.open(PANE_OPEN).catch((err: unknown) => { $.ui.log(`glowup pane reopen failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' }) })
+    }
     return `Music player waits: ${r.reason}`
   }
   void pollMusic($)
