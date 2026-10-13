@@ -485,9 +485,9 @@ async function pollApi($: Engine) {
   // the local track as the read goes out: without it the merge takes any local track that differs from the API's
   // for a change the API has not seen, and another computer's track flips with this one's on every local poll
   const asked = localUri()
-  const r = await readPlayer(s.client)
+  let r: Awaited<ReturnType<typeof readPlayer>>
+  try { r = await readPlayer(s.client) } finally { if (mine === apiSeq) apiReading = false }
   if (mine !== apiSeq) return
-  apiReading = false
   if (off || s !== spotify || !link) return
   const intervalMs = apiDelay(musicPlaying(), musicInSight)
   if (r.ok) link.last = { at: r.at, ...(r.music && { music: r.music }), ...(asked && { localUri: asked }), intervalMs }
@@ -645,15 +645,20 @@ function pressMusic($: Engine, cmd: MusicCmd) {
 async function startLogin($: Engine, raw: string) {
   const id = raw.trim().toLowerCase()
   if (!CLIENT_ID.test(id)) { connectFlow = { step: 'steps', error: "A Client ID is 32 hex characters; copy it from your app's page on the dashboard." }; return publish($) }
-  const host = hostOf($), out = tokenFile(configDir)
-  // spotify-login writes over any file, so a newer glowup's that appeared since the steps opened is checked here too
-  const now = await readTokens(host, out)
-  if (!now.ok && now.why === 'newer') { connectFlow = { step: 'steps', error: refusedText('newer') }; return publish($) }
-  const bin = await installerBinary($, await installerTarget($))
-  if ('error' in bin) { connectFlow = { step: 'steps', error: `Connecting needs glowup-installer: ${bin.error}` }; return publish($) }
+  // Claimed before the awaits below (a helper download can take seconds), so a dialog close or a second submit in that
+  // window cancels this one instead of finding nothing to cancel and spawning a login nobody waits for.
   login?.kill()
   const me = { kill: () => {} }
   login = me
+  const refuse = (error: string) => { login = undefined; connectFlow = { step: 'steps', error }; publish($) }
+  const host = hostOf($), out = tokenFile(configDir)
+  // spotify-login writes over any file, so a newer glowup's that appeared since the steps opened is checked here too
+  const now = await readTokens(host, out)
+  if (login !== me) return
+  if (!now.ok && now.why === 'newer') return refuse(refusedText('newer'))
+  const bin = await installerBinary($, await installerTarget($))
+  if (login !== me) return
+  if ('error' in bin) return refuse(`Connecting needs glowup-installer: ${bin.error}`)
   let lastErr = ''
   connectFlow = { step: 'waiting' }
   publish($)
@@ -722,8 +727,8 @@ async function spotifyCommand($: Engine, action: 'status' | 'connect' | 'disconn
     // a newer glowup's file is never overwritten
     if (!r.ok && r.why === 'newer') return refusedText('newer')
     if (r.ok && !lostIt) return 'Spotify is already connected. Run /glowup spotify disconnect first to connect another account.'
-    connectFlow = { step: 'steps' }
-    publish($)
+    // a login already waiting is stopped, so its later exit cannot connect behind the new steps
+    cancelLogin($, { step: 'steps' })
     // opens the player, or brings an open one forward at the steps: never the toggle /glowup music uses
     return openPlayer($, false, false)
   }

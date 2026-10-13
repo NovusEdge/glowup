@@ -72,24 +72,24 @@ test('a refused refresh is Reconnect: local only, no heart, and both the command
   await ui.unmount()
 })
 
-test('a hung API request falls back to local and does not pile up', async ($, on) => {
-  const s = boot(on, { files: { [TOKENS]: tokens() }, runs: { ...LINUX_BUS, [BUS]: ok(localRead('l', 'Local Song')) }, api: r => (path(r) === '/me/player' ? 'hang' : PHONE(r)) })
+test('a hung API request keeps the last good read up and does not pile up', async ($, on) => {
+  let reads = 0
+  const s = boot(on, { files: { [TOKENS]: tokens() }, runs: { ...LINUX_BUS, [BUS]: ok(localRead('l', 'Local Song')) }, api: r => (path(r) === '/me/player' && method(r) === 'GET' ? (reads++ === 0 ? PHONE(r) : 'hang') : PHONE(r)) })
   const clock = await start($, on)
-  await clock.advance(4000)
-  expect(players(s.reqs)).toBe(1)
-  const pane = await mountPane($)
-  await pane.press({ key: 'tab-music' })
-  await clock.advance(100)
-  const t = text(await pane.drawn())
-  expect(t).toContain('Local Song')
-  expect(t).toContain('Spotify (local)')
+  // the first read answers; coming into sight asks again, and that read hangs
+  const pane = await musicTab($, s, clock)
+  expect(text(await pane.drawn())).toContain('Phone Song')
+  expect(players(s.reqs)).toBe(2)
   // the 5 s timeout gives up on the answer, but the request is still out, so no poll sends another
   for (let i = 0; i < 26; i++) await clock.advance(1000)
-  expect(players(s.reqs)).toBe(1)
+  expect(players(s.reqs)).toBe(2)
+  // A timed-out read leaves the good one up while it is fresh, with no toast. When it goes stale the local app shows
+  // (test/music-player.test.ts): the merge reads Date.now(), which mock.clock does not move, and the engine's is read-only.
+  expect(text(await pane.drawn())).toContain('Phone Song')
   // once the engine's request ends, the next poll asks again
   s.expire()
   for (let i = 0; i < 16; i++) await clock.advance(1000)
-  expect(players(s.reqs)).toBe(2)
+  expect(players(s.reqs)).toBe(3)
   expect(s.toasts).toEqual([])
   await pane.unmount()
 })
@@ -310,6 +310,86 @@ test('a token file a newer glowup writes while the steps show is not logged in o
   expect(s.spawned).toEqual([])
   expect(text(await ui.drawn())).toContain('newer glowup')
   await ui.unmount()
+})
+
+test('closing the dialog while the login looks up its helper stops it before it starts', async ($, on) => {
+  let ui: any
+  const s = boot(on, { runs: LINUX_BUS, run: async k => {
+    // the helper lookup is the slow step (a download); the person closes the dialog meanwhile
+    if (k === 'uname -m') { await runGlowup($, 'music'); return ok('x86_64') }
+  }, spawn: async function* () { yield { stream: 'stdout', text: AUTH + '\n' }; return { code: 0, signal: null } } })
+  const clock = await start($, on)
+  await runGlowup($, 'spotify connect')
+  ui = await mountPlayer($)
+  await ui.input({ key: 'input-client-id', text: CLIENT, kind: 'submit' })
+  await clock.advance(100)
+  expect(s.closes.map((c: any) => c.id)).toEqual(['glowup-music'])
+  expect(s.spawned).toEqual([])
+  await ui.unmount()
+})
+
+test('a second Client ID submitted while the first looks up its helper starts one login', async ($, on) => {
+  let ui: any, second = true, exit = (_code: number) => {}
+  const exited = new Promise<number>(r => { exit = r })
+  const s = boot(on, { runs: LINUX_BUS, run: async k => {
+    if (k === 'uname -m' && second) { second = false; void ui.input({ key: 'input-client-id', text: CLIENT, kind: 'submit' }) }
+    if (k === 'uname -m') return ok('x86_64')
+  }, spawn: async function* () { yield { stream: 'stdout', text: AUTH + '\n' }; return { code: await exited, signal: null } } })
+  const clock = await start($, on)
+  await runGlowup($, 'spotify connect')
+  ui = await mountPlayer($)
+  await ui.input({ key: 'input-client-id', text: CLIENT, kind: 'submit' })
+  for (let i = 0; i < 3; i++) await clock.advance(100)
+  expect(s.spawned).toEqual([`/gi spotify-login --client-id ${CLIENT} --out ${TOKENS} --paste-file ${PASTE}`])
+  expect(text(await ui.drawn())).toContain('Waiting for the browser…')
+  exit(1)
+  await ui.unmount()
+})
+
+test('/glowup spotify connect during a waiting login stops it, so its exit cannot connect', async ($, on) => {
+  let exit = (_code: number) => {}
+  const exited = new Promise<number>(r => { exit = r })
+  const s = boot(on, { runs: LINUX_BUS, spawn: async function* () { yield { stream: 'stdout', text: AUTH + '\n' }; return { code: await exited, signal: null } } })
+  const clock = await start($, on)
+  await runGlowup($, 'spotify connect')
+  const ui = await mountPlayer($)
+  await ui.input({ key: 'input-client-id', text: CLIENT, kind: 'submit' })
+  await clock.advance(100)
+  expect(text(await ui.drawn())).toContain('Waiting for the browser…')
+  expect((await runGlowup($, 'spotify connect')).text).toBe('Music player open (Esc closes it)')
+  expect(text(await ui.drawn())).toContain('Paste the Client ID below.')
+  exit(0)
+  await clock.advance(200)
+  expect(text(await ui.drawn())).toContain('Paste the Client ID below.')
+  expect(s.reqs).toEqual([])
+  await ui.unmount()
+})
+
+test('a damaged token file stays local, says so, is never refreshed, and connect may replace it', async ($, on) => {
+  const s = boot(on, { files: { [TOKENS]: '{"format":1,' }, runs: LINUX_BUS })
+  const clock = await start($, on)
+  await clock.advance(1000)
+  expect(s.reqs).toEqual([])
+  expect((await runGlowup($, 'spotify')).text).toBe(`${TOKENS} is damaged. /glowup spotify disconnect removes it; then connect again.`)
+  await runGlowup($, 'music')
+  let ui = await mountPlayer($)
+  expect(text(await ui.drawn())).toContain(`${TOKENS} is damaged.`)
+  await ui.unmount()
+  expect((await runGlowup($, 'spotify connect')).text).toBe('Music player open (Esc closes it)')
+  ui = await mountPlayer($)
+  await ui.input({ key: 'input-client-id', text: CLIENT, kind: 'submit' })
+  await clock.advance(100)
+  expect(s.spawned).toEqual([`/gi spotify-login --client-id ${CLIENT} --out ${TOKENS} --paste-file ${PASTE}`])
+  expect(s.ran.some(k => k.includes('spotify-refresh'))).toBe(false)
+  await ui.unmount()
+})
+
+test('Windows without a connection says to connect', async ($, on) => {
+  const s = boot(on, { env: { OS: 'Windows_NT' } })
+  const clock = await start($, on)
+  const pane = await musicTab($, s, clock)
+  expect(text(await pane.drawn())).toContain('Connect Spotify to use the player on Windows.')
+  await pane.unmount()
 })
 
 test('Windows: no local player, but a connected session gets the API player', async ($, on) => {

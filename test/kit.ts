@@ -78,7 +78,7 @@ export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<s
 
 // Answers $.env, $.fs and $.process from memory, so a wiring test can never reach
 // the real config directory. Call it first in any test that loads the mod's hooks.
-export function fakeFs(on: On, files: Record<string, string> = {}, ran?: (argv: string[]) => { exitCode: number; stdout: string } | void, env: Record<string, string> = {}, beforeWrite?: (path: string) => Promise<void> | void) {
+export function fakeFs(on: On, files: Record<string, string> = {}, ran?: (argv: string[]) => { exitCode: number; stdout: string } | void | Promise<{ exitCode: number; stdout: string } | void>, env: Record<string, string> = {}, beforeWrite?: (path: string) => Promise<void> | void) {
   mock.env(on, { HOME: '/fake', CLAUDE_CONFIG_DIR: '/fake/.claude', ...env })
   const writes: string[] = []
   const mtimes: Record<string, number> = {}
@@ -95,6 +95,6 @@ export function fakeFs(on: On, files: Record<string, string> = {}, ran?: (argv: 
     return { value: { kind: 'file', size: files[e.path]!.length, mtimeMs: mtimes[e.path] ?? Date.now(), isLink: false } } as never
   })
   on('settings.read', async () => ({ value: {} }) as never)
-  on('process.run', async (_$, e) => ({ value: { exitCode: 1, stdout: '', stderr: '', ...ran?.((e as { argv: string[] }).argv) } }) as never)
+  on('process.run', async (_$, e) => ({ value: { exitCode: 1, stdout: '', stderr: '', ...(await ran?.((e as { argv: string[] }).argv)) } }) as never)
   return { files, writes, mtimes }
 }

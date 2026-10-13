@@ -35,7 +35,8 @@ type Chunk = { stream: 'stdout' | 'stderr'; text: string }
 export type Boot = {
   files?: Record<string, string>
   runs?: Record<string, { exitCode: number; stdout: string }>
-  run?: (argv: string) => { exitCode: number; stdout: string } | undefined
+  // a promise holds the command until it settles, for a test that acts while one is out
+  run?: (argv: string) => { exitCode: number; stdout: string } | undefined | Promise<{ exitCode: number; stdout: string } | undefined>
   api?: (r: Req) => Ans
   env?: Record<string, string>
   spawn?: (argv: string[]) => AsyncGenerator<Chunk, { code: number | null; signal: null }>
