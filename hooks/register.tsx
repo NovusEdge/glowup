@@ -51,9 +51,10 @@ import { MusicReader, pickBackend, type Platform } from './music/reader.ts'
 import { ArtCache, coverRows, parseArt, smallArtUrl } from './music/art.ts'
 import type { SeekBarProps } from './music/seek.ts'
 import { TokenKeeper, pasteFile, readTokens, tokenFile } from './music/tokens.ts'
-import { SpotifyClient, readPlayer } from './music/spotify.ts'
+import { SpotifyClient, allPlaylists, readPlayer, skipTo } from './music/spotify.ts'
 import { apiDelay, capsOf, mergeMusic, routeOf, type Link } from './music/player.ts'
-import { commandRequest, likeRequest, likedRequest, meRequest, parseLiked, parseMe, parseQueue, queueRequest } from './music/webapi.ts'
+import { commandRequest, devicesRequest, likeRequest, likedRequest, meRequest, parseDevices, parseLiked, parseMe, parseQueue, parseRecent, queueRequest, recentRequest, type ApiError } from './music/webapi.ts'
+import { deviceRows, expire, initialLists, listError, loadingFrom, needsLoad, playlistRows, queueRows, recentRows, rowsOf, skipText, type ListId, type ListRow, type ListState, type Lists } from './music/lists.ts'
 import { detached, ensureBinary, moveFile, pickTerminal, platformOf, releaseTarget, removeTree, shellLine, type TermEnv } from './launch.ts'
 
 type Engine = EngineInterface
@@ -186,6 +187,14 @@ let connectFlow: Extract<AccountView, { step: 'steps' | 'waiting' }> | undefined
 let login: { kill(): void; paste: string } | undefined
 let loginSeq = 0
 const pasteSession = Math.random().toString(36).slice(2, 8)
+// The dialog's lists. They live only while the dialog is open: closing it, /clear, Reconnect and disconnect drop them,
+// and listSeq drops an answer that lands after that.
+let lists: Lists = initialLists()
+let listTimer: Timer | undefined
+let listSeq = 0
+// What the dialog last drew. A write that lands while the dialog draws does not draw it again, so the
+// list's answer can sit unshown until something else publishes; the 5 s tick publishes when this lags.
+let listsDrawn: Lists | undefined
 const CLIENT_ID = /^[0-9a-f]{32}$/
 let modVersion: string | undefined
 // the plugin's userConfig, kept for loadSettings: an undo reloads settings outside register()
@@ -527,6 +536,7 @@ function lose($: Engine) {
   stopApi()
   spotify?.keeper.lost()
   link = undefined
+  dropLists()
   showMusic($)
   publish($)
 }
@@ -538,7 +548,7 @@ const refusedText = (why: 'newer' | 'damaged') => why === 'newer'
 // What the right column shows when no connect is under way.
 function restingAccount(): AccountView {
   const st = spotify?.keeper.status()
-  if (link) return { step: 'connected', ...(spotifyName && { name: spotifyName }) }
+  if (link) return { step: 'connected', ...(spotifyName && { name: spotifyName }), lists: { shown: lists.shown, state: lists.byId[lists.shown] } }
   if (st === 'reconnect') return { step: 'reconnect' }
   if (st === 'newer' || st === 'damaged') return { step: 'refused', text: refusedText(st) }
   return { step: 'pitch' }
@@ -559,7 +569,9 @@ async function startSpotify($: Engine) {
   spotify = s
   link = r.ok ? {} : undefined
   spotifyName = undefined
-  if (r.ok) { void pollApi($); void readName($, s) }
+  // a new connection, a disconnect or another account: no list from before carries over
+  dropLists()
+  if (r.ok) { void pollApi($); void readName($, s); void loadShown($) }
   showMusic($)
 }
 async function readName($: Engine, s: Spotify) {
@@ -568,6 +580,68 @@ async function readName($: Engine, s: Spotify) {
   if (!name || s !== spotify) return
   spotifyName = name
   publish($)
+}
+
+function setList($: Engine, id: ListId, s: ListState) {
+  lists = { ...lists, byId: { ...lists.byId, [id]: s } }
+  publish($)
+}
+
+async function fetchList(s: Spotify, id: ListId): Promise<{ rows: ListRow[] } | { error: ApiError }> {
+  if (id === 'playlists') {
+    const a = await allPlaylists(s.client)
+    return a.ok ? { rows: playlistRows(a.items) } : { error: a.error }
+  }
+  const a = await s.client.send(id === 'queue' ? queueRequest() : id === 'recent' ? recentRequest() : devicesRequest())
+  if (!a.ok) return { error: a.error }
+  let rows: ListRow[] | undefined
+  if (id === 'queue') { const q = parseQueue(a.text); rows = q && queueRows(q) }
+  else if (id === 'recent') { const r = parseRecent(a.text); rows = r && recentRows(r) }
+  else { const d = parseDevices(a.text); rows = d && deviceRows(d) }
+  return rows ? { rows } : { error: { kind: 'server', status: a.status } }
+}
+
+// Loads the list on screen when its reload rule says so. The dialog's 5 s timer calls it, and so do a list switch and a transfer.
+async function loadShown($: Engine) {
+  const s = spotify, seq = listSeq
+  if (off || !s || !link || !(await musicShown($)).player || seq !== listSeq) return
+  // the engine's clock, not Date.now(): mock.clock moves only $.clock, and the 15 s reloads are tested on it.
+  // It refuses once the session is torn down, which a timer tick can straddle.
+  const now = await $.clock.now().catch(() => undefined)
+  if (now === undefined || seq !== listSeq) return
+  const id = lists.shown, before = lists.byId[id]
+  const m = model.music, uri = m?.status === 'open' ? m.track?.uri : undefined
+  if (!needsLoad(id, before, now, uri)) { if (listsDrawn !== lists) publish($); return }
+  setList($, id, loadingFrom(before))
+  const got = await fetchList(s, id)
+  if (seq !== listSeq || s !== spotify) return
+  const at = await $.clock.now().catch(() => undefined), forUri = uri ? { forUri: uri } : {}
+  if (at === undefined || seq !== listSeq) return
+  if ('rows' in got) return setList($, id, { status: 'ready', rows: got.rows, at, ...forUri })
+  if (got.error.kind === 'reconnect') return lose($)
+  // busy: the tab's own Up next read holds the endpoint; the next tick asks again
+  if (got.error.kind === 'busy') return setList($, id, before)
+  setList($, id, { status: 'error', rows: rowsOf(before), reason: listError(got.error), at, ...forUri })
+}
+
+function startLists($: Engine) {
+  listTimer?.cancel()
+  listTimer = $.clock.every(5000, () => void loadShown($))
+  void loadShown($)
+}
+function dropLists() { listSeq++; lists = initialLists(model.music) }
+function stopLists() { dropLists(); listTimer?.cancel(); listTimer = undefined }
+
+function showList($: Engine, id: ListId) {
+  lists = { ...(id === 'devices' ? expire(lists, 'devices') : lists), shown: id }
+  publish($)
+  void loadShown($)
+}
+
+// Values are looked up at press time, so a row a reload removed does nothing.
+function pickRow($: Engine, value: string) {
+  const row = rowsOf(lists.byId[lists.shown]).find(r => r.value === value)
+  if (row) pressMusic($, row.cmd)
 }
 
 async function startMusic($: Engine) {
@@ -581,6 +655,7 @@ async function startMusic($: Engine) {
 function stopMusic($: Engine) {
   musicSeq++; musicTimer?.cancel(); musicTimer = undefined; musicReader = undefined
   stopApi()
+  stopLists()
   endLogin($)
 }
 // The login's helper polls its paste file for as long as it lives, so the file goes when the login does.
@@ -632,6 +707,7 @@ function pressMusic($: Engine, cmd: MusicCmd) {
     const route = routeOf(cmd, m, s?.client.premium ?? true)
     if (route === 'none') return
     if (route === 'local' || !s) return runLocal()
+    if (cmd.cmd === 'skipTo') return skipToTrack($, s, cmd.uri)
     const uri = m?.status === 'open' ? m.track?.uri : undefined
     const req = cmd.cmd === 'like' ? (uri ? likeRequest(uri, cmd.on) : undefined) : commandRequest(cmd, m?.status === 'open' && m.playing)
     if (!req) return
@@ -639,26 +715,53 @@ function pressMusic($: Engine, cmd: MusicCmd) {
     if (s !== spotify) return
     if (a.ok) {
       if (cmd.cmd === 'like' && uri && link) { link.liked = { uri, on: cmd.on }; showMusic($) }
+      if (cmd.cmd === 'transfer') { lists = expire(lists, 'devices'); void loadShown($) }
       void pollApi($)
       return
     }
-    // Spotify's error text is never shown: it is the raw body, which nobody vetted for what it carries
     const e = a.error
-    if (e.kind === 'reconnect') return lose($)
-    if (e.kind === 'premium') {
-      await musicNote($, 'Spotify playback control needs Premium, so glowup uses the Spotify app on this computer for it.', 'error', !premiumToasted)
-      premiumToasted = true
-      return cmd.cmd === 'like' ? undefined : runLocal()
-    }
     // Only a 429 proves Spotify did nothing. After a 5xx, a timeout or a busy endpoint the write may still land, and
     // the local app would apply it twice (next skips two tracks; MPRIS PlayPause toggles an API pause back to playing).
     if (e.kind === 'rate' && route === 'apiThenLocal' && cmd.cmd !== 'like') return runLocal()
+    if (await refused($, e, cmd.cmd === 'like' ? undefined : runLocal)) return
     if (e.kind === 'busy' || e.kind === 'rate' || e.kind === 'server' || e.kind === 'offline') {
       return musicNote($, 'Spotify is not answering right now. Try again.', 'error', true)
     }
-    if (e.kind === 'noDevice') return musicNote($, 'Nothing is playing. Pick a device.', 'error', true)
-    if (e.kind === 'refused') return musicNote($, 'Spotify refused that right now.', 'ok', true)
   })()
+}
+
+// What a refused API command shows; false when it shows nothing. runLocal is the local fallback for transport after
+// PREMIUM_REQUIRED: the list commands have no local form, so for them only the note shows.
+// Spotify's error text is never shown: it is the raw body, which nobody vetted for what it carries.
+async function refused($: Engine, e: ApiError, runLocal?: () => Promise<void>): Promise<boolean> {
+  if (e.kind === 'reconnect') { lose($); return true }
+  if (e.kind === 'premium') {
+    await musicNote($, 'Spotify playback control needs Premium, so glowup uses the Spotify app on this computer for it.', 'error', !premiumToasted)
+    premiumToasted = true
+    await runLocal?.()
+    return true
+  }
+  if (e.kind === 'noDevice') {
+    // Devices is the way out: it can start playback on any device Spotify knows
+    if ((await musicShown($)).player) showList($, 'devices')
+    await musicNote($, 'Nothing is playing. Pick a device.', 'error', true)
+    return true
+  }
+  if (e.kind === 'refused') { await musicNote($, 'Spotify refused that right now.', 'ok', true); return true }
+  return false
+}
+
+async function skipToTrack($: Engine, s: Spotify, uri: string) {
+  const r = await skipTo(s.client, uri)
+  if (s !== spotify) return
+  // busy: another queue read was still out (the list's reload or the tab's Up next), so nothing moved; else the queue
+  // may have, and Up next reloads
+  if (r.kind !== 'busy') lists = expire(lists, 'queue')
+  const said = r.kind === 'error' && (await refused($, r.error))
+  if (!said && r.kind !== 'done') await musicNote($, skipText(r), r.kind === 'error' ? 'error' : 'ok', false)
+  if (r.kind === 'busy') return
+  void pollApi($)
+  void loadShown($)
 }
 
 async function startLogin($: Engine, raw: string) {
@@ -955,6 +1058,8 @@ async function openPlayer($: Engine, fromPane: boolean, toggle = !fromPane): Pro
     return `Music player waits: ${r.reason}`
   }
   void pollMusic($)
+  lists = initialLists(model.music)
+  startLists($)
   return 'Music player open (Esc closes it)'
 }
 
@@ -1231,6 +1336,8 @@ async function adoptSession($: Engine, endedId: string, cleared = false) {
   const id = await $.session.id()
   const { limits, xp, music } = model
   model = { ...initialModel(), limits, xp, music, ...(cleared && { compactAt: Date.now() }) }
+  // the music and the connection carry over a /clear; the lists, like everything else on screen, start again
+  if (cleared) dropLists()
   turnGain = { green: 0, commits: 0 }
   pendingLevelUp = undefined
   view = { tab: setup.tabs[0]! }
@@ -1781,6 +1888,7 @@ export const register: Register = (on, options) => {
     // Through JSON because Client props refuse undefined fields.
     const client = (key: string) => (props: SeekBarProps) => <els.Client key={key} module="./client/seekbar.tsx" props={JSON.parse(JSON.stringify(props))} width={props.cols} />
     const caps = musicCapsFor(m)
+    listsDrawn = lists
     return renderPlayer(els, m, theme, {
       width: e.props.bodyColumns,
       bodyRows: e.props.scroll.bodyRows,
@@ -1795,6 +1903,8 @@ export const register: Register = (on, options) => {
       onClientId: id => void startLogin($, id),
       onPaste: text => void pastedAddress($, text),
       onCancel: () => cancelLogin($, { step: 'steps' }),
+      onList: id => showList($, id),
+      onPick: value => pickRow($, value),
       ...(clients && { seek: client('glowup-seek'), volume: client('glowup-volume') }),
     })
   })
@@ -1803,6 +1913,7 @@ export const register: Register = (on, options) => {
     if (off || e.id !== PLAYER_ID) return next(e)
     const r = await next(e)
     playerNote = undefined
+    stopLists()
     // the connect flow belongs to the dialog: closing it stops a waiting login
     if (connectFlow) cancelLogin($, undefined)
     // an unload is the mod going away, and a hot-reloaded module has nothing to reopen

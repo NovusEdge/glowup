@@ -92,7 +92,7 @@ test('what an empty or failed list says', () => {
 test('what a skip that did not land says', () => {
   expect(skipText({ kind: 'far' })).toBe('That track is too far down the queue.')
   expect(skipText({ kind: 'busy' })).toBe('Still reading the queue, try again.')
-  expect(skipText({ kind: 'gone' })).toBe('That track is no longer in the queue.')
+  expect(skipText({ kind: 'gone' })).toBe('That track already left the queue.')
   expect(skipText({ kind: 'error', error: { kind: 'server', status: 502 } })).toBe(listError({ kind: 'server', status: 502 }))
   expect(skipText({ kind: 'done' })).toBe('')
 })

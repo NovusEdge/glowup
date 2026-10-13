@@ -85,7 +85,7 @@ export function listError(e: ApiError): string {
 export function skipText(r: SkipResult): string {
   switch (r.kind) {
     case 'done': return ''
-    case 'gone': return 'That track is no longer in the queue.'
+    case 'gone': return 'That track already left the queue.'
     case 'far': return 'That track is too far down the queue.'
     case 'busy': return 'Still reading the queue, try again.'
     case 'error': return listError(r.error)
