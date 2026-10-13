@@ -193,6 +193,31 @@ function hostOf($: Engine): Host {
       $.http.fetch(url).then(r => { timer.cancel(); resolve({ ok: r.ok, status: r.status, text: r.text }) },
         err => { timer.cancel(); reject(err) })
     }),
+    fetch: (url, init) => new Promise((resolve, reject) => {
+      const timer = $.clock.after(init.timeoutMs, () => reject(new Error(`timed out after ${init.timeoutMs / 1000} s`)))
+      $.http.fetch(url, { method: init.method ?? 'GET', ...(init.headers && { headers: init.headers }), ...(init.body !== undefined && { body: init.body }) })
+        .then(r => { timer.cancel(); resolve({ status: r.status, headers: r.headers, text: r.text }) }, err => { timer.cancel(); reject(err) })
+    }),
+    spawn: (argv, onLine) => {
+      const child = $.process.spawn({ argv })
+      let killed = false
+      const done = (async () => {
+        // a piece of output can end mid-line, or hold several lines
+        const held = { stdout: '', stderr: '' }
+        try {
+          for await (const { stream, text } of child) {
+            const lines = (held[stream] + text).split('\n')
+            held[stream] = lines.pop()!
+            for (const l of lines) onLine(stream, l.replace(/\r$/, ''))
+            // leaving the loop is what kills the child
+            if (killed) return null
+          }
+          for (const s of ['stdout', 'stderr'] as const) if (held[s]) onLine(s, held[s])
+          return killed ? null : (await child.result).code
+        } catch { return null }
+      })()
+      return { done, kill: () => { killed = true; void child.return({ code: null, signal: null }).catch(() => {}) } }
+    },
     storeGet: key => $.store.get(key),
     storeSet: (key, value) => $.store.set(key, value),
     storeDelete: key => $.store.delete(key),
