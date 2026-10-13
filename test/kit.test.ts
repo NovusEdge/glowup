@@ -24,3 +24,8 @@ test('fakeHost answers fetch from its handler and records each request; spawn st
   expect(killed).toEqual(['gi spotify-login'])
   expect(await fakeHost().host.fetch('https://h', { timeoutMs: 1 }).catch((e: Error) => e.message)).toBe('offline')
 })
+
+test('fakeHost spawn resolves null when the child could not start', async () => {
+  const { host } = fakeHost({ spawns: async () => { throw new Error('ENOENT') } })
+  expect(await host.spawn(['nope'], () => {}).done).toBeNull()
+})

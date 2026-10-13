@@ -204,17 +204,22 @@ function hostOf($: Engine): Host {
       const done = (async () => {
         // a piece of output can end mid-line, or hold several lines
         const held = { stdout: '', stderr: '' }
+        const line = (s: string) => s.replace(/\r$/, '')
+        // an onLine that throws is the caller's bug: it ends the child but must reach done
+        let bad: { error: unknown } | undefined
         try {
           for await (const { stream, text } of child) {
             const lines = (held[stream] + text).split('\n')
             held[stream] = lines.pop()!
-            for (const l of lines) onLine(stream, l.replace(/\r$/, ''))
+            try { for (const l of lines) onLine(stream, line(l)) } catch (error) { bad = { error }; break }
             // leaving the loop is what kills the child
             if (killed) return null
           }
-          for (const s of ['stdout', 'stderr'] as const) if (held[s]) onLine(s, held[s])
-          return killed ? null : (await child.result).code
-        } catch { return null }
+        } catch { if (!bad) return null }
+        if (bad) throw bad.error
+        if (killed) return null
+        for (const s of ['stdout', 'stderr'] as const) if (held[s]) onLine(s, line(held[s]))
+        try { return (await child.result).code } catch { return null }
       })()
       return { done, kill: () => { killed = true; void child.return({ code: null, signal: null }).catch(() => {}) } }
     },

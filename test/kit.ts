@@ -57,7 +57,7 @@ export function fakeHost(opts: { files?: Record<string, string>; runs?: Record<s
       spawned.push(key)
       let kill = () => {}
       const stopped = new Promise<null>(r => { kill = () => { killed.push(key); r(null) } })
-      return { done: Promise.race([opts.spawns ? opts.spawns([...argv], onLine) : Promise.resolve(127), stopped]), kill: () => kill() }
+      return { done: Promise.race([opts.spawns ? opts.spawns([...argv], onLine).catch(() => null) : Promise.resolve(127), stopped]), kill: () => kill() }
     },
     storeGet: async k => store[k],
     storeSet: async (k, v) => { store[k] = v },
