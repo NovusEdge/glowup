@@ -183,7 +183,8 @@ let spotifyName: string | undefined
 let premiumToasted = false
 // The right column while a connect is under way; undefined shows restingAccount().
 let connectFlow: Extract<AccountView, { step: 'steps' | 'waiting' }> | undefined
-let login: { kill(): void } | undefined
+let login: { kill(): void; paste: string } | undefined
+let loginSeq = 0
 const CLIENT_ID = /^[0-9a-f]{32}$/
 let modVersion: string | undefined
 // the plugin's userConfig, kept for loadSettings: an undo reloads settings outside register()
@@ -576,10 +577,22 @@ async function startMusic($: Engine) {
   await startSpotify($)
   void pollMusic($)
 }
-function stopMusic() {
+function stopMusic($: Engine) {
   musicSeq++; musicTimer?.cancel(); musicTimer = undefined; musicReader = undefined
   stopApi()
-  login?.kill(); login = undefined
+  endLogin($)
+}
+// The login's helper polls its paste file for as long as it lives, so the file goes when the login does.
+function endLogin($: Engine, l = login) {
+  if (l === login) login = undefined
+  if (!l) return
+  l.kill()
+  void dropPaste($, l.paste)
+}
+async function dropPaste($: Engine, dest: string) {
+  const host = hostOf($), platform = (await onWindows($)) ? 'windows' : 'linux'
+  await removeTree(host, dest, platform)
+  await removeTree(host, `${dest}.tmp`, platform)
 }
 // The installer binary, looked up once per session for covers and token refreshes: a missing one stays missing.
 const helperPath = ($: Engine) => (artBin ??= installerTarget($).then(t => installerBinary($, t)).then(b => ('path' in b ? b.path : undefined), () => undefined))
@@ -637,6 +650,10 @@ function pressMusic($: Engine, cmd: MusicCmd) {
       return cmd.cmd === 'like' ? undefined : runLocal()
     }
     if (e.kind === 'offline' && route === 'apiThenLocal') return runLocal()
+    if (e.kind === 'busy' || e.kind === 'rate' || e.kind === 'server' || e.kind === 'offline') {
+      if (route === 'apiThenLocal' && cmd.cmd !== 'like') return runLocal()
+      return musicNote($, 'Spotify is not answering right now. Try again.', 'error', true)
+    }
     if (e.kind === 'noDevice') return musicNote($, 'Nothing is playing. Pick a device.', 'error', true)
     if (e.kind === 'refused') return musicNote($, 'Spotify refused that right now.', 'ok', true)
   })()
@@ -647,8 +664,8 @@ async function startLogin($: Engine, raw: string) {
   if (!CLIENT_ID.test(id)) { connectFlow = { step: 'steps', error: "A Client ID is 32 hex characters; copy it from your app's page on the dashboard." }; return publish($) }
   // Claimed before the awaits below (a helper download can take seconds), so a dialog close or a second submit in that
   // window cancels this one instead of finding nothing to cancel and spawning a login nobody waits for.
-  login?.kill()
-  const me = { kill: () => {} }
+  endLogin($)
+  const me = { kill: () => {}, paste: pasteFile(configDir, ++loginSeq) }
   login = me
   const refuse = (error: string) => { login = undefined; connectFlow = { step: 'steps', error }; publish($) }
   const host = hostOf($), out = tokenFile(configDir)
@@ -662,7 +679,7 @@ async function startLogin($: Engine, raw: string) {
   let lastErr = ''
   connectFlow = { step: 'waiting' }
   publish($)
-  const child = host.spawn([bin.path, 'spotify-login', '--client-id', id, '--out', out, '--paste-file', pasteFile(configDir)], (stream, line) => {
+  const child = host.spawn([bin.path, 'spotify-login', '--client-id', id, '--out', out, '--paste-file', me.paste], (stream, line) => {
     const l = line.trim()
     if (login !== me || !l) return
     // the helper's own sentences: it never prints a token or a response body
@@ -675,7 +692,7 @@ async function startLogin($: Engine, raw: string) {
   me.kill = child.kill
   const code = await child.done.catch(() => null)
   if (login !== me) return
-  login = undefined
+  endLogin($, me)
   connectFlow = code === 0 ? undefined : { step: 'steps', error: lastErr || 'The login stopped before Spotify answered.' }
   if (code === 0) await startSpotify($)
   publish($)
@@ -684,24 +701,26 @@ async function startLogin($: Engine, raw: string) {
 // spotify-login polls the paste file, since a running child's stdin cannot be written to. Written beside it and moved
 // over it, or the helper can read half an address and refuse it as not from this login.
 async function pastedAddress($: Engine, text: string) {
-  if (!login || connectFlow?.step !== 'waiting') return
-  const host = hostOf($), dest = pasteFile(configDir), tmp = `${dest}.tmp`
+  const me = login
+  if (!me || connectFlow?.step !== 'waiting') return
+  const host = hostOf($), dest = me.paste, tmp = `${dest}.tmp`
   try {
     await host.writeFile(tmp, text.trim())
     const r = await moveFile(host, tmp, dest, (await onWindows($)) ? 'windows' : 'linux')
     if (r.exitCode !== 0) throw new Error(r.stderr.trim() || `exit ${r.exitCode}`)
+    // the login ended while the file was being written: nothing will ever read it
+    if (login !== me) void dropPaste($, dest)
   } catch (err) {
     $.ui.log(`spotify paste failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
-    if (connectFlow?.step !== 'waiting') return
+    void dropPaste($, dest)
+    if (login !== me || connectFlow?.step !== 'waiting') return
     connectFlow = { ...connectFlow, notice: 'Could not hand the address to the login. Try pasting it again.' }
     publish($)
   }
 }
 
 function cancelLogin($: Engine, to: typeof connectFlow) {
-  const l = login
-  login = undefined
-  l?.kill()
+  endLogin($)
   connectFlow = to
   publish($)
 }
@@ -1346,7 +1365,7 @@ function goOff($: Engine, winner: string) {
   beatTimer?.cancel(); beatTimer = undefined
   planTimer?.cancel(); planTimer = undefined
   bubbleTimer?.cancel(); bubbleTimer = undefined
-  stopMusic()
+  stopMusic($)
   stopRemote()
   takenOver = false
   $.ui.status(undefined)

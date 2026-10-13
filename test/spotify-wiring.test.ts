@@ -171,7 +171,7 @@ test('/glowup spotify connect: the Client ID starts the helper, its address show
   expect(text(await ui.drawn())).toContain('Add the redirect URI http://127.0.0.1/callback.')
   await ui.input({ key: 'input-client-id', text: ` ${CLIENT.toUpperCase()} `, kind: 'submit' })
   await clock.advance(100)
-  expect(s.spawned).toEqual([`/gi spotify-login --client-id ${CLIENT} --out ${TOKENS} --paste-file ${PASTE}`])
+  expect(s.spawned).toEqual([`/gi spotify-login --client-id ${CLIENT} --out ${TOKENS} --paste-file ${PASTE()}`])
   const waiting = text(await ui.drawn())
   expect(waiting).toContain('Waiting for the browser…')
   expect(waiting).toContain(AUTH)
@@ -243,14 +243,106 @@ test('a pasted address goes to the paste file whole, and a refused one says why'
   await clock.advance(100)
   await ui.input({ key: 'input-paste', text: '  http://127.0.0.1:5/callback?code=c&state=wrong \n', kind: 'submit' })
   await clock.advance(50)
-  expect(files[PASTE]).toBe('http://127.0.0.1:5/callback?code=c&state=wrong')
+  expect(files[PASTE()]).toBe('http://127.0.0.1:5/callback?code=c&state=wrong')
   // written beside it and renamed over it, so the helper never reads half an address
-  expect(s.ran).toContain(`mv ${PASTE}.tmp ${PASTE}`)
-  expect(Object.keys(files).filter(f => f.startsWith(PASTE + '.'))).toEqual([])
+  expect(s.ran).toContain(`mv ${PASTE()}.tmp ${PASTE()}`)
+  expect(Object.keys(files).filter(f => f.startsWith(PASTE() + '.'))).toEqual([])
   refuse()
   await clock.advance(100)
   expect(text(await ui.drawn())).toContain('That address is not from this login.')
   exit(1)
+  await clock.advance(100)
+  expect(files[PASTE()]).toBeUndefined()
+  await ui.unmount()
+})
+
+test('a cancelled login\'s paste file is removed, and the next login\'s paste goes to its own file', async ($, on) => {
+  let exit = (_code: number) => {}
+  const exited = new Promise<number>(r => { exit = r })
+  const files: Record<string, string> = {}
+  const s = boot(on, { files, runs: LINUX_BUS, spawn: async function* () {
+    yield { stream: 'stdout', text: AUTH + '\n' }
+    return { code: await exited, signal: null }
+  } })
+  const clock = await start($, on)
+  await runGlowup($, 'spotify connect')
+  const ui = await mountPlayer($)
+  await ui.input({ key: 'input-client-id', text: CLIENT, kind: 'submit' })
+  await clock.advance(100)
+  await ui.input({ key: 'input-paste', text: 'http://127.0.0.1:5/callback?code=old', kind: 'submit' })
+  await clock.advance(50)
+  expect(files[PASTE(1)]).toBeDefined()
+  await runGlowup($, 'spotify connect')
+  await clock.advance(50)
+  expect(files[PASTE(1)]).toBeUndefined()
+  await ui.input({ key: 'input-client-id', text: CLIENT, kind: 'submit' })
+  await clock.advance(100)
+  expect(s.spawned[1]).toContain(`--paste-file ${PASTE(2)}`)
+  await ui.input({ key: 'input-paste', text: 'http://127.0.0.1:5/callback?code=new', kind: 'submit' })
+  await clock.advance(50)
+  expect(files[PASTE(2)]).toBe('http://127.0.0.1:5/callback?code=new')
+  expect(files[PASTE(1)]).toBeUndefined()
+  exit(1)
+  await ui.unmount()
+})
+
+test('a paste whose move fails leaves no .tmp file behind', async ($, on) => {
+  let exit = (_code: number) => {}
+  const exited = new Promise<number>(r => { exit = r })
+  const files: Record<string, string> = {}
+  const s = boot(on, { files, runs: LINUX_BUS, run: k => (k === `mv ${PASTE()}.tmp ${PASTE()}` ? { exitCode: 1, stdout: '' } : undefined), spawn: async function* () {
+    yield { stream: 'stdout', text: AUTH + '\n' }
+    return { code: await exited, signal: null }
+  } })
+  const clock = await start($, on)
+  await runGlowup($, 'spotify connect')
+  const ui = await mountPlayer($)
+  await ui.input({ key: 'input-client-id', text: CLIENT, kind: 'submit' })
+  await clock.advance(100)
+  await ui.input({ key: 'input-paste', text: 'http://127.0.0.1:5/callback?code=c', kind: 'submit' })
+  await clock.advance(50)
+  expect(s.ran).toContain(`mv ${PASTE()}.tmp ${PASTE()}`)
+  expect(files[PASTE() + '.tmp']).toBeUndefined()
+  expect(text(await ui.drawn())).toContain('Could not hand the address to the login.')
+  exit(1)
+  await ui.unmount()
+})
+
+test('a write answering 5xx on this computer falls back to the local app', async ($, on) => {
+  const desk = JSON.stringify({ device: { id: 'dk', name: 'Desk', type: 'Computer', volume_percent: 50 }, is_playing: true, currently_playing_type: 'track', progress_ms: 1000, item: item('l', 'Local Song') })
+  const s = boot(on, { files: { [TOKENS]: tokens() }, runs: { ...LINUX_BUS, [BUS]: ok(localRead('l', 'Local Song')), [NEXT]: ok() }, api: r => (path(r) === '/me/player/next' ? { status: 503 } : path(r) === '/me/player' && method(r) === 'GET' ? { status: 200, text: desk } : PHONE(r)) })
+  const clock = await start($, on)
+  const pane = await musicTab($, s, clock)
+  await pane.press({ key: 'music-next' })
+  await clock.advance(100)
+  expect(s.ran.filter(k => k === NEXT)).toHaveLength(1)
+  await pane.unmount()
+})
+
+test('a write answering 5xx to another device says so instead of staying silent', async ($, on) => {
+  const s = boot(on, { files: { [TOKENS]: tokens() }, runs: LINUX_BUS, api: r => (path(r) === '/me/player/next' ? { status: 503 } : PHONE(r)) })
+  const clock = await start($, on)
+  const pane = await musicTab($, s, clock)
+  await pane.press({ key: 'music-next' })
+  await clock.advance(100)
+  expect(s.toasts).toEqual(['Spotify is not answering right now. Try again.'])
+  await pane.unmount()
+})
+
+test('a token file found newer mid-session keeps its own message after a 401', async ($, on) => {
+  const files: Record<string, string> = { [TOKENS]: tokens() }
+  const s = boot(on, { files, runs: LINUX_BUS, api: r => (path(r) === '/me/player/next' ? { status: 401 } : PHONE(r)), run: k => (k === REFRESH ? { exitCode: 3, stdout: '' } : undefined) })
+  const clock = await start($, on)
+  const pane = await musicTab($, s, clock)
+  files[TOKENS] = tokens({ format: 99 })
+  await pane.press({ key: 'music-next' })
+  await clock.advance(100)
+  await pane.unmount()
+  await runGlowup($, 'music')
+  const ui = await mountPlayer($)
+  const t = text(await ui.drawn())
+  expect(t).toContain('saved by a newer glowup')
+  expect(t).not.toContain('connect again')
   await ui.unmount()
 })
 
@@ -340,7 +432,8 @@ test('a second Client ID submitted while the first looks up its helper starts on
   ui = await mountPlayer($)
   await ui.input({ key: 'input-client-id', text: CLIENT, kind: 'submit' })
   for (let i = 0; i < 3; i++) await clock.advance(100)
-  expect(s.spawned).toEqual([`/gi spotify-login --client-id ${CLIENT} --out ${TOKENS} --paste-file ${PASTE}`])
+  // the superseded submit had claimed login 1 before it was cancelled
+  expect(s.spawned).toEqual([`/gi spotify-login --client-id ${CLIENT} --out ${TOKENS} --paste-file ${PASTE(2)}`])
   expect(text(await ui.drawn())).toContain('Waiting for the browser…')
   exit(1)
   await ui.unmount()
@@ -379,7 +472,7 @@ test('a damaged token file stays local, says so, is never refreshed, and connect
   ui = await mountPlayer($)
   await ui.input({ key: 'input-client-id', text: CLIENT, kind: 'submit' })
   await clock.advance(100)
-  expect(s.spawned).toEqual([`/gi spotify-login --client-id ${CLIENT} --out ${TOKENS} --paste-file ${PASTE}`])
+  expect(s.spawned).toEqual([`/gi spotify-login --client-id ${CLIENT} --out ${TOKENS} --paste-file ${PASTE()}`])
   expect(s.ran.some(k => k.includes('spotify-refresh'))).toBe(false)
   await ui.unmount()
 })

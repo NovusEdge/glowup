@@ -7,8 +7,9 @@ export const TOKENS_FORMAT = 1
 export type Tokens = { format: number; clientId: string; accessToken: string; refreshToken: string; expiresAt: number; scope: string; connectedAt: number; gen: number }
 export type TokenRead = { ok: true; tokens: Tokens } | { ok: false; why: 'missing' | 'newer' | 'damaged' }
 export const tokenFile = (configDir: string) => `${configDir}/glowup/spotify.json`
-// spotify-login polls this for an address pasted into the dialog
-export const pasteFile = (configDir: string) => `${configDir}/glowup/spotify-paste`
+// spotify-login polls this for an address pasted into the dialog. One file per login: a cancelled login's helper
+// lives on for minutes and would otherwise consume the next login's address.
+export const pasteFile = (configDir: string, seq: number) => `${configDir}/glowup/spotify-paste-${seq}`
 
 export async function readTokens(host: Host, path: string): Promise<TokenRead> {
   let text: string
@@ -41,8 +42,8 @@ export class TokenKeeper {
     return r
   }
   status() { return this.state }
-  // Spotify answered 401 to a token that was just refreshed
-  lost() { this.state = 'reconnect' }
+  // Spotify answered 401 to a token that was just refreshed. A newer or damaged file found meanwhile keeps its own state.
+  lost() { if (this.state === 'ok') this.state = 'reconnect' }
 
   // A token to send. It refreshes first in the token's last minute, or when rejected is the token Spotify just answered 401 to.
   async access(now: number, rejected?: string): Promise<Access> {

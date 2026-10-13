@@ -10,7 +10,9 @@ export const LINUX_BUS = { 'uname -s': ok('Linux\n'), 'busctl --json=short --ver
 export const walk = (n: any, out: any[] = []): any[] => { if (typeof n === 'string') out.push(n); else if (n && typeof n === 'object') { out.push(n); for (const c of n.children ?? []) walk(c, out) } return out }
 export const text = (tree: any) => walk(tree).filter(n => typeof n === 'string').join(' ')
 export const PANE_PROPS = (bodyRows = 40) => ({ title: 'glowup', isFocused: true, bodyColumns: 88, placement: 'dock', scroll: { offset: 0, bodyRows }, view: {} }) as never
-export const TOKENS = '/fake/.claude/glowup/spotify.json', PASTE = '/fake/.claude/glowup/spotify-paste'
+export const TOKENS = '/fake/.claude/glowup/spotify.json'
+// the nth login of the session has its own paste file
+export const PASTE = (n = 1) => `/fake/.claude/glowup/spotify-paste-${n}`
 export const CLIENT = '0123456789abcdef0123456789abcdef'
 export const AUTH = 'https://accounts.spotify.com/authorize?client_id=0123&state=st'
 export const tokens = (over: Record<string, unknown> = {}) => JSON.stringify({ format: 1, clientId: CLIENT, accessToken: 'at-1', refreshToken: 'rt-1', expiresAt: Date.now() + 3_600_000, scope: '', connectedAt: 0, gen: 1, ...over })
@@ -46,7 +48,7 @@ export type Boot = {
 
 // panes: what $.ui.panes() answers, edited by the test as the engine would move them. files is the object the
 // test passed, so a test can change it while the session runs. Set failOpen on the result to refuse that pane id.
-// `mv from to` moves the file, as the paste file's atomic write needs.
+// `mv from to` moves the file, as the paste file's atomic write needs; `rm -rf path` removes it.
 export function boot(on: any, o: Boot = {}) {
   const copy = o.copy ?? { value: { isCopied: true } }
   const hung = new Set<() => void>()
@@ -58,12 +60,14 @@ export function boot(on: any, o: Boot = {}) {
     // fails every hung request, as the engine's request finally ending
     expire: () => { for (const f of hung) f(); hung.clear() },
   }
-  fakeFs(on, s.files, argv => {
+  fakeFs(on, s.files, async argv => {
     const k = argv.join(' ')
     s.ran.push(k)
+    const given = (await o.run?.(k)) ?? o.runs?.[k]
+    if (given) return given
     if (argv[0] === 'mv' && argv.length === 3 && argv[1]! in s.files) { s.files[argv[2]!] = s.files[argv[1]!]!; delete s.files[argv[1]!]; return ok() }
-    return o.run?.(k) ?? o.runs?.[k]
-  }, { GLOWUP_BIN: '/gi', ...o.env })
+    if (argv[0] === 'rm' && argv[1] === '-rf' && argv.length === 3) { delete s.files[argv[2]!]; return ok() }
+  },{ GLOWUP_BIN: '/gi', ...o.env })
   mock.store(on)
   on('command.register', async () => ({ value: undefined }) as never)
   on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }) as never)
