@@ -126,6 +126,6 @@ The track playing in the Spotify desktop app, in a `NOW PLAYING` box. The tab st
 
 On macOS a volume bar sits under the seek bar: click or drag it, or click it and use the left and right arrows. Spotify 1.2.74 on Linux ignored a volume write over MPRIS (observed while paused), so Linux has no volume bar unless [Spotify is connected](spotify.md) and its Web API runs the player.
 
-From 80 columns the player sits beside a second column; narrower, the two stack. Until you connect Spotify, the column offers `k: Connect`, which walks through [connecting](spotify.md) in place. Once connected it shows your account, Up next and the device playing; the queue, recent tracks, playlists and devices come in a later release. While the player is open, toasts wait until it closes; anything the player has to tell you, such as a copied link or a refused command, shows inside it.
+From 80 columns the player sits beside a second column; narrower, the two stack. Until you connect Spotify, the column offers `k: Connect`, which walks through [connecting](spotify.md) in place. Once connected it holds four lists, Up next, Recent, Playlists and Devices, on `1` to `4`; see [the lists](spotify.md#the-lists). While the player is open, toasts wait until it closes; anything the player has to tell you, such as a copied link or a refused command, shows inside it.
 
 The tabs do not respond to selection yet; opening a subagent's tool calls is on the [roadmap](roadmap.md).
