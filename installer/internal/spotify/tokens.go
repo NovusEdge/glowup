@@ -152,7 +152,8 @@ func (a Auth) post(ctx context.Context, form url.Values) (tokenResponse, error) 
 var ErrInvalidGrant = errors.New("Spotify refused the saved login; connect again")
 
 const (
-	lockWait = 10 * time.Second
+	// Longer than post's 10s timeout, so a waiter behind a slow refresh sees its token land.
+	lockWait = 15 * time.Second
 	// A refresh takes seconds; a lock this old was left by a killed run.
 	lockStale = 30 * time.Second
 )
@@ -164,8 +165,14 @@ func lockFile(path string) (func(), error) {
 	for {
 		f, err := os.OpenFile(lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 		if err == nil {
+			st, _ := f.Stat()
 			f.Close()
-			return func() { os.Remove(lock) }, nil
+			return func() {
+				// a run that took this lock as stale may own the path now
+				if cur, e := os.Stat(lock); e == nil && st != nil && os.SameFile(st, cur) {
+					os.Remove(lock)
+				}
+			}, nil
 		}
 		if !errors.Is(err, fs.ErrExist) {
 			return nil, err
@@ -260,9 +267,24 @@ func LogoutMain(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "usage: glowup-installer spotify-logout --file FILE")
 		return 2
 	}
+	// The lock keeps a refresh that is mid-request from writing tokens back after the remove.
+	unlock, err := lockFile(*file)
+	if errors.Is(err, fs.ErrNotExist) {
+		return 0
+	}
+	if err != nil {
+		fmt.Fprintln(stderr, "glowup-installer spotify-logout:", err)
+		return 1
+	}
+	defer unlock()
 	if err := os.Remove(*file); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		fmt.Fprintln(stderr, "glowup-installer spotify-logout:", err)
 		return 1
+	}
+	// a write killed between CreateTemp and Rename leaves its tokens in a temp file
+	orphans, _ := filepath.Glob(filepath.Join(filepath.Dir(*file), ".spotify-*.json"))
+	for _, o := range orphans {
+		os.Remove(o)
 	}
 	return 0
 }

@@ -139,6 +139,58 @@ func TestRefreshMainExitCodes(t *testing.T) {
 	}
 }
 
+func TestLogoutWaitsForARunningRefresh(t *testing.T) {
+	entered, release := make(chan struct{}), make(chan struct{})
+	ts := &tokenServer{reply: func(url.Values) (int, string) {
+		close(entered)
+		<-release
+		return 200, `{"access_token":"new-at","expires_in":3600}`
+	}}
+	p := seed(t, 1)
+	a := authFor(ts, t)
+	refreshed := make(chan error, 1)
+	go func() { refreshed <- Refresh(context.Background(), a, p, 1) }()
+	<-entered
+	loggedOut := make(chan int, 1)
+	go func() { loggedOut <- LogoutMain([]string{"--file", p}, io.Discard, io.Discard) }()
+	select {
+	case <-loggedOut:
+		t.Fatal("logout did not wait for the refresh")
+	case <-time.After(200 * time.Millisecond):
+	}
+	close(release)
+	if err := <-refreshed; err != nil {
+		t.Fatal(err)
+	}
+	if code := <-loggedOut; code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if _, err := os.Stat(p); !os.IsNotExist(err) {
+		t.Fatal("the refresh wrote tokens after logout")
+	}
+}
+
+func TestLogoutRemovesOrphanedTempFiles(t *testing.T) {
+	p := seed(t, 1)
+	orphan := filepath.Join(filepath.Dir(p), ".spotify-123.json")
+	if err := os.WriteFile(orphan, []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if code := LogoutMain([]string{"--file", p}, io.Discard, io.Discard); code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if _, err := os.Stat(orphan); !os.IsNotExist(err) {
+		t.Fatal("an orphaned temp file survived logout")
+	}
+}
+
+func TestLogoutWithoutADirectory(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "nope", "spotify.json")
+	if code := LogoutMain([]string{"--file", p}, io.Discard, io.Discard); code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+}
+
 func TestLogout(t *testing.T) {
 	p := seed(t, 1)
 	if code := LogoutMain([]string{"--file", p}, io.Discard, io.Discard); code != 0 {
