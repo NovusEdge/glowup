@@ -2,7 +2,8 @@
 // install.sh (docs/web/public) downloads and runs it; it is not installed on PATH.
 // It also runs glowup's config screen as `glowup-installer config`, which
 // /glowup config launches, `spotify-art`, which the Music tab runs for a cover, and
-// `spotify-login`, which connects the music player to a Spotify account.
+// `spotify-login`, `spotify-refresh` and `spotify-logout`, which connect the music player to a
+// Spotify account and keep that login fresh.
 package main
 
 import (
@@ -32,9 +33,11 @@ func main() { os.Exit(run()) }
 func run() int {
 	// a subcommand: cli.Parse refuses positional arguments
 	subs := map[string]func([]string, io.Writer, io.Writer) int{
-		"config":        configtui.Main,
-		"spotify-art":   spotify.ArtMain,
-		"spotify-login": spotify.LoginMain,
+		"config":          configtui.Main,
+		"spotify-art":     spotify.ArtMain,
+		"spotify-login":   spotify.LoginMain,
+		"spotify-refresh": spotify.RefreshMain,
+		"spotify-logout":  spotify.LogoutMain,
 	}
 	if len(os.Args) > 1 {
 		if sub, ok := subs[os.Args[1]]; ok {

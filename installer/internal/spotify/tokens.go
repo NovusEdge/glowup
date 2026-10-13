@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -144,4 +146,123 @@ func (a Auth) post(ctx context.Context, form url.Values) (tokenResponse, error) 
 		return tr, errors.New("Spotify's token endpoint sent no access token")
 	}
 	return tr, nil
+}
+
+// ErrInvalidGrant is Spotify refusing the refresh token: the person must connect again.
+var ErrInvalidGrant = errors.New("Spotify refused the saved login; connect again")
+
+const (
+	lockWait = 10 * time.Second
+	// A refresh takes seconds; a lock this old was left by a killed run.
+	lockStale = 30 * time.Second
+)
+
+// lockFile is a portable exclusive lock: the standard library has no LockFileEx, and O_EXCL works everywhere.
+func lockFile(path string) (func(), error) {
+	lock := path + ".lock"
+	deadline := time.Now().Add(lockWait)
+	for {
+		f, err := os.OpenFile(lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		if err == nil {
+			f.Close()
+			return func() { os.Remove(lock) }, nil
+		}
+		if !errors.Is(err, fs.ErrExist) {
+			return nil, err
+		}
+		if st, e := os.Stat(lock); e == nil && time.Since(st.ModTime()) > lockStale {
+			os.Remove(lock)
+			continue
+		}
+		if time.Now().After(deadline) {
+			return nil, errors.New("another refresh is still running")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+// Refresh swaps the refresh token for a new access token, unless the file has moved past gen,
+// which means another run refreshed it while the caller waited.
+func Refresh(ctx context.Context, a Auth, path string, gen int) error {
+	unlock, err := lockFile(path)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	t, err := ReadTokens(path)
+	if err != nil {
+		return err
+	}
+	if t.Gen != gen {
+		return nil
+	}
+	tr, err := a.post(ctx, url.Values{"grant_type": {"refresh_token"}, "refresh_token": {t.RefreshToken}, "client_id": {t.ClientID}})
+	var ge *GrantError
+	if errors.As(err, &ge) && ge.Code == "invalid_grant" {
+		return ErrInvalidGrant
+	}
+	if err != nil {
+		return err
+	}
+	t.AccessToken = tr.AccessToken
+	// Spotify may or may not rotate it
+	if tr.RefreshToken != "" {
+		t.RefreshToken = tr.RefreshToken
+	}
+	if tr.Scope != "" {
+		t.Scope = tr.Scope
+	}
+	t.ExpiresAt = a.Now().Add(time.Duration(tr.ExpiresIn) * time.Second).UnixMilli()
+	t.Gen++
+	return WriteTokens(path, t)
+}
+
+// RefreshMain runs `glowup-installer spotify-refresh --file FILE --if-gen N`.
+func RefreshMain(args []string, stdout, stderr io.Writer) int {
+	fl := flag.NewFlagSet("glowup-installer spotify-refresh", flag.ContinueOnError)
+	fl.SetOutput(stderr)
+	file := fl.String("file", "", "the token file")
+	gen := fl.Int("if-gen", -1, "refresh only while the file holds this generation")
+	if err := fl.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+	if *file == "" || *gen < 0 || fl.NArg() != 0 {
+		fmt.Fprintln(stderr, "usage: glowup-installer spotify-refresh --file FILE --if-gen N")
+		return 2
+	}
+	err := Refresh(context.Background(), Auth{Client: &http.Client{}, TokenURL: TokenURL, Now: time.Now}, *file, *gen)
+	if errors.Is(err, ErrInvalidGrant) {
+		fmt.Fprintln(stderr, err)
+		return 3
+	}
+	if err != nil {
+		fmt.Fprintln(stderr, "glowup-installer spotify-refresh:", err)
+		return 1
+	}
+	return 0
+}
+
+// LogoutMain runs `glowup-installer spotify-logout --file FILE`: the helper stays the only writer of the secret file.
+func LogoutMain(args []string, stdout, stderr io.Writer) int {
+	fl := flag.NewFlagSet("glowup-installer spotify-logout", flag.ContinueOnError)
+	fl.SetOutput(stderr)
+	file := fl.String("file", "", "the token file")
+	if err := fl.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+	if *file == "" || fl.NArg() != 0 {
+		fmt.Fprintln(stderr, "usage: glowup-installer spotify-logout --file FILE")
+		return 2
+	}
+	if err := os.Remove(*file); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		fmt.Fprintln(stderr, "glowup-installer spotify-logout:", err)
+		return 1
+	}
+	return 0
 }
