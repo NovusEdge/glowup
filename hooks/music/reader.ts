@@ -70,7 +70,7 @@ export class MusicReader {
   }
 
   caps(): MusicCaps {
-    // Spotify's Linux client ignores LoopStatus, Shuffle-on and Volume writes over MPRIS, so busctl and playerctl offer none of them.
+    // Spotify 1.2.74 on Linux ignored an MPRIS Volume write (observed while paused), so busctl and playerctl offer no volume; repeat and shuffle stay macOS-only.
     const mac = this.backend === 'osascript'
     return { repeat: mac ? ['off', 'context'] : [], shuffle: mac, raise: this.backend === 'busctl' || this.backend === 'osascript', volume: mac }
   }

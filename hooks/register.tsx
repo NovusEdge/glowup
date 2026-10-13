@@ -603,7 +603,11 @@ async function openPlayer($: Engine, fromPane: boolean): Promise<string> {
     reopenPane = true
   }
   playerNote = undefined
-  const r = await $.ui.open(PLAYER_OPEN)
+  const r = await $.ui.open(PLAYER_OPEN).catch((err: unknown) => {
+    const reason = err instanceof Error ? err.message : String(err)
+    $.ui.log(`music player open failed: ${reason}`, { to: 'debug' })
+    return { isPlaced: false as const, reason }
+  })
   if (!r.isPlaced) {
     if (reopenPane) { reopenPane = false; await $.ui.open(PANE_OPEN) }
     return `Music player waits: ${r.reason}`
@@ -1427,6 +1431,9 @@ export const register: Register = (on, options) => {
     playerSeekless = !clients
     playerCover = playerCoverSize(e.props.scroll.bodyRows)
     const cover = playerCover > 0 ? coverFor(m, playerCover) : undefined
+    // A paused track polls every 10 s, and the poll that opened the dialog may have run before playerCover was set.
+    const art = m.music?.status === 'open' ? m.music.track?.artUrl : undefined
+    if (art && playerCover > 0 && !cover) fetchCover($, art, playerCover)
     // Through JSON because Client props refuse undefined fields.
     const client = (key: string) => (props: SeekBarProps) => <els.Client key={key} module="./client/seekbar.tsx" props={JSON.parse(JSON.stringify(props))} width={props.cols} />
     return renderPlayer(els, m, theme, {

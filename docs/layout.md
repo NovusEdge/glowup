@@ -123,7 +123,7 @@ The track playing in the Spotify desktop app, in a `NOW PLAYING` box. The tab st
 
 `/glowup music`, or `o` on the Music tab, opens the player. It shows the cover at 20 by 10 cells when the pane has 20 body rows or more, 8 by 4 from 10 rows, and none below 10. It also shows the title, artist and album, and the seek bar, which you click or drag as on the tab. Below it are the same Prev, Play, Next, shuffle and repeat keys, `o: Open Spotify` to bring Spotify's window forward (on Linux with busctl, and on macOS), and `c: Copy link` to copy the track's `open.spotify.com` link.
 
-On macOS a volume bar sits under the seek bar: click or drag it, or click it and use the left and right arrows. Spotify's Linux client ignores volume changes over MPRIS, so Linux has no volume bar.
+On macOS a volume bar sits under the seek bar: click or drag it, or click it and use the left and right arrows. Spotify 1.2.74 on Linux ignored a volume write over MPRIS (observed while paused), so Linux has no volume bar.
 
 From 80 columns the player sits beside a second column, which will hold your queue, recent tracks, playlists and devices once you connect Spotify. Narrower, the two stack. While the player is open, toasts wait until it closes; anything the player has to tell you, such as a copied link, shows inside it.
 

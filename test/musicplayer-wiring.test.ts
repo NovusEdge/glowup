@@ -11,8 +11,11 @@ const walk = (n: any, out: any[] = []): any[] => { if (typeof n === 'string') ou
 const text = (tree: any) => walk(tree).filter(n => typeof n === 'string').join(' ')
 const PANE_PROPS = (bodyRows = 40) => ({ title: 'glowup', isFocused: true, bodyColumns: 88, placement: 'dock', scroll: { offset: 0, bodyRows }, view: {} }) as never
 
+let failOpen = ''
+
 // panes: what $.ui.panes() answers, edited by the test as the engine would move them
 function boot(on: any, answers: Record<string, { exitCode: number; stdout: string }>, copy: { value: unknown } = { value: { isCopied: true } }, files: Record<string, string> = {}, env: Record<string, string> = {}) {
+  failOpen = ''
   const ran: string[] = [], opens: any[] = [], closes: any[] = [], copies: string[] = [], toasts: string[] = []
   const panes: { id: string; isShown: boolean; isFocused: boolean; isPlaced: boolean }[] = []
   fakeFs(on, files, argv => { const k = argv.join(' '); ran.push(k); return answers[k] }, env)
@@ -23,6 +26,7 @@ function boot(on: any, answers: Record<string, { exitCode: number; stdout: strin
   on('ui.panes', async () => ({ value: panes.map(p => ({ ...p, title: p.id })) }) as never)
   on('ui.open', async (_$: unknown, e: any) => {
     opens.push(e)
+    if (e.id === failOpen) throw new Error('no room')
     for (const p of panes) p.isShown = false
     const p = panes.find(x => x.id === e.id)
     if (p) p.isShown = true; else panes.push({ id: e.id, isShown: true, isFocused: !!e.focus, isPlaced: true })
@@ -139,4 +143,32 @@ test('while the dialog shows, Spotify is read every second and its cover is fetc
   expect(s.ran.filter(a => a === BUS).length - before).toBeGreaterThanOrEqual(5)
   expect(s.ran).toContain(ART)
   await ui.unmount()
+})
+
+test('a paused track\'s cover is fetched at the dialog size on its first draw', async ($, on) => {
+  const ART = '/gi spotify-art --size 20 https://i.scdn.co/image/ab67616d00004851d1'
+  const PAUSED = PLAYING.replace('"Playing"', '"Paused"').replace('"xesam:url"', '"mpris:artUrl":{"type":"s","data":"https://i.scdn.co/image/ab67616d0000b273d1"},"xesam:url"')
+  const s = boot(on, { ...LINUX_BUS, [BUS]: ok(PAUSED) }, undefined, { '/gi': '' }, { GLOWUP_BIN: '/gi' })
+  const clock = await start($, on)
+  await runGlowup($, 'music')
+  const ui = await mountPlayer($, 24)
+  await ui.drawn()
+  await clock.advance(50)
+  expect(s.ran).toContain(ART)
+  await ui.unmount()
+})
+
+test('a dialog that fails to open leaves the glowup pane open and focused', async ($, on) => {
+  const s = boot(on, { ...LINUX_BUS, [BUS]: ok(PLAYING) })
+  failOpen = 'glowup-music'
+  const clock = await start($, on)
+  s.panes.push({ id: 'glowup', isShown: true, isFocused: true, isPlaced: true })
+  const pane = await mountPane($)
+  await pane.press({ key: 'tab-music' })
+  await clock.advance(50)
+  await pane.press({ key: 'music-player' })
+  await clock.advance(50)
+  expect(s.closes.map(c => c.id)).toEqual(['glowup'])
+  expect(s.opens.at(-1)).toMatchObject({ id: 'glowup', focus: true })
+  await pane.unmount()
 })
