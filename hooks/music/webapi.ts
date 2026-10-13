@@ -106,7 +106,8 @@ export function parseRecent(text: string): RecentItem[] | undefined {
   if (!Array.isArray(items)) return undefined
   return items.flatMap((v): RecentItem[] => {
     const o = obj(v), t = trackOf(o?.track)
-    if (!t) return []
+    // a local file has no Web API representation: play and the queue cannot address it
+    if (!t || t.uri!.startsWith('spotify:local:')) return []
     const ctx = str(obj(o?.context)?.uri)
     return [{ uri: t.uri!, title: t.title, artist: t.artist, durationMs: t.durationMs, ...(ctx && { contextUri: ctx }) }]
   })

@@ -98,6 +98,7 @@ test('play, play in a context, and transfer carry JSON bodies', () => {
   expect(commandRequest({ cmd: 'play', uri: 'spotify:track:a' }, false)).toEqual({ method: 'PUT', url: 'https://api.spotify.com/v1/me/player/play', body: '{"uris":["spotify:track:a"]}' })
   expect(commandRequest({ cmd: 'playContext', uri: 'spotify:playlist:p', offset: 'spotify:track:a' }, false)!.body).toBe('{"context_uri":"spotify:playlist:p","offset":{"uri":"spotify:track:a"}}')
   expect(commandRequest({ cmd: 'playContext', uri: 'spotify:playlist:p' }, false)!.body).toBe('{"context_uri":"spotify:playlist:p"}')
+  expect(commandRequest({ cmd: 'playContext', uri: 'spotify:playlist:p', offset: '' }, false)!.body).toBe('{"context_uri":"spotify:playlist:p"}')
   expect(commandRequest({ cmd: 'transfer', deviceId: 'dk' }, false)).toEqual({ method: 'PUT', url: 'https://api.spotify.com/v1/me/player', body: '{"device_ids":["dk"],"play":true}' })
   expect(commandRequest({ cmd: 'skipTo', uri: 'spotify:track:a' }, true)).toBeUndefined()
 })
@@ -115,6 +116,11 @@ test('recently played: the track and the context it played in', () => {
   expect(parseRecent('{}')).toBeUndefined()
 })
 
+test('recently played skips local files', () => {
+  const local = { track: { ...ITEM, uri: 'spotify:local:artist:album:title:174' }, context: null }
+  expect(parseRecent(JSON.stringify({ items: [local, { track: ITEM }] }))!.map(r => r.uri)).toEqual(['spotify:track:tid'])
+})
+
 test('playlists: the page, its track count under either name, and the next page', () => {
   const page = JSON.stringify({ items: [
     { uri: 'spotify:playlist:p1', name: 'Focus', owner: { display_name: 'Ada', id: 'ada' }, items: { total: 12 } },
@@ -128,9 +134,26 @@ test('playlists: the page, its track count under either name, and the next page'
   expect(parsePlaylists('[]')).toBeUndefined()
 })
 
+test('playlists: odd entries', () => {
+  const got = parsePlaylists(JSON.stringify({ items: [
+    { name: 'No uri', owner: { id: 'a' } },
+    null,
+    { uri: 'spotify:playlist:p1', name: 'Nobody' },
+    { uri: 'spotify:playlist:p2', name: 'Null items', owner: { id: 'a' }, items: { total: null }, tracks: { total: 7 } },
+  ] }))
+  expect(got).toEqual({ items: [
+    { uri: 'spotify:playlist:p1', name: 'Nobody', owner: '', tracks: 0 },
+    { uri: 'spotify:playlist:p2', name: 'Null items', owner: 'a', tracks: 7 },
+  ] })
+})
+
 test('a next page off the API host is dropped', () => {
-  expect(parsePlaylists(JSON.stringify({ items: [], next: 'https://evil.example/v1/me/playlists?offset=50' }))).toEqual({ items: [] })
-  expect(parsePlaylists(JSON.stringify({ items: [], next: 'http://api.spotify.com/v1/me/playlists?offset=50' }))).toEqual({ items: [] })
+  const next = (n: string) => parsePlaylists(JSON.stringify({ items: [], next: n }))
+  expect(next('https://evil.example/v1/me/playlists?offset=50')).toEqual({ items: [] })
+  expect(next('http://api.spotify.com/v1/me/playlists?offset=50')).toEqual({ items: [] })
+  expect(next('https://api.spotify.com.evil.example/v1/me/playlists?offset=50')).toEqual({ items: [] })
+  expect(next('https://api.spotify.com/v1/')).toEqual({ items: [], next: 'https://api.spotify.com/v1/' })
+  expect(next('https://api.spotify.com/v1')).toEqual({ items: [] })
 })
 
 test('devices: the active one, and none without an id', () => {
@@ -143,4 +166,5 @@ test('devices: the active one, and none without an id', () => {
     { id: 'dk', name: 'Desktop', type: 'Computer', active: false },
   ])
   expect(parseDevices('{}')).toBeUndefined()
+  expect(parseDevices('{"devices":{}}')).toBeUndefined()
 })
