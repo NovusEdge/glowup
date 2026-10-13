@@ -8,7 +8,7 @@ Without connecting, glowup reads the Spotify app on this computer. Connecting yo
 - a heart on the Music tab and in the player, to like the track playing (`l`)
 - Up next, the first track in your queue
 - playback on any device (your phone, a speaker, another computer), with the tab and the controls following it
-- shuffle, every repeat mode and volume while the Web API runs the player, including on Linux, where Spotify's app ignores shuffle-on, repeat and (in 1.2.74) volume writes from glowup
+- shuffle, every repeat mode and volume while the Web API runs the player, including on Linux, where Spotify's app ignores shuffle-on, repeat and (in 1.2.74, while paused) volume writes from glowup
 - the player on Windows, where glowup cannot read the local app
 
 ## What you need
@@ -54,4 +54,5 @@ glowup keeps the login in `~/.claude/glowup/spotify.json` (under `$CLAUDE_CONFIG
 - **"Nothing is playing. Pick a device."** No device has Spotify active. Start something in any Spotify app.
 - **"Spotify needs you to connect again."** The login expired or you removed glowup's access. Run `/glowup spotify connect`.
 - **"…was saved by a newer glowup".** A newer glowup wrote the login file. Update glowup; this one leaves the file alone and uses the local app.
+- **"…is damaged. /glowup spotify disconnect removes it; then connect again."** The login file cannot be read as a login. Run `/glowup spotify disconnect`, then `/glowup spotify connect`.
 - **The browser says `INVALID_CLIENT: Invalid redirect URI`.** The app's redirect URI is not exactly `http://127.0.0.1/callback`. Fix it on the dashboard and connect again.
