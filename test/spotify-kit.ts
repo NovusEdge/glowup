@@ -96,8 +96,8 @@ export function boot(on: any, o: Boot = {}) {
   })
   on('process.spawn', async function* (_$: unknown, e: any) {
     s.spawned.push(e.argv.join(' '))
-    if (!o.spawn) return { code: 127, signal: null }
-    return yield* o.spawn(e.argv)
+    if (!o.spawn) return { value: { code: 127, signal: null } }
+    return { value: yield* o.spawn(e.argv) }
   } as never)
   return s
 }

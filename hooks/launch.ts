@@ -93,6 +93,10 @@ const WIN_FIND = WIN_WANT + 'if (-not $f) { exit 1 }'
 const WIN_CHECK = WIN_WANT + 'if (-not $f) { exit 1 }; if ((Get-FileHash -Algorithm SHA256 -LiteralPath "$env:GLOWUP_DIR/$env:GLOWUP_ASSET").Hash.ToLower() -ne $f[0].ToLower()) { exit 1 }'
 const WIN_MKDIR = 'New-Item -ItemType Directory -Force -Path $env:GLOWUP_PATH | Out-Null'
 const WIN_MOVE = 'Move-Item -LiteralPath $env:GLOWUP_FROM -Destination $env:GLOWUP_TO -Force'
+// The engine's fs has no rename. Within one directory either command replaces the target whole, so a reader polling it
+// never sees half a file.
+export const moveFile = (host: Host, from: string, to: string, platform: Platform) =>
+  platform === 'windows' ? host.run(pwsh(WIN_MOVE, {}).argv, { GLOWUP_FROM: from, GLOWUP_TO: to }) : host.run(['mv', from, to])
 
 // the same match install.sh makes: the asset's own line, with or without the binary-mode star
 const FIND = 'cd "$1" && awk -v f="$2" \'$2 == f || $2 == "*" f { print $1 "  " f }\' checksums.txt > want.txt && test -s want.txt'

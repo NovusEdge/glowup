@@ -45,6 +45,8 @@ export type Ctl = {
   openConfigTui(): Promise<string>
   // opens the Music dialog; returns what to print
   openPlayer(): Promise<string>
+  // the Spotify Web API connection: where it stands, the connect flow in the Music dialog, or removing it; returns what to print
+  spotify(action: 'status' | 'connect' | 'disconnect'): Promise<string>
   // a -p run: nobody is attached to any surface
   headless(): Promise<boolean>
   fields(): readonly FieldToken[]
@@ -342,6 +344,11 @@ export async function runCommand(host: Host, args: string, ctl: Ctl): Promise<st
   if (sub === 'pane') return ctl.togglePane()
   if (sub === 'config') return (await ctl.headless()) ? USAGE : a1 === 'pane' ? ctl.openConfig() : ctl.openConfigTui()
   if (sub === 'music') return (await ctl.headless()) ? USAGE : ctl.openPlayer()
+  if (sub === 'spotify' && (!a1 || a1 === 'connect' || a1 === 'disconnect')) {
+    if (a1 === 'connect' && (await ctl.headless())) return 'Connecting Spotify needs an interactive session: run /glowup spotify connect in Claude Code.'
+    return ctl.spotify((a1 ?? 'status') as 'status' | 'connect' | 'disconnect')
+  }
+  if (sub === 'spotify') return 'Use /glowup spotify, /glowup spotify connect or /glowup spotify disconnect.'
   if (sub === 'motion' && (a1 === 'reduced' || a1 === 'full')) {
     await host.storeSet('reducedMotion', a1 === 'reduced')
     ctl.setMotion(a1 === 'reduced')

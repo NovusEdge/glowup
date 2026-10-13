@@ -45,12 +45,16 @@ import { ditherMeters, turnDivider } from './effects.ts'
 import type { FieldClientProps } from './client/field.tsx'
 import type { Seg } from './layout.tsx'
 import { allowed, createRun, isLive, isUndo, newLines, restoreUndo, runTimes, scanRuns, snapshotOf, type Cursor } from './remote.ts'
-import { renderPlayer, playerCoverSize, PLAYER_ID, type PlayerNote } from './musicplayer.tsx'
-import { sameMusic, type MusicCmd } from './music/parse.ts'
+import { renderPlayer, playerCoverSize, PLAYER_ID, type AccountView, type PlayerNote } from './musicplayer.tsx'
+import { sameMusic, type Music, type MusicCmd } from './music/parse.ts'
 import { MusicReader, pickBackend, type Platform } from './music/reader.ts'
 import { ArtCache, coverRows, parseArt, smallArtUrl } from './music/art.ts'
 import type { SeekBarProps } from './music/seek.ts'
-import { detached, ensureBinary, pickTerminal, platformOf, releaseTarget, removeTree, shellLine, type TermEnv } from './launch.ts'
+import { TokenKeeper, pasteFile, readTokens, tokenFile } from './music/tokens.ts'
+import { SpotifyClient, readPlayer } from './music/spotify.ts'
+import { apiDelay, capsOf, mergeMusic, routeOf, type Link } from './music/player.ts'
+import { commandRequest, likeRequest, likedRequest, meRequest, parseLiked, parseMe, parseQueue, queueRequest } from './music/webapi.ts'
+import { detached, ensureBinary, moveFile, pickTerminal, platformOf, releaseTarget, removeTree, shellLine, type TermEnv } from './launch.ts'
 
 type Engine = EngineInterface
 type SpinKey = { turnAt: number; detail: string; state: OrbState }
@@ -161,6 +165,26 @@ let musicSeq = 0
 let covers = new ArtCache(20)
 let coversInFlight = new Set<string>()
 let artBin: Promise<string | undefined> | undefined
+// The Web API side. spotify is set once startMusic has read the token file, whatever it found; link is set only
+// while a token is usable, and holds what the API last said. localMusic is the local reader's last read;
+// mergeMusic combines the two into model.music.
+type Spotify = { keeper: TokenKeeper; client: SpotifyClient }
+let spotify: Spotify | undefined
+let link: Link | undefined
+let localMusic: Music = { status: 'closed' }
+// One API poll loop, like the local one, plus one player read out at a time: a call that arrives while a read is out
+// sets apiAgain, and that read's end polls again instead of waiting for its timer.
+let apiTimer: Timer | undefined
+let apiSeq = 0
+let apiReading = false
+let apiAgain = false
+let musicInSight = false
+let spotifyName: string | undefined
+let premiumToasted = false
+// The right column while a connect is under way; undefined shows restingAccount().
+let connectFlow: Extract<AccountView, { step: 'steps' | 'waiting' }> | undefined
+let login: { kill(): void } | undefined
+const CLIENT_ID = /^[0-9a-f]{32}$/
 let modVersion: string | undefined
 // the plugin's userConfig, kept for loadSettings: an undo reloads settings outside register()
 let pluginOptions: Readonly<Record<string, unknown>> = {}
@@ -174,7 +198,8 @@ let playerNote: PlayerNote | undefined
 let playerCover = 0
 let playerSeekless = false
 
-function hostOf($: Engine): Host {
+// Exported for the wiring tests, which drive it with the test engine's $.
+export function hostOf($: Engine): Host {
   return {
     run: async (argv, env, timeoutMs) => {
       const r = await $.process.run(argv, env || timeoutMs ? { ...(env && { env }), ...(timeoutMs && { timeoutMs }) } : undefined)
@@ -209,10 +234,12 @@ function hostOf($: Engine): Host {
         let bad: { error: unknown } | undefined
         try {
           for await (const { stream, text } of child) {
+            // leaving the loop is what kills the child. return() waits behind a pull already out, so a piece can
+            // still arrive after kill(): it would complete a held line, and is dropped.
+            if (killed) return null
             const lines = (held[stream] + text).split('\n')
             held[stream] = lines.pop()!
             try { for (const l of lines) onLine(stream, line(l)) } catch (error) { bad = { error }; break }
-            // leaving the loop is what kills the child
             if (killed) return null
           }
         } catch { if (!bad) return null }
@@ -405,15 +432,26 @@ async function musicShown($: Engine): Promise<{ tab: boolean; player: boolean }>
     return { tab: view.tab === 'music' && panes.some(p => p.id === 'glowup' && p.isShown), player: panes.some(p => p.id === PLAYER_ID && p.isShown) }
   } catch { return { tab: false, player: false } }
 }
+// A track or play/pause change on this computer is the signal to ask the API now.
+const localChanged = (a: Music, b: Music) => a.status !== b.status || (a.status === 'open' && b.status === 'open' && (a.track?.uri !== b.track?.uri || a.playing !== b.playing))
+const localUri = () => (localMusic.status === 'open' ? localMusic.track?.uri : undefined)
+
 async function pollMusic($: Engine) {
   const mine = ++musicSeq
   musicTimer?.cancel(); musicTimer = undefined
   if (off || !musicReader) return
   const now = Date.now()
-  const next = await musicReader.read(hostOf($), now)
+  const read = await musicReader.read(hostOf($), now)
   if (off || mine !== musicSeq) return
   const shown = await musicShown($)
   if (off || mine !== musicSeq) return
+  const wasInSight = musicInSight
+  musicInSight = shown.tab || shown.player
+  const changed = localChanged(localMusic, read)
+  localMusic = read
+  // the queue is read only in sight, so coming into sight asks too
+  if (link && (changed || (musicInSight && !wasInSight))) void pollApi($)
+  const next = mergeMusic(read, link, model.music, now, apiDelay(musicPlaying(), musicInSight))
   // The seek bar Client moves itself; where there is none (VS Code, mobile) the static bar needs a redraw per read.
   const seekless = (shown.tab && paneSeekless) || (shown.player && playerSeekless)
   if (!sameMusic(model.music, next, now) || (seekless && next.status === 'open' && next.playing)) feed($, { type: 'music', music: next })
@@ -421,15 +459,130 @@ async function pollMusic($: Engine) {
   const art = next.status === 'open' ? next.track?.artUrl : undefined
   if (art && shown.tab) fetchCover($, art, COVER_COLS)
   if (art && shown.player && playerCover > 0) fetchCover($, art, playerCover)
-  musicTimer = $.clock.after(musicDelay(shown.tab || shown.player), () => void pollMusic($))
+  musicTimer = $.clock.after(musicDelay(musicInSight), () => void pollMusic($))
 }
+
+// Every API answer ends here: the merged state is drawn only when it differs.
+function showMusic($: Engine) {
+  const now = Date.now()
+  const next = mergeMusic(localMusic, link, model.music, now, apiDelay(musicPlaying(), musicInSight))
+  if (!sameMusic(model.music, next, now)) feed($, { type: 'music', music: next })
+}
+
+function stopApi() {
+  apiSeq++; apiTimer?.cancel(); apiTimer = undefined
+  apiReading = false; apiAgain = false
+}
+
+// Each call bumps apiSeq, so an answer that lands after stopApi or a newer loop is dropped.
+async function pollApi($: Engine) {
+  const s = spotify
+  if (off || !s || !link) return
+  if (apiReading) { apiAgain = true; return }
+  const mine = ++apiSeq
+  apiTimer?.cancel(); apiTimer = undefined
+  apiReading = true
+  // the local track as the read goes out: without it the merge takes any local track that differs from the API's
+  // for a change the API has not seen, and another computer's track flips with this one's on every local poll
+  const asked = localUri()
+  const r = await readPlayer(s.client)
+  if (mine !== apiSeq) return
+  apiReading = false
+  if (off || s !== spotify || !link) return
+  const intervalMs = apiDelay(musicPlaying(), musicInSight)
+  if (r.ok) link.last = { at: r.at, ...(r.music && { music: r.music }), ...(asked && { localUri: asked }), intervalMs }
+  else if (r.error.kind === 'reconnect') return lose($)
+  // busy: the last read's request is still out; offline, rate and server: local shows until a read succeeds
+  showMusic($)
+  const m = model.music
+  const uri = m?.status === 'open' && m.source === 'api' ? m.track?.uri : undefined
+  if (uri && link.liked?.uri !== uri) void readLiked($, s, uri)
+  if (uri && musicInSight && link.upNext?.uri !== uri) void readQueue($, s, uri)
+  if (apiAgain) { apiAgain = false; void pollApi($); return }
+  apiTimer = $.clock.after(apiDelay(musicPlaying(), musicInSight), () => void pollApi($))
+}
+
+// Once per track: the key is set before the read, so a failed read is not tried again for this track.
+async function readLiked($: Engine, s: Spotify, uri: string) {
+  link!.liked = { uri }
+  const a = await s.client.send(likedRequest(uri))
+  const on = a.ok ? parseLiked(a.text) : undefined
+  if (on === undefined || s !== spotify || link?.liked?.uri !== uri) return
+  link.liked = { uri, on }
+  showMusic($)
+}
+async function readQueue($: Engine, s: Spotify, uri: string) {
+  link!.upNext = { uri }
+  const a = await s.client.send(queueRequest())
+  const q = a.ok ? parseQueue(a.text) : undefined
+  if (!q?.[0] || s !== spotify || link?.upNext?.uri !== uri) return
+  link.upNext = { uri, item: q[0] }
+  showMusic($)
+}
+
+// A 401 after a refresh, or the refresh token refused: the app on this computer until the person connects again.
+function lose($: Engine) {
+  stopApi()
+  spotify?.keeper.lost()
+  link = undefined
+  showMusic($)
+  publish($)
+}
+
+const refusedText = (why: 'newer' | 'damaged') => why === 'newer'
+  ? `${tokenFile(configDir)} was saved by a newer glowup, so glowup uses the Spotify app on this computer until you update.`
+  : `${tokenFile(configDir)} is damaged. /glowup spotify disconnect removes it; then connect again.`
+
+// What the right column shows when no connect is under way.
+function restingAccount(): AccountView {
+  const st = spotify?.keeper.status()
+  if (link) return { step: 'connected', ...(spotifyName && { name: spotifyName }) }
+  if (st === 'reconnect') return { step: 'reconnect' }
+  if (st === 'newer' || st === 'damaged') return { step: 'refused', text: refusedText(st) }
+  return { step: 'pitch' }
+}
+
+// Reads the token file afresh: at session start, after a login and after a disconnect.
+async function startSpotify($: Engine) {
+  stopApi()
+  const host = hostOf($), path = tokenFile(configDir)
+  // the refresh token never leaves the file: the helper reads it there, and the mod passes only the generation it saw
+  const keeper = new TokenKeeper(host, path, async gen => {
+    const bin = await helperPath($)
+    if (!bin) return 1
+    return (await host.run([bin, 'spotify-refresh', '--file', path, '--if-gen', String(gen)], undefined, 20_000).catch(() => undefined))?.exitCode ?? 1
+  })
+  const r = await keeper.load()
+  const s: Spotify = { keeper, client: new SpotifyClient(host, keeper, () => Date.now()) }
+  spotify = s
+  link = r.ok ? {} : undefined
+  spotifyName = undefined
+  if (r.ok) { void pollApi($); void readName($, s) }
+  showMusic($)
+}
+async function readName($: Engine, s: Spotify) {
+  const a = await s.client.send(meRequest())
+  const name = a.ok ? parseMe(a.text) : undefined
+  if (!name || s !== spotify) return
+  spotifyName = name
+  publish($)
+}
+
 async function startMusic($: Engine) {
   covers = new ArtCache(20); coversInFlight = new Set(); artBin = undefined
+  localMusic = { status: 'closed' }; premiumToasted = false; connectFlow = undefined
   const platform = await musicPlatform($)
   musicReader = new MusicReader(await pickBackend(hostOf($), platform), platform)
+  await startSpotify($)
   void pollMusic($)
 }
-function stopMusic() { musicSeq++; musicTimer?.cancel(); musicTimer = undefined; musicReader = undefined }
+function stopMusic() {
+  musicSeq++; musicTimer?.cancel(); musicTimer = undefined; musicReader = undefined
+  stopApi()
+  login?.kill(); login = undefined
+}
+// The installer binary, looked up once per session for covers and token refreshes: a missing one stays missing.
+const helperPath = ($: Engine) => (artBin ??= installerTarget($).then(t => installerBinary($, t)).then(b => ('path' in b ? b.path : undefined), () => undefined))
 // size is the cover's side in pixels: COVER_COLS for the tab, playerCover for the dialog.
 function fetchCover($: Engine, url: string, size: number) {
   const key = `${size}:${url}`
@@ -437,8 +590,7 @@ function fetchCover($: Engine, url: string, size: number) {
   coversInFlight.add(key)
   void (async () => {
     try {
-      artBin ??= installerTarget($).then(t => installerBinary($, t)).then(b => ('path' in b ? b.path : undefined), () => undefined)
-      const bin = await artBin
+      const bin = await helperPath($)
       if (!bin) { covers.set(key, null); return }
       const r = await hostOf($).run([bin, 'spotify-art', '--size', String(size), smallArtUrl(url)], undefined, 15_000)
       // exit 2 is a usage error: a helper from before spotify-art, which will refuse every cover
@@ -450,10 +602,136 @@ function fetchCover($: Engine, url: string, size: number) {
     } catch { covers.set(key, null) } finally { coversInFlight.delete(key) }
   })()
 }
+// the controls the player takes: the local app's, or the API's while it runs the player
+const musicCapsFor = (m: Model) => capsOf(m.music, musicReader?.caps(), spotify?.client.premium ?? true)
 const coverFor = (m: Model, size = COVER_COLS) => { const u = m.music?.status === 'open' ? m.music.track?.artUrl : undefined; return u ? covers.get(`${size}:${u}`) ?? undefined : undefined }
+// Inline while the dialog shows, since it holds toasts until it closes; else a toast when toast is true.
+async function musicNote($: Engine, text: string, tone: PlayerNote['tone'], toast: boolean) {
+  if ((await musicShown($)).player) { playerNote = { text, tone }; publish($) }
+  else if (toast) $.ui.toast(text)
+}
+
 function pressMusic($: Engine, cmd: MusicCmd) {
-  const r = musicReader
-  if (r) void r.control(hostOf($), cmd).then(() => pollMusic($))
+  void (async () => {
+    const s = spotify, local = musicReader, m = model.music
+    const runLocal = async () => { if (local) { await local.control(hostOf($), cmd); void pollMusic($) } }
+    const route = routeOf(cmd, m, s?.client.premium ?? true)
+    if (route === 'none') return
+    if (route === 'local' || !s) return runLocal()
+    const uri = m?.status === 'open' ? m.track?.uri : undefined
+    const req = cmd.cmd === 'like' ? (uri ? likeRequest(uri, cmd.on) : undefined) : commandRequest(cmd, m?.status === 'open' && m.playing)
+    if (!req) return
+    const a = await s.client.send(req)
+    if (s !== spotify) return
+    if (a.ok) {
+      if (cmd.cmd === 'like' && uri && link) { link.liked = { uri, on: cmd.on }; showMusic($) }
+      void pollApi($)
+      return
+    }
+    // Spotify's error text is never shown: it is the raw body, which nobody vetted for what it carries
+    const e = a.error
+    if (e.kind === 'reconnect') return lose($)
+    if (e.kind === 'premium') {
+      await musicNote($, 'Spotify playback control needs Premium, so glowup uses the Spotify app on this computer for it.', 'error', !premiumToasted)
+      premiumToasted = true
+      return cmd.cmd === 'like' ? undefined : runLocal()
+    }
+    if (e.kind === 'offline' && route === 'apiThenLocal') return runLocal()
+    if (e.kind === 'noDevice') return musicNote($, 'Nothing is playing. Pick a device.', 'error', true)
+    if (e.kind === 'refused') return musicNote($, 'Spotify refused that right now.', 'ok', true)
+  })()
+}
+
+async function startLogin($: Engine, raw: string) {
+  const id = raw.trim().toLowerCase()
+  if (!CLIENT_ID.test(id)) { connectFlow = { step: 'steps', error: "A Client ID is 32 hex characters; copy it from your app's page on the dashboard." }; return publish($) }
+  const host = hostOf($), out = tokenFile(configDir)
+  // spotify-login writes over any file, so a newer glowup's that appeared since the steps opened is checked here too
+  const now = await readTokens(host, out)
+  if (!now.ok && now.why === 'newer') { connectFlow = { step: 'steps', error: refusedText('newer') }; return publish($) }
+  const bin = await installerBinary($, await installerTarget($))
+  if ('error' in bin) { connectFlow = { step: 'steps', error: `Connecting needs glowup-installer: ${bin.error}` }; return publish($) }
+  login?.kill()
+  const me = { kill: () => {} }
+  login = me
+  let lastErr = ''
+  connectFlow = { step: 'waiting' }
+  publish($)
+  const child = host.spawn([bin.path, 'spotify-login', '--client-id', id, '--out', out, '--paste-file', pasteFile(configDir)], (stream, line) => {
+    const l = line.trim()
+    if (login !== me || !l) return
+    // the helper's own sentences: it never prints a token or a response body
+    if (stream === 'stderr') { lastErr = l.slice(0, 300); return }
+    if (connectFlow?.step !== 'waiting') return
+    // the first stdout line is the authorize address; each later one says why a pasted address was refused
+    connectFlow = connectFlow.authUrl ? { ...connectFlow, notice: l } : { step: 'waiting', authUrl: l }
+    publish($)
+  })
+  me.kill = child.kill
+  const code = await child.done.catch(() => null)
+  if (login !== me) return
+  login = undefined
+  connectFlow = code === 0 ? undefined : { step: 'steps', error: lastErr || 'The login stopped before Spotify answered.' }
+  if (code === 0) await startSpotify($)
+  publish($)
+}
+
+// spotify-login polls the paste file, since a running child's stdin cannot be written to. Written beside it and moved
+// over it, or the helper can read half an address and refuse it as not from this login.
+async function pastedAddress($: Engine, text: string) {
+  if (!login || connectFlow?.step !== 'waiting') return
+  const host = hostOf($), dest = pasteFile(configDir), tmp = `${dest}.tmp`
+  try {
+    await host.writeFile(tmp, text.trim())
+    const r = await moveFile(host, tmp, dest, (await onWindows($)) ? 'windows' : 'linux')
+    if (r.exitCode !== 0) throw new Error(r.stderr.trim() || `exit ${r.exitCode}`)
+  } catch (err) {
+    $.ui.log(`spotify paste failed: ${err instanceof Error ? err.message : String(err)}`, { to: 'debug' })
+    if (connectFlow?.step !== 'waiting') return
+    connectFlow = { ...connectFlow, notice: 'Could not hand the address to the login. Try pasting it again.' }
+    publish($)
+  }
+}
+
+function cancelLogin($: Engine, to: typeof connectFlow) {
+  const l = login
+  login = undefined
+  l?.kill()
+  connectFlow = to
+  publish($)
+}
+
+async function disconnectSpotify($: Engine): Promise<string> {
+  const host = hostOf($), path = tokenFile(configDir)
+  if (!(await host.exists(path))) return 'Spotify is not connected.'
+  const bin = await installerBinary($, await installerTarget($))
+  if ('error' in bin) return `Disconnecting needs glowup-installer: ${bin.error}`
+  // the helper deletes the file, so it stays the only writer of the secret
+  const r = await host.run([bin.path, 'spotify-logout', '--file', path]).catch(() => undefined)
+  if (r?.exitCode !== 0) return `Could not remove ${path}: ${r?.stderr.trim() || 'glowup-installer failed'}`
+  await startSpotify($)
+  publish($)
+  return 'Disconnected. glowup uses the Spotify app on this computer again.'
+}
+
+async function spotifyCommand($: Engine, action: 'status' | 'connect' | 'disconnect'): Promise<string> {
+  if (action === 'disconnect') return disconnectSpotify($)
+  const r = await readTokens(hostOf($), tokenFile(configDir))
+  const lostIt = spotify?.keeper.status() === 'reconnect'
+  if (action === 'connect') {
+    // a newer glowup's file is never overwritten
+    if (!r.ok && r.why === 'newer') return refusedText('newer')
+    if (r.ok && !lostIt) return 'Spotify is already connected. Run /glowup spotify disconnect first to connect another account.'
+    connectFlow = { step: 'steps' }
+    publish($)
+    // opens the player, or brings an open one forward at the steps: never the toggle /glowup music uses
+    return openPlayer($, false, false)
+  }
+  if (!r.ok) return r.why === 'missing'
+    ? 'Spotify: the app on this computer. /glowup spotify connect adds your queue, likes and other devices; it needs Spotify Premium and a free developer app of your own.'
+    : refusedText(r.why)
+  if (lostIt) return 'Spotify needs you to connect again: /glowup spotify connect.'
+  return `Spotify: connected with Client ID ${r.tokens.clientId.slice(0, 8)}…${spotifyName ? ` as ${spotifyName}` : ''}. /glowup spotify disconnect stops it.`
 }
 
 function cancelHaiku() {
@@ -624,10 +902,11 @@ async function togglePane($: Engine): Promise<string> {
   return r.isPlaced ? 'glowup pane open (Esc closes it)' : `glowup pane waits: ${r.reason}`
 }
 
-// A command is the one close the engine lets a plugin raise on this pane, so it toggles like /glowup pane.
-async function openPlayer($: Engine, fromPane: boolean): Promise<string> {
+// A command is the one close the engine lets a plugin raise on this pane, so /glowup music toggles like /glowup pane.
+// toggle false (the connect flow) opens or brings forward, never closes.
+async function openPlayer($: Engine, fromPane: boolean, toggle = !fromPane): Promise<string> {
   const panes = await $.ui.panes()
-  if (!fromPane && panes.some(p => p.id === PLAYER_ID && p.isShown)) { await $.ui.close({ id: PLAYER_ID }); return 'Music player closed' }
+  if (toggle && panes.some(p => p.id === PLAYER_ID && p.isShown)) { await $.ui.close({ id: PLAYER_ID }); return 'Music player closed' }
   if (fromPane && panes.some(p => p.id === 'glowup' && p.isShown)) {
     await $.ui.close({ id: 'glowup' })
     reopenPane = true
@@ -1045,6 +1324,7 @@ function ctlOf($: Engine): Ctl {
     openConfig: () => openConfig($),
     openConfigTui: () => openConfigTui($),
     openPlayer: () => openPlayer($, false),
+    spotify: action => spotifyCommand($, action),
     // surfaces() is empty only in a plain -p run
     headless: async () => (await $.session.surfaces().catch(() => ['terminal'])).length === 0,
   }
@@ -1134,7 +1414,7 @@ export const register: Register = (on, options) => {
     }
     startBeat($)
     void checkStale($)
-    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|music|motion|statusline on|fields|setup|level|outfit|restore' })
+    await $.command.register({ name: 'glowup', description: 'Themes, the glowup pane and status line', argumentHint: 'config|theme|pack|spinner|color|import|export|pet|bubbles|pane|music|spotify|motion|statusline on|fields|setup|level|outfit|restore' })
     await loadSettings($, host)
     if (e.isInteractive) void startMusic($)
     sessionId = await $.session.id()
@@ -1433,7 +1713,8 @@ export const register: Register = (on, options) => {
         } }
       }
     }
-    return renderPane(els, m, theme, { ...v, meter: setup.meter, cover: coverFor(m), ...(musicReader && { musicCaps: musicReader.caps() }) }, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
+    const caps = musicCapsFor(m)
+    return renderPane(els, m, theme, { ...v, meter: setup.meter, cover: coverFor(m), ...(caps && { musicCaps: caps }) }, e.props.bodyColumns, compact, Date.now(), (id: TabId) => {
       view = { ...view, tab: id, offset: 0 }
       publish($)
       if (id === 'plan') void feedContext($)
@@ -1469,15 +1750,21 @@ export const register: Register = (on, options) => {
     if (art && playerCover > 0 && !cover) fetchCover($, art, playerCover)
     // Through JSON because Client props refuse undefined fields.
     const client = (key: string) => (props: SeekBarProps) => <els.Client key={key} module="./client/seekbar.tsx" props={JSON.parse(JSON.stringify(props))} width={props.cols} />
+    const caps = musicCapsFor(m)
     return renderPlayer(els, m, theme, {
       width: e.props.bodyColumns,
       bodyRows: e.props.scroll.bodyRows,
       ...(cover && { cover }),
-      ...(musicReader && { caps: musicReader.caps() }),
+      ...(caps && { caps }),
       ...(playerNote && { note: playerNote }),
+      account: connectFlow ?? restingAccount(),
     }, Date.now(), {
       onMusic: cmd => pressMusic($, cmd),
       onCopy: url => void copyTrackLink($, url, e.surface),
+      onConnect: () => { connectFlow = { step: 'steps' }; playerNote = undefined; publish($) },
+      onClientId: id => void startLogin($, id),
+      onPaste: text => void pastedAddress($, text),
+      onCancel: () => cancelLogin($, { step: 'steps' }),
       ...(clients && { seek: client('glowup-seek'), volume: client('glowup-volume') }),
     })
   })
@@ -1486,6 +1773,8 @@ export const register: Register = (on, options) => {
     if (off || e.id !== PLAYER_ID) return next(e)
     const r = await next(e)
     playerNote = undefined
+    // the connect flow belongs to the dialog: closing it stops a waiting login
+    if (connectFlow) cancelLogin($, undefined)
     // an unload is the mod going away, and a hot-reloaded module has nothing to reopen
     if (reopenPane && e.origin.kind !== 'unload') await $.ui.open(PANE_OPEN).catch(() => {})
     reopenPane = false
