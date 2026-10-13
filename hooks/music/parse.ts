@@ -9,6 +9,8 @@ export type QueueItem = { uri: string; title: string; artist: string; durationMs
 export type OpenMusic = {
   status: 'open'; track?: Track; playing: boolean; ad: boolean; progressMs: number; readAt: number; shuffle?: boolean; repeat?: Repeat; volume?: number
   source?: 'api' | 'local'; device?: Device; liked?: boolean; upNext?: QueueItem
+  // set with source local when progressMs was raised above the local read's own position: that raw position
+  held?: number
 }
 export type Music = { status: 'closed' } | { status: 'unsupported'; hint: string } | OpenMusic
 export type MusicCmd =

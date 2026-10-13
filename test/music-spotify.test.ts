@@ -17,7 +17,7 @@ async function rig(reply: (req: FakeRequest) => Reply | Promise<Reply>, refresh:
   return { ...kit, keeper, client: new SpotifyClient(kit.host, keeper, () => now), at: (t: number) => { now = t } }
 }
 const tick = () => new Promise<void>(res => { setTimeout(res, 0) })
-const auth =(reqs: FakeRequest[]) => reqs.map(r => r.headers.Authorization)
+const auth = (reqs: FakeRequest[]) => reqs.map(r => r.headers.Authorization)
 
 test('a read carries the bearer token and is dated when the answer arrived', async () => {
   const r = await rig(() => ({ status: 200, text: PLAYER }))

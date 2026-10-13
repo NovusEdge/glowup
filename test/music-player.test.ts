@@ -75,6 +75,9 @@ test('a failing API falls back to local without moving the bar back, and recover
   // the floor holds for as long as the fallback lasts
   const still = mergeMusic(local({ playing: false, readAt: 8500 }), onPhone, fallen, 8500, I) as OpenMusic
   expect([still.source, still.progressMs]).toEqual(['local', 67_000])
+  // a local read at another position is a real seek back: followed
+  const sought = mergeMusic(local({ playing: false, readAt: 8700, progressMs: 20_000 }), onPhone, still, 8700, I) as OpenMusic
+  expect([sought.source, sought.progressMs, sought.held]).toEqual(['local', 20_000, undefined])
   const back = mergeMusic(local({ playing: false, readAt: 9000 }), { last: { at: 9000, music: api({ device: phone, progressMs: 68_000, readAt: 9000 }) } }, still, 9000, I) as OpenMusic
   expect([back.source, back.progressMs]).toEqual(['api', 68_000])
 })

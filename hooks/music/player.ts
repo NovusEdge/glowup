@@ -43,12 +43,15 @@ function withTrackFacts(m: Music, link: Link): Music {
   return { ...m, ...(link.liked?.uri === uri && link.liked.on !== undefined && { liked: link.liked.on }), ...(link.upNext?.uri === uri && link.upNext.item && { upNext: link.upNext.item }) }
 }
 
-// The bar for the same track never moves back unless the API itself reports it (a seek on another device): the local
-// app can lag, or know nothing of a track playing elsewhere, and does so for as long as the API stays quiet.
+// A switch of source for the same track never pulls the bar back: one source can lag the other by a poll. When the
+// API goes quiet the floor stays for as long as the local read is the one it was taken against (held): an idle or
+// stale app reports the same position again, a changed one is a real seek or playback and is followed.
 function keepProgress(m: Music, prev: Music | undefined, now: number): Music {
   if (m.status !== 'open' || prev?.status !== 'open' || (m.source === 'api' && prev.source === 'api') || !m.track?.uri || m.track.uri !== prev.track?.uri) return m
+  if (m.source === 'local' && prev.source === 'local' && m.progressMs !== prev.held) return m
   const was = progressAt(prev, now)
-  return progressAt(m, now) < was - SEEK_MS ? { ...m, progressMs: Math.round(was), readAt: now } : m
+  if (progressAt(m, now) >= was - SEEK_MS) return m
+  return { ...m, progressMs: Math.round(was), readAt: now, ...(m.source === 'local' && { held: m.progressMs }) }
 }
 
 // premium false: Spotify answered PREMIUM_REQUIRED once this session, so transport stays local.
