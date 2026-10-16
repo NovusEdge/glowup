@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-16
+
 ### Added
 
 - `/glowup music`, or `o: Player` on the Music tab, opens a music player: a pane with a bigger cover, the seek bar, the controls, Open Spotify (`o`) and Copy link (`c`), and on macOS a volume bar.
