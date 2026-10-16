@@ -24,6 +24,10 @@ He only appears in the pane, so you see him when the pane is docked beside the t
 | ![Clawd panting](assets/clawd/pant/clip.gif) | By default, once the context window is 80% full, he pants. |
 | ![Clawd dancing](assets/clawd/done/clip.gif) | At the end of a turn he does a little dance. |
 | ![Clawd asleep](assets/clawd/sleep/clip.gif) | By default, after a minute with nothing happening he falls asleep, and stretches when something wakes him. |
+| ![Clawd dancing to music](assets/clawd/dance/clip.gif) | While Spotify plays and Claude is idle, he dances. `/glowup setup pet.dance off` stops it. |
+| ![Clawd typing to music](assets/clawd/work-dance/clip.gif) | While Spotify plays and Claude is working, he bobs along as he types. |
+| ![Clawd yawning and stretching](assets/clawd/idle2/clip.gif) | From level 5, about one time in eight when he settles, he yawns and stretches. |
+| ![Clawd eating a cookie](assets/clawd/idle3/clip.gif) | From level 10, he sometimes eats a cookie instead. |
 
 On a Friday after 15:00, a deploy command gets him into a sweat outfit.
 

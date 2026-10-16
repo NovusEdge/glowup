@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/glowup music`, or `o: Player` on the Music tab, opens a music player: a pane with a bigger cover, the seek bar, the controls, Open Spotify (`o`) and Copy link (`c`), and on macOS a volume bar.
 - `/glowup spotify connect` connects your own Spotify developer app (Premium needed). The Music tab and player then follow playback on any device, show a heart to like the track (`l`) and the next track in your queue, and fall back to the local app while the Web API is not answering. Windows gets the player this way. See docs/spotify.md.
 - With Spotify connected, the music player lists Up next, Recent, Playlists and Devices (`1` to `4`). Enter skips forward to a queued track, replays a recent one in its playlist or album, starts a playlist, or moves playback to another device.
+- The Pets page and the landing page show Clawd dancing to music and his two idle variants.
+
+### Fixed
+
+- The landing page's hop, fail and scrunch cards replay instead of freezing on their last frame.
 
 ## [1.1.0] - 2026-10-12
 

@@ -13,6 +13,9 @@ const MOODS: [string, string][] = [
   ['pant', 'the context is 80% full'],
   ['sleep', 'nothing for a minute'],
   ['hop', 'you click him'],
+  ['dance', 'Spotify is playing'],
+  ['idle2', 'from level 5, now and then'],
+  ['idle3', 'from level 10, now and then'],
 ]
 const OUTFITS = ['none', ...Object.keys(CLAWD_SHEET.outfits ?? {})]
 
