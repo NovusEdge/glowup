@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - With Spotify connected, the music player lists Up next, Recent, Playlists and Devices (`1` to `4`). Enter skips forward to a queued track, replays a recent one in its playlist or album, starts a playlist, or moves playback to another device.
 - The Pets page and the landing page show Clawd dancing to music and his two idle variants.
 
+### Changed
+
+- The ghost and the robot walk left with hand-drawn frames instead of a mirrored right walk, so they stay lit from the top left like Clawd.
+
 ### Fixed
 
 - The landing page's hop, fail and scrunch cards replay instead of freezing on their last frame.
