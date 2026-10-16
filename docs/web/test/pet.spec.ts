@@ -20,6 +20,16 @@ test('pose mode settles into the pose', () => {
   assert.equal(p.seg!.pose, 'working')
 })
 
+test('pose mode replays an animation that plays once', () => {
+  const p = newPlayer()
+  const starts = new Set<number>()
+  for (let t = 0; t < 30_000; t += 50) {
+    petTick(p, { kind: 'pose', pose: 'scrunch' }, t, 0)
+    if (p.seg!.pose === 'scrunch' && !p.seg!.clip) starts.add(p.seg!.start)
+  }
+  assert.ok(starts.size >= 3, `scrunch started ${starts.size} times`)
+})
+
 test('petTick plays a given sheet', () => {
   const sheet = { w: 2, h: 2, palette: { A: '#000000' }, animations: { idle: { loop: true, frames: [{ ms: 100, px: ['AA', 'AA'] }] } } }
   const p = newPlayer()
